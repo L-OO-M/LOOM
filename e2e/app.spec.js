@@ -1,0 +1,81 @@
+const { test, expect } = require("@playwright/test");
+
+// Unauthenticated route protection: every protected page redirects to /login,
+// every protected API returns 401 (except the HMAC-verified GitHub webhook).
+const protectedPages = [
+  "/student",
+  "/student/roadmap",
+  "/student/resources",
+  "/student/projects",
+  "/student/projects/new",
+  "/student/github",
+  "/student/contests",
+  "/student/mentorship",
+  "/student/leaderboard",
+  "/student/notifications",
+  "/student/privacy",
+  "/student/settings",
+  "/student/onboarding",
+  "/admin",
+  "/admin/students",
+  "/admin/roadmaps",
+  "/admin/resources",
+  "/admin/projects",
+  "/admin/contests",
+  "/admin/mentors",
+  "/admin/flags",
+  "/admin/audit",
+  "/admin/settings"
+];
+
+test.describe("route protection", () => {
+  for (const path of protectedPages) {
+    test(`${path} redirects to login when unauthenticated`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/login\?redirect=/);
+    });
+  }
+
+  test("setup is public (first-admin bootstrap)", async ({ page }) => {
+    await page.goto("/setup");
+    await expect(page).not.toHaveURL(/\/login/);
+  });
+});
+
+test.describe("api authorization", () => {
+  const apis = [
+    "/api/roadmap",
+    "/api/resources",
+    "/api/projects",
+    "/api/contests",
+    "/api/mentorship",
+    "/api/leaderboard",
+    "/api/notifications",
+    "/api/profile",
+    "/api/github",
+    "/api/admin/students",
+    "/api/admin/flags",
+    "/api/admin/audit"
+  ];
+  for (const path of apis) {
+    test(`GET ${path} returns 401 without session`, async ({ request }) => {
+      const res = await request.get(path);
+      expect(res.status()).toBe(401);
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+    });
+  }
+
+  test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
+    expect(res.status()).toBe(401);
+  });
+
+  test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {
+    const res = await request.post("/api/github/webhook", {
+      headers: { "x-github-event": "push", "x-github-delivery": "test" },
+      data: "{}"
+    });
+    expect([400, 401]).toContain(res.status());
+  });
+});

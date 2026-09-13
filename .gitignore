@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Env & secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Logs & test artifacts
+*.log
+playwright-report/
+test-results/
+coverage/
+
+# Local proof screenshots (large binaries)
+.screenshots/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
