@@ -11,12 +11,6 @@ import ClaimForm from "./ClaimForm";
 
 export const dynamic = "force-dynamic";
 
-function fmtStars(n) {
-  if (!n) return "0";
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
 export default async function OpenSourcePage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/opensource");
@@ -81,23 +75,11 @@ export default async function OpenSourcePage({ searchParams }) {
                   caption="Curated beginner-friendly repositories"
                   empty="No repos match. Try a different search — or ask your chapter admin to curate one."
                   columns={[
-                    {
-                      key: "repo", label: "Repository", render: (p) => (
-                        <span>
-                          <a href={p.github_repo_url} target="_blank" rel="noreferrer" className="font-mono font-semibold hover:underline" style={{ color: "var(--text)" }}>
-                            {p.owner}/{p.repo_name}
-                          </a>
-                          {p.description && <span className="mt-0.5 block max-w-md truncate font-sans text-xs font-normal" style={{ color: "var(--text-muted)" }}>{p.description}</span>}
-                        </span>
-                      )
-                    },
+                    { key: "repo", label: "Repository", kind: "repo" },
                     { key: "difficulty", label: "Level" },
-                    { key: "language", label: "Lang", render: (p) => p.language || "—" },
-                    { key: "stars", label: "Stars", mono: true, align: "right", render: (p) => fmtStars(p.stars) },
-                    {
-                      key: "gfi", label: "Good first issues", mono: true, align: "right",
-                      render: (p) => p.good_first_issues > 0 ? `${p.good_first_issues}+` : "—"
-                    }
+                    { key: "language", label: "Lang" },
+                    { key: "stars", label: "Stars", mono: true, align: "right", kind: "stars" },
+                    { key: "gfi", label: "Good first issues", mono: true, align: "right", kind: "gfi" }
                   ]}
                   rows={visible}
                 />

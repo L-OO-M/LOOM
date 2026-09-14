@@ -96,20 +96,12 @@ export default async function GithubPage() {
               caption="Tracked repositories with recent activity"
               empty="No repositories yet. They appear here when webhook events arrive for your repos."
               columns={[
-                { key: "full_name", label: "Repository", mono: true, render: (r) => <span className="font-medium" style={{ color: "var(--text)" }}>{r.full_name}</span> },
-                {
-                  key: "pulse", label: "Recent pulse", render: (r) => (
-                    <span className="flex gap-1" aria-hidden="true">
-                      {Array.from({ length: Math.min(6, pulse[r.id] || 0) }).map((_, i) => (
-                        <span key={i} className="size-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-                      ))}
-                      {(pulse[r.id] || 0) === 0 && <span className="meta">quiet</span>}
-                    </span>
-                  )
-                },
-                { key: "connected_at", label: "Tracked since", render: (r) => new Date(r.connected_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) }
+                { key: "full_name", label: "Repository", mono: true, kind: "strong" },
+                { key: "pulse", label: "Recent pulse", kind: "pulse" },
+                { key: "connected_at", label: "Tracked since", kind: "date" }
               ]}
               rows={repos}
+              pulse={pulse}
             />
           </div>
         </section>

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
@@ -30,20 +29,12 @@ export default async function AdminStudentsPage({ searchParams }) {
             caption="Student roster"
             empty="No students found."
             columns={[
-              {
-                key: "name", label: "Student", render: (s) => (
-                  <Link href={`/admin/students/${s.user_id}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>{s.name}</Link>
-                )
-              },
+              { key: "name", label: "Student", kind: "student" },
               { key: "role", label: "Role" },
-              { key: "primary_domain", label: "Track", render: (s) => s.primary_domain || "—" },
-              { key: "department", label: "Dept", render: (s) => s.department || "—" },
-              { key: "year", label: "Yr", mono: true, render: (s) => s.year ?? "—" },
-              {
-                key: "open", label: "", align: "right", render: (s) => (
-                  <Link href={`/admin/students/${s.user_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Open →</Link>
-                )
-              }
+              { key: "primary_domain", label: "Track" },
+              { key: "department", label: "Dept" },
+              { key: "year", label: "Yr", mono: true },
+              { key: "open", label: "", align: "right", kind: "studentOpen" }
             ]}
             rows={rows}
           />

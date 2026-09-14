@@ -77,7 +77,9 @@ export function AppShell({ area = "student", tenant, user, children }) {
             aria-label="Primary"
           >
             <BrandMark size={24} href={area === "admin" ? "/admin" : "/student"} className="mr-1" />
-            <div ref={menuRef} className="flex max-w-full items-center gap-0.5 overflow-x-auto">
+            {/* No scroll container here: overflow-x would clip the dropdown
+                popups vertically. Icon-first pills fit every width instead. */}
+            <div ref={menuRef} className="flex max-w-full items-center gap-0.5 overflow-visible">
               {tabs.map((item) => {
                 const Icon = icons[item.icon] || Home;
                 const groupActive = activeGroup?.id === item.id;
@@ -86,35 +88,42 @@ export function AppShell({ area = "student", tenant, user, children }) {
                     <Link
                       key={item.id}
                       href={item.href}
-                      className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
+                      aria-label={item.label}
+                      className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
                     >
-                      {item.label}
+                      <Icon size={16} strokeWidth={groupActive ? 2 : 1.5} />
+                      <span className="hidden lg:inline">{item.label}</span>
                     </Link>
                   );
                 }
                 const open = openMenu === item.id;
+                // The last menu aligns right so it never spills past the viewport.
+                const alignRight = item.id === tabs[tabs.length - 1].id;
+                const menuX = alignRight ? "0%" : "-50%";
                 return (
                   <div key={item.id} className="relative hidden shrink-0 sm:block">
                     <button
                       onClick={() => setOpenMenu(open ? null : item.id)}
                       aria-haspopup="menu"
                       aria-expanded={open}
-                      className={`nav-ink flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition ${groupActive ? "is-active" : ""}`}
+                      aria-label={item.label}
+                      className={`nav-ink flex items-center gap-1 rounded-full px-2.5 py-2 text-sm font-medium transition ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
                     >
-                      {item.label}
+                      <Icon size={16} strokeWidth={groupActive ? 2 : 1.5} />
+                      <span className="hidden lg:inline">{item.label}</span>
                       <ChevronDown size={13} strokeWidth={2} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s var(--ease-out)" }} />
                     </button>
                     <AnimatePresence>
                       {open && (
                         <motion.div
                           role="menu"
-                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                          initial={{ opacity: 0, x: menuX, y: 6, scale: 0.98 }}
+                          animate={{ opacity: 1, x: menuX, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: menuX, y: 4, scale: 0.98 }}
                           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                          className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 overflow-hidden rounded-2xl border p-1.5 shadow-xl"
+                          className={`absolute top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border p-1.5 shadow-xl ${alignRight ? "right-0" : "left-1/2"}`}
                           style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", transformOrigin: "top center" }}
                         >
                           {item.children.map((child) => {
@@ -142,22 +151,6 @@ export function AppShell({ area = "student", tenant, user, children }) {
                       )}
                     </AnimatePresence>
                   </div>
-                );
-              })}
-              {/* Compact verb icons on small screens */}
-              {tabs.filter((t) => t.id !== "dashboard").map((item) => {
-                const Icon = icons[item.icon] || Home;
-                const groupActive = activeGroup?.id === item.id;
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    aria-label={item.label}
-                    className="rounded-full p-2 transition active:scale-95 sm:hidden"
-                    style={{ color: groupActive ? "var(--accent)" : "var(--text-muted)" }}
-                  >
-                    <Icon size={18} strokeWidth={groupActive ? 2 : 1.5} />
-                  </Link>
                 );
               })}
             </div>

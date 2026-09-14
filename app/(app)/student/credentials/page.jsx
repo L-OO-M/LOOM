@@ -103,15 +103,9 @@ export default async function CredentialsPage() {
               <DataTable
                 caption="Signed credential share links"
                 columns={[
-                  { key: "title", label: "Credential", render: (c) => <span className="font-medium">{c.title}</span> },
-                  { key: "view_count", label: "Views", mono: true, align: "right", render: (c) => c.view_count || 0 },
-                  {
-                    key: "link", label: "Link", align: "right", render: (c) => (
-                      <a href={`/verify/credential/${c.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                        Open →
-                      </a>
-                    )
-                  }
+                  { key: "title", label: "Credential", kind: "strong" },
+                  { key: "view_count", label: "Views", mono: true, align: "right", fallback: "0" },
+                  { key: "link", label: "Link", align: "right", kind: "verify" }
                 ]}
                 rows={credentials}
               />
