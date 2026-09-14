@@ -2,8 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat, EmptyState, PrimaryLink } from "@/components/ui";
 import { OSS_BADGES } from "@/lib/oss";
+import { Display, Meta, PlainStat, StatusPill } from "@/components/loom/primitives";
+import { Timeline, TimelineItem } from "@/components/loom/Timeline";
+import { DataTable } from "@/components/loom/DataTable";
+import { OnboardingState } from "@/components/loom/States";
 import ClaimForm from "./ClaimForm";
 
 export const dynamic = "force-dynamic";
@@ -46,104 +49,110 @@ export default async function OpenSourcePage({ searchParams }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader
-          kicker="Open source"
-          title="Contribution portal"
-          desc="Claim PRs against curated beginner-friendly repos. Merges auto-verify via webhook and earn badges."
-          action={<PrimaryLink href="/student/github">Connect GitHub</PrimaryLink>}
-        />
+      <main className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Meta>Build · write code the world uses</Meta>
+        <Display size="lg" className="mt-3">Open source, with training wheels off.</Display>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Tracked repos" value={projects.length} />
-          <Stat label="My contributions" value={mine.length} />
-          <Stat label="Verified merges" value={verified} />
-          <Stat label="Badges" value={`${earned.size}/${OSS_BADGES.length}`} />
+        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+          <PlainStat value={verified} unit={verified === 1 ? "merge" : "merges"} label="verified by webhook — the only number that matters" />
+          <PlainStat value={mine.length} unit="claimed" label="pull requests you've put your name on" />
+          <PlainStat value={`${earned.size}/${OSS_BADGES.length}`} unit="badges" label="in your badge journal" />
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="mt-12 grid gap-12 lg:grid-cols-[1fr_360px]">
           <div>
-            <form method="get" className="flex flex-wrap gap-2">
-              <input name="q" defaultValue={sp?.q || ""} placeholder="Search repos…" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
-              <select name="difficulty" defaultValue={diff} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
-                <option value="">All levels</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-              <button className="btn-ink" type="submit">Filter</button>
-            </form>
+            <section aria-label="Beginner-friendly repositories">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="h-product">Start somewhere kind</h2>
+                <span className="meta">{visible.length} curated repos</span>
+              </div>
+              <form method="get" className="mt-4 flex flex-wrap gap-2">
+                <input name="q" defaultValue={sp?.q || ""} placeholder="Search repos…" aria-label="Search repositories" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+                <select name="difficulty" defaultValue={diff} aria-label="Filter by difficulty" className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                  <option value="">All levels</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+                <button className="btn-ink !py-2" type="submit">Filter</button>
+              </form>
+              <div className="mt-4 border-y" style={{ borderColor: "var(--line)" }}>
+                <DataTable
+                  caption="Curated beginner-friendly repositories"
+                  empty="No repos match. Try a different search — or ask your chapter admin to curate one."
+                  columns={[
+                    {
+                      key: "repo", label: "Repository", render: (p) => (
+                        <span>
+                          <a href={p.github_repo_url} target="_blank" rel="noreferrer" className="font-mono font-semibold hover:underline" style={{ color: "var(--text)" }}>
+                            {p.owner}/{p.repo_name}
+                          </a>
+                          {p.description && <span className="mt-0.5 block max-w-md truncate font-sans text-xs font-normal" style={{ color: "var(--text-muted)" }}>{p.description}</span>}
+                        </span>
+                      )
+                    },
+                    { key: "difficulty", label: "Level" },
+                    { key: "language", label: "Lang", render: (p) => p.language || "—" },
+                    { key: "stars", label: "Stars", mono: true, align: "right", render: (p) => fmtStars(p.stars) },
+                    {
+                      key: "gfi", label: "Good first issues", mono: true, align: "right",
+                      render: (p) => p.good_first_issues > 0 ? `${p.good_first_issues}+` : "—"
+                    }
+                  ]}
+                  rows={visible}
+                />
+              </div>
+            </section>
 
-            {visible.length === 0 ? (
-              <div className="mt-4"><EmptyState title="No repos match" body="Try a different search, or ask your chapter admin to curate a repo." /></div>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {visible.map((p) => (
-                  <li key={p.id}>
-                    <Card>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-medium" style={{ color: "var(--text)" }}>{p.owner}/{p.repo_name}</p>
-                          {p.description && <p className="mt-1 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{p.description}</p>}
-                          <p className="mt-2 flex flex-wrap gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                            <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{p.difficulty}</span>
-                            {p.language && <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{p.language}</span>}
-                            <span>★ {fmtStars(p.stars)}</span>
-                            {p.good_first_issues > 0 && <span>{p.good_first_issues}+ good-first-issues</span>}
-                          </p>
-                        </div>
-                        <a href={p.github_repo_url} target="_blank" rel="noreferrer" className="btn-ink shrink-0">Open repo ↗</a>
-                      </div>
-                    </Card>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <section className="mt-12" aria-label="Your contributions">
+              <h2 className="h-product">Your trail</h2>
+              {mine.length === 0 ? (
+                <p className="narrative mt-3">Nothing claimed yet. Open a pull request in a repo above, then claim it below — merges verify automatically.</p>
+              ) : (
+                <Timeline className="mt-5">
+                  {mine.slice(0, 8).map((c) => (
+                    <TimelineItem
+                      key={c.id}
+                      state={c.status === "verified" ? "done" : "now"}
+                      title={c.title || `${c.owner ? `${c.owner}/${c.repo_name}#${c.pr_number ?? ""}` : "Pull request"}`}
+                      meta={new Date(c.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                      body={`${c.status}${c.verified_at ? " · merge verified" : " · awaiting merge"}`}
+                      action={c.pr_url ? <a href={c.pr_url} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Open PR →</a> : null}
+                    />
+                  ))}
+                </Timeline>
+              )}
+            </section>
           </div>
 
-          <div className="space-y-6">
-            <Card>
-              <h2 className="font-medium" style={{ color: "var(--text)" }}>Claim a contribution</h2>
-              <ClaimForm />
-            </Card>
+          <div className="space-y-10">
+            <section aria-label="Claim a contribution" className="border-y py-6" style={{ borderColor: "var(--line)" }}>
+              <Meta style={{ color: "var(--accent)" }}>Merged something? Claim it</Meta>
+              <div className="mt-3"><ClaimForm /></div>
+            </section>
 
-            <Card>
-              <h2 className="font-medium" style={{ color: "var(--text)" }}>Badge journal</h2>
-              <ul className="mt-3 space-y-2">
-                {OSS_BADGES.map((b) => (
-                  <li key={b.key} className="flex items-center justify-between gap-2 text-sm">
-                    <span style={{ color: earned.has(b.key) ? "var(--text)" : "var(--text-muted)" }}>
-                      {earned.has(b.key) ? "●" : "○"} {b.name} <span className="text-xs">— {b.desc}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-
-            <Card>
-              <h2 className="font-medium" style={{ color: "var(--text)" }}>My contributions</h2>
-              {mine.length === 0 ? (
-                <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Nothing claimed yet. Open a PR, then claim it here.</p>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm">
-                  {mine.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between gap-2">
-                      <a href={c.pr_url} target="_blank" rel="noreferrer" className="min-w-0 truncate" style={{ color: "var(--accent)" }}>
-                        {c.owner ? `${c.owner}/${c.repo_name}#${c.pr_number ?? ""}` : c.pr_url} — {c.title}
-                      </a>
-                      <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs" style={{
-                        borderColor: "var(--line)",
-                        color: c.status === "verified" ? "var(--accent)" : "var(--text-muted)"
-                      }}>{c.status}</span>
+            <section aria-label="Badge journal">
+              <h2 className="h-product">Badge journal</h2>
+              <ol className="mt-4 space-y-3">
+                {OSS_BADGES.map((b) => {
+                  const has = earned.has(b.key);
+                  return (
+                    <li key={b.key} className="flex items-start gap-3">
+                      <span className="mt-1 size-2 shrink-0 rounded-full" style={{ background: has ? "var(--accent)" : "var(--line)" }} aria-hidden="true" />
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: has ? "var(--text)" : "var(--text-muted)" }}>{b.name}</p>
+                        <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>{b.desc}</p>
+                      </div>
                     </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+                  );
+                })}
+              </ol>
+            </section>
           </div>
         </div>
-        <p className="mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/network" style={{ color: "var(--accent)" }}>Compare with other chapters →</Link>
+
+        <p className="narrative mt-10">
+          Chapters learn from each other. <Link href="/student/network" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Compare with other chapters →</Link>
         </p>
       </main>
     </AppShell>

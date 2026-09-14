@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card } from "@/components/ui";
+import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import ContestDetailClient from "./ContestDetailClient";
 
 export default async function ContestDetailPage({ params }) {
@@ -17,16 +17,19 @@ export default async function ContestDetailPage({ params }) {
   const submissions = await sql`SELECT * FROM contest_submissions WHERE contest_id = ${id} AND student_id = ${user.id} ORDER BY created_at DESC LIMIT 10`;
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}><Link href="/student/contests" style={{ color: "var(--accent)" }}>← Contests</Link></p>
-        <PageHeader kicker={contest.status} title={contest.title} desc={contest.description || "No description"} />
-        <Card>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {contest.starts_at ? `Starts ${new Date(contest.starts_at).toLocaleString("en-IN")}` : "Start TBD"}
-            {contest.ends_at ? ` · Ends ${new Date(contest.ends_at).toLocaleString("en-IN")}` : ""}
-          </p>
-        </Card>
-        <div className="mt-4">
+      <main className="mx-auto max-w-3xl px-4 sm:px-6">
+        <Link href="/student/contests" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Challenges</Link>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <StatusPill tone={contest.status === "open" || contest.status === "published" ? "live" : ""}>{contest.status}</StatusPill>
+          <span className="meta">
+            {contest.starts_at ? `starts ${new Date(contest.starts_at).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "start TBD"}
+            {contest.ends_at ? ` · ends ${new Date(contest.ends_at).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
+          </span>
+          {reg && <StatusPill tone="live">you're in</StatusPill>}
+        </div>
+        <Display size="lg" className="mt-3">{contest.title}</Display>
+        <p className="lede mt-4">{contest.description || "Details are being finalized — register now and they will land in your inbox."}</p>
+        <div className="mt-8">
           <ContestDetailClient contest={contest} registered={!!reg} submissions={submissions} />
         </div>
       </main>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card } from "@/components/ui";
+import { Display, Meta } from "@/components/loom/primitives";
 import { VoteButton, FlagButton } from "../../CommunityBits";
 import { ReplyForm, SolveButton } from "../ForumsBits";
 
@@ -33,45 +33,50 @@ export default async function ThreadPage({ params }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/community/forums" style={{ color: "var(--accent)" }}>← Forums</Link>
-        </p>
-        <PageHeader kicker={thread.domain} title={thread.title} desc={`by ${thread.author_name || "a student"} · ${thread.view_count + 1} views`} />
-        <Card>
-          <div className="flex items-start gap-3">
-            <VoteButton targetType="thread" targetId={thread.id} count={thread.upvote_count} />
-            <p className="whitespace-pre-wrap text-sm leading-6" style={{ color: "var(--text)" }}>{thread.body || "No details."}</p>
-          </div>
-          <div className="mt-3 flex justify-end"><FlagButton targetType="thread" targetId={thread.id} /></div>
-        </Card>
+      <main className="mx-auto max-w-3xl px-4 sm:px-6">
+        <Link href="/student/community/forums" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Forums</Link>
+        <Meta className="mt-4">
+          {thread.domain} · by {thread.author_name || "a student"} · {thread.view_count + 1} reads
+          {thread.solved ? " · solved" : ""}
+        </Meta>
+        <Display size="md" className="mt-3">{thread.title}</Display>
 
-        <h2 className="mt-8 font-medium" style={{ color: "var(--text)" }}>{replies.length} replies</h2>
-        <ul className="mt-4 space-y-3">
-          {replies.map((r) => (
-            <li key={r.id}>
-              <Card className={r.is_answer ? "!border-[var(--accent)]" : ""}>
-                <div className="flex items-start gap-3">
-                  <VoteButton targetType="reply" targetId={r.id} count={r.upvote_count} />
+        <article className="mt-6 border-y py-6" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-start gap-4">
+            <span className="pt-1"><VoteButton targetType="thread" targetId={thread.id} count={thread.upvote_count} /></span>
+            <p className="lede whitespace-pre-wrap" style={{ color: "var(--text)" }}>{thread.body || "No details."}</p>
+          </div>
+          <div className="mt-4 flex justify-end"><FlagButton targetType="thread" targetId={thread.id} /></div>
+        </article>
+
+        <section className="mt-10" aria-label="Replies">
+          <Meta>{replies.length} {replies.length === 1 ? "reply" : "replies"}</Meta>
+          <ul className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
+            {replies.map((r) => (
+              <li key={r.id} className="py-5" style={r.is_answer ? { borderLeft: "2px solid var(--accent)", paddingLeft: "1rem" } : undefined}>
+                <div className="flex items-start gap-4">
+                  <span className="pt-0.5"><VoteButton targetType="reply" targetId={r.id} count={r.upvote_count} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <p className="meta">
                       {r.author_name || "a student"}{r.is_answer ? <span style={{ color: "var(--accent)" }}> · ✓ solution</span> : ""}
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-6" style={{ color: "var(--text)" }}>{r.body}</p>
+                    <p className="mt-1.5 whitespace-pre-wrap text-[0.95rem] leading-7" style={{ color: "var(--text)" }}>{r.body}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     {canSolve && !r.is_answer && <SolveButton threadId={thread.id} replyId={r.id} />}
                     <FlagButton targetType="reply" targetId={r.id} />
                   </div>
                 </div>
-              </Card>
-            </li>
-          ))}
-        </ul>
-        <Card className="mt-6">
-          <h3 className="font-medium" style={{ color: "var(--text)" }}>Add a reply</h3>
-          <ReplyForm threadId={thread.id} />
-        </Card>
+              </li>
+            ))}
+          </ul>
+          {replies.length === 0 && <p className="narrative mt-4">No replies yet. A good answer here helps the whole chapter.</p>}
+        </section>
+
+        <section className="mt-10 border-t pt-6" style={{ borderColor: "var(--line)" }} aria-label="Reply">
+          <h2 className="h-product">Add your answer</h2>
+          <div className="mt-3"><ReplyForm threadId={thread.id} /></div>
+        </section>
       </main>
     </AppShell>
   );

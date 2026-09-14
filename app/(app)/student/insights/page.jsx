@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat, EmptyState } from "@/components/ui";
+import { Display, Meta } from "@/components/loom/primitives";
+import { Card, Stat } from "@/components/ui";
+import { OnboardingState } from "@/components/loom/States";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +52,13 @@ export default async function InsightsPage() {
   if (!latest) {
     return (
       <AppShell area="student" tenant={tenant} user={user}>
-        <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-          <PageHeader kicker="Insights" title="Your growth, quantified" desc="Snapshots refresh nightly." />
-          <EmptyState title="No snapshot yet" body="Nightly rollups start after your first activity. Connect GitHub and complete a roadmap node." action={<Link href="/student/github" className="btn-ink">Connect GitHub</Link>} />
+        <main className="mx-auto max-w-4xl px-4 sm:px-6">
+          <OnboardingState
+            eyebrow="Growth story · snapshots refresh nightly"
+            title="Your story is just starting."
+            why="Nightly rollups begin after your first real activity. Connect GitHub and complete a roadmap milestone — then this page becomes a reflection worth reading."
+            action={<Link href="/student/github" className="btn-ink">Connect GitHub →</Link>}
+          />
         </main>
       </AppShell>
     );
@@ -68,8 +74,10 @@ export default async function InsightsPage() {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="Insights" title="Your growth, quantified" desc={`Chapter rank #${rank?.rank || 1} by roadmap completion · snapshots refresh nightly.`} />
+      <main className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Meta>Growth story · chapter rank #{rank?.rank || 1} by roadmap completion</Meta>
+        <Display size="lg" className="mt-3">Your last 30 days.</Display>
+        <div className="mt-8" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Consistency (30d)" value={`${Number(latest.consistency_score || 0)}%`} />
           <Stat label="Roadmap" value={`${done}%`} />

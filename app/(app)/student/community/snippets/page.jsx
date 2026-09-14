@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { Display, Meta } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
 import { SnippetForm } from "./SnippetBits";
 
@@ -25,35 +25,36 @@ export default async function SnippetsPage({ searchParams }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/community" style={{ color: "var(--accent)" }}>← Community</Link>
-        </p>
-        <PageHeader kicker="Reuse" title="Snippets" desc="Copy-paste knowledge, ranked by the chapter." action={<SnippetForm />} />
-        <form method="get" className="flex gap-2">
-          <input name="q" defaultValue={sp?.q || ""} placeholder="Search snippets…" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
-          <button className="btn-ink" type="submit">Search</button>
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Link href="/student/community" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Meta>Room 03 · copy-paste knowledge</Meta>
+            <Display size="lg" className="mt-3">Snippets.</Display>
+          </div>
+          <SnippetForm />
+        </div>
+        <form method="get" className="mt-7 flex gap-2">
+          <input name="q" defaultValue={sp?.q || ""} placeholder="Search snippets…" aria-label="Search snippets" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+          <button className="btn-ink !py-2" type="submit">Search</button>
         </form>
         {snippets.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No snippets yet" body="Share the helper you keep rewriting — hooks, queries, configs, scripts." /></div>
+          <p className="narrative mt-8">No snippets yet. Share the helper you keep rewriting — hooks, queries, configs, scripts.</p>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-8 space-y-8">
             {snippets.map((s) => (
-              <li key={s.id}>
-                <Card>
-                  <div className="flex items-start gap-3">
-                    <VoteButton targetType="snippet" targetId={s.id} count={s.upvote_count} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium" style={{ color: "var(--text)" }}>{s.title}</p>
-                        <span className="rounded-full border px-2 py-0.5 font-mono text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{s.language}</span>
-                      </div>
-                      {s.description && <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{s.description}</p>}
-                      <pre className="mt-2 overflow-auto rounded-xl p-3 font-mono text-xs leading-5" style={{ background: "var(--bg-muted)", color: "var(--text)" }}>{s.code}</pre>
-                      <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>by {s.author_name || "a student"}</p>
+              <li key={s.id} className="border-t pt-6" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-start gap-4">
+                  <span className="pt-0.5"><VoteButton targetType="snippet" targetId={s.id} count={s.upvote_count} /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <p className="text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>{s.title}</p>
+                      <span className="meta">{s.language} · by {s.author_name || "a student"}</span>
                     </div>
+                    {s.description && <p className="mt-1.5 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{s.description}</p>}
+                    <pre className="mt-3 overflow-auto rounded-xl p-4 font-mono text-xs leading-6" style={{ background: "var(--bg-muted)", color: "var(--text)" }}>{s.code}</pre>
                   </div>
-                </Card>
+                </div>
               </li>
             ))}
           </ul>

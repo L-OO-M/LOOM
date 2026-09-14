@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat, EmptyState } from "@/components/ui";
+import { Display, Meta, PlainStat } from "@/components/loom/primitives";
+import { OnboardingState } from "@/components/loom/States";
 
 export const dynamic = "force-dynamic";
 
@@ -33,57 +34,52 @@ export default async function NetworkPage() {
   const [latest] = await sql`SELECT * FROM federation_metrics ORDER BY metric_date DESC LIMIT 1`;
 
   const mine = chapters.find((c) => c.tenant_id === tenant?.id);
+  const myRank = mine ? chapters.findIndex((c) => c.tenant_id === mine.tenant_id) + 1 : null;
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader
-          kicker="Federation"
-          title="Chapter network"
-          desc="Every college chapter, its builders, and how your chapter compares."
-        />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Chapters" value={latest?.total_chapters ?? chapters.length} />
-          <Stat label="Students" value={latest?.total_students ?? "—"} />
-          <Stat label="Verified OSS merges" value={latest?.total_oss_contributions ?? 0} />
-          <Stat label="My chapter rank" value={mine ? `#${chapters.findIndex((c) => c.tenant_id === mine.tenant_id) + 1}` : "—"} />
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Meta>Discover · one society, many campuses</Meta>
+        <Display size="lg" className="mt-3">Chapters, compared honestly.</Display>
+
+        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+          <PlainStat value={latest?.total_chapters ?? chapters.length} unit="chapters" label="public in the federation" />
+          <PlainStat value={latest?.total_students ?? chapters.reduce((s, c) => s + (c.members || 0), 0)} unit="students" label="learning across campuses" />
+          <PlainStat value={latest?.total_oss_contributions ?? chapters.reduce((s, c) => s + (c.oss_merges || 0), 0)} unit="merges" label="verified open-source work" />
         </div>
 
-        {partnerships.length > 0 && (
-          <Card className="mt-6">
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>My chapter's partnerships</h2>
-            <ul className="mt-2 space-y-1 text-sm" style={{ color: "var(--text-muted)" }}>
-              {partnerships.map((p, i) => (
-                <li key={i}>{p.a_name} ⇄ {p.b_name} <span style={{ color: "var(--accent)" }}>· {p.collaboration_type}</span></li>
-              ))}
-            </ul>
-          </Card>
+        {mine && (
+          <p className="mt-6 text-sm" style={{ color: "var(--text-muted)" }}>
+            Your chapter — <strong style={{ color: "var(--text)" }}>{mine.public_name}</strong> — sits{" "}
+            <strong className="font-mono" style={{ color: "var(--accent)" }}>#{myRank}</strong> by members.
+            {partnerships.length > 0 && <> Partnered with {partnerships.map((p) => (p.a_name === mine.public_name ? p.b_name : p.a_name)).join(", ")}.</>}
+          </p>
         )}
 
-        <h2 className="mt-8 font-medium" style={{ color: "var(--text)" }}>All chapters</h2>
         {chapters.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No public chapters yet" body="Chapter profiles appear here once colleges publish them." /></div>
+          <OnboardingState
+            eyebrow="Federation"
+            title="No public chapters yet."
+            why="Chapter profiles appear here once colleges publish them — with members, merges, and projects, all comparable."
+          />
         ) : (
-          <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {chapters.map((c) => (
-              <li key={c.id}>
-                <Link href={`/student/network/${c.slug}`}>
-                  <Card className="transition hover:-translate-y-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium" style={{ color: "var(--text)" }}>{c.public_name}</p>
-                      {c.tenant_id === tenant?.id && (
-                        <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--accent)" }}>yours</span>
-                      )}
-                    </div>
-                    {c.mission && <p className="mt-1 line-clamp-2 text-sm" style={{ color: "var(--text-muted)" }}>{c.mission}</p>}
-                    <p className="mt-3 font-mono text-sm" style={{ color: "var(--text)" }}>
-                      {c.members} <span style={{ color: "var(--text-muted)" }} className="font-sans text-xs">members · {c.oss_merges} merges · {c.projects} projects</span>
-                    </p>
-                  </Card>
+          <ol className="mt-8">
+            {chapters.map((c, i) => (
+              <li key={c.id} className="border-b py-5 first:border-t" style={{ borderColor: "var(--line)" }}>
+                <Link href={`/student/network/${c.slug}`} className="row-link flex items-baseline gap-4 px-2 py-1">
+                  <span className="index-num w-8 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>
+                      {c.public_name}
+                      {c.tenant_id === tenant?.id && <span className="meta ml-2" style={{ color: "var(--accent)" }}>yours</span>}
+                    </span>
+                    {c.mission && <span className="mt-0.5 block truncate text-sm" style={{ color: "var(--text-muted)" }}>{c.mission}</span>}
+                  </span>
+                  <span className="meta shrink-0 text-right">{c.members} members · {c.oss_merges} merges · {c.projects} projects</span>
                 </Link>
               </li>
             ))}
-          </ul>
+          </ol>
         )}
       </main>
     </AppShell>

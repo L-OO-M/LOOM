@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card } from "@/components/ui";
+import { Display, Meta } from "@/components/loom/primitives";
 import { SuggestForm } from "../WikiBits";
 
 export const dynamic = "force-dynamic";
@@ -31,21 +31,20 @@ export default async function WikiDetailPage({ params }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/community/wiki" style={{ color: "var(--accent)" }}>← Wiki</Link>
-        </p>
-        <PageHeader kicker={`${page.domain} · v${page.version}`} title={page.title} desc={`by ${page.author_name || "a student"} · ${page.view_count + 1} views`} />
-        <Card>
-          <p className="whitespace-pre-wrap text-sm leading-7" style={{ color: "var(--text)" }}>{page.content || "Empty page."}</p>
-        </Card>
-        <Card className="mt-6">
-          <h2 className="font-medium" style={{ color: "var(--text)" }}>Improve this page</h2>
-          <SuggestForm slug={page.slug} isAdmin={isAdmin} />
-        </Card>
+      <main className="mx-auto max-w-3xl px-4 sm:px-6">
+        <Link href="/student/community/wiki" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Wiki</Link>
+        <Meta className="mt-4">{page.domain} · v{page.version} · by {page.author_name || "a student"} · {page.view_count + 1} reads</Meta>
+        <Display size="md" className="mt-3">{page.title}</Display>
+        <article className="mt-6 border-y py-7" style={{ borderColor: "var(--line)" }}>
+          <p className="lede whitespace-pre-wrap" style={{ color: "var(--text)" }}>{page.content || "Empty page."}</p>
+        </article>
+        <section className="mt-8" aria-label="Improve this page">
+          <h2 className="h-product">Improve this page</h2>
+          <div className="mt-3"><SuggestForm slug={page.slug} isAdmin={isAdmin} /></div>
+        </section>
         {pending.length > 0 && (
-          <Card className="mt-6">
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Pending suggestions ({pending.length})</h2>
+          <section className="mt-10" aria-label="Pending suggestions">
+            <Meta>Pending suggestions · {pending.length}</Meta>
             <ul className="mt-3 space-y-3 text-sm">
               {pending.map((e) => (
                 <li key={e.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
@@ -56,7 +55,7 @@ export default async function WikiDetailPage({ params }) {
               ))}
             </ul>
             {isAdmin && <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>Review suggestions from the <Link href="/admin/community" style={{ color: "var(--accent)" }}>moderation console</Link>.</p>}
-          </Card>
+          </section>
         )}
       </main>
     </AppShell>

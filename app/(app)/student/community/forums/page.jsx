@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { Display, Meta } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
 import { ThreadForm } from "./ForumsBits";
 
@@ -34,42 +34,44 @@ export default async function ForumsPage({ searchParams }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/community" style={{ color: "var(--accent)" }}>← Community</Link>
-        </p>
-        <PageHeader kicker="Discuss" title="Forums" desc="Ask questions, share answers, mark solutions." action={<ThreadForm />} />
-        <form method="get" className="flex flex-wrap gap-2">
-          <input name="q" defaultValue={sp?.q || ""} placeholder="Search threads…" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
-          <select name="domain" defaultValue={domain} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Link href="/student/community" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Meta>Room 01 · ask, answer, solve</Meta>
+            <Display size="lg" className="mt-3">Forums.</Display>
+          </div>
+          <ThreadForm />
+        </div>
+
+        <form method="get" className="mt-7 flex flex-wrap gap-2">
+          <input name="q" defaultValue={sp?.q || ""} placeholder="Search threads…" aria-label="Search threads" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+          <select name="domain" defaultValue={domain} aria-label="Filter by domain" className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
             {DOMAINS.map((d) => <option key={d} value={d}>{d === "" ? "All domains" : d}</option>)}
           </select>
-          <select name="sort" defaultValue={sort} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+          <select name="sort" defaultValue={sort} aria-label="Sort threads" className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
             <option value="recent">Recent</option>
             <option value="top">Top</option>
           </select>
-          <button className="btn-ink" type="submit">Filter</button>
+          <button className="btn-ink !py-2" type="submit">Filter</button>
         </form>
 
         {threads.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No threads yet" body="Be the first to ask — someone in your chapter knows the answer." /></div>
+          <p className="narrative mt-8">No threads match. Be the first to ask — someone in your chapter knows the answer.</p>
         ) : (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-6 divide-y" style={{ borderColor: "var(--line)" }}>
             {threads.map((t) => (
-              <li key={t.id}>
-                <Card>
-                  <div className="flex items-start gap-3">
-                    <VoteButton targetType="thread" targetId={t.id} count={t.upvote_count} />
-                    <div className="min-w-0 flex-1">
-                      <Link href={`/student/community/forums/${t.id}`} className="font-medium hover:underline" style={{ color: "var(--text)" }}>
-                        {t.pinned ? "📌 " : ""}{t.solved ? "✓ " : ""}{t.title}
-                      </Link>
-                      <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                        {t.author_name || "a student"} · {t.domain} · {t.reply_count} replies · {t.view_count} views
-                      </p>
-                    </div>
-                  </div>
-                </Card>
+              <li key={t.id} className="flex items-start gap-4 border-t py-4 first:border-t" style={{ borderColor: "var(--line)" }}>
+                <span className="pt-0.5"><VoteButton targetType="thread" targetId={t.id} count={t.upvote_count} /></span>
+                <Link href={`/student/community/forums/${t.id}`} className="min-w-0 flex-1">
+                  <span className="block text-[0.98rem] font-semibold leading-6 hover:underline" style={{ color: "var(--text)" }}>
+                    {t.pinned && <span className="meta mr-2" style={{ color: "var(--accent)" }}>pinned</span>}
+                    {t.solved && <span style={{ color: "var(--accent)" }}>✓ </span>}{t.title}
+                  </span>
+                  <span className="meta mt-1 block">
+                    {t.author_name || "a student"} · {t.domain} · {t.reply_count} replies · {t.view_count} views
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

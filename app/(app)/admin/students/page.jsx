@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
+import { DataTable } from "@/components/loom/DataTable";
 
 export default async function AdminStudentsPage({ searchParams }) {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -18,21 +19,34 @@ export default async function AdminStudentsPage({ searchParams }) {
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="College" title="Students" desc="Search, open, and manage roles. Role changes are audited." />
-        <form method="get" className="mb-5 flex gap-2">
-          <input name="q" defaultValue={q} placeholder="Search name or user id…" style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }} />
-          <button className="btn-ink">Search</button>
+      <main className="mx-auto max-w-6xl px-4 sm:px-6">
+        <PageHeader kicker={`College · ${rows.length} shown`} title="Students" desc="Search, open, and manage roles. Role changes are audited." />
+        <form method="get" className="mb-5 flex gap-2" role="search">
+          <input name="q" defaultValue={q} placeholder="Search name or user id…" aria-label="Search students" style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14, minWidth: 240 }} />
+          <button className="btn-ink !py-2">Search</button>
         </form>
-        <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)" }}>
-          {rows.map((s) => (
-            <Link key={s.user_id} href={`/admin/students/${s.user_id}`} className="grid gap-1 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_auto_auto] sm:items-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{s.name}</span>
-              <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>{s.role} · {s.primary_domain || "—"}</span>
-              <span className="text-xs" style={{ color: "var(--accent)" }}>Open →</span>
-            </Link>
-          ))}
-          {rows.length === 0 && <p className="p-6 text-sm" style={{ color: "var(--text-muted)" }}>No students found.</p>}
+        <div className="border-y" style={{ borderColor: "var(--line)" }}>
+          <DataTable
+            caption="Student roster"
+            empty="No students found."
+            columns={[
+              {
+                key: "name", label: "Student", render: (s) => (
+                  <Link href={`/admin/students/${s.user_id}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>{s.name}</Link>
+                )
+              },
+              { key: "role", label: "Role" },
+              { key: "primary_domain", label: "Track", render: (s) => s.primary_domain || "—" },
+              { key: "department", label: "Dept", render: (s) => s.department || "—" },
+              { key: "year", label: "Yr", mono: true, render: (s) => s.year ?? "—" },
+              {
+                key: "open", label: "", align: "right", render: (s) => (
+                  <Link href={`/admin/students/${s.user_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Open →</Link>
+                )
+              }
+            ]}
+            rows={rows}
+          />
         </div>
       </main>
     </AppShell>

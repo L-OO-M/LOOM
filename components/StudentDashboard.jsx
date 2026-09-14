@@ -1,272 +1,237 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
-import { useTab } from "@/components/AppShell";
-import { BookOpen, GitPullRequest, Trophy, Code, Layers, ExternalLink } from "lucide-react";
+import { Reveal } from "@/components/motion/Reveal";
+import { Display, Meta, ActionLink, PlainStat } from "@/components/loom/primitives";
+import { ProgressPath } from "@/components/loom/ProgressPath";
+import { WeekStrip } from "@/components/loom/Heatmap";
+import { ActivityStream } from "@/components/loom/Evidence";
+import { OnboardingState } from "@/components/loom/States";
 
-export function StudentDashboard({ profile, nodes, doneIds, doneCount, totalCount, overallPercent, activity, resources, domainAvg = {} }) {
-  const { activeTab } = useTab();
+function relDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  const day = new Date(d); day.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((day - today) / 86400000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff < 7) return d.toLocaleDateString("en-IN", { weekday: "long" });
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+
+export function StudentDashboard({
+  profile, greeting, todayLabel, nextNode, nodes, doneIds, overallPercent,
+  nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers
+}) {
+  const name = profile?.name?.split(" ")[0] || "there";
   const done = new Set(doneIds);
-  const TRACKS = ["ai_ml", "web", "cybersecurity", "dsa", "blockchain"];
-  const radar = TRACKS.map((d) => {
-    const ns = nodes.filter((n) => n.domain === d);
-    const pct = ns.length ? Math.round((ns.filter((n) => done.has(n.id)).length / ns.length) * 100) : 0;
-    return { domain: d, pct, avg: Math.round(Number(domainAvg[d] || 0)) };
-  });
+  const stops = nodes.map((n) => ({
+    label: n.title,
+    state: done.has(n.id) ? "done" : nextNode && n.id === nextNode.id ? "now" : "todo"
+  }));
+  const fresh = !profile?.primary_domain || doneIds.length === 0;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <AnimatePresence mode="wait">
-        {activeTab === "dashboard" && (
-          <motion.div key="dashboard" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-              <div className="card-sheen relative overflow-hidden rounded-2xl border p-7" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <span className="ghost-type -right-2 -top-7 text-[7rem]" aria-hidden="true">{overallPercent}%</span>
-                <p style={{ color: "var(--text-muted)" }} className="relative text-xs">
-                  {profile ? `Welcome back, ${profile.name}` : "Welcome to L.O.O.M."}
-                </p>
-                <h1 className="relative mt-2 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: "var(--text)" }}>
-                  {profile?.primary_domain ? `${profile.primary_domain} — active` : "Connect your GitHub"}
-                </h1>
-                <div className="rule-gold relative mt-4 w-20" />
-                <p className="relative mt-3 max-w-lg text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-                  Complete nodes and ship code. Each milestone unlocks the next.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <MiniStat icon={GitPullRequest} label="Today commits" value={activity?.[0]?.commits ?? 0} />
-                  <MiniStat icon={BookOpen} label="Streak" value={activity?.[0]?.day?.slice(5) ?? "—"} />
-                  <MiniStat icon={Trophy} label="Progress" value={`${overallPercent}%`} />
-                </div>
-              </div>
-              <div className="flex flex-col items-center justify-center rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <ProgressCircle value={overallPercent} />
-                <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>{profile?.primary_domain ?? "No domain"}</p>
+    <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      {/* HERO — what should I do next? */}
+      <Reveal>
+        <section className="hero-field rounded-3xl border px-6 py-10 sm:px-10 sm:py-14" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+          <Meta>{todayLabel}</Meta>
+          <Display size="xl" className="mt-3">
+            {greeting}, {name}.
+          </Display>
+          {nextNode ? (
+            <div className="mt-8 max-w-xl">
+              <Meta style={{ color: "var(--accent)" }}>Your next move</Meta>
+              <p className="display display-md mt-2">{nextNode.title}</p>
+              <p className="meta mt-3">
+                {nextNode.domain}{nextNode.difficulty_level ? ` · ${nextNode.difficulty_level}` : ""} · Milestone {doneIds.length + 1} of {nodes.length}
+              </p>
+              {nextNode.description && (
+                <p className="narrative mt-3">{nextNode.description}</p>
+              )}
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <Link href="/student/roadmap" className="btn-ink !px-6 !py-3 !text-base">Continue →</Link>
+                <ActionLink href={`/student/roadmap/${nextNode.id}`}>Node detail</ActionLink>
               </div>
             </div>
-            <div className="mt-6 rounded-2xl border p-6 sm:p-7" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="kicker">Skill radar</p>
-                  <h2 className="mt-2 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>
-                    Where you stand, per track
-                  </h2>
-                  <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-                    Solid line is you · dashed is your chapter average.
+          ) : (
+            <div className="mt-8 max-w-xl">
+              <Meta style={{ color: "var(--accent)" }}>A quiet milestone</Meta>
+              <p className="display display-md mt-2">The whole path, walked.</p>
+              <p className="narrative mt-3">Every node complete. Turn this momentum into public proof — or mentor someone two steps behind you.</p>
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <Link href="/student/credentials" className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
+                <ActionLink href="/student/opensource">Find an OSS issue</ActionLink>
+              </div>
+            </div>
+          )}
+        </section>
+      </Reveal>
+
+      {fresh ? (
+        <Reveal delay={0.08}>
+          <section className="mt-10" aria-label="Begin">
+            <OnboardingState
+              eyebrow="Your first week"
+              title="Three small steps unlock everything."
+              why="L.O.O.M. reads your real activity — roadmap progress, commits, shipped projects — and turns it into proof. Nothing here is manual theatre."
+              steps={[
+                { title: "Set your direction", body: "Pick a track in onboarding so recommendations know where to point." },
+                { title: "Finish your first node", body: "Open the roadmap and complete milestone one. The next unlocks itself." },
+                { title: "Connect GitHub", body: "Real commits become growth evidence, automatically." }
+              ]}
+              action={<Link href="/student/roadmap" className="btn-ink">Open your roadmap →</Link>}
+            />
+          </section>
+        </Reveal>
+      ) : (
+        <>
+          {/* WEEK */}
+          <Reveal delay={0.05}>
+            <section className="mt-12" aria-label="This week">
+              <Meta>This week</Meta>
+              <div className="mt-4 max-w-xl">
+                <WeekStrip days={weekDays} />
+              </div>
+              <p className="mt-4 text-sm" style={{ color: "var(--text-muted)" }}>
+                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.sessions}</strong> learning sessions ·{" "}
+                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.contributions}</strong> contributions ·{" "}
+                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.milestones}</strong> milestone{weekCounts.milestones === 1 ? "" : "s"}
+              </p>
+            </section>
+          </Reveal>
+
+          {/* JOURNEY */}
+          <Reveal delay={0.08}>
+            <section className="mt-12" aria-label="Your journey">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Meta>Your journey</Meta>
+                <span className="meta">{doneIds.length} / {nodes.length} milestones</span>
+              </div>
+              <div className="mt-5">
+                <ProgressPath stops={stops} percent={overallPercent} ariaLabel={`${overallPercent} percent of roadmap complete`} />
+              </div>
+              {nextMilestone && (
+                <div className="mt-8 flex flex-wrap items-baseline justify-between gap-3">
+                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                    Next milestone — <strong style={{ color: "var(--text)" }}>{nextMilestone}</strong>
                   </p>
+                  <ActionLink href="/student/roadmap">Open the path</ActionLink>
                 </div>
-                <Link href="/student/insights" className="text-sm font-medium" style={{ color: "var(--accent)" }}>Full insights →</Link>
-              </div>
-              <SkillRadar radar={radar} />
-              <div className="mt-2 flex flex-wrap gap-4">
-                <Link href="/student/credentials" className="text-sm font-medium" style={{ color: "var(--accent)" }}>Share proof →</Link>
-                <Link href="/student/discover" className="text-sm font-medium" style={{ color: "var(--accent)" }}>Find people →</Link>
-              </div>
-            </div>
-            {(!profile?.primary_domain || doneCount === 0) && (
-              <div className="mt-6 rounded-2xl border p-6 sm:p-7" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
-                <p className="kicker">Start here</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>
-                  Your first week on L.O.O.M.
-                </h2>
-                <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-                  Five small steps. Each one unlocks the next part of the platform.
-                </p>
-                <ol className="mt-5 space-y-2">
-                  <StartStep n={1} title="Set your direction" body="Pick a track in onboarding so recommendations know where to point." href="/student/onboarding" cta="Choose track" done={!!profile?.primary_domain} />
-                  <StartStep n={2} title="Complete your first roadmap node" body="Open your path and finish the first milestone." href="/student/roadmap" cta="Open roadmap" done={doneCount > 0} />
-                  <StartStep n={3} title="Learn from a curated resource" body="Five tracks — AI/ML, Web, Cybersecurity, DSA, Blockchain." href="/student/resources" cta="Browse tracks" done={false} />
-                  <StartStep n={4} title="Ship your first project" body="Proof beats progress. Publish something small this week." href="/student/projects/new" cta="Create project" done={false} />
-                  <StartStep n={5} title="Connect GitHub" body="Real commits become your growth evidence, automatically." href="/student/github" cta="Connect" done={(activity?.[0]?.commits ?? 0) > 0} />
-                </ol>
-              </div>
-            )}
-          </motion.div>
-        )}
+              )}
+            </section>
+          </Reveal>
 
-        {activeTab === "roadmap" && (
-          <motion.div key="roadmap" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <h2 className="mb-5 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>Your roadmap</h2>
-            <div className="space-y-2">
-              {nodes.map((node, i) => {
-                const completed = doneIds.includes(node.id);
-                const active = i === doneCount;
-                return (
-                  <div
-                    key={node.id}
-                    className="flex items-center gap-4 rounded-xl border p-4 transition"
-                    style={{
-                      borderColor: completed ? "var(--accent)" : active ? "var(--accent)" : "var(--line)",
-                      background: completed ? "color-mix(in srgb, var(--accent) 8%, var(--bg-elevated))" : "var(--bg-elevated)",
-                      boxShadow: active ? "0 0 0 1px var(--accent)" : "none",
-                      opacity: completed || active || i <= doneCount + 2 ? 1 : 0.4
-                    }}
-                  >
-                    <div
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
-                      style={{
-                        background: completed ? "var(--text)" : "var(--bg-muted)",
-                        color: completed ? "var(--bg)" : "var(--text-muted)"
-                      }}
-                    >
-                      {completed ? "✓" : i + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{node.title}</p>
-                      <p className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
-                        {node.description}{node.difficulty_level ? ` · ${node.difficulty_level}` : ""}
-                      </p>
-                    </div>
-                    {active && <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: "var(--text)", color: "var(--bg)" }}>Active</span>}
-                    {completed && <span className="shrink-0 text-xs" style={{ color: "var(--accent)" }}>Done</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-
-        {activeTab === "resources" && (
-          <motion.div key="resources" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <h2 className="mb-5 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>Resources</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {resources.map((r) => (
-                <div key={r.id} className="rounded-xl border p-5 transition hover:opacity-80" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                  <Layers size={18} style={{ color: "var(--accent)" }} strokeWidth={1.5} />
-                  <p className="mt-3 text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>{r.minutes} min · {r.level?.replace("_", " ")}</p>
-                  {r.url && (
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                      Open <ExternalLink size={12} />
-                    </a>
+          {/* COMING UP + PROOF */}
+          <div className="mt-12 grid gap-10 lg:grid-cols-2">
+            <Reveal delay={0.05}>
+              <section aria-label="Coming up">
+                <Meta>Coming up</Meta>
+                <ComingUp contests={contests} events={events} sessions={sessions} />
+              </section>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <section aria-label="Recent proof">
+                <div className="flex items-baseline justify-between">
+                  <Meta>Recent proof</Meta>
+                  <ActionLink href="/student/credentials">All proof</ActionLink>
+                </div>
+                <div className="mt-2">
+                  {proof.length > 0 ? (
+                    <ActivityStream items={proof} />
+                  ) : (
+                    <p className="narrative mt-3">Nothing recorded yet. Finish a node or ship a project — it will appear here, with evidence attached.</p>
                   )}
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+              </section>
+            </Reveal>
+          </div>
 
-        {activeTab === "github" && (
-          <motion.div key="github" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <h2 className="mb-5 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>GitHub activity</h2>
-            <div className="rounded-2xl border p-7" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-xl p-5" style={{ background: "var(--bg-muted)" }}>
-                  <Code size={18} style={{ color: "var(--accent)" }} strokeWidth={1.5} />
-                  <p className="mt-3 font-mono text-2xl font-semibold" style={{ color: "var(--text)" }}>{activity?.[0]?.commits ?? 0}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Today commits</p>
+          {/* GROWTH STORY — insights folded in, never a dead end */}
+          <Reveal delay={0.05}>
+            <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Your growth">
+              {snapshot ? (
+                <>
+                  <Meta>Your last 30 days</Meta>
+                  <div className="mt-6 grid gap-8 sm:grid-cols-3">
+                    <PlainStat value={`${Number(snapshot.consistency_score || 0)}`} unit="%" label="days active out of the last 30" />
+                    <PlainStat value={`${Number(snapshot.roadmap_completion_pct || 0)}`} unit="%" label="roadmap complete and climbing" />
+                    <PlainStat value={`${snapshot.total_commits ?? 0}`} unit="commits" label="in the last 30 days" />
+                  </div>
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      {peers?.n > 0
+                        ? `Chapter average consistency is ${Number(peers.ac || 0)}% across ${peers.n} peers.`
+                        : "Peer comparison appears once the chapter has snapshots."}
+                    </p>
+                    <ActionLink href="/student/insights">Full story</ActionLink>
+                  </div>
+                </>
+              ) : (
+                <div className="max-w-2xl">
+                  <Meta>Your story is just starting</Meta>
+                  <p className="display display-md mt-3">Numbers arrive after motion.</p>
+                  <p className="narrative mt-3">
+                    Nightly rollups begin once you have real activity. Connect GitHub and finish your first roadmap node — then this space becomes your growth story.
+                  </p>
+                  <div className="mt-5">
+                    <Link href="/student/github" className="btn-ink">Connect GitHub →</Link>
+                  </div>
                 </div>
-                <div className="rounded-xl p-5" style={{ background: "var(--bg-muted)" }}>
-                  <GitPullRequest size={18} style={{ color: "var(--accent)" }} strokeWidth={1.5} />
-                  <p className="mt-3 font-mono text-2xl font-semibold" style={{ color: "var(--text)" }}>{activity?.[0]?.pull_requests ?? 0}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Pull requests</p>
-                </div>
-                <div className="rounded-xl p-5" style={{ background: "var(--bg-muted)" }}>
-                  <BookOpen size={18} style={{ color: "var(--accent)" }} strokeWidth={1.5} />
-                  <p className="mt-3 font-mono text-2xl font-semibold" style={{ color: "var(--text)" }}>{activity?.[0]?.reviews ?? 0}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Reviews</p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              )}
+            </section>
+          </Reveal>
+        </>
+      )}
     </main>
   );
 }
 
-function StartStep({ n, title, body, href, cta, done }) {
-  return (
-    <li
-      className="flex items-center gap-4 rounded-xl border p-4"
-      style={{ borderColor: done ? "var(--accent)" : "var(--line)", background: done ? "color-mix(in srgb, var(--accent) 7%, var(--bg-elevated))" : "transparent" }}
-    >
-      <span
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
-        style={done ? { background: "var(--text)", color: "var(--bg)" } : { background: "var(--bg-muted)", color: "var(--text-muted)" }}
-      >
-        {done ? "✓" : n}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{title}</span>
-        <span className="block truncate text-xs" style={{ color: "var(--text-muted)" }}>{body}</span>
-      </span>
-      {done ? (
-        <span className="shrink-0 text-xs font-semibold" style={{ color: "var(--accent)" }}>Done</span>
-      ) : (
-        <a href={href} className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition hover:opacity-85 active:scale-[0.97]" style={{ background: "var(--text)", color: "var(--bg)" }}>
-          {cta}
-        </a>
-      )}
-    </li>
-  );
-}
+function ComingUp({ contests, events, sessions }) {
+  const rows = [
+    ...(sessions || []).map((s) => ({
+      when: relDate(s.scheduled_at),
+      title: `Mentor session${s.mentor_name ? ` with ${s.mentor_name}` : ""}`,
+      sub: s.expertise || "mentorship",
+      href: "/student/mentorship"
+    })),
+    ...(contests || []).map((c) => ({
+      when: relDate(c.ends_at || c.starts_at),
+      title: c.title,
+      sub: c.registered ? "registered · contest" : "contest — registration open",
+      href: "/student/contests",
+      hot: !c.registered
+    })),
+    ...(events || []).map((e) => ({
+      when: relDate(e.starts_at),
+      title: e.title,
+      sub: `${e.event_type || "event"}${e.is_online ? " · online" : e.location ? ` · ${e.location}` : ""}${e.registered ? " · you're in" : ""}`,
+      href: "/student/events"
+    }))
+  ].slice(0, 5);
 
-function MiniStat({ icon: Icon, label, value }) {
+  if (rows.length === 0) {
+    return (
+      <p className="narrative mt-3">
+        Nothing scheduled. <Link href="/student/contests" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Browse challenges</Link> or{" "}
+        <Link href="/student/events" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>find an event</Link> to put something on the horizon.
+      </p>
+    );
+  }
   return (
-    <div className="rounded-lg border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
-      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        {Icon && <Icon size={14} strokeWidth={1.5} />}
-        {label}
-      </div>
-      <p className="mt-1 font-mono text-lg font-semibold" style={{ color: "var(--text)" }}>{value}</p>
-    </div>
-  );
-}
-
-function SkillRadar({ radar }) {
-  const size = 220;
-  const c = size / 2;
-  const R = 78;
-  const pt = (i, v) => {
-    const a = (Math.PI * 2 * i) / radar.length - Math.PI / 2;
-    const r = (Math.max(0, Math.min(100, v)) / 100) * R;
-    return [c + r * Math.cos(a), c + r * Math.sin(a)];
-  };
-  const poly = (key) => radar.map((d, i) => pt(i, d[key]).join(",")).join(" ");
-  const short = { ai_ml: "AI/ML", web: "Web", cybersecurity: "Cyber", dsa: "DSA", blockchain: "Chain" };
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto mt-4 max-w-70" role="img" aria-label="Skill radar by track">
-      {[25, 50, 75, 100].map((v) => (
-        <polygon key={v} points={radar.map((_, i) => pt(i, v).join(",")).join(" ")} fill="none" stroke="var(--line)" strokeWidth="1" />
+    <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
+      {rows.map((r, i) => (
+        <li key={i} className="flex items-baseline gap-4 py-3">
+          <span className="meta w-24 shrink-0">{r.when}</span>
+          <span className="min-w-0 flex-1">
+            <Link href={r.href} className="block truncate text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
+            <span className="meta mt-0.5 block truncate">{r.sub}</span>
+          </span>
+        </li>
       ))}
-      {radar.map((d, i) => {
-        const [x, y] = pt(i, 118);
-        return <text key={d.domain} x={x} y={y} textAnchor="middle" fontSize="10" fill="var(--text-muted)">{short[d.domain] || d.domain} {d.pct}%</text>;
-      })}
-      <polygon points={poly("avg")} fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.7" />
-      <polygon points={poly("pct")} fill="color-mix(in srgb, var(--accent) 18%, transparent)" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" />
-      {radar.map((d, i) => {
-        const [x, y] = pt(i, d.pct);
-        return <circle key={d.domain} cx={x} cy={y} r="3" fill="var(--accent)" />;
-      })}
-    </svg>
-  );
-}
-
-function ProgressCircle({ value }) {  const r = 52;
-  const c = 2 * Math.PI * r;
-  const offset = c - (value / 100) * c;
-  return (
-    <svg width="120" height="120" viewBox="0 0 120 120">
-      <circle cx="60" cy="60" r={r} fill="none" stroke="var(--bg-muted)" strokeWidth="5" />
-      <circle
-        cx="60" cy="60" r={r}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="5"
-        strokeDasharray={c}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        transform="rotate(-90 60 60)"
-        style={{ transition: "stroke-dashoffset 0.6s var(--ease-out)" }}
-      />
-      <text x="60" y="58" textAnchor="middle" fontSize="22" fontWeight="700" fill="var(--text)">
-        {value}%
-      </text>
-      <text x="60" y="76" textAnchor="middle" fontSize="10" fill="var(--text-muted)">
-        overall
-      </text>
-    </svg>
+    </ul>
   );
 }

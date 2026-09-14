@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat, EmptyState } from "@/components/ui";
 import { env } from "@/lib/env";
+import { Display, Meta, PlainStat } from "@/components/loom/primitives";
+import { Timeline, TimelineItem } from "@/components/loom/Timeline";
+import { DataTable } from "@/components/loom/DataTable";
+import { OnboardingState } from "@/components/loom/States";
 import ShareLinkButton from "./ShareLinkButton";
 
 export const dynamic = "force-dynamic";
@@ -31,59 +35,88 @@ export default async function CredentialsPage() {
     ORDER BY issued_at DESC LIMIT 100
   `;
   const linkFor = new Map(credentials.map((c) => [c.achievement_id, `${env.NEXT_PUBLIC_APP_URL}/verify/credential/${c.id}`]));
+  const views = credentials.reduce((n, c) => n + (c.view_count || 0), 0);
+
+  if (achievements.length === 0) {
+    return (
+      <AppShell area="student" tenant={tenant} user={user}>
+        <main className="mx-auto max-w-4xl px-4 sm:px-6">
+          <OnboardingState
+            eyebrow="Proof · portable credentials"
+            title="Nothing to show — yet."
+            why="Proof is issued for real work: merged pull requests, contest placements, roadmap milestones your chapter verifies. Each piece becomes a signed link any recruiter can check, no login required."
+            steps={[
+              { title: "Merge a PR", body: "Claim it in the open-source portal; verification is automatic." },
+              { title: "Place in a challenge", body: "Contests with deadlines produce the sharpest proof." },
+              { title: "Finish the path", body: "Roadmap milestones compound into chapter-issued achievements." }
+            ]}
+            action={<Link href="/student/opensource" className="btn-ink">Start with open source →</Link>}
+          />
+        </main>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader
-          kicker="Proof of skill"
-          title="Credentials"
-          desc="Achievements your chapter issued you — plus signed share links any recruiter can verify."
-        />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat label="Achievements" value={achievements.length} />
-          <Stat label="Share links" value={credentials.length} />
-          <Stat label="Link views" value={credentials.reduce((n, c) => n + (c.view_count || 0), 0)} />
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Meta>Prove · credentials that travel</Meta>
+        <Display size="lg" className="mt-3">
+          {profile?.name || "Student"},<br /><em>documented.</em>
+        </Display>
+        <p className="narrative mt-4">
+          {tenant?.name || "Your chapter"} vouches for {achievements.length} achievement{achievements.length === 1 ? "" : "s"}.
+          Every share link below is signed — verifiable by anyone, without an account.
+        </p>
+
+        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+          <PlainStat value={achievements.length} unit="issued" label="achievements on your record" />
+          <PlainStat value={credentials.length} unit="links" label="signed share links in the wild" />
+          <PlainStat value={views} unit="views" label="recruiters checking your proof" />
         </div>
 
-        {/* Portable skill card */}
-        <Card className="mt-6">
-          <h2 className="font-medium" style={{ color: "var(--text)" }}>Skill card — {profile?.name || "Student"}</h2>
-          <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-            {tenant?.name || "L.O.O.M."} · {achievements.length} verified achievement{achievements.length === 1 ? "" : "s"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {achievements.slice(0, 12).map((a) => (
-              <span key={a.id} className="rounded-full border px-3 py-1 text-xs font-medium capitalize" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
-                {labelFor(a)} · {a.level}
-              </span>
-            ))}
-            {achievements.length === 0 && <span className="text-sm" style={{ color: "var(--text-muted)" }}>Earn OSS badges, win contests, or ask your chapter for an achievement.</span>}
-          </div>
-        </Card>
-
-        <h2 className="mt-8 font-medium" style={{ color: "var(--text)" }}>All achievements</h2>
-        {achievements.length === 0 ? (
-          <div className="mt-4"><EmptyState title="No achievements yet" body="Merge a PR in a tracked OSS repo, place in a contest, or complete roadmap milestones." action={null} /></div>
-        ) : (
-          <ul className="mt-4 space-y-3">
+        <section className="mt-12" aria-label="Achievements">
+          <Meta>The record</Meta>
+          <Timeline className="mt-5">
             {achievements.map((a) => (
-              <li key={a.id}>
-                <Card>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium" style={{ color: "var(--text)" }}>{labelFor(a)}</p>
-                      <p className="mt-1 text-xs capitalize" style={{ color: "var(--text-muted)" }}>
-                        {a.level} · {a.source_type} · earned {new Date(a.earned_at).toLocaleDateString()}
-                        {a.evidence_url && <> · <a href={a.evidence_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>evidence ↗</a></>}
-                      </p>
-                    </div>
+              <TimelineItem
+                key={a.id}
+                state="done"
+                title={labelFor(a)}
+                meta={new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                body={`${a.level} · ${a.source_type}`}
+                action={
+                  <span className="flex flex-wrap items-center gap-3">
                     <ShareLinkButton achievementId={a.id} existingUrl={linkFor.get(a.id) || ""} />
-                  </div>
-                </Card>
-              </li>
+                    {a.evidence_url && <a href={a.evidence_url} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Evidence ↗</a>}
+                  </span>
+                }
+              />
             ))}
-          </ul>
+          </Timeline>
+        </section>
+
+        {credentials.length > 0 && (
+          <section className="mt-12" aria-label="Share links">
+            <Meta>Out in the world</Meta>
+            <div className="mt-4 border-y" style={{ borderColor: "var(--line)" }}>
+              <DataTable
+                caption="Signed credential share links"
+                columns={[
+                  { key: "title", label: "Credential", render: (c) => <span className="font-medium">{c.title}</span> },
+                  { key: "view_count", label: "Views", mono: true, align: "right", render: (c) => c.view_count || 0 },
+                  {
+                    key: "link", label: "Link", align: "right", render: (c) => (
+                      <a href={`/verify/credential/${c.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                        Open →
+                      </a>
+                    )
+                  }
+                ]}
+                rows={credentials}
+              />
+            </div>
+          </section>
         )}
       </main>
     </AppShell>

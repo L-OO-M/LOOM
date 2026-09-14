@@ -222,3 +222,355 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .xy-attribution a {
   color: var(--text-muted) !important;
 }
+
+/* ============================================================
+   L.O.O.M. design system — second edition
+   Type-led, data-appropriate, motion with restraint.
+   ============================================================ */
+
+/* ---- Typography scale ---- */
+.display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
+  color: var(--text);
+  text-wrap: balance;
+}
+.display-xl { font-size: clamp(2.75rem, 6vw, 5rem); }
+.display-lg { font-size: clamp(2.1rem, 4.4vw, 3.4rem); }
+.display-md { font-size: clamp(1.6rem, 3.2vw, 2.4rem); }
+.display em { font-weight: 300; color: var(--text-muted); }
+
+.h-product {
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.narrative {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.figure {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.figure-mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+/* ---- Rules & dividers ---- */
+.rule { height: 1px; background: var(--line); }
+.rule-fade { height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
+/* ---- Number + label pair (replaces metric cards) ---- */
+.stat-plain { display: flex; align-items: baseline; gap: 0.9rem; }
+.stat-plain .figure { font-size: clamp(2rem, 4vw, 3rem); }
+
+/* ---- Timeline (journeys, history, activity) ---- */
+.tl { position: relative; margin: 0; padding: 0; list-style: none; }
+.tl-item { position: relative; padding: 0 0 1.75rem 2rem; }
+.tl-item:last-child { padding-bottom: 0.25rem; }
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 22px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--line);
+}
+.tl-item:last-child::before { display: none; }
+.tl-item.is-done::before { background: var(--accent); opacity: 0.55; }
+.tl-dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+}
+.tl-item.is-done .tl-dot { border-color: var(--accent); background: var(--accent); }
+.tl-item.is-now .tl-dot {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+.tl-item.is-now .tl-dot::after {
+  content: "";
+  position: absolute;
+  inset: 3.5px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* ---- Horizontal journey path ---- */
+.journey { position: relative; }
+.journey-track {
+  position: relative;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.journey-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+  transition: width 0.7s var(--ease-out);
+}
+.journey-stops { position: relative; margin-top: 0.65rem; }
+.journey-stop {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 120px;
+}
+.journey-pip {
+  width: 11px;
+  height: 11px;
+  margin-top: -1.32rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+}
+.journey-stop.is-done .journey-pip { background: var(--accent); border-color: var(--accent); }
+.journey-stop.is-now .journey-pip {
+  background: var(--bg);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+/* ---- Heatmap (consistency) ---- */
+.heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px; }
+.heat-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2.5px;
+  background: var(--bg-muted);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.heat-cell[data-l="1"] { background: color-mix(in srgb, var(--accent) 28%, var(--bg-muted)); border-color: transparent; }
+.heat-cell[data-l="2"] { background: color-mix(in srgb, var(--accent) 52%, var(--bg-muted)); border-color: transparent; }
+.heat-cell[data-l="3"] { background: color-mix(in srgb, var(--accent) 76%, var(--bg-muted)); border-color: transparent; }
+.heat-cell[data-l="4"] { background: var(--accent); border-color: transparent; }
+
+/* ---- Week strip ---- */
+.weekstrip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.weekday { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.weekpip {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+.weekday.is-hit .weekpip { background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.weekday.is-today .weekpip { box-shadow: 0 0 0 1.5px var(--accent); }
+
+/* ---- Evidence block ---- */
+.evidence {
+  position: relative;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 6px 14px 14px 6px;
+  background: var(--bg-elevated);
+  padding: 1rem 1.2rem;
+}
+.evidence-check { color: var(--accent); }
+
+/* ---- Dense data table ---- */
+.dtable { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.dtable th {
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.dtable td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  color: var(--text);
+  vertical-align: middle;
+}
+.dtable tbody tr { transition: background 0.15s var(--ease-out); }
+.dtable tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.dtable tbody tr:last-child td { border-bottom: none; }
+.dtable .num { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+/* ---- Segmented control ---- */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+}
+.seg button {
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.18s var(--ease-out);
+}
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+
+/* ---- Status pill ---- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.22rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.pill.is-live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
+.pill.is-solid { background: var(--text); border-color: var(--text); color: var(--bg); }
+.pill.is-gold { background: var(--accent); border-color: var(--accent); color: #101314; }
+
+/* ---- Focus halo (signature moments) ---- */
+.halo { position: relative; }
+.halo::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 32px var(--accent-glow);
+}
+
+/* ---- Completion flash ---- */
+@keyframes node-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.node-pop { animation: node-pop 0.45s var(--ease-out); }
+
+@keyframes line-illuminate {
+  from { opacity: 0.2; }
+  to { opacity: 1; }
+}
+.line-illuminate { animation: line-illuminate 0.6s var(--ease-out) both; }
+
+/* ---- Skeleton shimmer (content-aware loading) ---- */
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skel {
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--bg-muted) 40%, color-mix(in srgb, var(--bg-muted) 55%, var(--bg-elevated)) 50%, var(--bg-muted) 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* ---- Drawer / overlay ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(8, 9, 10, 0.45);
+  backdrop-filter: blur(2px);
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 71;
+  width: min(430px, 100vw);
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--line);
+  box-shadow: -30px 0 80px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---- Editorial helpers ---- */
+.index-num {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lede { font-size: 1.05rem; line-height: 1.75; color: var(--text); max-width: 60ch; }
+.row-link { transition: background 0.15s var(--ease-out); border-radius: 12px; }
+.row-link:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+
+/* ---- Floating editorial nav ---- */
+.floatbar {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.14);
+}
+[data-theme="dark"] .floatbar { box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); }
+.nav-ink { position: relative; }
+.nav-ink::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.22s var(--ease-out);
+}
+.nav-ink.is-active::after { transform: scaleX(1); }
+
+/* ---- Hero field (clipped cinematic gradient, used sparingly) ---- */
+.hero-field { position: relative; overflow: hidden; isolation: isolate; }
+.hero-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(560px 300px at 85% 12%, var(--wash), transparent 70%),
+    radial-gradient(700px 380px at 8% 95%, var(--wash), transparent 72%);
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 62% 100%, 0 88%);
+}

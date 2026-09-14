@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, EmptyState } from "@/components/ui";
 import { ResourceCompleteButton } from "@/components/actions";
+import { Display, Meta, ActionLink } from "@/components/loom/primitives";
+import { OnboardingState } from "@/components/loom/States";
 
 const TRACKS = [
   { id: "ai_ml", label: "AI / ML", focus: "ML fundamentals, paper-reading sessions, dataset-based contests, applied AI projects" },
@@ -14,7 +15,7 @@ const TRACKS = [
 ];
 
 const KINDS = [
-  { id: "", label: "All" },
+  { id: "", label: "Everything" },
   { id: "article", label: "Articles" },
   { id: "doc", label: "Docs" },
   { id: "video", label: "Videos" },
@@ -56,57 +57,58 @@ export default async function ResourcesPage({ searchParams }) {
   const done = await sql`SELECT resource_id FROM resource_progress WHERE student_id = ${user.id} AND status = 'completed'`;
   const doneSet = new Set(done.map((d) => d.resource_id));
   const kindLabel = (k) => (k === "doc" ? "Doc" : k === "video" ? "Video" : k === "course" ? "Course" : "Article");
+  const track = TRACKS.find((t) => t.id === (domain || primaryDomain));
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="Learn" title="Resources for your next breakthrough" desc="Five society tracks, curated by mentors. Complete a resource and it stays on your record." />
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Meta>Learn · the curated library</Meta>
+        <Display size="lg" className="mt-3">
+          {domain ? track?.label ?? domain : "Read with intent."}
+        </Display>
+        <p className="narrative mt-4" style={{ color: "var(--text)" }}>
+          {domain
+            ? track?.focus ?? "Mentor-curated material for this track."
+            : "Five tracks, curated by mentors — not an endless feed. Finish something and it stays on your record."}
+        </p>
 
         {!domain && !q && primaryDomain && (
-          <section aria-label="Recommended for you" className="mb-8 rounded-2xl border p-6" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
-            <p className="kicker">Recommended for your roadmap</p>
-            <h2 className="mt-2 text-lg font-semibold" style={{ color: "var(--text)" }}>
-              Continue in {TRACKS.find((t) => t.id === primaryDomain)?.label ?? primaryDomain}
-            </h2>
-            <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-              {TRACKS.find((t) => t.id === primaryDomain)?.focus ?? "Picked from your onboarding direction."}
-            </p>
-            <Link href={qs(base, { domain: primaryDomain })} className="btn-ink mt-4">
-              Open {countBy[primaryDomain] ?? 0} resources
-            </Link>
-          </section>
+          <div className="mt-8 border-y py-6" style={{ borderColor: "var(--line)" }}>
+            <Meta style={{ color: "var(--accent)" }}>Continue in {TRACKS.find((t) => t.id === primaryDomain)?.label}</Meta>
+            <div className="mt-3 flex flex-wrap items-baseline justify-between gap-3">
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>{countBy[primaryDomain] ?? 0} pieces of material on your path</p>
+              <ActionLink href={qs(base, { domain: primaryDomain })}>Open the shelf</ActionLink>
+            </div>
+          </div>
         )}
 
         {!domain && !q && (
-          <section aria-label="Learning tracks" className="mb-8">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>Browse by track</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {TRACKS.map((t) => (
-                <Link
-                  key={t.id}
-                  href={qs(base, { domain: t.id })}
-                  className="group rounded-xl border p-5 transition hover:-translate-y-0.5"
-                  style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="text-base font-semibold" style={{ color: "var(--text)" }}>{t.label}</h3>
-                    <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{countBy[t.id] ?? 0}</span>
-                  </div>
-                  <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{t.focus}</p>
-                  <span className="mt-3 inline-block text-xs font-semibold" style={{ color: "var(--accent)" }}>Explore →</span>
-                </Link>
+          <nav className="mt-10" aria-label="Learning tracks">
+            <Meta>Browse by track</Meta>
+            <ol className="mt-4">
+              {TRACKS.map((t, i) => (
+                <li key={t.id} className="border-b first:border-t" style={{ borderColor: "var(--line)" }}>
+                  <Link href={qs(base, { domain: t.id })} className="row-link flex items-baseline gap-5 px-2 py-5">
+                    <span className="index-num shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="font-display block text-2xl font-medium" style={{ color: "var(--text)" }}>{t.label}</span>
+                      <span className="mt-1 block max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>{t.focus}</span>
+                    </span>
+                    <span className="meta shrink-0">{countBy[t.id] ?? 0} pieces</span>
+                  </Link>
+                </li>
               ))}
-            </div>
-          </section>
+            </ol>
+          </nav>
         )}
 
-        <form method="get" className="mb-4 flex flex-wrap items-center gap-2" role="search">
+        <form method="get" className="mt-10 flex flex-wrap items-center gap-2" role="search">
           <input
             name="q"
             defaultValue={q}
-            placeholder="Search resources…"
+            placeholder="Search the library…"
             aria-label="Search resources"
-            style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }}
+            style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14, minWidth: 220 }}
           />
           {domain && <input type="hidden" name="domain" value={domain} />}
           {kind && <input type="hidden" name="kind" value={kind} />}
@@ -114,93 +116,71 @@ export default async function ResourcesPage({ searchParams }) {
           {(q || domain || kind) && <Link href="/student/resources" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Clear all</Link>}
         </form>
 
-        <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Filter by track">
-          <Link
-            href={qs({ q, kind }, {})}
-            role="tab"
-            aria-selected={!domain}
-            className="rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.97]"
-            style={!domain
-              ? { background: "var(--text)", color: "var(--bg)" }
-              : { background: "transparent", color: "var(--text-muted)", border: "1px solid var(--line)" }}
-          >
-            All tracks
-          </Link>
-          {TRACKS.map((t) => {
-            const isActive = domain === t.id;
-            return (
-              <Link
-                key={t.id}
-                href={qs({ q, kind }, { domain: t.id })}
-                role="tab"
-                aria-selected={isActive}
-                className="rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.97]"
-                style={isActive
-                  ? { background: "var(--text)", color: "var(--bg)" }
-                  : { background: "transparent", color: "var(--text-muted)", border: "1px solid var(--line)" }}
-              >
-                {t.label} · {countBy[t.id] ?? 0}
-              </Link>
-            );
-          })}
+        <div className="mt-5 flex flex-wrap gap-2" aria-label="Filter by track">
+          <FilterLink href={qs({ q, kind }, {})} active={!domain}>All tracks</FilterLink>
+          {TRACKS.map((t) => (
+            <FilterLink key={t.id} href={qs({ q, kind }, { domain: t.id })} active={domain === t.id}>
+              {t.label} · {countBy[t.id] ?? 0}
+            </FilterLink>
+          ))}
+        </div>
+        <div className="mt-2.5 flex flex-wrap gap-2" aria-label="Filter by format">
+          {KINDS.map((k) => (
+            <FilterLink key={k.id || "all"} href={qs({ q, domain }, { kind: k.id })} active={kind === k.id} small>
+              {k.label}
+            </FilterLink>
+          ))}
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2" aria-label="Filter by format">
-          {KINDS.map((k) => {
-            const isActive = kind === k.id;
-            return (
-              <Link
-                key={k.id || "all"}
-                href={qs({ q, domain }, { kind: k.id })}
-                aria-pressed={isActive}
-                className="rounded-full px-3.5 py-1 text-xs font-medium transition active:scale-[0.97]"
-                style={isActive
-                  ? { background: "var(--accent)", color: "#101314" }
-                  : { background: "transparent", color: "var(--text-muted)", border: "1px solid var(--line)" }}
-              >
-                {k.label}
-              </Link>
-            );
-          })}
+        <div className="mt-8">
+          {resources.length === 0 ? (
+            <OnboardingState
+              eyebrow={q ? "No matches" : "Being curated"}
+              title={q ? `Nothing matches “${q}”.` : "This shelf is being stocked."}
+              why={q ? "Try a shorter search, or browse a track — mentors curate titles, not keywords." : "Mentors are curating this track now. The other shelves are open."}
+              action={<Link href="/student/resources" className="btn-ghost">Browse everything</Link>}
+            />
+          ) : (
+            <>
+              <p className="meta">{resources.length} pieces · {doneSet.size} finished</p>
+              <ol className="mt-4">
+                {resources.map((r, i) => (
+                  <li key={r.id} className="border-b py-4 first:border-t" style={{ borderColor: "var(--line)" }}>
+                    <div className="flex items-start gap-4">
+                      <span className="index-num mt-1 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/student/resources/${r.id}`} className="text-[0.98rem] font-semibold leading-6 hover:underline" style={{ color: "var(--text)" }}>
+                          {doneSet.has(r.id) && <span style={{ color: "var(--accent)" }}>✓ </span>}{r.title}
+                        </Link>
+                        <p className="meta mt-1.5">{kindLabel(r.kind)} · {r.minutes} min · {r.level?.replace("_", " ")}</p>
+                      </div>
+                      <span className="flex shrink-0 items-center gap-3">
+                        <ResourceCompleteButton resourceId={r.id} completed={doneSet.has(r.id)} />
+                        {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }} aria-label={`Open ${r.title} source`}>↗</a>}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </div>
-
-        {domain && (
-          <div className="mb-5 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>
-              {TRACKS.find((t) => t.id === domain)?.label ?? domain}
-            </h2>
-            <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-              {TRACKS.find((t) => t.id === domain)?.focus ?? ""}
-            </p>
-          </div>
-        )}
-
-        {resources.length === 0 ? (
-          <EmptyState title="Nothing here yet" body={q ? `No resources match “${q}”. Try a shorter search or another track.` : "This track is being curated. Check the other tracks or come back soon."} />
-        ) : (
-          <>
-            <p className="mb-3 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-              {resources.length} RESOURCE{resources.length === 1 ? "" : "S"} · {doneSet.size} COMPLETED
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {resources.map((r) => (
-                <div key={r.id} className="flex flex-col rounded-xl border p-5" style={{ borderColor: doneSet.has(r.id) ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: "var(--bg-muted)", color: "var(--accent)" }}>{kindLabel(r.kind)}</span>
-                    <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{r.minutes} min · {r.level?.replace("_", " ")}</span>
-                    {doneSet.has(r.id) && <span className="ml-auto text-[11px] font-semibold" style={{ color: "var(--accent)" }}>✓ Done</span>}
-                  </div>
-                  <Link href={`/student/resources/${r.id}`} className="mt-3 text-sm font-semibold leading-6 hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
-                  <div className="mt-3 flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--line)" }}>
-                    <ResourceCompleteButton resourceId={r.id} completed={doneSet.has(r.id)} />
-                    {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>Open source ↗</a>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
       </main>
     </AppShell>
+  );
+}
+
+function FilterLink({ href, active, small, children }) {
+  return (
+    <Link
+      href={href}
+      aria-pressed={active}
+      className={`transition active:scale-[0.97] ${small ? "px-3.5 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-full font-medium`}
+      style={active
+        ? { background: "var(--text)", color: "var(--bg)" }
+        : { background: "transparent", color: "var(--text-muted)", border: "1px solid var(--line)" }}
+    >
+      {children}
+    </Link>
   );
 }

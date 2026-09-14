@@ -3,8 +3,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "@/lib/theme";
 import { BrandMark } from "./BrandMark";
+import { Drawer } from "./loom/Drawer";
 import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network
@@ -25,7 +27,7 @@ export function useTab() {
   return useContext(TabContext);
 }
 
-// Nav model (grouped tabs, leaf matching) lives in lib/nav.js - single source
+// Nav model (five verbs, leaf matching) lives in lib/nav.js — single source
 // of truth shared with unit tests. Icons resolve through the map above.
 
 export function AppShell({ area = "student", tenant, user, children }) {
@@ -35,8 +37,8 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const tabs = area === "admin" ? adminNav : studentNav;
   const activeTab = pathToTab(pathname || "", area);
   const activeGroup = groupForTab(tabs, activeTab);
-  const email = user?.email ?? "";
   const [openMenu, setOpenMenu] = useState(null);
+  const [inboxOpen, setInboxOpen] = useState(false);
   const menuRef = useRef(null);
 
   // Close the dropdown on route change or outside interaction.
@@ -69,111 +71,134 @@ export function AppShell({ area = "student", tenant, user, children }) {
   return (
     <TabContext.Provider value={ctx}>
       <div className="min-h-[100dvh]" style={{ background: "var(--bg)" }}>
-        <nav className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b px-4 sm:px-6" style={{ borderColor: "var(--line)", background: "var(--nav-bg)", backdropFilter: "blur(16px)" }}>
-          <div className="flex min-w-0 items-center gap-4">
-            <BrandMark size={26} />
-            <div ref={menuRef} className="flex max-w-full items-center gap-1 rounded-full border px-1.5 py-1" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-6">
+          <nav
+            className="floatbar flex max-w-full items-center gap-1 rounded-full py-1.5 pl-3 pr-1.5"
+            aria-label="Primary"
+          >
+            <BrandMark size={24} href={area === "admin" ? "/admin" : "/student"} className="mr-1" />
+            <div ref={menuRef} className="flex max-w-full items-center gap-0.5 overflow-x-auto">
               {tabs.map((item) => {
                 const Icon = icons[item.icon] || Home;
                 const groupActive = activeGroup?.id === item.id;
-                const pill = "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all active:scale-[0.97]";
-                const pillStyle = {
-                  background: groupActive ? "var(--text)" : "transparent",
-                  color: groupActive ? "var(--bg)" : "var(--text-muted)"
-                };
                 if (!item.children) {
                   return (
-                    <Link key={item.id} href={item.href} className={pill} style={pillStyle}>
-                      <Icon size={15} strokeWidth={1.5} />
-                      <span className="hidden md:inline">{item.label}</span>
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
+                      style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
+                    >
+                      {item.label}
                     </Link>
                   );
                 }
                 const open = openMenu === item.id;
                 return (
-                  <div key={item.id} className="relative shrink-0">
+                  <div key={item.id} className="relative hidden shrink-0 sm:block">
                     <button
                       onClick={() => setOpenMenu(open ? null : item.id)}
                       aria-haspopup="menu"
                       aria-expanded={open}
-                      className={pill}
-                      style={pillStyle}
+                      className={`nav-ink flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition ${groupActive ? "is-active" : ""}`}
+                      style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
                     >
-                      <Icon size={15} strokeWidth={1.5} />
-                      <span className="hidden md:inline">{item.label}</span>
-                      <ChevronDown size={13} strokeWidth={2} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                      {item.label}
+                      <ChevronDown size={13} strokeWidth={2} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s var(--ease-out)" }} />
                     </button>
-                    {open && (
-                      <div role="menu" className="absolute left-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border p-1.5 shadow-xl" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                        {item.children.map((child) => {
-                          const ChildIcon = icons[child.icon] || Home;
-                          const childActive = activeTab === child.id;
-                          return (
-                            <Link
-                              key={child.id}
-                              href={child.href}
-                              role="menuitem"
-                              className="flex items-start gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[var(--bg-muted)]"
-                              style={{ background: childActive ? "var(--bg-muted)" : "transparent" }}
-                            >
-                              <span className="mt-0.5 shrink-0" style={{ color: childActive ? "var(--accent)" : "var(--text-muted)" }}>
-                                <ChildIcon size={16} strokeWidth={1.5} />
-                              </span>
-                              <span className="min-w-0">
-                                <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{child.label}</span>
-                                {child.desc && <span className="block truncate text-xs" style={{ color: "var(--text-muted)" }}>{child.desc}</span>}
-                              </span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <AnimatePresence>
+                      {open && (
+                        <motion.div
+                          role="menu"
+                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                          className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 overflow-hidden rounded-2xl border p-1.5 shadow-xl"
+                          style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", transformOrigin: "top center" }}
+                        >
+                          {item.children.map((child) => {
+                            const ChildIcon = icons[child.icon] || Home;
+                            const childActive = activeTab === child.id;
+                            return (
+                              <Link
+                                key={child.id}
+                                href={child.href}
+                                role="menuitem"
+                                className="row-link flex items-start gap-3 px-3 py-2.5"
+                                style={{ background: childActive ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}
+                              >
+                                <span className="mt-0.5 shrink-0" style={{ color: childActive ? "var(--accent)" : "var(--text-muted)" }}>
+                                  <ChildIcon size={16} strokeWidth={1.5} />
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{child.label}</span>
+                                  {child.desc && <span className="block truncate text-xs" style={{ color: "var(--text-muted)" }}>{child.desc}</span>}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 );
               })}
-              {area === "student" && studentSecondary.map((item) => {
+              {/* Compact verb icons on small screens */}
+              {tabs.filter((t) => t.id !== "dashboard").map((item) => {
                 const Icon = icons[item.icon] || Home;
-                const isActive = activeTab === item.id;
+                const groupActive = activeGroup?.id === item.id;
                 return (
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium transition-all active:scale-[0.97]"
-                    style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}
                     aria-label={item.label}
+                    className="rounded-full p-2 transition active:scale-95 sm:hidden"
+                    style={{ color: groupActive ? "var(--accent)" : "var(--text-muted)" }}
                   >
-                    <Icon size={15} strokeWidth={1.5} />
+                    <Icon size={18} strokeWidth={groupActive ? 2 : 1.5} />
                   </Link>
                 );
               })}
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden text-xs sm:block" style={{ color: "var(--text-muted)" }}>{email}</span>
-            <button
-              onClick={toggle}
-              className="rounded-lg p-2 transition hover:bg-[var(--bg-muted)] active:scale-[0.93]"
-              style={{ color: "var(--text-muted)" }}
-              aria-label="Toggle theme"
-            >
-              {mounted && theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            <form action="/auth/signout" method="post">
+            <span className="mx-1 h-5 w-px shrink-0" style={{ background: "var(--line)" }} aria-hidden="true" />
+            <div className="flex shrink-0 items-center">
+              {area === "student" && <InboxBell onOpen={() => setInboxOpen(true)} />}
               <button
-                type="submit"
-                className="rounded-lg p-2 transition hover:bg-[var(--bg-muted)] active:scale-[0.93]"
+                onClick={toggle}
+                className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
                 style={{ color: "var(--text-muted)" }}
-                aria-label="Sign out"
+                aria-label="Toggle theme"
               >
-                <LogOut size={16} />
+                {mounted && theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-            </form>
-          </div>
-        </nav>
-        <div className="pt-14 pb-24 md:pb-0">{children}</div>
+              <Link
+                href="/student/settings"
+                className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
+                style={{ color: activeTab === "settings" ? "var(--accent)" : "var(--text-muted)" }}
+                aria-label="Settings"
+              >
+                <Settings size={16} />
+              </Link>
+              <form action="/auth/signout" method="post" className="hidden sm:block">
+                <button
+                  type="submit"
+                  className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
+                  style={{ color: "var(--text-muted)" }}
+                  aria-label="Sign out"
+                >
+                  <LogOut size={16} />
+                </button>
+              </form>
+            </div>
+          </nav>
+        </header>
+
+        <div className="pt-20 pb-24 md:pb-10">{children}</div>
+
         {area === "student" && (
-          <nav className="fixed inset-x-0 bottom-0 z-50 border-t px-2 pt-1 md:hidden" style={{ borderColor: "var(--line)", background: "var(--nav-bg)", backdropFilter: "blur(16px)", paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }} aria-label="Primary">
-            <div className="grid grid-cols-5">
+          <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Primary mobile">
+            <div className="floatbar grid grid-cols-5 rounded-3xl px-1 py-1.5">
               {mobileNav.map((item) => {
                 const Icon = icons[item.icon] || Home;
                 const isActive = item.group ? activeGroup?.id === item.group : (pathname || "") === "/student";
@@ -181,10 +206,9 @@ export function AppShell({ area = "student", tenant, user, children }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition active:scale-[0.96]"
-                    style={{ color: isActive ? "var(--accent)" : "var(--text-muted)" }}
+                    className="flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95"
+                    style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}
                   >
-                    <span className="h-0.5 w-6 rounded-full" style={{ background: isActive ? "var(--accent)" : "transparent" }} />
                     <Icon size={19} strokeWidth={isActive ? 2 : 1.5} />
                     {item.label}
                   </Link>
@@ -193,7 +217,117 @@ export function AppShell({ area = "student", tenant, user, children }) {
             </div>
           </nav>
         )}
+
+        {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} />}
       </div>
     </TabContext.Provider>
+  );
+}
+
+/* Bell with a live unread dot — opens the inbox drawer, not a page. */
+function InboxBell({ onOpen }) {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/notifications").then((r) => r.json()).then((d) => {
+      if (live && d?.ok) setUnread(d.data?.unread ?? 0);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return (
+    <button
+      onClick={onOpen}
+      className="relative rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
+      style={{ color: "var(--text-muted)" }}
+      aria-label={unread > 0 ? `Inbox, ${unread} unread` : "Inbox"}
+    >
+      <Bell size={16} />
+      {unread > 0 && (
+        <span
+          className="absolute right-1 top-1 grid size-4 place-items-center rounded-full text-[9px] font-bold"
+          style={{ background: "var(--accent)", color: "#101314" }}
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/* Inbox drawer — the notification surface for everyday use.
+   The full /student/notifications page remains for deep history. */
+function InboxDrawer({ open, onClose }) {
+  const [items, setItems] = useState(null);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    fetch("/api/notifications").then((r) => r.json()).then((d) => {
+      if (live && d?.ok) {
+        setItems(d.data?.notifications ?? []);
+        setUnread(d.data?.unread ?? 0);
+      } else if (live) setItems([]);
+    }).catch(() => { if (live) setItems([]); });
+    return () => { live = false; };
+  }, [open ]);
+
+  async function markRead(n) {
+    if (n.read_at) return;
+    setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+    setUnread((u) => Math.max(0, u - 1));
+    try {
+      await fetch(`/api/notifications/${n.id}/read`, { method: "POST" });
+    } catch { /* optimistic; the list already moved on */ }
+  }
+
+  return (
+    <Drawer open={open} onClose={onClose} label={unread > 0 ? `Inbox · ${unread} unread` : "Inbox"}>
+      {items === null ? (
+        <div aria-hidden="true">
+          {[92, 78, 85].map((w, i) => <div key={i} className="skel mb-3" style={{ height: 56, width: `${w}%` }} />)}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>All caught up</p>
+          <p className="mx-auto mt-2 max-w-60 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+            Mentions, reviews, and chapter news land here the moment they happen.
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y" style={{ borderColor: "var(--line)" }}>
+          {items.slice(0, 12).map((n) => (
+            <li key={n.id}>
+              <Link
+                href={n.link || "/student/notifications"}
+                onClick={() => markRead(n)}
+                className="row-link flex items-start gap-3 px-2 py-3"
+              >
+                <span
+                  className="mt-1.5 size-1.5 shrink-0 rounded-full"
+                  style={{ background: n.read_at ? "var(--line)" : "var(--accent)" }}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-5" style={{ color: "var(--text)" }}>{n.title}</span>
+                  {n.body && <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>{n.body}</span>}
+                  <span className="meta mt-1 block">
+                    {n.created_at ? new Date(n.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : ""}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        href="/student/notifications"
+        onClick={onClose}
+        className="mt-4 block text-center text-xs font-semibold hover:underline"
+        style={{ color: "var(--accent)" }}
+      >
+        Full history →
+      </Link>
+    </Drawer>
   );
 }

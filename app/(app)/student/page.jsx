@@ -38,49 +38,140 @@ export default async function StudentPage() {
     SELECT node_id FROM student_roadmap_progress
     WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
   `;
-  const doneIds = done.map(r => r.node_id);
+  const doneIds = done.map((r) => r.node_id);
   const doneCount = doneIds.length;
   const totalCount = nodes.length;
   const overallPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const nextNode = nodes.find((n) => !doneIds.includes(n.id)) ?? null;
+  const nextMilestone = nextNode?.title ?? null;
 
-  const activity = await sql`
-    SELECT * FROM student_daily_activity
-    WHERE student_id = ${user?.id ?? ""}
-    ORDER BY day DESC LIMIT 1
+  // This week: Monday–Sunday strip from real daily activity.
+  const weekRows = await sql`
+    SELECT day, commits, pull_requests, reviews FROM student_daily_activity
+    WHERE student_id = ${user?.id ?? ""} AND day >= CURRENT_DATE - INTERVAL '13 days'
+    ORDER BY day ASC
+  `;
+  const byDay = new Map(weekRows.map((r) => [String(r.day).slice(0, 10), r]));
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekDays = dayNames.map((label, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const r = byDay.get(iso);
+    const hit = !!r && (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0;
+    return { label, hit, today: iso === new Date().toISOString().slice(0, 10) };
+  });
+  const weekHits = weekRows.filter((r) => (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0);
+  const weekSessions = new Set(weekHits.map((r) => String(r.day).slice(0, 10))).size;
+  const weekContributions = weekHits.reduce((s, r) => s + (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0), 0);
+  const [weekMilestones] = await sql`
+    SELECT COUNT(*)::int AS c FROM student_roadmap_progress
+    WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
+      AND completed_at >= CURRENT_DATE - INTERVAL '7 days'
   `;
 
-  const resources = await sql`
-    SELECT * FROM resources ORDER BY minutes ASC LIMIT 6
+  // Coming up: open contests, upcoming events, scheduled mentor sessions.
+  const contests = await sql`
+    SELECT c.id, c.title, c.status, c.starts_at, c.ends_at,
+      EXISTS(SELECT 1 FROM contest_registrations r WHERE r.contest_id = c.id AND r.student_id = ${user?.id ?? ""}) AS registered
+    FROM contests c
+    WHERE c.status IN ('open', 'upcoming', 'published')
+    ORDER BY c.starts_at ASC NULLS LAST LIMIT 3
+  `;
+  const events = await sql`
+    SELECT e.id, e.title, e.event_type, e.starts_at, e.location, e.is_online,
+      EXISTS(SELECT 1 FROM event_registrations r WHERE r.event_id = e.id AND r.student_id = ${user?.id ?? ""}) AS registered
+    FROM events e
+    WHERE e.starts_at >= NOW() - INTERVAL '2 hours'
+    ORDER BY e.starts_at ASC LIMIT 3
+  `;
+  const sessions = await sql`
+    SELECT s.id, s.scheduled_at, s.status, m.expertise, p.name AS mentor_name
+    FROM mentor_sessions s
+    LEFT JOIN mentors m ON m.user_id = s.mentor_id
+    LEFT JOIN profiles p ON p.user_id = s.mentor_id
+    WHERE s.student_id = ${user?.id ?? ""} AND s.scheduled_at >= NOW() - INTERVAL '2 hours'
+    ORDER BY s.scheduled_at ASC LIMIT 2
   `;
 
-  // Chapter-average completion per domain for the skill radar.
-  const [{ students = 0 } = {}] = await sql`SELECT COUNT(*)::int AS students FROM profiles WHERE tenant_id = ${tenant.id} AND role = 'student'`;
-  const nodesByDomain = await sql`SELECT domain, COUNT(*)::int AS n FROM roadmap_nodes GROUP BY domain`;
-  const completions = await sql`
-    SELECT n.domain, COUNT(*)::int AS completions FROM student_roadmap_progress r
+  // Recent proof: completions, verified OSS, projects.
+  const recentNodes = await sql`
+    SELECT r.completed_at, n.title FROM student_roadmap_progress r
     JOIN roadmap_nodes n ON n.id = r.node_id
-    JOIN profiles p ON p.user_id = r.student_id
-    WHERE p.tenant_id = ${tenant.id} AND r.status = 'completed'
-    GROUP BY n.domain
+    WHERE r.student_id = ${user?.id ?? ""} AND r.status = 'completed'
+    ORDER BY r.completed_at DESC NULLS LAST LIMIT 3
   `;
-  const domainAvg = {};
-  for (const d of nodesByDomain) {
-    const c = completions.find((x) => x.domain === d.domain)?.completions || 0;
-    domainAvg[d.domain] = students > 0 && d.n > 0 ? Math.round((c / (students * d.n)) * 1000) / 10 : 0;
+  const recentOss = await sql`
+    SELECT pr_url, title, verified_at, status FROM student_oss_contributions
+    WHERE student_id = ${user?.id ?? ""}
+    ORDER BY created_at DESC LIMIT 2
+  `;
+  const recentProjects = await sql`
+    SELECT id, title, status, created_at FROM projects
+    WHERE owner_id = ${user?.id ?? ""}
+    ORDER BY created_at DESC LIMIT 2
+  `;
+  const proof = [
+    ...recentNodes.map((r) => ({
+      text: `completed ${r.title}`,
+      meta: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) + " · roadmap" : "roadmap",
+      href: "/student/roadmap",
+      hot: true
+    })),
+    ...recentOss.map((o) => ({
+      text: o.status === "merged" || o.verified_at ? `merged ${o.title || "a pull request"}` : `claimed ${o.title || "a pull request"}`,
+      meta: "open source",
+      href: o.pr_url || "/student/opensource",
+      hot: !!(o.verified_at || o.status === "merged")
+    })),
+    ...recentProjects.map((p) => ({
+      text: `published ${p.title}`,
+      meta: "project",
+      href: `/student/projects/${p.id}`,
+      hot: false
+    }))
+  ].slice(0, 5);
+
+  // Growth story (insights folded in): latest snapshot + peers.
+  const [snapshot] = await sql`
+    SELECT * FROM student_analytics_snapshots WHERE student_id = ${user?.id ?? ""}
+    ORDER BY snapshot_date DESC LIMIT 1
+  `;
+  let peers = null;
+  if (snapshot) {
+    [peers] = await sql`
+      SELECT COALESCE(AVG(consistency_score),0)::numeric AS ac, COUNT(*)::int AS n
+      FROM student_analytics_snapshots
+      WHERE tenant_id = ${tenant?.id ?? null}::uuid AND snapshot_date = CURRENT_DATE AND student_id <> ${user?.id ?? ""}
+    `;
   }
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <StudentDashboard
         profile={profile}
-        nodes={nodes}
+        greeting={greeting}
+        todayLabel={todayLabel}
+        nextNode={nextNode}
+        nodes={nodes.map((n) => ({ id: n.id, title: n.title }))}
         doneIds={doneIds}
-        doneCount={doneCount}
-        totalCount={totalCount}
         overallPercent={overallPercent}
-        activity={activity}
-        resources={resources}
-        domainAvg={domainAvg}
+        nextMilestone={nextMilestone}
+        weekDays={weekDays}
+        weekCounts={{ sessions: weekSessions, contributions: weekContributions, milestones: weekMilestones?.c ?? 0 }}
+        contests={contests}
+        events={events}
+        sessions={sessions}
+        proof={proof}
+        snapshot={snapshot}
+        peers={peers}
       />
     </AppShell>
   );

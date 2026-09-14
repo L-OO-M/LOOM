@@ -1,10 +1,10 @@
 export function PageHeader({ kicker, title, desc, action }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        {kicker && <p className="kicker">{kicker}</p>}
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: "var(--text)" }}>{title}</h1>
-        {desc && <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>{desc}</p>}
+        {kicker && <p className="meta">{kicker}</p>}
+        <h1 className="h-product mt-2.5" style={{ fontSize: "1.65rem" }}>{title}</h1>
+        {desc && <p className="narrative mt-2.5" style={{ fontSize: "0.9rem" }}>{desc}</p>}
       </div>
       {action}
     </div>
@@ -21,19 +21,20 @@ export function Card({ children, className = "" }) {
 
 export function EmptyState({ title, body, action }) {
   return (
-    <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{title}</p>
-      {body && <p className="mx-auto mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>{body}</p>}
-      {action && <div className="mt-5">{action}</div>}
+    <div className="mx-auto max-w-xl py-10 text-center">
+      <p className="meta" style={{ color: "var(--accent)" }}>Empty — for now</p>
+      <p className="display display-md mt-3">{title}</p>
+      {body && <p className="narrative mx-auto mt-3 text-center">{body}</p>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
 
 export function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
-      <p className="mt-2 font-mono text-xl font-semibold" style={{ color: "var(--text)" }}>{value}</p>
+    <div className="stat-plain">
+      <p className="figure figure-mono">{value}</p>
+      <span className="max-w-40 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{label}</span>
     </div>
   );
 }

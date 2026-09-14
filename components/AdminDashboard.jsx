@@ -1,94 +1,93 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
-import { useTab } from "@/components/AppShell";
-import { Users, Flag, ScrollText, BarChart3 } from "lucide-react";
+import Link from "next/link";
+import { Reveal } from "@/components/motion/Reveal";
+import { Meta, PlainStat } from "@/components/loom/primitives";
+import { ActivityStream } from "@/components/loom/Evidence";
 
-export function AdminDashboard({ activeCount, eventCount, flags, auditEntries }) {
-  const { activeTab } = useTab();
+/* Admin overview as an operations console: cohort health, the attention
+   queue, what's next, and the audit trail. No student-dashboard reuse. */
+
+export function AdminDashboard({ health, attention, upcoming, auditEntries }) {
+  const waiting = attention.reduce((s, a) => s + a.count, 0);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <AnimatePresence mode="wait">
-        {activeTab === "overview" && (
-          <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <div className="rounded-2xl border p-7" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Admin overview</p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: "var(--text)" }}>
-                College growth signal
-              </h1>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <AdminStat icon={Users} label="Active students" value={activeCount} />
-                <AdminStat icon={BarChart3} label="GitHub events today" value={eventCount} />
-                <AdminStat icon={Flag} label="Roadmap completion" value="—" />
-                <AdminStat icon={ScrollText} label="Review recommended" value="—" />
-              </div>
-            </div>
-          </motion.div>
-        )}
+    <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      <Meta>Operations · {new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })}</Meta>
+      <h1 className="h-product mt-3" style={{ fontSize: "1.8rem" }}>
+        {waiting > 0 ? `${waiting} thing${waiting === 1 ? "" : "s"} need${waiting === 1 ? "s" : ""} a human.` : "Nothing waiting. The chapter is humming."}
+      </h1>
 
-        {activeTab === "flags" && (
-          <motion.div key="flags" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <h2 className="mb-5 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>Feature flags</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {flags.length === 0 && <p className="text-sm" style={{ color: "var(--text-muted)" }}>None configured</p>}
-              {flags.map((flag) => (
-                <div key={flag.key} className="flex items-center justify-between rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                  <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{flag.key.replaceAll("_", " ")}</span>
-                  <span
-                    className="rounded-md px-2.5 py-0.5 text-xs font-semibold"
-                    style={{
-                      background: flag.enabled ? "var(--text)" : "transparent",
-                      color: flag.enabled ? "var(--bg)" : "var(--text-muted)",
-                      border: flag.enabled ? "none" : "1px solid var(--line)"
-                    }}
-                  >
-                    {flag.enabled ? "On" : "Off"}
+      <section className="mt-8 border-y py-7" style={{ borderColor: "var(--line)" }} aria-label="Cohort health">
+        <div className="grid gap-8 sm:grid-cols-4">
+          <PlainStat value={health.students} unit="students" label="on the roster" />
+          <PlainStat value={health.active7d} unit="active" label="in the last 7 days" />
+          <PlainStat value={`${Math.round(health.completion)}`} unit="%" label="avg. roadmap completion" />
+          <PlainStat value={health.events24h} unit="events" label="GitHub events in 24h" />
+        </div>
+      </section>
+
+      <div className="mt-10 grid gap-12 lg:grid-cols-2">
+        <section aria-label="Attention queue">
+          <Meta>Attention queue</Meta>
+          <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
+            {attention.map((a) => (
+              <li key={a.href}>
+                <Link href={a.href} className="row-link flex items-baseline justify-between gap-3 px-2 py-3.5">
+                  <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{a.label}</span>
+                  <span className="figure-mono text-base font-semibold" style={{ color: a.count > 0 ? "var(--accent)" : "var(--text-muted)" }}>
+                    {a.count}
                   </span>
-                </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="narrative mt-4">Triage oldest first. Every action you take writes to the audit trail below.</p>
+        </section>
+
+        <section aria-label="Upcoming">
+          <div className="flex items-baseline justify-between">
+            <Meta>Upcoming gatherings</Meta>
+            <Link href="/admin/events" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Manage →</Link>
+          </div>
+          {upcoming.length === 0 ? (
+            <p className="narrative mt-3">Nothing on the calendar. Chapters that gather, grow — schedule the next one.</p>
+          ) : (
+            <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
+              {upcoming.map((e) => (
+                <li key={e.id} className="flex items-baseline gap-4 py-3">
+                  <span className="meta w-24 shrink-0">
+                    {new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                  </span>
+                  <Link href="/admin/events" className="truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>
+                    {e.title}
+                  </Link>
+                  <span className="meta ml-auto shrink-0">{e.event_type}</span>
+                </li>
               ))}
-            </div>
-          </motion.div>
-        )}
-
-        {activeTab === "audit" && (
-          <motion.div key="audit" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
-            <h2 className="mb-5 text-lg font-semibold tracking-tight" style={{ color: "var(--text)" }}>Audit log</h2>
-            {auditEntries.length === 0 && <p className="text-sm" style={{ color: "var(--text-muted)" }}>No audit entries yet</p>}
-            {auditEntries.length > 0 && (
-              <div className="overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)" }}>
-                {auditEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="grid gap-1 border-b px-5 py-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
-                    style={{ borderColor: "var(--line)" }}
-                  >
-                    <p className="text-sm font-medium capitalize" style={{ color: "var(--text)" }}>
-                      {entry.action.replaceAll("_", " ")}
-                    </p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{entry.actor_id}</p>
-                    <p className="text-xs sm:text-right" style={{ color: "var(--text-muted)" }}>
-                      {new Date(entry.created_at).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
-  );
-}
-
-function AdminStat({ icon: Icon, label, value }) {
-  return (
-    <div className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
-      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        {Icon && <Icon size={14} strokeWidth={1.5} />}
-        {label}
+            </ul>
+          )}
+        </section>
       </div>
-      <p className="mt-2 font-mono text-xl font-semibold" style={{ color: "var(--text)" }}>{value}</p>
-    </div>
+
+      <section className="mt-12" aria-label="Audit trail">
+        <div className="flex items-baseline justify-between">
+          <Meta>Latest admin actions</Meta>
+          <Link href="/admin/audit" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Full log →</Link>
+        </div>
+        <div className="mt-2">
+          {auditEntries.length === 0 ? (
+            <p className="narrative mt-3">No admin actions recorded yet. They'll stream in here — who did what, and when.</p>
+          ) : (
+            <ActivityStream
+              items={auditEntries.map((e) => ({
+                text: `${e.action.replaceAll("_", " ")} — ${e.resource} ${String(e.resource_id || "").slice(0, 8)}`,
+                meta: `${e.actor_id} · ${new Date(e.created_at).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+              }))}
+            />
+          )}
+        </div>
+      </section>
+    </main>
   );
 }

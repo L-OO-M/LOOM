@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat } from "@/components/ui";
+import { Display, Meta, PlainStat } from "@/components/loom/primitives";
 
 export const dynamic = "force-dynamic";
 
@@ -36,55 +36,54 @@ export default async function ChapterPage({ params }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/network" style={{ color: "var(--accent)" }}>← All chapters</Link>
-        </p>
-        <PageHeader
-          kicker={isMine ? "Your chapter" : "Chapter profile"}
-          title={chapter.public_name}
-          desc={chapter.mission || undefined}
-        />
-        <div className="grid grid-cols-3 gap-3">
-          <Stat label="Members" value={members} />
-          <Stat label="OSS merges" value={oss} />
-          <Stat label="Projects" value={projects} />
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Link href="/student/network" className="meta hover:underline" style={{ color: "var(--accent)" }}>← All chapters</Link>
+        <Meta className="mt-4">{isMine ? "Your chapter" : "Chapter profile"}</Meta>
+        <Display size="lg" className="mt-3">{chapter.public_name}</Display>
+        {chapter.mission && <p className="lede mt-4">{chapter.mission}</p>}
+
+        <div className="mt-8 grid gap-8 border-y py-7 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
+          <PlainStat value={members} unit="members" label="learning together" />
+          <PlainStat value={oss} unit="merges" label="verified open-source work" />
+          <PlainStat value={projects} unit="projects" label="shipped and counting" />
         </div>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Top contributors</h2>
+        <div className="mt-10 grid gap-10 sm:grid-cols-2">
+          <section aria-label="Top contributors">
+            <Meta>Top contributors</Meta>
             {leaders.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No verified merges yet — be the first.</p>
+              <p className="narrative mt-3">No verified merges yet — the first name here could be yours.</p>
             ) : (
-              <ol className="mt-3 space-y-2 text-sm">
+              <ol className="mt-3">
                 {leaders.map((l, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span style={{ color: "var(--text)" }}>{i + 1}. {l.name}</span>
-                    <span className="font-mono" style={{ color: "var(--text-muted)" }}>{l.merges} merges</span>
+                  <li key={i} className="flex items-baseline justify-between gap-3 border-b py-2.5" style={{ borderColor: "var(--line)" }}>
+                    <span className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                      <span className="index-num mr-3">{i + 1}</span>{l.name}
+                    </span>
+                    <span className="figure-mono text-sm" style={{ color: "var(--text-muted)" }}>{l.merges} merges</span>
                   </li>
                 ))}
               </ol>
             )}
-          </Card>
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Connect</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              {chapter.website_url && <li><a href={chapter.website_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>Website ↗</a></li>}
-              {chapter.contact_email && <li><a href={`mailto:${chapter.contact_email}`} style={{ color: "var(--accent)" }}>{chapter.contact_email}</a></li>}
+          </section>
+          <section aria-label="Connect">
+            <Meta>Connect</Meta>
+            <ul className="mt-3 space-y-2.5 text-sm">
+              {chapter.website_url && <li><a href={chapter.website_url} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Website ↗</a></li>}
+              {chapter.contact_email && <li><a href={`mailto:${chapter.contact_email}`} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>{chapter.contact_email}</a></li>}
               {Object.entries(links).map(([k, v]) => (
-                <li key={k}><a href={v} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }} className="capitalize">{k} ↗</a></li>
+                <li key={k}><a href={v} target="_blank" rel="noreferrer" className="font-semibold capitalize hover:underline" style={{ color: "var(--accent)" }}>{k} ↗</a></li>
               ))}
               {!chapter.website_url && !chapter.contact_email && Object.keys(links).length === 0 && (
                 <li style={{ color: "var(--text-muted)" }}>No public links yet.</li>
               )}
             </ul>
             {!isMine && (
-              <p className="mt-4 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                Competing with this chapter? Climb your own leaderboard: <Link href="/student/leaderboard" style={{ color: "var(--accent)" }}>Board →</Link>
+              <p className="narrative mt-5">
+                Racing this chapter? <Link href="/student/leaderboard" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Climb your board →</Link>
               </p>
             )}
-          </Card>
+          </section>
         </div>
       </main>
     </AppShell>

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, EmptyState } from "@/components/ui";
+import { Display, Meta, StatusPill } from "@/components/loom/primitives";
+import { OnboardingState } from "@/components/loom/States";
 import { RegisterButton } from "./EventsBits";
 
 export const dynamic = "force-dynamic";
@@ -32,53 +33,72 @@ export default async function EventsPage({ searchParams }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="Show up" title="Events" desc="Workshops, hackathons, and talks from your chapter." />
-        <div className="flex gap-2">
-          <Link href="/student/events" className={scope === "upcoming" ? "btn-ink" : "rounded-xl border px-3 py-2 text-sm"} style={scope === "upcoming" ? undefined : { borderColor: "var(--line)", color: "var(--text-muted)" }}>Upcoming</Link>
-          <Link href="/student/events?scope=past" className={scope === "past" ? "btn-ink" : "rounded-xl border px-3 py-2 text-sm"} style={scope === "past" ? undefined : { borderColor: "var(--line)", color: "var(--text-muted)" }}>Past</Link>
+      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <Meta>Connect · show up, level up</Meta>
+        <Display size="lg" className="mt-3">Gatherings worth leaving your room for.</Display>
+
+        <div className="seg mt-7" role="group" aria-label="Event scope">
+          <Link href="/student/events" aria-pressed={scope === "upcoming" ? "true" : "false"} className={scope === "upcoming" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"} style={scope === "upcoming" ? undefined : { color: "var(--text-muted)" }}>
+            Upcoming
+          </Link>
+          <Link href="/student/events?scope=past" aria-pressed={scope === "past" ? "true" : "false"} className={scope === "past" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"} style={scope === "past" ? undefined : { color: "var(--text-muted)" }}>
+            Past
+          </Link>
         </div>
 
         {mine.length > 0 && scope === "upcoming" && (
-          <Card className="mt-6">
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>My registrations</h2>
-            <ul className="mt-2 space-y-1 text-sm">
+          <section className="mt-8 border-y py-5" style={{ borderColor: "var(--line)" }} aria-label="Your seats">
+            <Meta style={{ color: "var(--accent)" }}>You're in · {mine.length}</Meta>
+            <ul className="mt-3 space-y-2">
               {mine.map((r) => (
-                <li key={r.id} className="flex flex-wrap justify-between gap-2">
-                  <Link href={`/student/events/${r.event_id}`} className="hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
-                  <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{r.status === "attended" ? "attended ✓" : `door code: ${r.check_in_code}`}</span>
+                <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                  <Link href={`/student/events/${r.event_id}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
+                  <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{r.status === "attended" ? "attended ✓" : `door code ${r.check_in_code}`}</span>
                 </li>
               ))}
             </ul>
-          </Card>
+          </section>
         )}
 
         {events.length === 0 ? (
-          <div className="mt-4"><EmptyState title={scope === "past" ? "No past events" : "Nothing scheduled"} body={scope === "past" ? "" : "Check back soon — or propose a workshop to your chapter admin."} /></div>
+          <OnboardingState
+            eyebrow={scope === "past" ? "Archive" : "Calendar"}
+            title={scope === "past" ? "No history yet." : "Nothing scheduled."}
+            why={scope === "past" ? "Past gatherings will archive here with their materials." : "Check back soon — or propose a workshop to your chapter admin. The best events start as someone's idea."}
+          />
         ) : (
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+          <ol className="mt-8">
             {events.map((e) => {
               const full = e.capacity && e.seats_taken >= e.capacity && !e.registered;
+              const d = new Date(e.starts_at);
               return (
-                <li key={e.id}>
-                  <Card>
-                    <div className="flex items-center justify-between gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                      <span>{TYPE_LABEL[e.event_type] || e.event_type} · {e.domain}</span>
-                      <span>{new Date(e.starts_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</span>
+                <li key={e.id} className="border-b py-6 first:border-t" style={{ borderColor: "var(--line)" }}>
+                  <div className="flex gap-5">
+                    <div className="w-14 shrink-0 text-center" aria-hidden="true">
+                      <p className="figure text-3xl">{d.getDate()}</p>
+                      <p className="meta mt-1">{d.toLocaleDateString("en-IN", { month: "short" })}</p>
                     </div>
-                    <Link href={`/student/events/${e.id}`} className="mt-2 block font-medium hover:underline" style={{ color: "var(--text)" }}>{e.title}</Link>
-                    {e.speaker_name && <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>by {e.speaker_name}</p>}
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                        {e.is_online ? "Online" : e.location || "TBA"}{e.capacity ? ` · ${e.seats_taken}/${e.capacity}` : ""}
-                      </span>
-                      {scope === "upcoming" && <RegisterButton eventId={e.id} registered={e.registered} full={full} />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <Link href={`/student/events/${e.id}`} className="text-lg font-semibold hover:underline" style={{ color: "var(--text)" }}>{e.title}</Link>
+                        {e.registered && <StatusPill tone="live">you're in</StatusPill>}
+                        {full && <StatusPill>full</StatusPill>}
+                      </div>
+                      <p className="meta mt-1.5">
+                        {TYPE_LABEL[e.event_type] || e.event_type} · {d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                        {e.is_online ? " · online" : e.location ? ` · ${e.location}` : ""}
+                        {e.capacity ? ` · ${e.seats_taken}/${e.capacity} seats` : ""}
+                      </p>
+                      {e.speaker_name && <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>with {e.speaker_name}</p>}
+                      {scope === "upcoming" && (
+                        <div className="mt-3"><RegisterButton eventId={e.id} registered={e.registered} full={full} /></div>
+                      )}
                     </div>
-                  </Card>
+                  </div>
                 </li>
               );
             })}
-          </ul>
+          </ol>
         )}
       </main>
     </AppShell>

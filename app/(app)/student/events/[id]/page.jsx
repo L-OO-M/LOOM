@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card } from "@/components/ui";
+import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import { env } from "@/lib/env";
 import { RegisterButton, FeedbackForm, MaterialForm, CheckInForm } from "../EventsBits";
 
@@ -40,48 +40,59 @@ export default async function EventDetailPage({ params }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          <Link href="/student/events" style={{ color: "var(--accent)" }}>← Events</Link>
-        </p>
-        <PageHeader kicker={`${event.event_type} · ${event.domain}`} title={event.title}
-          desc={`${new Date(event.starts_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} · ${event.is_online ? "Online" : event.location || "TBA"}`}
-          action={<RegisterButton eventId={event.id} registered={!!mine && mine.status !== "cancelled"} full={full} />} />
-        <Card>
-          <p className="whitespace-pre-wrap text-sm leading-7" style={{ color: "var(--text)" }}>{event.description || "Details coming soon."}</p>
-          {event.speaker_name && <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>Speaker: <span style={{ color: "var(--text)" }}>{event.speaker_name}</span>{event.speaker_bio ? ` — ${event.speaker_bio}` : ""}</p>}
-          <a href={gcalUrl(event)} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>Add to Google Calendar ↗</a>
-        </Card>
+      <main className="mx-auto max-w-3xl px-4 sm:px-6">
+        <Link href="/student/events" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Events</Link>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <StatusPill tone={mine && mine.status !== "cancelled" ? "live" : ""}>
+            {event.event_type} · {mine && mine.status !== "cancelled" ? "you're in" : new Date(event.starts_at) < new Date() ? "past" : "open"}
+          </StatusPill>
+          <span className="meta">
+            {new Date(event.starts_at).toLocaleString("en-IN", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            {event.is_online ? " · online" : event.location ? ` · ${event.location}` : ""}
+          </span>
+        </div>
+        <Display size="lg" className="mt-3">{event.title}</Display>
+        <p className="lede mt-4 whitespace-pre-wrap">{event.description || "Details coming soon."}</p>
+        {event.speaker_name && <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>with <span style={{ color: "var(--text)" }} className="font-medium">{event.speaker_name}</span>{event.speaker_bio ? ` — ${event.speaker_bio}` : ""}</p>}
+        <div className="mt-6 flex flex-wrap items-center gap-4 border-y py-5" style={{ borderColor: "var(--line)" }}>
+          <RegisterButton eventId={event.id} registered={!!mine && mine.status !== "cancelled"} full={full} />
+          <a href={gcalUrl(event)} target="_blank" rel="noreferrer" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>Add to calendar ↗</a>
+          {event.capacity && <span className="meta ml-auto">{event.seats_taken}/{event.capacity} seats</span>}
+        </div>
 
         {mine && mine.status !== "cancelled" && (
-          <Card className="mt-6">
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Your registration</h2>
-            <p className="mt-2 font-mono text-sm" style={{ color: "var(--accent)" }}>
-              {mine.status === "attended" ? "Attended ✓" : `Door code: ${mine.check_in_code}`}
+          <section className="mt-8" aria-label="Your registration">
+            <Meta style={{ color: "var(--accent)" }}>Your seat</Meta>
+            <p className="mt-2 font-mono text-lg font-semibold" style={{ color: "var(--text)" }}>
+              {mine.status === "attended" ? "Attended ✓" : mine.check_in_code}
             </p>
-            {cert && <Link href={`/student/certificates/${cert.verification_code}`} className="mt-2 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>View certificate →</Link>}
-            {mine.status === "attended" && !mine.feedback_score && <FeedbackForm eventId={event.id} />}
-          </Card>
+            {mine.status !== "attended" && <p className="meta mt-1">show this code at the door</p>}
+            {cert && <Link href={`/student/certificates/${cert.verification_code}`} className="mt-2 inline-block text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>View certificate →</Link>}
+            {mine.status === "attended" && !mine.feedback_score && <div className="mt-3"><FeedbackForm eventId={event.id} /></div>}
+          </section>
         )}
 
-        <Card className="mt-6">
-          <h2 className="font-medium" style={{ color: "var(--text)" }}>Materials</h2>
+        <section className="mt-10" aria-label="Materials">
+          <Meta>Materials · {materials.length}</Meta>
           {materials.length === 0 ? (
-            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Slides, recordings, and handouts appear here.</p>
+            <p className="narrative mt-3">Slides, recordings, and handouts appear here after the gathering.</p>
           ) : (
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
               {materials.map((m) => (
-                <li key={m.id}><a href={m.storage_url} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{m.title} ↗</a> <span style={{ color: "var(--text-muted)" }}>· {m.file_type}</span></li>
+                <li key={m.id} className="py-2.5 text-sm">
+                  <a href={m.storage_url} target="_blank" rel="noreferrer" className="font-medium hover:underline" style={{ color: "var(--text)" }}>{m.title} ↗</a>
+                  <span className="meta ml-2">{m.file_type}</span>
+                </li>
               ))}
             </ul>
           )}
-          {isAdmin && <MaterialForm eventId={event.id} />}
-        </Card>
+          {isAdmin && <div className="mt-3"><MaterialForm eventId={event.id} /></div>}
+        </section>
 
         {isAdmin && (
-          <Card className="mt-6">
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Door check-in ({attendees.filter((a) => a.status === "attended").length}/{attendees.length} attended)</h2>
-            <CheckInForm eventId={event.id} />
+          <section className="mt-10 border-t pt-6" style={{ borderColor: "var(--line)" }} aria-label="Check-in">
+            <Meta>Door check-in · {attendees.filter((a) => a.status === "attended").length}/{attendees.length} attended</Meta>
+            <div className="mt-3"><CheckInForm eventId={event.id} /></div>
             <ul className="mt-3 max-h-64 space-y-1 overflow-auto text-sm">
               {attendees.map((a) => (
                 <li key={a.id} className="flex justify-between gap-2">
@@ -90,7 +101,7 @@ export default async function EventDetailPage({ params }) {
                 </li>
               ))}
             </ul>
-          </Card>
+          </section>
         )}
       </main>
     </AppShell>
