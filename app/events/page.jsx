@@ -2,7 +2,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
-import { BrandMark } from "@/components/BrandMark";
+import { PublicNav } from "@/components/landing/PublicNav";
+import { PageHero } from "@/components/landing/PageHero";
+import { PublicFooter } from "@/components/landing/PublicFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -53,40 +55,46 @@ export default async function EventsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6" style={{ background: "var(--bg)", minHeight: "100dvh" }}>
-      <BrandMark size={28} />
-      <p className="kicker mt-8">Workshops, hackathons, talks</p>
-      <h1 className="font-display mt-2 text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
-        Upcoming events
-      </h1>
-      <p className="mt-4 leading-7" style={{ color: "var(--text-muted)" }}>
-        Real workshops from the chapter calendar. To reserve a seat,{" "}
-        <Link prefetch={false} href="/login" className="font-semibold" style={{ color: "var(--accent)" }}>
-          sign in
-        </Link>{" "}
-        and register from your dashboard.
-      </p>
-      <div className="mt-8 space-y-3">
-        {events.map((e) => (
-          <article key={e.id} className="rounded-xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-base font-medium" style={{ color: "var(--text)" }}>{e.title}</h2>
-              <span className="text-xs" style={{ color: "var(--accent)" }}>{e.event_type}</span>
-            </div>
-            <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-              {formatWhen(e.starts_at)} · {e.is_online ? "Online" : (e.location || "Venue announced soon")}
-              {e.department_name ? ` · ${e.department_name}` : ""}
-              {e.speaker_name ? ` · by ${e.speaker_name}` : ""}
-            </p>
-            {e.description && <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{e.description}</p>}
-            <Link prefetch={false} href="/login" className="mt-3 inline-block text-sm font-semibold" style={{ color: "var(--accent)" }}>
-              Register →
-            </Link>
-          </article>
-        ))}
-        {events.length === 0 && (
-          <div className="rounded-xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No upcoming events right now.</p>
+    <main className="w-full max-w-full overflow-x-hidden">
+      <PublicNav />
+      <div className="pt-16">
+        <PageHero
+          kicker="Workshops, hackathons, talks"
+          title="Upcoming events"
+          lede="Real workshops from the chapter calendar — the year-round rhythm, not once-a-semester theatre. To reserve a seat, sign in and register from your dashboard."
+        />
+      </div>
+
+      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Calendar">
+        <p className="kicker">Thread 01 — The calendar</p>
+        {events.length > 0 ? (
+          <ol className="relative mt-8">
+            <span aria-hidden="true" className="absolute bottom-4 left-[7px] top-2 w-px"
+              style={{ background: "linear-gradient(to bottom, var(--accent), var(--line))" }} />
+            {events.map((e) => (
+              <li key={e.id} className="relative pb-8 pl-9 last:pb-0">
+                <span aria-hidden="true" className="absolute left-0 top-1.5 grid size-4 place-items-center rounded-full border" style={{ borderColor: "var(--accent)", background: "var(--bg)" }}>
+                  <span className="size-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+                </span>
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
+                  {formatWhen(e.starts_at)} · {e.event_type}
+                </p>
+                <h2 className="font-display mt-1 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>{e.title}</h2>
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  {e.is_online ? "Online" : (e.location || "Venue announced soon")}
+                  {e.department_name ? ` · ${e.department_name}` : ""}
+                  {e.speaker_name ? ` · by ${e.speaker_name}` : ""}
+                </p>
+                {e.description && <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>{e.description}</p>}
+                <Link prefetch={false} href="/login" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+                  Register →
+                </Link>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="mt-8 max-w-2xl rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <p className="text-base font-medium" style={{ color: "var(--text)" }}>No upcoming events right now.</p>
             <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
               Workshops are posted by department leads through the week. Check back soon — or{" "}
               <Link prefetch={false} href="/login" className="font-semibold" style={{ color: "var(--accent)" }}>
@@ -96,12 +104,20 @@ export default async function EventsPage() {
             </p>
           </div>
         )}
-      </div>
-      <nav className="mt-10 flex flex-wrap gap-4 text-sm font-medium" aria-label="Public pages">
-        <Link prefetch={false} href="/" style={{ color: "var(--accent)" }}>← Home</Link>
-        <Link prefetch={false} href="/about" style={{ color: "var(--accent)" }}>About</Link>
-        <Link prefetch={false} href="/faq" style={{ color: "var(--accent)" }}>FAQ</Link>
-      </nav>
+
+        <div className="mt-12 rounded-2xl border p-6 text-center sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
+          <p className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>Seats go to members first.</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+            Registration, reminders, and certificates all live inside your dashboard.
+          </p>
+          <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/register" prefetch={false} className="btn-ink justify-center">Get started</Link>
+            <Link href="/login" prefetch={false} className="btn-ghost justify-center">Sign in</Link>
+          </div>
+        </div>
+      </section>
+
+      <PublicFooter />
     </main>
   );
 }

@@ -56,6 +56,23 @@ test.describe("L.O.O.M. public site", () => {
     await expect(page.locator("h1")).toContainText(/Web Development|Domain not found/);
   });
 
+  test("landing links reach the public pages", async ({ page }) => {
+    await page.goto("/");
+    const menuButton = page.getByRole("button", { name: "Open menu" });
+    if (await menuButton.isVisible()) await menuButton.click();
+    // Every destination is one visible tap away from home.
+    for (const [label, url] of [["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"]]) {
+      const link = page.getByRole("link", { name: label, exact: true }).filter({ visible: true }).first();
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", url);
+    }
+    // And the first tap genuinely travels (generous timeout: a cold dev
+    // server compiles the route on first hit under parallel load).
+    const about = page.getByRole("link", { name: "About", exact: true }).filter({ visible: true }).first();
+    await about.click();
+    await expect(page).toHaveURL("/about", { timeout: 20000 });
+  });
+
   test("public apis return ok without auth", async ({ request }) => {
     for (const path of ["/api/public/events", "/api/public/projects", "/api/public/departments"]) {
       const res = await request.get(path);

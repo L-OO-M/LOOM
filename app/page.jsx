@@ -30,6 +30,12 @@ const navLinks = [
   ["For Colleges", "#colleges"]
 ];
 
+const pageLinks = [
+  ["About", "/about"],
+  ["Events", "/events"],
+  ["FAQ", "/faq"]
+];
+
 const features = [
   { icon: BookOpen, number: "01", title: "Roadmaps", body: "Structured paths from fundamentals to advanced work, with every milestone made clear." },
   { icon: GraduationCap, number: "02", title: "Resources", body: "Curated reading, workshops, and practice selected by mentors — not an endless content feed." },
@@ -156,6 +162,12 @@ export default function LandingPage() {
                 {label}
               </a>
             ))}
+            <span className="h-4 w-px" aria-hidden="true" style={{ background: "var(--line)" }} />
+            {pageLinks.map(([label, href]) => (
+              <Link key={label} href={href} prefetch={false} className="link-slide text-sm font-medium transition hover:opacity-100" style={{ color: "var(--text-muted)" }}>
+                {label}
+              </Link>
+            ))}
           </nav>
           <div className="hidden items-center gap-2 lg:flex">
             <button
@@ -210,6 +222,11 @@ export default function LandingPage() {
                 <a key={label} href={href} onClick={() => setMenuOpen(false)} className="py-3 text-sm font-medium" style={{ color: "var(--text)" }}>
                   {label}
                 </a>
+              ))}
+              {pageLinks.map(([label, href]) => (
+                <Link key={label} href={href} prefetch={false} onClick={() => setMenuOpen(false)} className="py-3 text-sm font-medium" style={{ color: "var(--text)" }}>
+                  {label}
+                </Link>
               ))}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">

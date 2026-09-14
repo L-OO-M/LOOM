@@ -2,9 +2,18 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
-import { BrandMark } from "@/components/BrandMark";
+import { PublicNav } from "@/components/landing/PublicNav";
+import { PageHero } from "@/components/landing/PageHero";
+import { PublicFooter } from "@/components/landing/PublicFooter";
 
 export const dynamic = "force-dynamic";
+
+const THESIS = [
+  ["Accessibility", "Traditional societies leave beginners out.", "Strictly beginner-friendly participation and onboarding."],
+  ["Guidance", "Fragmented resources without a path.", "Structured roadmaps plus peer-to-peer mentorship."],
+  ["Engagement", "Recruit once, fade by mid-semester.", "Consistent year-round practice and hands-on projects."],
+  ["Output", "Certificates in drawers.", "Open-source contribution, hackathons, collaboration."]
+];
 
 async function resolvePublicTenant() {
   try {
@@ -41,64 +50,82 @@ export default async function AboutPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6" style={{ background: "var(--bg)", minHeight: "100dvh" }}>
-      <BrandMark size={28} />
-      <p className="kicker mt-8">What L.O.O.M. is</p>
-      <h1 className="font-display mt-2 text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
-        About L.O.O.M.
-      </h1>
-      <p className="mt-4 leading-7" style={{ color: "var(--text-muted)" }}>
-        L.O.O.M. — Learning, Opportunity, Open Source, Mentorship — is a self-sustaining,
-        student-run technical learning community. It is an ecosystem, not an event organizer:
-        a place where students learn, build, and grow regardless of prior experience, until
-        they become the mentors of the next intake.
-      </p>
-
-      <h2 className="font-display mt-10 text-2xl font-medium" style={{ color: "var(--text)" }}>The vision</h2>
-      <div className="mt-4 space-y-3 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        <p>Traditional societies recruit, host a few events, hand out certificates, and fade. L.O.O.M. is built to do the opposite:</p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li><strong style={{ color: "var(--text)" }}>Accessibility</strong> — strictly beginner-friendly participation and onboarding.</li>
-          <li><strong style={{ color: "var(--text)" }}>Guidance</strong> — structured roadmaps plus peer-to-peer mentorship.</li>
-          <li><strong style={{ color: "var(--text)" }}>Engagement</strong> — consistent year-round practice and hands-on projects.</li>
-          <li><strong style={{ color: "var(--text)" }}>Output</strong> — open-source contribution, hackathons, and collaboration.</li>
-        </ul>
-        <p>Students Learn → Students Build → Students Mentor → Students Contribute. No prior skill required — bring your questions.</p>
+    <main className="w-full max-w-full overflow-x-hidden">
+      <PublicNav />
+      <div className="pt-16">
+        <PageHero
+          kicker="What L.O.O.M. is"
+          title="About L.O.O.M."
+          lede="Learning, Opportunity, Open Source, Mentorship — a self-sustaining, student-run technical learning community. An ecosystem, not an event organizer."
+        />
       </div>
 
-      <h2 className="font-display mt-10 text-2xl font-medium" style={{ color: "var(--text)" }}>Leadership</h2>
-      <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        The students currently responsible for each department — names come straight from the chapter roster.
-      </p>
-      <div className="mt-4 space-y-3">
-        {leadership.map((d) => (
-          <article key={d.slug} className="rounded-xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <Link prefetch={false} href={`/domains/${d.slug}`} className="text-base font-medium" style={{ color: "var(--text)" }}>
-                {d.name}
-              </Link>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>{d.members} member{d.members === 1 ? "" : "s"}</span>
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="The vision">
+        <p className="kicker">Thread 01 — The vision</p>
+        <h2 className="font-display mt-4 max-w-2xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
+          Built to do the opposite.
+        </h2>
+        <div className="mt-8 divide-y" style={{ borderColor: "var(--line)" }}>
+          {THESIS.map(([title, oldWay, loomWay]) => (
+            <div key={title} className="grid gap-2 py-6 sm:grid-cols-[180px_1fr_1fr] sm:items-baseline">
+              <h3 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{title}</h3>
+              <p className="text-sm leading-6 line-through decoration-2" style={{ color: "var(--text-muted)", textDecorationColor: "rgba(180,60,50,0.5)" }}>{oldWay}</p>
+              <p className="text-sm font-medium leading-6" style={{ color: "var(--text)" }}>{loomWay}</p>
             </div>
-            <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-              Head: {d.head_name || "— not assigned yet"} · Co-Head: {d.co_head_name || "— not assigned yet"}
-            </p>
-          </article>
-        ))}
-        {leadership.length === 0 && (
-          <div className="rounded-xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Leadership is not published yet.</p>
-            <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-              No active departments have named heads right now. This updates automatically once the chapter assigns them.
-            </p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      </section>
 
-      <nav className="mt-10 flex flex-wrap gap-4 text-sm font-medium" aria-label="Public pages">
-        <Link prefetch={false} href="/" style={{ color: "var(--accent)" }}>← Home</Link>
-        <Link prefetch={false} href="/faq" style={{ color: "var(--accent)" }}>FAQ</Link>
-        <Link prefetch={false} href="/events" style={{ color: "var(--accent)" }}>Events</Link>
-      </nav>
+      <section className="border-y px-5 py-16 lg:px-8 lg:py-20" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }} aria-label="Leadership">
+        <div className="mx-auto max-w-7xl">
+          <p className="kicker">Thread 02 — The people holding it</p>
+          <h2 className="font-display mt-4 max-w-2xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
+            Leadership, from the roster.
+          </h2>
+          <p className="mt-4 max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>
+            The students currently responsible for each department — names come straight from the chapter roster, never a static list.
+          </p>
+          {leadership.length > 0 ? (
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {leadership.map((d) => (
+                <li key={d.slug} className="spot-card rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>{d.vertical}</p>
+                  <Link prefetch={false} href={`/domains/${d.slug}`} className="font-display mt-2 block text-xl font-medium hover:underline" style={{ color: "var(--text)" }}>
+                    {d.name}
+                  </Link>
+                  <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+                    Head: <strong style={{ color: "var(--text)" }}>{d.head_name || "— not assigned yet"}</strong>
+                    {" · "}Co-Head: <strong style={{ color: "var(--text)" }}>{d.co_head_name || "— not assigned yet"}</strong>
+                  </p>
+                  <p className="meta mt-3">{d.members} member{d.members === 1 ? "" : "s"}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-8 max-w-2xl rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <p className="text-base font-medium" style={{ color: "var(--text)" }}>Leadership is not published yet.</p>
+              <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+                No active departments have named heads right now. This updates automatically once the chapter assigns them.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-16 text-center sm:px-6 lg:px-8" aria-label="Join">
+        <p className="kicker">Thread 03 — Enter</p>
+        <h2 className="font-display mx-auto mt-4 max-w-2xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
+          No prior skill required — bring your questions.
+        </h2>
+        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link href="/register" prefetch={false} className="btn-ink justify-center !px-6 !py-3 !text-base">Start your journey</Link>
+          <Link href="/events" prefetch={false} className="justify-center !px-6 !py-3 !text-base font-semibold transition hover:opacity-85" style={{ color: "var(--text)", border: "1px solid var(--line)", borderRadius: 10 }}>
+            See what&apos;s on
+          </Link>
+        </div>
+      </section>
+
+      <PublicFooter />
     </main>
   );
 }

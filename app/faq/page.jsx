@@ -2,7 +2,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
-import { BrandMark } from "@/components/BrandMark";
+import { PublicNav } from "@/components/landing/PublicNav";
+import { PageHero } from "@/components/landing/PageHero";
+import { PublicFooter } from "@/components/landing/PublicFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -36,46 +38,53 @@ export default async function FaqPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6" style={{ background: "var(--bg)", minHeight: "100dvh" }}>
-      <BrandMark size={28} />
-      <p className="kicker mt-8">Questions, answered honestly</p>
-      <h1 className="font-display mt-2 text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
-        Frequently asked questions
-      </h1>
-      <p className="mt-4 leading-7" style={{ color: "var(--text-muted)" }}>
-        How joining works, who it is for, and what happens after you sign up. Still stuck?{" "}
-        <Link prefetch={false} href="/register" className="font-semibold" style={{ color: "var(--accent)" }}>
-          Create an account
-        </Link>{" "}
-        and ask in the community.
-      </p>
-      <div className="mt-8 space-y-3">
-        {faqs.map((f) => (
-          <details key={f.slug} className="rounded-xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <summary className="cursor-pointer text-base font-medium" style={{ color: "var(--text)" }}>
-              {f.question}
-            </summary>
-            <p className="mt-3 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{f.answer}</p>
-          </details>
-        ))}
-        {faqs.length === 0 && (
-          <div className="rounded-xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No FAQs published yet.</p>
-            <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-              The chapter has not published its frequently asked questions. Check back soon — or{" "}
-              <Link prefetch={false} href="/register" className="font-semibold" style={{ color: "var(--accent)" }}>
-                create an account
-              </Link>{" "}
-              and ask directly.
-            </p>
-          </div>
-        )}
+    <main className="w-full max-w-full overflow-x-hidden">
+      <PublicNav />
+      <div className="pt-16">
+        <PageHero
+          kicker="Questions, answered honestly"
+          title="Frequently asked questions"
+          lede="How joining works, who it is for, and what happens after you sign up. Still stuck? Create an account and ask in the community."
+        />
       </div>
-      <nav className="mt-10 flex flex-wrap gap-4 text-sm font-medium" aria-label="Public pages">
-        <Link prefetch={false} href="/" style={{ color: "var(--accent)" }}>← Home</Link>
-        <Link prefetch={false} href="/about" style={{ color: "var(--accent)" }}>About</Link>
-        <Link prefetch={false} href="/events" style={{ color: "var(--accent)" }}>Events</Link>
-      </nav>
+
+      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Questions">
+        <p className="kicker">Thread 01 — Straight answers</p>
+        <div className="mt-6">
+          {faqs.map((f, i) => (
+            <details key={f.slug} className="group border-b py-6 first:border-t" style={{ borderColor: "var(--line)" }}>
+              <summary className="flex cursor-pointer list-none items-baseline gap-4 outline-none focus-visible:underline [&::-webkit-details-marker]:hidden">
+                <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-display flex-1 text-xl font-medium sm:text-2xl" style={{ color: "var(--text)" }}>{f.question}</span>
+                <span className="text-sm font-semibold transition group-open:rotate-45" style={{ color: "var(--accent)" }} aria-hidden="true">+</span>
+              </summary>
+              <p className="mt-3 max-w-2xl pl-8 text-sm leading-7 sm:pl-10" style={{ color: "var(--text-muted)" }}>{f.answer}</p>
+            </details>
+          ))}
+          {faqs.length === 0 && (
+            <div className="rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <p className="text-base font-medium" style={{ color: "var(--text)" }}>No FAQs published yet.</p>
+              <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+                The chapter has not published its frequently asked questions. Check back soon — or{" "}
+                <Link prefetch={false} href="/register" className="font-semibold" style={{ color: "var(--accent)" }}>
+                  create an account
+                </Link>{" "}
+                and ask directly.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 rounded-2xl border p-6 text-center sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
+          <p className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>Your question not here?</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+            Joining is approval-free. Create an account, pick your domains, and ask anything in the community.
+          </p>
+          <Link href="/register" prefetch={false} className="btn-ink mt-5">Create an account</Link>
+        </div>
+      </section>
+
+      <PublicFooter />
     </main>
   );
 }
