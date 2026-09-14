@@ -5,6 +5,7 @@ import { getLeadOverview } from "@/lib/lead";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
+import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
 
@@ -33,6 +34,12 @@ export default async function LeadConsolePage() {
             ? "Calendar, approvals, and succession across every department you oversee."
             : "Roster, requests, workshops, and the next generation of leads."}
         />
+
+        <TileGrid cols={3}>
+          <StatTile value={data.roster.length} unit="members" label={isVertical ? "members across your vertical" : "members across your departments"} />
+          <StatTile value={pendingRequests.length} unit="waiting" label="Core requests needing a human" tone={pendingRequests.length > 0 ? "var(--accent)" : undefined} />
+          <StatTile value={data.workshops.length} unit="soon" label="upcoming workshops on the horizon" />
+        </TileGrid>
 
         {pendingRequests.length > 0 && (
           <section className="rounded-2xl border p-5" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }} aria-label="Core requests">

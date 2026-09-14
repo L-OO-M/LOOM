@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signUp } from "@/lib/auth-client";
+import { LevelGuide } from "@/components/LevelGuide";
 
 const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 
@@ -58,7 +59,7 @@ export default function RegisterPage() {
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
       <div className="ambient-wash" aria-hidden="true" />
       <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[9rem]" aria-hidden="true">LOOM</span>
-      <div className="card-sheen relative w-full max-w-sm rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
+      <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
         <BrandMark size={34} />
         <div className="rule-gold mt-5 w-16" />
         {sent ? (
@@ -136,6 +137,7 @@ export default function RegisterPage() {
               Already registered?{" "}
               <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">Sign in</Link>
             </p>
+            <LevelGuide compact />
           </>
         )}
       </div>

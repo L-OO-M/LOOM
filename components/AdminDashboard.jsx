@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Meta, PlainStat } from "@/components/loom/primitives";
+import { Meta } from "@/components/loom/primitives";
+import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { ActivityStream } from "@/components/loom/Evidence";
 
 /* Admin overview as an operations console, framed by the society's own
@@ -22,34 +23,34 @@ export function AdminDashboard({ outcomes, attention, departments = [], upcoming
       <div className="mt-10 grid gap-10 md:grid-cols-2">
         <section aria-label="Accessibility">
           <Meta>Accessibility · beginners, included</Meta>
-          <div className="mt-4 space-y-5">
-            <PlainStat value={o.accessibility.startedPct} unit="%" label="of students have finished at least one milestone" />
-            <PlainStat value={o.accessibility.beginnersActive} unit="active" label="zero-milestone students active this week — the ones not to lose" />
-          </div>
+          <TileGrid>
+            <StatTile value={`${o.accessibility.startedPct}%`} label="of students have finished at least one milestone" pct={o.accessibility.startedPct} />
+            <StatTile value={o.accessibility.beginnersActive} unit="active" label="zero-milestone students active this week — the ones not to lose" />
+          </TileGrid>
         </section>
         <section aria-label="Readiness">
           <Meta>Readiness · documented work</Meta>
-          <div className="mt-4 space-y-5">
-            <PlainStat value={o.readiness.completion} unit="%" label="average roadmap completion today" />
-            <PlainStat value={o.readiness.merges} unit="merges" label="verified open-source merges, all time" />
-            <PlainStat value={o.readiness.projects} unit="projects" label="shipped by chapter members" />
-          </div>
+          <TileGrid cols={3}>
+            <StatTile value={`${o.readiness.completion}%`} label="average roadmap completion today" pct={o.readiness.completion} />
+            <StatTile value={o.readiness.merges} unit="merges" label="verified open-source merges, all time" />
+            <StatTile value={o.readiness.projects} unit="shipped" label="projects by chapter members" />
+          </TileGrid>
         </section>
         <section aria-label="Excellence">
           <Meta>Excellence · external proof</Meta>
-          <div className="mt-4 space-y-5">
-            <PlainStat value={o.excellence.submissions} unit="submissions" label="contest entries awaiting or earning judgment" />
-            <PlainStat value={o.excellence.merges} unit="merges" label="into real-world, global projects" />
-          </div>
+          <TileGrid>
+            <StatTile value={o.excellence.submissions} unit="entries" label="contest submissions awaiting or earning judgment" />
+            <StatTile value={o.excellence.merges} unit="merges" label="into real-world, global projects" />
+          </TileGrid>
           <p className="narrative mt-4">Victories live in the contests console — review the submissions inbox.</p>
         </section>
         <section aria-label="Network">
           <Meta>Network · feeding back in</Meta>
-          <div className="mt-4 space-y-5">
-            <PlainStat value={o.network.mentors} unit="mentors" label="guides available to juniors right now" />
-            <PlainStat value={o.network.eventsHeld} unit="held" label="gatherings so far, each with its materials archived" />
-            <PlainStat value={o.network.partnerships} unit="active" label="chapter partnerships sharing resources" />
-          </div>
+          <TileGrid cols={3}>
+            <StatTile value={o.network.mentors} unit="guides" label="mentors available to juniors right now" />
+            <StatTile value={o.network.eventsHeld} unit="held" label="gatherings so far, materials archived" />
+            <StatTile value={o.network.partnerships} unit="active" label="chapter partnerships sharing resources" />
+          </TileGrid>
         </section>
       </div>
 

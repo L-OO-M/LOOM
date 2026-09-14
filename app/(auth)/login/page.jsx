@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signIn } from "@/lib/auth-client";
 import { homeForRole } from "@/lib/auth";
+import { LevelGuide } from "@/components/LevelGuide";
 
 function LoginForm() {
   const router = useRouter();
@@ -88,7 +89,7 @@ export default function LoginPage() {
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
       <div className="ambient-wash" aria-hidden="true" />
       <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[9rem]" aria-hidden="true">LOOM</span>
-      <div className="card-sheen relative w-full max-w-sm rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
+      <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
         <BrandMark size={34} />
         <div className="rule-gold mt-5 w-16" />
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Sign in</h1>
@@ -105,6 +106,7 @@ export default function LoginPage() {
         <p className="mt-3 text-center text-xs leading-5 text-[var(--text-muted)]">
           Admin? Same login — then visit <Link href="/setup" className="font-medium text-[var(--accent)] hover:underline">/setup</Link> once to claim admin.
         </p>
+        <LevelGuide compact />
       </div>
     </main>
   );

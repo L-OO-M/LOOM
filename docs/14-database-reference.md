@@ -17,6 +17,15 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 009 | `009_community.sql` | forums, votes/flags, wiki, snippets |
 | 010 | `010_events_social.sql` | events, registrations, certificates, profiles, social |
 | 011 | `011_quick_wins.sql` | `projects.tags` (GIN), `roadmap_nodes.difficulty_level` + calibration |
+| 012 | `012_drop_dead_tables.sql` | drops `users` mirror, `roadmaps`/`roadmap` catalog tables, `leaderboard_snapshots` (see notes inline above) |
+| 013 | `013_mentor_applications.sql` | `mentor_applications` (covered under People above) |
+| 014 | `014_org_model.sql` | `departments`, `department_memberships`, `profiles.vertical/roll_number/branch` |
+| 015 | `015_role_backfill.sql` | data only: legacy `mentor` role → `core` |
+| 016 | `016_announcements_contributions.sql` | `announcements`, `member_contributions` |
+| 017 | `017_lead_console.sql` | `department_memberships.succession_ready`, `events.department_id`, `events.status` gains `proposed` |
+| 018 | `018_faq.sql` | `faqs` |
+| 019 | `019_operations.sql` | `volunteer_slots`, `volunteer_signups`, `dept_reports`, `handover_checklists`, `budget_heads`, `expenses`, `sponsorships` |
+| 020 | `020_github_pause.sql` | data only: `github_integration` flag off (opt-in ingestion) |
 
 Drizzle mirror: `db/tenant-schema.js` (product tables), `db/control-plane-schema.js` (`tenants`, `tenant_domains`, `tenant_database_routes`, `feature_flags`, `platform_admins`).
 
@@ -44,3 +53,17 @@ Drizzle mirror: `db/tenant-schema.js` (product tables), `db/control-plane-schema
 - `mentor_sessions.mentor_id` stores `mentors.user_id` (not the uuid PK) — joins go through `profiles.user_id`.
 - `verifiable_credentials.achievement_id → student_achievements.id`; signature = HMAC(id, student, type, issuedAt).
 - `certificates(event_id, student_id)` issued once per pair at check-in.
+
+## Tables added in 014–020 (org, broadcast, lead console, operations)
+
+**Org (014, data backfill 015)**: `departments(tenant_id, name, slug unique per tenant, vertical technical|non_technical, description, head_user_id, co_head_user_id, is_active)` — 8 seeded rows, non-technical start inactive; `department_memberships(user_id, department_id unique pair, level general|core|dept_lead, core_requested, succession_ready [017])` — the join/request/grant/succession state machine; `profiles` gains `vertical` (VL scope), `roll_number` + `branch` (approval-free signup form). 015 retires the `mentor` role value to `core` (mentorship is capability, not a role).
+
+**Broadcast + ledger (016)**: `announcements(scope society|vertical|department, department_id, vertical, title, body, author_id)` — dept heads post to their own feed only (API-enforced `own_feed`), delivery fans out into `notifications`; `member_contributions(student_id, department_id nullable, kind project|competition|certification|event, title, evidence_url, logged_by)` — single source for certificates, dept reports, and exports; self-logged rows carry `logged_by = student_id`.
+
+**Lead console (017)**: `events.department_id` ties workshops to departments; `events.status` gains `proposed` so dept-level society posts wait in the VL approval queue; `department_memberships.succession_ready` flags future leads for the VL dashboard.
+
+**FAQ (018)**: `faqs((tenant_id, slug) unique, question, answer, sort_order, is_published)` — powers public `/faq` (published only) and `/admin/faq`; `(tenant_id, slug)` is the seed upsert key.
+
+**Operations (019)**: `volunteer_slots(event_id, title, capacity > 0, created_by)` + `volunteer_signups(slot_id, user_id unique pair)` — one seat per member, capacity enforced live in the API; `dept_reports((department_id, month) unique, draft jsonb auto-compiled, status draft|submitted, submitted_by/at)`; `handover_checklists(title, category, detail, done)` — admin-owned continuity items; `budget_heads(name, allocated ≥ 0, vertical nullable = society-wide)` + `expenses(head_id, department_id, amount > 0, status proposed|approved|rejected, created_by, decided_by)` + `sponsorships(name, amount, status pipeline|committed|received, contact)` — the finance snapshot (VLs `recommend_only`, enforced in code).
+
+**Ingestion pause (020, data only)**: no schema change — sets `feature_flags.github_integration = false` per tenant and inserts the row where missing, so webhook deliveries are acked but never stored until enabled at `/admin/flags`.

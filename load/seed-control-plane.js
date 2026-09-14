@@ -5,12 +5,13 @@ const DATABASE_URL = "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@a
 const sql = postgres(DATABASE_URL, { max: 1 });
 
 try {
-  const [tenant] = await sql`
+  // NOTE: name is insert-only — reruns never clobber a renamed chapter.
+  await sql`
     INSERT INTO tenants (id, slug, name, status)
-    VALUES ('550e8400-e29b-41d4-a716-446655440000', 'demo-college', 'Demo College', 'active')
-    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id
+    VALUES ('550e8400-e29b-41d4-a716-446655440000', 'demo-college', 'MSIT', 'active')
+    ON CONFLICT (slug) DO NOTHING
   `;
+  const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`;
 
   await sql`
     INSERT INTO tenant_domains (tenant_id, domain, is_primary)

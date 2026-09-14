@@ -41,6 +41,25 @@ async function proposeExpense(formData) {
   revalidatePath("/admin/finance");
 }
 
+async function addBudgetHead(formData) {
+  "use server";
+  const ctx = await getRequestContext();
+  if (ctx.error || ctx.profile.role !== "admin") return;
+  const { sql, user, tenant } = ctx;
+  const name = String(formData.get("name") || "").slice(0, 200);
+  const allocated = Number(formData.get("allocated") || 0);
+  const vertical = String(formData.get("vertical") || "") || null;
+  if (name.length < 2 || !Number.isFinite(allocated) || allocated < 0) return;
+  if (vertical && !["technical", "non_technical"].includes(vertical)) return;
+  const [row] = await sql`
+    INSERT INTO budget_heads (tenant_id, name, allocated, vertical)
+    VALUES (${tenant?.id ?? null}, ${name}, ${allocated}, ${vertical})
+    RETURNING *
+  `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_budget_head", resource: "budget_head", resourceId: row.id, after: { name, allocated } });
+  revalidatePath("/admin/finance");
+}
+
 async function addSponsorship(formData) {
   "use server";
   const ctx = await getRequestContext();
@@ -108,8 +127,18 @@ export default async function AdminFinancePage() {
 
         <section className="mt-8" aria-label="Budget heads">
           <Meta>Budget heads</Meta>
+          <form action={addBudgetHead} className="mt-3 flex flex-wrap gap-2" aria-label="Create budget head">
+            <input name="name" required minLength={2} maxLength={200} placeholder="New head, e.g. Events" style={{ ...input, maxWidth: 220 }} aria-label="Head name" />
+            <input name="allocated" type="number" min={0} step="any" placeholder="Allocated (₹)" style={{ ...input, maxWidth: 160 }} aria-label="Allocated amount" />
+            <select name="vertical" style={{ ...input, maxWidth: 170 }} aria-label="Vertical scope" defaultValue="">
+              <option value="">Society-wide</option>
+              <option value="technical">Technical</option>
+              <option value="non_technical">Non-technical</option>
+            </select>
+            <button className="btn-ink !py-2 text-sm">Add head</button>
+          </form>
           {heads.length === 0 ? (
-            <p className="narrative mt-3">No budget heads yet. Create them directly in the database — expenses and spend tracking light up once heads exist.</p>
+            <p className="narrative mt-3">No budget heads yet. Add the first one above — expenses and spend tracking light up immediately.</p>
           ) : (
             <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line)" }}>
               {heads.map((h) => (

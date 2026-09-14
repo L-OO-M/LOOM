@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { Reveal } from "@/components/motion/Reveal";
-import { Display, Meta, ActionLink, PlainStat } from "@/components/loom/primitives";
+import { Display, Meta, ActionLink } from "@/components/loom/primitives";
 import { ProgressPath } from "@/components/loom/ProgressPath";
 import { WeekStrip } from "@/components/loom/Heatmap";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
+import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { DepartmentsSection } from "@/components/student/OrgPanels";
 
 function relDate(iso) {
@@ -53,6 +54,9 @@ export function StudentDashboard({
               <p className="meta mt-3">
                 {nextNode.domain}{nextNode.difficulty_level ? ` · ${nextNode.difficulty_level}` : ""} · Milestone {doneIds.length + 1} of {nodes.length}
               </p>
+              <div className="mt-4 h-1.5 max-w-xl overflow-hidden rounded-full" role="img" aria-label={`Roadmap ${overallPercent} percent complete`} style={{ background: "rgba(244,241,232,0.18)" }}>
+                <div className="h-full rounded-full" style={{ width: `${overallPercent}%`, background: "linear-gradient(to right, var(--thread-cyan), var(--thread-gold))" }} />
+              </div>
               {nextNode.description && (
                 <p className="narrative mt-3">{nextNode.description}</p>
               )}
@@ -100,11 +104,11 @@ export function StudentDashboard({
               <div className="mt-4 max-w-xl">
                 <WeekStrip days={weekDays} />
               </div>
-              <p className="mt-4 text-sm" style={{ color: "var(--text-muted)" }}>
-                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.sessions}</strong> learning sessions ·{" "}
-                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.contributions}</strong> contributions ·{" "}
-                <strong className="font-mono font-semibold" style={{ color: "var(--text)" }}>{weekCounts.milestones}</strong> milestone{weekCounts.milestones === 1 ? "" : "s"}
-              </p>
+              <TileGrid cols={3}>
+                <StatTile value={weekCounts.sessions} unit="sessions" label="learning sessions this week" />
+                <StatTile value={weekCounts.contributions} unit="proof" label="contributions logged this week" />
+                <StatTile value={weekCounts.milestones} unit={weekCounts.milestones === 1 ? "milestone" : "milestones"} label="roadmap milestones completed" />
+              </TileGrid>
             </section>
           </Reveal>
 
@@ -211,11 +215,11 @@ export function StudentDashboard({
               {snapshot ? (
                 <>
                   <Meta>Your last 30 days</Meta>
-                  <div className="mt-6 grid gap-8 sm:grid-cols-3">
-                    <PlainStat value={`${Number(snapshot.consistency_score || 0)}`} unit="%" label="days active out of the last 30" />
-                    <PlainStat value={`${Number(snapshot.roadmap_completion_pct || 0)}`} unit="%" label="roadmap complete and climbing" />
-                    <PlainStat value={`${snapshot.total_commits ?? 0}`} unit="commits" label="in the last 30 days" />
-                  </div>
+                  <TileGrid cols={3}>
+                    <StatTile value={`${Number(snapshot.consistency_score || 0)}%`} label="days active out of the last 30" pct={Number(snapshot.consistency_score || 0)} />
+                    <StatTile value={`${Number(snapshot.roadmap_completion_pct || 0)}%`} label="roadmap complete and climbing" pct={Number(snapshot.roadmap_completion_pct || 0)} />
+                    <StatTile value={snapshot.total_commits ?? 0} unit="commits" label="in the last 30 days" />
+                  </TileGrid>
                   <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm" style={{ color: "var(--text-muted)" }}>
                       {peers?.n > 0

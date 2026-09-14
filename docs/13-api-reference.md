@@ -82,3 +82,35 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401.
 Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-create 10/min, webhook 120/min per tenant).
+
+## Org, leads & operations (added after the initial reference)
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/departments` | user | active tenant departments + member counts + my level |
+| POST | `/api/departments/[id]/join` | user | instant approval-free join as `general` (idempotent) |
+| POST | `/api/departments/[id]/request-core` | user | one-click core request (creates `general` + `core_requested` if needed) |
+| PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | `{level: core}` by dept Head/Co-Head or admin; `{level: dept_lead}` admin-only; upward-only role sync + audit |
+| GET/POST | `/api/announcements` | user | scoped feed (society + my verticals + my departments) / post (`post_announcement`: VL anywhere, dept_lead own feed) + fan-out to notifications |
+| GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
+| GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
+| PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
+| GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
+| POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
+| POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
+| POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
+| GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
+| POST/DELETE | `/api/volunteers/[id]/signup` | user | take a seat (live capacity check, idempotent) / release it |
+| GET/POST | `/api/reports` | lead+ | list (own depts for leads, all for VL/admin) + auto-compile a monthly draft from live counts |
+| GET/PATCH | `/api/reports/[id]` | lead+ | read / edit-submit (`submitted` is terminal; only admin reopens) |
+| GET | `/api/reports/export` | VL/admin | semester/annual JSON export of submitted reports + live counts (`export_reports`; VL scoped to own vertical) |
+| GET/POST | `/api/handover` | admin | continuity checklist list / create |
+| PATCH | `/api/handover/[id]` | admin | toggle `done` / edit `detail` |
+| GET | `/api/finance` | VL/admin | snapshot: budget heads + approved spend + pending expenses + sponsorship pipeline (VL scoped to own vertical + society-wide) |
+| POST/PATCH | `/api/finance/expenses` | lead+/admin | propose (dept leads and above) / approve-or-reject `{approved\|rejected}` (admin only; VL `recommend_only`) |
+| POST/PUT | `/api/finance/sponsorships` | admin | create / update sponsor pipeline rows |
+| GET | `/api/public/departments` | public | active departments + head names + member counts (tenant from host) |
+| GET | `/api/public/events` | public | upcoming/live events (tenant from host) |
+| GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |
+| GET/POST/PATCH | `/api/admin/faq` | admin | FAQ manager backing store (create / edit incl. publish flag) |
+| GET/PATCH | `/api/admin/flags` | admin | feature-flag list / toggle (incl. `github_integration` ingestion kill-switch) |

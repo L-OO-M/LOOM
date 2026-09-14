@@ -29,6 +29,8 @@ const protectedPages = [
   "/admin/faq",
   "/admin/finance",
   "/admin/reports",
+  "/admin/handover",
+  "/admin/departments",
   "/lead"
 ];
 
