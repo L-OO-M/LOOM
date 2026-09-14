@@ -8,7 +8,7 @@ import { ActivityStream } from "@/components/loom/Evidence";
    success metrics: Accessibility, Readiness, Excellence, Network.
    Every number below is computed live — never a vanity metric. */
 
-export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) {
+export function AdminDashboard({ outcomes, attention, departments = [], upcoming, auditEntries }) {
   const waiting = attention.reduce((s, a) => s + a.count, 0);
   const o = outcomes;
 
@@ -52,6 +52,36 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
           </div>
         </section>
       </div>
+
+      {departments.length > 0 && (
+        <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Departments">
+          <div className="flex items-baseline justify-between">
+            <Meta>Departments · heads, size, pulse</Meta>
+            <Link href="/lead" prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Lead console →</Link>
+          </div>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {departments.map((d) => (
+              <li key={d.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>{d.name}</span>
+                  <span className="meta shrink-0">{d.vertical}</span>
+                </div>
+                <p className="meta mt-1">
+                  {d.head_name ? `Head: ${d.head_name}` : "No head assigned"}{d.co_head_name ? ` · Co-Head: ${d.co_head_name}` : ""}
+                </p>
+                <p className="mt-3 font-mono text-sm" style={{ color: "var(--text)" }}>
+                  {d.members} <span className="font-sans text-xs" style={{ color: "var(--text-muted)" }}>
+                    members{d.core_requests > 0 ? ` · ${d.core_requests} Core request${d.core_requests === 1 ? "" : "s"}` : ""}{d.successors > 0 ? ` · ${d.successors} successor${d.successors === 1 ? "" : "s"}` : ""}
+                  </span>
+                </p>
+                <p className="meta mt-1">
+                  {d.last_activity ? `last logged ${new Date(d.last_activity).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}` : "nothing logged yet"}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="mt-12 grid gap-12 border-t pt-10 lg:grid-cols-2" style={{ borderColor: "var(--line)" }}>
         <section aria-label="Attention queue">

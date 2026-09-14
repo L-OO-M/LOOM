@@ -25,7 +25,8 @@ const protectedPages = [
   "/admin/mentors",
   "/admin/flags",
   "/admin/audit",
-  "/admin/settings"
+  "/admin/settings",
+  "/lead"
 ];
 
 test.describe("route protection", () => {
@@ -61,6 +62,8 @@ test.describe("api authorization", () => {
     "/api/departments",
     "/api/announcements",
     "/api/contributions",
+    "/api/admin/overview",
+    "/api/lead/overview",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -98,6 +101,15 @@ test.describe("api authorization", () => {
     expect(post.status()).toBe(401);
     const log = await request.post("/api/contributions", { data: { kind: "project", title: "Public proof" } });
     expect(log.status()).toBe(401);
+  });
+
+  test("lead console and approvals return 401 without session", async ({ request }) => {
+    const succession = await request.patch("/api/lead/succession", { data: { userId: "x", departmentId: "00000000-0000-0000-0000-000000000000", ready: true } });
+    expect(succession.status()).toBe(401);
+    const bulk = await request.post("/api/admin/students/bulk", { data: { userIds: ["x"], role: "core" } });
+    expect(bulk.status()).toBe(401);
+    const approve = await request.post("/api/events/00000000-0000-0000-0000-000000000000/approve", { data: { approve: true } });
+    expect(approve.status()).toBe(401);
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {

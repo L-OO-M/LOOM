@@ -11,7 +11,7 @@ import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network
 } from "lucide-react";
-import { adminNav, groupForTab, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
+import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
 
 const icons = {
   home: Home, book: BookOpen, library: Library, trending: TrendingUp, kanban: FolderKanban,
@@ -34,7 +34,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const { theme, toggle, mounted } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
-  const tabs = area === "admin" ? adminNav : studentNav;
+  const tabs = area === "admin" ? adminNav : area === "lead" ? leadNav : studentNav;
   const activeTab = pathToTab(pathname || "", area);
   const activeGroup = groupForTab(tabs, activeTab);
   const [openMenu, setOpenMenu] = useState(null);
@@ -62,7 +62,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const ctx = useMemo(() => ({
     activeTab,
     setActiveTab: (id) => {
-      const pool = area === "admin" ? adminNav : [...studentNav, ...studentSecondary];
+      const pool = area === "admin" ? adminNav : area === "lead" ? leadNav : [...studentNav, ...studentSecondary];
       const flat = pool.flatMap((n) => (n.children ? [n, ...n.children] : [n]));
       const target = flat.find((n) => n.id === id);
       if (target) router.push(target.href);
@@ -77,7 +77,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
             className="floatbar flex max-w-full items-center gap-1 rounded-full py-1.5 pl-3 pr-1.5"
             aria-label="Primary"
           >
-            <BrandMark size={24} href={area === "admin" ? "/admin" : "/student"} className="mr-1" />
+            <BrandMark size={24} href={area === "admin" ? "/admin" : area === "lead" ? "/lead" : "/student"} className="mr-1" />
             {/* No scroll container here: overflow-x would clip the dropdown
                 popups vertically. Icon-first pills fit every width instead. */}
             <div ref={menuRef} className="flex max-w-full items-center gap-0.5 overflow-visible">

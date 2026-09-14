@@ -10,9 +10,20 @@ export async function GET(request) {
   const { tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q");
-  const rows = q
-    ? await sql`SELECT * FROM profiles WHERE (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) AND (name ILIKE ${"%" + q + "%"} OR user_id ILIKE ${"%" + q + "%"}) ORDER BY updated_at DESC LIMIT 50`
-    : await sql`SELECT * FROM profiles WHERE (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) ORDER BY updated_at DESC LIMIT 50`;
+  const role = searchParams.get("role");
+  const dept = searchParams.get("dept");
+  const rows = await sql`
+    SELECT p.*,
+      (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level))
+       FROM department_memberships m JOIN departments d ON d.id = m.department_id
+       WHERE m.user_id = p.user_id) AS departments
+    FROM profiles p
+    WHERE (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND (${q ? sql`(p.name ILIKE ${"%" + q + "%"} OR p.user_id ILIKE ${"%" + q + "%"})` : sql`TRUE`})
+      AND (${role ? sql`p.role = ${role}` : sql`TRUE`})
+      AND (${dept ? sql`EXISTS (SELECT 1 FROM department_memberships m JOIN departments d ON d.id = m.department_id WHERE m.user_id = p.user_id AND d.slug = ${dept})` : sql`TRUE`})
+    ORDER BY p.updated_at DESC LIMIT 50
+  `;
   return ok({ students: rows });
 }
 

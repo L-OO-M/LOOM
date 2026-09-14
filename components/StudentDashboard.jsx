@@ -7,6 +7,7 @@ import { ProgressPath } from "@/components/loom/ProgressPath";
 import { WeekStrip } from "@/components/loom/Heatmap";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
+import { DepartmentsSection } from "@/components/student/OrgPanels";
 
 function relDate(iso) {
   if (!iso) return "";
@@ -240,6 +241,11 @@ export function StudentDashboard({
           </Reveal>
         </>
       )}
+      {/* DEPARTMENTS — outside the fresh/activity split so even a day-one
+          member can join a domain, request Core, and log work from here. */}
+      <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }}>
+        <DepartmentsSection />
+      </section>
     </main>
   );
 }

@@ -74,6 +74,25 @@ export default async function AdminPage() {
     SELECT COUNT(*)::int AS c FROM mentor_applications
     WHERE status = 'pending' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)
   `;
+  // Departments: heads, size, freshness, pipeline — one card each.
+  const departments = await sql`
+    SELECT d.id, d.name, d.slug, d.vertical, d.is_active,
+      hp.name AS head_name, cp.name AS co_head_name,
+      (SELECT COUNT(*)::int FROM department_memberships m WHERE m.department_id = d.id) AS members,
+      (SELECT COUNT(*)::int FROM department_memberships m WHERE m.department_id = d.id AND m.core_requested AND m.level = 'general') AS core_requests,
+      (SELECT COUNT(*)::int FROM department_memberships m WHERE m.department_id = d.id AND m.succession_ready) AS successors,
+      (SELECT MAX(c.created_at) FROM member_contributions c WHERE c.department_id = d.id) AS last_activity
+    FROM departments d
+    LEFT JOIN profiles hp ON hp.user_id = d.head_user_id
+    LEFT JOIN profiles cp ON cp.user_id = d.co_head_user_id
+    WHERE (d.tenant_id = ${tid} OR ${tid}::uuid IS NULL)
+    ORDER BY d.vertical, d.name
+  `;
+  const [proposedEvents] = await sql`
+    SELECT COUNT(*)::int AS c FROM events
+    WHERE status = 'proposed' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)
+  `;
+  const coreRequests = departments.reduce((s, d) => s + (d.core_requests || 0), 0);
   const upcoming = await sql`
     SELECT id, title, event_type, starts_at FROM events
     WHERE tenant_id = ${tid} AND starts_at >= NOW()
@@ -109,10 +128,13 @@ export default async function AdminPage() {
         }}
         attention={[
           { label: "Mentor applications awaiting review", count: applications?.c ?? 0, href: "/admin/mentors" },
+          { label: "Core requests awaiting a Head", count: coreRequests, href: "/lead" },
+          { label: "Proposed society events", count: proposedEvents?.c ?? 0, href: "/lead" },
           { label: "Content flags this week", count: flagged?.c ?? 0, href: "/admin/community" },
           { label: "OSS claims awaiting review", count: claims?.c ?? 0, href: "/admin/opensource" },
           { label: "Draft contests", count: drafts?.c ?? 0, href: "/admin/contests" }
         ]}
+        departments={departments}
         upcoming={upcoming}
         auditEntries={auditEntries}
       />
