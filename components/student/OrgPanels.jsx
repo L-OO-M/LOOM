@@ -20,14 +20,16 @@ export function DepartmentsSection() {
   const [depts, setDepts] = useState(null);
   const [feed, setFeed] = useState(null);
   const [log, setLog] = useState(null);
+  const [slots, setSlots] = useState(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
 
   async function load() {
-    const [d, a, c] = await Promise.all([api("/api/departments"), api("/api/announcements"), api("/api/contributions")]);
+    const [d, a, c, v] = await Promise.all([api("/api/departments"), api("/api/announcements"), api("/api/contributions"), api("/api/volunteers")]);
     if (d?.ok) setDepts(d.data.departments);
     if (a?.ok) setFeed(a.data.announcements);
     if (c?.ok) setLog(c.data.contributions);
+    if (v?.ok) setSlots(v.data.slots);
   }
   useEffect(() => { load(); }, []);
 
@@ -46,6 +48,8 @@ export function DepartmentsSection() {
 
   const mine = (depts || []).filter((d) => d.my_level);
   const open = (depts || []).filter((d) => !d.my_level);
+  const mineIds = new Set(mine.map((d) => d.id));
+  const mySlots = (slots || []).filter((s) => s.department_id && mineIds.has(s.department_id));
 
   return (
     <section aria-label="Your departments">
@@ -106,6 +110,46 @@ export function DepartmentsSection() {
           )}
         </>
       )}
+
+      <div className="mt-8" aria-label="Volunteer slots">
+        <Meta>Volunteer slots in your departments</Meta>
+        {slots === null ? (
+          <div className="mt-3 h-20 animate-pulse rounded-2xl border" style={{ borderColor: "var(--line)" }} />
+        ) : mySlots.length === 0 ? (
+          <p className="narrative mt-3">No open volunteer slots in your departments right now. When a Head opens seats for an event, they appear here.</p>
+        ) : (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {mySlots.map((s) => {
+              const full = (s.seats_left ?? 0) <= 0 && !s.signed_up;
+              return (
+                <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{s.title}</span>
+                    <span className="meta">{s.event_title || "event"} · {s.signed_up ? "you're signed up" : `${s.seats_left ?? 0} seat${(s.seats_left ?? 0) === 1 ? "" : "s"} left`}</span>
+                  </span>
+                  {s.signed_up ? (
+                    <button
+                      disabled={busy === `slot-${s.id}`}
+                      onClick={() => act(`slot-${s.id}`, () => api(`/api/volunteers/${s.id}/signup`, "DELETE"))}
+                      className="btn-ghost shrink-0 !py-1.5 !text-xs disabled:opacity-50"
+                    >
+                      {busy === `slot-${s.id}` ? "…" : "Cancel"}
+                    </button>
+                  ) : (
+                    <button
+                      disabled={busy === `slot-${s.id}` || full}
+                      onClick={() => act(`slot-${s.id}`, () => api(`/api/volunteers/${s.id}/signup`, "POST"))}
+                      className="btn-ink shrink-0 !py-1.5 !text-xs disabled:opacity-50"
+                    >
+                      {busy === `slot-${s.id}` ? "…" : full ? "Full" : "Sign up"}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-2">
         <div>

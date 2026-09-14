@@ -26,6 +26,9 @@ const protectedPages = [
   "/admin/flags",
   "/admin/audit",
   "/admin/settings",
+  "/admin/faq",
+  "/admin/finance",
+  "/admin/reports",
   "/lead"
 ];
 
@@ -118,5 +121,61 @@ test.describe("api authorization", () => {
       data: "{}"
     });
     expect([400, 401]).toContain(res.status());
+  });
+});
+
+test.describe("operations api authorization", () => {
+  const id = "00000000-0000-0000-0000-000000000000";
+  const getApis = [
+    "/api/volunteers",
+    "/api/reports",
+    "/api/reports/export?scope=semester",
+    "/api/handover",
+    "/api/finance"
+  ];
+  for (const path of getApis) {
+    test(`GET ${path} returns 401 without session`, async ({ request }) => {
+      const res = await request.get(path);
+      expect(res.status()).toBe(401);
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+    });
+  }
+
+  test("volunteer signup writes return 401 without session", async ({ request }) => {
+    const post = await request.post(`/api/volunteers/${id}/signup`, { data: {} });
+    expect(post.status()).toBe(401);
+    const del = await request.delete(`/api/volunteers/${id}/signup`);
+    expect(del.status()).toBe(401);
+  });
+
+  test("volunteer slot creation returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/volunteers", { data: { eventId: id, title: "Help out", capacity: 5 } });
+    expect(res.status()).toBe(401);
+  });
+
+  test("report writes return 401 without session", async ({ request }) => {
+    const post = await request.post("/api/reports", { data: { departmentId: id, month: "2026-09-01" } });
+    expect(post.status()).toBe(401);
+    const patch = await request.patch(`/api/reports/${id}`, { data: { status: "submitted" } });
+    expect(patch.status()).toBe(401);
+  });
+
+  test("handover writes return 401 without session", async ({ request }) => {
+    const post = await request.post("/api/handover", { data: { title: "Keys", category: "general" } });
+    expect(post.status()).toBe(401);
+    const patch = await request.patch(`/api/handover/${id}`, { data: { done: true } });
+    expect(patch.status()).toBe(401);
+  });
+
+  test("finance writes return 401 without session", async ({ request }) => {
+    const propose = await request.post("/api/finance/expenses", { data: { amount: 500, note: "Snacks for workshop" } });
+    expect(propose.status()).toBe(401);
+    const decide = await request.patch("/api/finance/expenses", { data: { id, decision: "approved" } });
+    expect(decide.status()).toBe(401);
+    const create = await request.post("/api/finance/sponsorships", { data: { name: "Acme", amount: 1000 } });
+    expect(create.status()).toBe(401);
+    const update = await request.put("/api/finance/sponsorships", { data: { id, status: "received" } });
+    expect(update.status()).toBe(401);
   });
 });

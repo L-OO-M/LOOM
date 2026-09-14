@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
-import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton } from "@/components/lead/LeadActions";
+import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
 
 export default async function LeadConsolePage() {
   const ctx = await getRequestContext();
@@ -166,6 +166,14 @@ export default async function LeadConsolePage() {
             </div>
           </section>
         )}
+
+        <section className="mt-8" aria-label="Monthly report">
+          <Meta>Monthly report</Meta>
+          <div className="mt-3 grid gap-6 lg:grid-cols-2">
+            <ReportCard departments={data.departments} />
+            <p className="narrative">Compiling pulls live counts — contributions by kind, events held, new members, upcoming workshops. Submit when it reads true; submitted reports feed the admin export.</p>
+          </div>
+        </section>
 
         {isVertical && (
           <section className="mt-8" aria-label="Succession">
