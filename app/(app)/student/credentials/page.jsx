@@ -11,11 +11,17 @@ import ShareLinkButton from "./ShareLinkButton";
 
 export const dynamic = "force-dynamic";
 
+const MILESTONE_LABELS = {
+  "roadmap-first-step": "First step",
+  "roadmap-halfway": "Halfway there",
+  "roadmap-complete": "Path complete"
+};
+
 function labelFor(a) {
   if (a.badge_name) return a.badge_name;
   if (a.source_type === "oss") return `OSS · ${a.source_ref}`;
   if (a.source_type === "contest") return `Contest · ${a.source_ref}`;
-  if (a.source_type === "roadmap") return `Roadmap · ${a.source_ref}`;
+  if (a.source_type === "roadmap") return `Roadmap · ${MILESTONE_LABELS[a.source_ref] || a.source_ref}`;
   return "Achievement";
 }
 

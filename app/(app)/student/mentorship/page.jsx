@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
+import { eligibilityFor } from "@/lib/mentorship";
 import { AppShell } from "@/components/AppShell";
 import { MentorRequestButton } from "@/components/actions";
 import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
+import { ApplyForm } from "./ApplyForm";
 
 export default async function MentorshipPage() {
   const ctx = await getRequestContext();
@@ -26,6 +28,13 @@ export default async function MentorshipPage() {
     LEFT JOIN profiles p ON p.user_id = s.mentor_id
     WHERE s.student_id = ${user.id}
     ORDER BY s.scheduled_at DESC NULLS LAST, s.id DESC LIMIT 10
+  `;
+  // The far end of the loop: candidacy computed from evidence.
+  const [mentorRow] = await sql`SELECT user_id FROM mentors WHERE user_id = ${user.id} LIMIT 1`;
+  const eligibility = await eligibilityFor(sql, user.id).catch(() => null);
+  const [application] = await sql`
+    SELECT status, created_at FROM mentor_applications WHERE student_id = ${user.id}
+    ORDER BY created_at DESC LIMIT 1
   `;
 
   return (
@@ -84,6 +93,43 @@ export default async function MentorshipPage() {
                 </li>
               ))}
             </ol>
+          )}
+        </section>
+
+        <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Become a mentor">
+          <Meta>The generational cycle</Meta>
+          <h2 className="h-product mt-2">One day, the guide is you.</h2>
+          {mentorRow ? (
+            <p className="narrative mt-3" style={{ color: "var(--text)" }}>
+              You already mentor. Juniors find you here — keep your expertise honest and your door open.
+            </p>
+          ) : application?.status === "pending" ? (
+            <p className="narrative mt-3">
+              Your application is <strong style={{ color: "var(--accent)" }}>under review</strong> since{" "}
+              {new Date(application.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}.
+              Reviewers judge proof, not promises.
+            </p>
+          ) : eligibility?.eligible ? (
+            <>
+              <p className="narrative mt-3" style={{ color: "var(--text)" }}>
+                Your proof speaks — {eligibility.stats.pct}% of the path, {eligibility.stats.proof} public contribution{eligibility.stats.proof === 1 ? "" : "s"}.
+                Apply, and the loop continues through you.
+              </p>
+              <ApplyForm />
+            </>
+          ) : (
+            <>
+              <p className="narrative mt-3">
+                Mentor candidacy is earned in public: {eligibility?.stats.pct ?? 0}% of the path walked
+                {eligibility?.reasons?.length ? ` — still needed: ${eligibility.reasons.join("; ")}` : ""}.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-6">
+                <span className="meta">{eligibility?.stats.done ?? 0}/{eligibility?.stats.nodes ?? 0} milestones</span>
+                <span className="meta">{eligibility?.stats.oss ?? 0} verified merges</span>
+                <span className="meta">{eligibility?.stats.solutions ?? 0} solutions</span>
+                <span className="meta">{eligibility?.stats.projects ?? 0} projects</span>
+              </div>
+            </>
           )}
         </section>
 

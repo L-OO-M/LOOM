@@ -12,12 +12,14 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 |--------|-------|------|-------|
 | GET/PUT | `/api/profile` | user | own profile |
 | GET | `/api/roadmap` | user | nodes + my progress |
-| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status) |
+| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status); awards first-step/halfway/complete achievements idempotently + notifies |
 | GET | `/api/resources` | user | curated library |
 | GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, repoUrl?, tags[≤8] |
 | GET/PATCH | `/api/projects/[id]` | owner/admin | |
 | GET/POST | `/api/contests` | user/admin-create | register + submit flows |
 | GET/POST | `/api/mentorship` | user | request/list sessions |
+| GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
+| GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
 | GET | `/api/leaderboard` | user | `?scope=college\|global` |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |

@@ -21,9 +21,12 @@ function relDate(iso) {
   return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
 }
 
+const LOOP_STAGES = ["Beginner", "Learn", "Practice", "Build", "Collaborate", "Mentor"];
+
 export function StudentDashboard({
   profile, greeting, todayLabel, nextNode, nodes, doneIds, overallPercent,
-  nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers
+  nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers,
+  loop, cadence
 }) {
   const name = profile?.name?.split(" ")[0] || "there";
   const done = new Set(doneIds);
@@ -104,6 +107,48 @@ export function StudentDashboard({
             </section>
           </Reveal>
 
+          {/* RHYTHM — the week's living cadence */}
+          <Reveal delay={0.06}>
+            <section className="mt-12" aria-label="This week's rhythm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Meta>The rhythm</Meta>
+                <span className="meta">year-round, not once a semester</span>
+              </div>
+              <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
+                <RhythmRow
+                  label="Beginner workshops"
+                  detail={cadence?.workshop ? `${cadence.workshop.title} · ${relDate(cadence.workshop.when)}` : "none scheduled — propose one to your chapter"}
+                  href="/student/events"
+                />
+                <RhythmRow
+                  label="Weekly practice"
+                  detail={(cadence?.contests ?? 0) > 0 ? `${cadence.contests} open challenges` : "no open challenges right now"}
+                  href="/student/contests"
+                />
+                <RhythmRow
+                  label="Peer mentorship"
+                  detail={(cadence?.mentors ?? 0) > 0 ? `${cadence.mentors} guides available` : "no guides yet — be the reason there are"}
+                  href="/student/mentorship"
+                />
+                <RhythmRow
+                  label="Mini-projects"
+                  detail={(cadence?.projects ?? 0) > 0 ? `${cadence.projects} shipped by you` : "nothing shipped yet — proof beats progress"}
+                  href="/student/projects"
+                />
+                <RhythmRow
+                  label="Tech talks"
+                  detail={(cadence?.talks ?? 0) > 0 ? `${cadence.talks} upcoming` : "none upcoming"}
+                  href="/student/events"
+                />
+                <RhythmRow
+                  label="OSS sprints"
+                  detail={(cadence?.oss ?? 0) > 0 ? `${cadence.oss} curated repos waiting` : "no curated repos yet"}
+                  href="/student/opensource"
+                />
+              </ul>
+            </section>
+          </Reveal>
+
           {/* JOURNEY */}
           <Reveal delay={0.08}>
             <section className="mt-12" aria-label="Your journey">
@@ -122,6 +167,15 @@ export function StudentDashboard({
                   <ActionLink href="/student/roadmap">Open the path</ActionLink>
                 </div>
               )}
+            </section>
+          </Reveal>
+
+          {/* LOOP — the generational cycle, made personal */}
+          <Reveal delay={0.05}>
+            <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="The loop">
+              <Meta>The loop continues through you</Meta>
+              <LoopStrip stage={loop?.stageIndex ?? 0} />
+              <LoopBody loop={loop} />
             </section>
           </Reveal>
 
@@ -187,6 +241,99 @@ export function StudentDashboard({
         </>
       )}
     </main>
+  );
+}
+
+function RhythmRow({ label, detail, href }) {
+  return (
+    <li>
+      <Link href={href} className="row-link flex items-baseline justify-between gap-4 px-2 py-2.5">
+        <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{label}</span>
+        <span className="meta truncate text-right">{detail}</span>
+      </Link>
+    </li>
+  );
+}
+
+function LoopStrip({ stage }) {
+  return (
+    <ol className="mt-5 flex flex-wrap items-center gap-y-3" aria-label={`You are at: ${LOOP_STAGES[Math.min(stage, 5)]}`}>
+      {LOOP_STAGES.map((s, i) => (
+        <li key={s} className="flex items-center">
+          <span className="flex items-center gap-2">
+            <span
+              className="grid size-6 place-items-center rounded-full text-[10px] font-bold"
+              style={i < stage
+                ? { background: "var(--accent)", color: "#101314" }
+                : i === stage
+                  ? { border: "1.5px solid var(--accent)", color: "var(--text)", boxShadow: "0 0 0 3px var(--accent-glow)" }
+                  : { border: "1.5px solid var(--line)", color: "var(--text-muted)" }}
+              aria-hidden="true"
+            >
+              {i < stage ? "✓" : i + 1}
+            </span>
+            <span className="pr-1 text-xs font-semibold" style={{ color: i <= stage ? "var(--text)" : "var(--text-muted)" }}>{s}</span>
+          </span>
+          {i < LOOP_STAGES.length - 1 && (
+            <span className="mx-1.5 text-xs" style={{ color: "var(--line)" }} aria-hidden="true">·</span>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function LoopBody({ loop }) {
+  if (!loop) return null;
+  if (loop.isMentor) {
+    return (
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          You close the loop. Juniors are waiting — <strong style={{ color: "var(--text)" }}>guide the next intake</strong>.
+        </p>
+        <ActionLink href="/student/mentorship">Your mentees</ActionLink>
+      </div>
+    );
+  }
+  if (loop.applicationStatus === "pending") {
+    return (
+      <p className="mt-5 text-sm" style={{ color: "var(--text-muted)" }}>
+        Your mentor application is <strong style={{ color: "var(--accent)" }}>under review</strong>.
+        Reviewers judge proof, not promises — meanwhile, answering threads below counts twice.
+      </p>
+    );
+  }
+  if (loop.eligible) {
+    return (
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Your proof speaks: {loop.stats?.pct}% of the path, {loop.stats?.proof} public contribution{loop.stats?.proof === 1 ? "" : "s"}.{" "}
+          <strong style={{ color: "var(--text)" }}>You're ready to mentor.</strong>
+        </p>
+        <Link href="/student/mentorship" className="btn-ink">Become a mentor →</Link>
+      </div>
+    );
+  }
+  const threads = loop.openThreads || [];
+  return (
+    <div className="mt-5">
+      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+        Mentor candidacy needs {loop.stats ? `${Math.max(0, Math.round(40 - loop.stats.pct))}% more path` : "path progress"}
+        {loop.stats?.proof === 0 ? " plus one public contribution" : ""}. Fastest honest route: answer a stuck peer.
+      </p>
+      {threads.length > 0 && (
+        <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
+          {threads.map((t) => (
+            <li key={t.id}>
+              <Link href={`/student/community/forums/${t.id}`} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
+                <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{t.title}</span>
+                <span className="meta shrink-0">0 replies · answer →</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

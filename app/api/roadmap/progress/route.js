@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { milestoneFor } from "@/lib/mentorship";
 
 const progressSchema = z.object({
   nodeId: z.string().min(1),
@@ -40,13 +41,49 @@ export async function POST(request) {
     after: { nodeId: body.nodeId, status: body.status }
   });
 
+  let milestone = null;
   if (body.status === "completed") {
+    milestone = await maybeAwardMilestone({ sql, studentId: user.id, tenantId: tenant?.id });
     await notify({
       sql, tenantId: tenant?.id, userId: user.id,
-      type: "roadmap", title: `Completed: ${node.title}`,
-      body: "Roadmap progress updated.", link: "/student/roadmap"
+      type: "roadmap",
+      title: milestone ? `Milestone: ${milestone.label}` : `Completed: ${node.title}`,
+      body: milestone
+        ? "Proof recorded as a chapter achievement — it now lives on your record."
+        : "Roadmap progress updated.",
+      link: milestone ? "/student/credentials" : "/student/roadmap"
     });
   }
 
-  return ok({ progress: row, studentId: user.id, role: profile.role });
+  return ok({ progress: row, studentId: user.id, role: profile.role, milestone });
+}
+
+// Milestones turn sustained motion into chapter achievements — the same
+// evidence trail credentials are built from. Idempotent per milestone key.
+async function maybeAwardMilestone({ sql, studentId, tenantId }) {
+  const [{ nodes = 0 } = {}] = await sql`SELECT COUNT(*)::int AS nodes FROM roadmap_nodes`;
+  if (!nodes) return null;
+  const [{ done = 0 } = {}] = await sql`
+    SELECT COUNT(*)::int AS done FROM student_roadmap_progress
+    WHERE student_id = ${studentId} AND status = 'completed'
+  `;
+  const earned = milestoneFor(done, nodes);
+  if (!earned) return null;
+  const [exists] = await sql`
+    SELECT id FROM student_achievements
+    WHERE student_id = ${studentId} AND source_type = 'roadmap' AND source_ref = ${earned.key}
+    LIMIT 1
+  `;
+  if (exists) return null;
+  const [row] = await sql`
+    INSERT INTO student_achievements (student_id, tenant_id, source_type, source_ref, level, evidence_url)
+    VALUES (${studentId}, ${tenantId}, 'roadmap', ${earned.key}, ${earned.level}, '/student/roadmap')
+    RETURNING *
+  `;
+  await writeAudit({
+    sql, actorId: studentId, tenantId,
+    action: "earned_milestone", resource: "achievement", resourceId: row.id,
+    after: { key: earned.key, level: earned.level }
+  });
+  return earned;
 }

@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Reveal } from "@/components/motion/Reveal";
 import { Meta, PlainStat } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
 
-/* Admin overview as an operations console: cohort health, the attention
-   queue, what's next, and the audit trail. No student-dashboard reuse. */
+/* Admin overview as an operations console, framed by the society's own
+   success metrics: Accessibility, Readiness, Excellence, Network.
+   Every number below is computed live — never a vanity metric. */
 
-export function AdminDashboard({ health, attention, upcoming, auditEntries }) {
+export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) {
   const waiting = attention.reduce((s, a) => s + a.count, 0);
+  const o = outcomes;
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -18,16 +19,41 @@ export function AdminDashboard({ health, attention, upcoming, auditEntries }) {
         {waiting > 0 ? `${waiting} thing${waiting === 1 ? "" : "s"} need${waiting === 1 ? "s" : ""} a human.` : "Nothing waiting. The chapter is humming."}
       </h1>
 
-      <section className="mt-8 border-y py-7" style={{ borderColor: "var(--line)" }} aria-label="Cohort health">
-        <div className="grid gap-8 sm:grid-cols-4">
-          <PlainStat value={health.students} unit="students" label="on the roster" />
-          <PlainStat value={health.active7d} unit="active" label="in the last 7 days" />
-          <PlainStat value={`${Math.round(health.completion)}`} unit="%" label="avg. roadmap completion" />
-          <PlainStat value={health.events24h} unit="events" label="GitHub events in 24h" />
-        </div>
-      </section>
+      <div className="mt-10 grid gap-10 md:grid-cols-2">
+        <section aria-label="Accessibility">
+          <Meta>Accessibility · beginners, included</Meta>
+          <div className="mt-4 space-y-5">
+            <PlainStat value={o.accessibility.startedPct} unit="%" label="of students have finished at least one milestone" />
+            <PlainStat value={o.accessibility.beginnersActive} unit="active" label="zero-milestone students active this week — the ones not to lose" />
+          </div>
+        </section>
+        <section aria-label="Readiness">
+          <Meta>Readiness · documented work</Meta>
+          <div className="mt-4 space-y-5">
+            <PlainStat value={o.readiness.completion} unit="%" label="average roadmap completion today" />
+            <PlainStat value={o.readiness.merges} unit="merges" label="verified open-source merges, all time" />
+            <PlainStat value={o.readiness.projects} unit="projects" label="shipped by chapter members" />
+          </div>
+        </section>
+        <section aria-label="Excellence">
+          <Meta>Excellence · external proof</Meta>
+          <div className="mt-4 space-y-5">
+            <PlainStat value={o.excellence.submissions} unit="submissions" label="contest entries awaiting or earning judgment" />
+            <PlainStat value={o.excellence.merges} unit="merges" label="into real-world, global projects" />
+          </div>
+          <p className="narrative mt-4">Victories live in the contests console — review the submissions inbox.</p>
+        </section>
+        <section aria-label="Network">
+          <Meta>Network · feeding back in</Meta>
+          <div className="mt-4 space-y-5">
+            <PlainStat value={o.network.mentors} unit="mentors" label="guides available to juniors right now" />
+            <PlainStat value={o.network.eventsHeld} unit="held" label="gatherings so far, each with its materials archived" />
+            <PlainStat value={o.network.partnerships} unit="active" label="chapter partnerships sharing resources" />
+          </div>
+        </section>
+      </div>
 
-      <div className="mt-10 grid gap-12 lg:grid-cols-2">
+      <div className="mt-12 grid gap-12 border-t pt-10 lg:grid-cols-2" style={{ borderColor: "var(--line)" }}>
         <section aria-label="Attention queue">
           <Meta>Attention queue</Meta>
           <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>

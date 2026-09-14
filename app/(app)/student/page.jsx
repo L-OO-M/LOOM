@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getSql, queryTenant } from "@/lib/db";
+import { eligibilityFor } from "@/lib/mentorship";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/components/StudentDashboard";
 
@@ -149,6 +150,71 @@ export default async function StudentPage() {
     `;
   }
 
+  // The generational loop: where the student stands between Beginner and Mentor.
+  const [mentorRow] = await sql`SELECT user_id FROM mentors WHERE user_id = ${user?.id ?? ""} LIMIT 1`;
+  const isMentor = !!mentorRow;
+  const eligibility = user?.id ? await eligibilityFor(sql, user.id).catch(() => null) : null;
+  const [application] = user?.id ? await sql`
+    SELECT status, created_at FROM mentor_applications WHERE student_id = ${user.id}
+    ORDER BY created_at DESC LIMIT 1
+  ` : [];
+  const myProjects = await sql`SELECT COUNT(*)::int AS c FROM projects WHERE owner_id = ${user?.id ?? ""}`;
+  const [mySolutions] = await sql`
+    SELECT COUNT(*)::int AS c FROM forum_replies
+    WHERE author_id = ${user?.id ?? ""} AND is_answer = true AND status = 'visible'
+  `;
+  const stageIndex = isMentor ? 5
+    : doneCount === 0 ? 0
+    : (mySolutions?.c ?? 0) > 0 ? 4
+    : (myProjects[0]?.c ?? 0) > 0 ? 3
+    : doneCount >= 3 ? 2 : 1;
+  const openThreads = await sql`
+    SELECT t.id, t.title, t.reply_count FROM forum_threads t
+    WHERE t.tenant_id = ${tenant?.id ?? null}::uuid AND t.status = 'visible'
+      AND t.reply_count = 0 AND (t.domain = ${profile?.primary_domain ?? "general"} OR t.domain = 'general')
+    ORDER BY t.created_at DESC LIMIT 3
+  `;
+
+  // The weekly rhythm: six cadences, each with a live pulse.
+  const [nextWorkshop] = await sql`
+    SELECT title, starts_at FROM events
+    WHERE tenant_id = ${tenant?.id ?? null}::uuid AND starts_at >= NOW() AND status <> 'cancelled'
+    ORDER BY starts_at ASC LIMIT 1
+  `;
+  const [openContests] = await sql`
+    SELECT COUNT(*)::int AS c FROM contests
+    WHERE status IN ('open', 'published') AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+  `;
+  const [mentorCount] = await sql`
+    SELECT COUNT(*)::int AS c FROM mentors
+    WHERE available = true AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+  `;
+  const [talkCount] = await sql`
+    SELECT COUNT(*)::int AS c FROM events
+    WHERE tenant_id = ${tenant?.id ?? null}::uuid AND event_type = 'talk'
+      AND starts_at >= NOW() - INTERVAL '2 hours' AND status <> 'cancelled'
+  `;
+  const [ossCount] = await sql`
+    SELECT COUNT(*)::int AS c FROM open_source_projects
+    WHERE is_curated = true AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)
+  `;
+  const cadence = {
+    workshop: nextWorkshop ? { title: nextWorkshop.title, when: nextWorkshop.starts_at } : null,
+    contests: openContests?.c ?? 0,
+    mentors: mentorCount?.c ?? 0,
+    projects: myProjects[0]?.c ?? 0,
+    talks: talkCount?.c ?? 0,
+    oss: ossCount?.c ?? 0
+  };
+  const loop = {
+    stageIndex, isMentor,
+    eligible: eligibility?.eligible ?? false,
+    reasons: eligibility?.reasons ?? [],
+    stats: eligibility?.stats ?? null,
+    applicationStatus: application?.status ?? null,
+    openThreads
+  };
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
@@ -172,6 +238,8 @@ export default async function StudentPage() {
         proof={proof}
         snapshot={snapshot}
         peers={peers}
+        loop={loop}
+        cadence={cadence}
       />
     </AppShell>
   );
