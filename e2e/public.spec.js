@@ -3,7 +3,7 @@ const { test, expect } = require("@playwright/test");
 test.describe("L.O.O.M. public pages", () => {
   test("home page loads with correct title", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Build the future");
+    await expect(page.locator("h1")).toContainText("Weaving the future");
   });
 
   test("login page accessible from home", async ({ page }) => {
