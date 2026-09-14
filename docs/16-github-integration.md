@@ -116,12 +116,28 @@ upserts), so overlapping schedules are harmless.
 | Symptom | Cause → fix |
 |---|---|
 | Webhook `404 TENANT_NOT_FOUND` | Host header doesn't match a tenant domain/slug → point GitHub at the chapter domain |
+| `failed to connect to host` | Payload URL isn't reachable from the internet (localhost, `127.x`, `169.254.x`, LAN IP) → use the deployed HTTPS origin or a tunnel URL, and map that domain in `tenant_domains` |
 | Webhook `401` | Secret mismatch → compare `GITHUB_WEBHOOK_SECRET` with the webhook secret byte-for-byte |
 | Merge not auto-verified | Repo not curated, author's GitHub username not linked, or PR target outside tracked `owner/repo` |
 | Heatmaps frozen | Aggregation not scheduled → run the processor + nightly rollup, then schedule them |
 | `429` on bursts | Per-tenant 120/min guard → spread deliveries or raise the limit in code |
 
-## 9. Limits & next steps
+## 9. Pause switch (ingestion is opt-in)
+
+Webhooks fire automatically once configured — but the app only acts on them
+when the chapter enables ingestion. The `github_integration` feature flag
+(default **off**, migration `020`) gates everything:
+
+- Webhook with a valid signature while paused → `200 { accepted: false,
+  reason: "GITHUB_INGESTION_PAUSED" }`. Nothing stored, verified, or
+  aggregated. GitHub stays green.
+- `ping` deliveries are always acked (proves the URL works, stores nothing).
+- The processor job (`/api/jobs/github/process`) refuses work the same way.
+- Enable in **Admin → Flags → github integration**. Disable any time to
+  freeze ingestion instantly — deliveries made while paused are skipped, not
+  queued (replay from GitHub's Recent Deliveries after re-enabling).
+
+## 10. Limits & next steps
 
 - No OAuth yet: usernames are self-asserted; verification rests on merged
   work, which is the correct trust order anyway.

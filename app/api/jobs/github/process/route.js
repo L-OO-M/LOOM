@@ -21,6 +21,14 @@ export async function POST(request) {
 
   const sql = getSql();
 
+  // Same kill-switch as the webhook: no chapter enabled, no aggregation.
+  try {
+    const [flag] = await sql`SELECT 1 AS on FROM feature_flags WHERE key = 'github_integration' AND enabled = true LIMIT 1`;
+    if (!flag) return ok({ processed: false, reason: "GITHUB_INGESTION_PAUSED" });
+  } catch {
+    return ok({ processed: false, reason: "GITHUB_INGESTION_PAUSED" });
+  }
+
   await sql`
     INSERT INTO github_events (idempotency_key, event_name, delivery_id, actor_login, payload)
     VALUES (

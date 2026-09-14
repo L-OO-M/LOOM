@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasRole, requireRole } from "@/lib/auth";
+import { hasRole, homeForRole, requireRole } from "@/lib/auth";
 
 describe("authorization helpers", () => {
   it("grants admin everything student can do", () => {
@@ -17,6 +17,16 @@ describe("authorization helpers", () => {
       message: "The current user cannot perform this action"
     });
     expect(requireRole({ role: "admin" }, "admin").ok).toBe(true);
+  });
+
+  it("lands each level where it works (layouts still enforce access)", () => {
+    expect(homeForRole("admin")).toBe("/admin");
+    expect(homeForRole("platform_admin")).toBe("/admin");
+    expect(homeForRole("dept_lead")).toBe("/lead");
+    expect(homeForRole("vertical_lead")).toBe("/lead");
+    expect(homeForRole("student")).toBe("/student");
+    expect(homeForRole("core")).toBe("/student");
+    expect(homeForRole("ghost")).toBe("/student");
   });
 
   it("never trusts client tenant: membership must come from profile", () => {

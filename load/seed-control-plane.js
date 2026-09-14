@@ -19,7 +19,7 @@ try {
   `;
 
   const flags = [
-    { key: "github_integration", enabled: true },
+    { key: "github_integration", enabled: false },
     { key: "contests", enabled: true },
     { key: "mentorship", enabled: true },
     { key: "leaderboards", enabled: true },

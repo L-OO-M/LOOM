@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signIn } from "@/lib/auth-client";
+import { homeForRole } from "@/lib/auth";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/student";
+  const redirect = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,7 +28,19 @@ function LoginForm() {
       return;
     }
 
-    router.push(redirect);
+    // Explicit bounce targets are honored (layouts enforce access); otherwise
+    // each level lands where it works: leads in /lead, admins in /admin.
+    if (redirect) {
+      router.push(redirect);
+    } else {
+      try {
+        const res = await fetch("/api/profile");
+        const data = await res.json();
+        router.push(homeForRole(data?.data?.profile?.role));
+      } catch {
+        router.push("/student");
+      }
+    }
     router.refresh();
   }
 

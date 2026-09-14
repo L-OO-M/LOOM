@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { normalizeGitHubEvent, verifyGitHubSignature } from "@/lib/github";
+import { isGithubEnabled, normalizeGitHubEvent, verifyGitHubSignature } from "@/lib/github";
 import { awardOssBadges } from "@/lib/oss";
 import { notify } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
@@ -27,13 +27,28 @@ export async function POST(request) {
     return fail("GITHUB_SIGNATURE_INVALID", "GitHub signature is invalid", 401);
   }
 
-  const normalized = normalizeGitHubEvent({
-    eventName,
-    deliveryId,
-    payload: JSON.parse(payload)
-  });
+  // Ping is GitHub's connectivity check: ack it (proves the URL works)
+  // without storing anything.
+  if (eventName === "ping") {
+    return ok({ accepted: true, ping: true, tenantId: tenant.id });
+  }
+
+  let raw;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return fail("GITHUB_BAD_JSON", "Webhook payload is not valid JSON", 400);
+  }
 
   const sql = getSql();
+  // Paused until the chapter enables github_integration in /admin/flags:
+  // acknowledge (so GitHub stays green) but store and act on nothing.
+  if (!(await isGithubEnabled(sql, tenant.id))) {
+    return ok({ accepted: false, reason: "GITHUB_INGESTION_PAUSED", tenantId: tenant.id });
+  }
+
+  const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw });
+
   await sql`
     INSERT INTO github_events (idempotency_key, event_name, delivery_id, actor_login, payload)
     VALUES (
@@ -41,7 +56,7 @@ export async function POST(request) {
       ${normalized.eventName},
       ${normalized.deliveryId},
       ${normalized.actorLogin},
-      ${sql.json(normalized.payload)}
+      ${sql.json(raw)}
     )
     ON CONFLICT (idempotency_key) DO NOTHING
   `;
@@ -50,7 +65,7 @@ export async function POST(request) {
   // claimed contribution (or records it) and awards badges. Best-effort —
   // must never break webhook acknowledgement.
   try {
-    await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw: JSON.parse(payload) });
+    await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
   } catch {
     /* ignore */
   }

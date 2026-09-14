@@ -30,7 +30,7 @@ export default async function AdminSettingsPage() {
           <Card>
             <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Integrations</p>
             <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-              GitHub App OAuth: not configured (username linking + webhooks live) · QStash: {process.env.QSTASH_TOKEN ? "configured" : "not configured — jobs run inline"} · Redis/R2/Realtime: not configured — pages show real DB state with honest unavailable notes.
+              GitHub App OAuth: not configured (username linking + webhooks received only while Admin → Flags → github integration is on) · QStash: {process.env.QSTASH_TOKEN ? "configured" : "not configured — jobs run inline"} · Redis/R2/Realtime: not configured — pages show real DB state with honest unavailable notes.
             </p>
           </Card>
         </div>
