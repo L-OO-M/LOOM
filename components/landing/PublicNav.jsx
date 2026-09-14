@@ -7,10 +7,11 @@ import { BrandMark } from "@/components/BrandMark";
 import { useTheme } from "@/lib/theme";
 
 const LINKS = [
+  ["Home", "/"],
   ["About", "/about"],
   ["Events", "/events"],
   ["FAQ", "/faq"],
-  ["Domains", "/domains/web"]
+  ["Domains", "/domains"]
 ];
 
 /* Slim sibling of the landing header: same floatbar language, route links
@@ -63,9 +64,6 @@ export function PublicNav() {
       {menuOpen && (
         <nav className="border-t px-5 py-4 lg:hidden" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }} aria-label="Mobile">
           <div className="flex flex-col">
-            <Link href="/" prefetch={false} onClick={() => setMenuOpen(false)} className="py-3 text-sm font-medium" style={{ color: "var(--text)" }}>
-              Home
-            </Link>
             {LINKS.map(([label, href]) => (
               <Link key={label} href={href} prefetch={false} onClick={() => setMenuOpen(false)} className="py-3 text-sm font-medium" style={{ color: "var(--text)" }}>
                 {label}

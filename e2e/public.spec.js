@@ -49,6 +49,19 @@ test.describe("L.O.O.M. public site", () => {
     await expect(page.locator("h1")).toContainText("Upcoming events");
   });
 
+  test("domains index lists every department", async ({ page }) => {
+    const res = await page.goto("/domains");
+    expect(res?.status()).toBe(200);
+    await expect(page.locator("h1")).toContainText("Choose your domain.");
+  });
+
+  test("unknown routes redirect logged-out visitors to login, never a blank screen", async ({ page }) => {
+    await page.goto("/this-thread-was-never-woven");
+    // Logged-out: the auth gate redirects (signed-in users get the 404 page).
+    await expect(page).toHaveURL(/\/login\?redirect=%2Fthis-thread-was-never-woven/);
+    await expect(page.locator("h1")).toContainText("Sign in");
+  });
+
   test("domain page loads for the web department", async ({ page }) => {
     const res = await page.goto("/domains/web");
     expect(res?.status()).toBe(200);

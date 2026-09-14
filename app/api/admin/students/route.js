@@ -27,7 +27,12 @@ export async function GET(request) {
   return ok({ students: rows });
 }
 
-const roleSchema = z.object({ userId: z.string().min(1), role: z.enum(["student", "core", "dept_lead", "vertical_lead", "admin"]) });
+const roleSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(["student", "core", "dept_lead", "vertical_lead", "admin"]),
+  departmentId: z.string().uuid().nullable().optional(),
+  vertical: z.enum(["technical", "non_technical"]).nullable().optional()
+});
 
 export async function PATCH(request) {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -43,7 +48,37 @@ export async function PATCH(request) {
   }
   const [target] = await sql`SELECT * FROM profiles WHERE user_id = ${body.userId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
   if (!target) return fail("NOT_FOUND", "Student not in your college", 404);
-  const [updated] = await sql`UPDATE profiles SET role = ${body.role}, updated_at = NOW() WHERE user_id = ${body.userId} RETURNING *`;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_student_role", resource: "profile", resourceId: body.userId, before: { role: target.role }, after: { role: body.role } });
+  // A lead without a scope is an inconsistent state (permission checks read
+  // memberships, not just the role) — require the scope up front.
+  let departmentId = null;
+  if (body.role === "dept_lead") {
+    if (!body.departmentId) return fail("VALIDATION_ERROR", "Choose the department this Head / Co-Head will lead", 400);
+    const [dept] = await sql`SELECT id, slug FROM departments WHERE id = ${body.departmentId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+    if (!dept) return fail("NOT_FOUND", "Department not found in your college", 404);
+    departmentId = dept.id;
+  }
+  if (body.role === "vertical_lead" && !body.vertical) {
+    return fail("VALIDATION_ERROR", "Choose the vertical (technical / non-technical) this lead owns", 400);
+  }
+  const [updated] = await sql`
+    UPDATE profiles SET role = ${body.role},
+      vertical = COALESCE(${body.role === "vertical_lead" ? body.vertical : null}, vertical),
+      updated_at = NOW()
+    WHERE user_id = ${body.userId} RETURNING *
+  `;
+  if (departmentId) {
+    await sql`
+      INSERT INTO department_memberships (user_id, department_id, level, core_requested)
+      VALUES (${body.userId}, ${departmentId}, 'dept_lead', false)
+      ON CONFLICT (user_id, department_id) DO UPDATE SET level = 'dept_lead', core_requested = false
+    `;
+    await sql`
+      UPDATE departments
+      SET head_user_id = CASE WHEN head_user_id IS NULL THEN ${body.userId} ELSE head_user_id END,
+          co_head_user_id = CASE WHEN head_user_id IS NOT NULL AND head_user_id <> ${body.userId} AND co_head_user_id IS NULL THEN ${body.userId} ELSE co_head_user_id END
+      WHERE id = ${departmentId}
+    `;
+  }
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_student_role", resource: "profile", resourceId: body.userId, before: { role: target.role }, after: { role: body.role, departmentId } });
   return ok({ profile: updated });
 }
