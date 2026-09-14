@@ -58,6 +58,7 @@ test.describe("api authorization", () => {
     "/api/notifications",
     "/api/profile",
     "/api/github",
+    "/api/departments",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -74,6 +75,20 @@ test.describe("api authorization", () => {
   test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
     const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
     expect(res.status()).toBe(401);
+  });
+
+  test("department membership writes return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    for (const [method, url, data] of [
+      ["post", `/api/departments/${id}/join`, {}],
+      ["post", `/api/departments/${id}/request-core`, {}],
+      ["patch", `/api/departments/${id}/members/some-user`, { level: "core" }]
+    ]) {
+      const res = method === "post"
+        ? await request.post(url, { data })
+        : await request.patch(url, { data });
+      expect(res.status()).toBe(401);
+    }
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {

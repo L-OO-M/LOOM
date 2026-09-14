@@ -7,20 +7,43 @@ import { signUp } from "@/lib/auth-client";
 
 const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 
+const DOMAINS = [
+  ["ai_ml", "AI / ML"],
+  ["web", "Web Dev"],
+  ["cybersecurity", "Cybersecurity"],
+  ["dsa", "DSA"],
+  ["blockchain", "Blockchain"]
+];
+
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
+  const [branch, setBranch] = useState("");
+  const [year, setYear] = useState("");
+  const [domains, setDomains] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+
+  function toggleDomain(slug) {
+    setDomains((d) => (d.includes(slug) ? d.filter((x) => x !== slug) : [...d, slug]));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { error: signUpError } = await signUp(email, password, { name });
+    const yearNum = year === "" ? null : Number(year);
+    const { error: signUpError } = await signUp(email, password, {
+      name,
+      roll_number: rollNumber || null,
+      branch: branch || null,
+      year: Number.isInteger(yearNum) && yearNum >= 1 && yearNum <= 6 ? yearNum : null,
+      domains
+    });
     if (signUpError) {
       setError(signUpError.message);
       setLoading(false);
@@ -67,6 +90,39 @@ export default function RegisterPage() {
                 <label className="block text-sm font-medium" htmlFor="password">Password</label>
                 <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="roll">Roll number</label>
+                  <input id="roll" type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} className={input} placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="year">Year</label>
+                  <input id="year" type="number" min={1} max={6} value={year} onChange={(e) => setYear(e.target.value)} className={input} placeholder="1–6" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium" htmlFor="branch">Branch</label>
+                <input id="branch" type="text" value={branch} onChange={(e) => setBranch(e.target.value)} className={input} placeholder="e.g. CSE" />
+              </div>
+              <fieldset>
+                <legend className="text-sm font-medium">Domains of interest <span className="font-normal text-[var(--text-muted)]">(join instantly — no approval)</span></legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {DOMAINS.map(([slug, label]) => (
+                    <button
+                      key={slug}
+                      type="button"
+                      onClick={() => toggleDomain(slug)}
+                      aria-pressed={domains.includes(slug)}
+                      className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                      style={domains.includes(slug)
+                        ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
+                        : { borderColor: "var(--line)", color: "var(--text-muted)" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
