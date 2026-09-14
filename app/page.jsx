@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
+import { WeaveField } from "@/components/WeaveField";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight, BookOpen, BriefcaseBusiness, Code2, Github,
@@ -96,6 +97,13 @@ export default function LandingPage() {
           { y: 0, opacity: 1, duration: 0.6, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 85%" } }
         );
       });
+
+      // Hero drifts away on scroll — content lifts and dissolves into the weave.
+      if (heroRef.current) {
+        gsap.to(".hero-inner",
+          { yPercent: 10, opacity: 0.2, ease: "none", scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true } }
+        );
+      }
     }, [heroRef, featuresRef, stepsRef, collegesRef, ctaRef]);
 
     return () => ctx.revert();
@@ -169,8 +177,18 @@ export default function LandingPage() {
 
       {/* HERO — navy weave. The society's identity, full-bleed. */}
       <section ref={heroRef} className="relative mt-16 overflow-hidden" style={{ background: "#0a1628" }} aria-label="Introduction">
-        <Weave aria-hidden="true" />
-        <div className="relative mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pb-32">
+        {/* Layered light: gold dawn top-left, cyan depth bottom-right, coral ember edge. */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{
+          background: "radial-gradient(52rem 30rem at 12% -8%, rgba(232,194,106,0.16), transparent 60%), radial-gradient(48rem 32rem at 88% 108%, rgba(63,210,224,0.13), transparent 62%), radial-gradient(30rem 22rem at 82% 12%, rgba(232,106,94,0.08), transparent 60%)"
+        }} />
+        <WeaveField />
+        {/* Film grain — static texture so the gradients never band. */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true" style={{
+          backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E\")"
+        }} />
+        {/* Bottom fade into the page body. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28" aria-hidden="true" style={{ background: "linear-gradient(to bottom, transparent, rgba(10,22,40,0.9))" }} />
+        <div className="hero-inner relative mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pb-32">
           <p className="hero-label kicker mb-7 flex items-center gap-3" style={{ color: "#e8c26a" }}>
             <span className="inline-block h-px w-8" style={{ background: "#e8c26a" }} />
             A self-sustaining, student-run technical learning community
@@ -290,7 +308,9 @@ export default function LandingPage() {
       </section>
 
       {/* CADENCE — year-round life. */}
-      <section className="px-5 py-20 lg:px-8 lg:py-28" style={{ background: "#101314", color: "#f2f3f1" }}>
+      <section className="relative px-5 py-20 lg:px-8 lg:py-28" style={{ background: "#101314", color: "#f2f3f1" }}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" style={{ background: "linear-gradient(to right, transparent, rgba(232,194,106,0.55), transparent)" }} />
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{ background: "radial-gradient(40rem 20rem at 50% -6rem, rgba(232,194,106,0.07), transparent 65%)" }} />
         <div className="mx-auto max-w-7xl">
           <p className="kicker scroll-reveal">Year-round, not once a semester</p>
           <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl">
@@ -374,7 +394,8 @@ export default function LandingPage() {
       <ChapterStrip />
 
       {/* CLOSING — the mantra. */}
-      <section id="opportunities" ref={ctaRef} className="scroll-mt-20 border-y px-5 py-20 text-center lg:px-8 lg:py-24" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
+      <section id="opportunities" ref={ctaRef} className="relative scroll-mt-20 overflow-hidden border-y px-5 py-20 text-center lg:px-8 lg:py-24" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{ background: "radial-gradient(36rem 20rem at 50% 115%, rgba(63,210,224,0.10), transparent 65%), radial-gradient(28rem 16rem at 50% -10%, rgba(232,168,62,0.10), transparent 60%)" }} />
         <div className="cta-content mx-auto max-w-3xl">
           <p className="kicker">The culture, in one line</p>
           <h2 className="font-display mt-5 text-4xl font-medium sm:text-6xl" style={{ color: "var(--text)" }}>
@@ -415,31 +436,6 @@ export default function LandingPage() {
         </div>
       </footer>
     </main>
-  );
-}
-
-/* Woven threads — the society's mark, drawn in SVG. Cyan, amber, and coral
-   strands converge left-to-right like warp on a loom. Pure decoration. */
-function Weave() {
-  const strands = [
-    { d: "M-40,120 C240,60 420,200 760,120 S1180,60 1500,140", c: "#3fd2e0", w: 2, o: 0.85 },
-    { d: "M-40,180 C260,120 440,260 780,180 S1180,120 1500,200", c: "#3fd2e0", w: 1.4, o: 0.5 },
-    { d: "M-40,240 C280,180 460,320 800,240 S1180,180 1500,260", c: "#3fd2e0", w: 1, o: 0.3 },
-    { d: "M-40,90 C300,180 480,60 820,150 S1200,220 1500,110", c: "#e8a83e", w: 2, o: 0.8 },
-    { d: "M-40,150 C320,240 500,120 840,210 S1200,280 1500,170", c: "#e8a83e", w: 1.4, o: 0.5 },
-    { d: "M-40,210 C340,300 520,180 860,270 S1220,340 1500,230", c: "#e8a83e", w: 1, o: 0.3 },
-    { d: "M-40,300 C300,220 520,360 840,280 S1200,220 1500,320", c: "#e86a5e", w: 2, o: 0.8 },
-    { d: "M-40,360 C320,280 540,420 860,340 S1200,280 1500,380", c: "#e86a5e", w: 1.4, o: 0.45 },
-    { d: "M-40,60 C360,120 560,20 880,100 S1240,80 1500,60", c: "#8fa8c8", w: 1.2, o: 0.4 }
-  ];
-  return (
-    <svg className="weave-threads pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1460 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      {strands.map((s, i) => (
-        <path key={i} d={s.d} fill="none" stroke={s.c} strokeWidth={s.w} opacity={s.o} strokeLinecap="round" />
-      ))}
-      <ellipse cx="730" cy="210" rx="180" ry="120" fill="none" stroke="#e8c26a" strokeWidth="1" opacity="0.18" />
-      <ellipse cx="730" cy="210" rx="260" ry="170" fill="none" stroke="#e8c26a" strokeWidth="1" opacity="0.1" />
-    </svg>
   );
 }
 

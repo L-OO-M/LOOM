@@ -248,7 +248,7 @@ function useInbox(enabled) {
     setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
     setUnread((u) => Math.max(0, u - 1));
     try {
-      await fetch(`/api/notifications/${n.id}/read`, { method: "POST" });
+      await fetch(`/api/notifications/${n.id}/read`, { method: "PATCH" });
     } catch { /* optimistic; the list already moved on */ }
   }, []);
   return { items, unread, load, markRead };

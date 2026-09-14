@@ -4,8 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 async function postJSON(url, body) {
-  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  return res.json();
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return res.json();
+  } catch {
+    // Never throw: every caller renders {ok:false} as an inline message
+    // instead of wedging its button in a busy state.
+    return { ok: false, error: { message: "Couldn't reach the server. Try again." } };
+  }
 }
 
 export function MarkCompleteButton({ nodeId, completed }) {

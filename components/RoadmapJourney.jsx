@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Reveal } from "@/components/motion/Reveal";
@@ -17,10 +17,12 @@ const DOMAIN_LABEL = { ai_ml: "AI / ML", web: "Web Development", cybersecurity: 
 
 export function RoadmapJourney({ nodes, doneIds, nextId, resourcesByDomain }) {
   const done = useMemo(() => new Set(doneIds), [doneIds]);
-  const [selectedId, setSelectedId] = useState(nextId);
+  // null = drawer closed. (Previously this initialized to nextId with an
+  // onClose that re-selected nextId, so the close button could never close it.)
+  const [selectedId, setSelectedId] = useState(null);
   const [justDone, setJustDone] = useState(null);
 
-  const selected = nodes.find((n) => n.id === selectedId) ?? nodes.find((n) => n.id === nextId) ?? null;
+  const selected = selectedId ? nodes.find((n) => n.id === selectedId) ?? null : null;
   const selIndex = selected ? nodes.findIndex((n) => n.id === selected.id) : -1;
 
   if (nodes.length === 0) {
@@ -111,7 +113,7 @@ export function RoadmapJourney({ nodes, doneIds, nextId, resourcesByDomain }) {
         nodes={nodes}
         nextId={nextId}
         onSelect={setSelectedId}
-        onClose={() => setSelectedId(nextId)}
+        onClose={() => setSelectedId(null)}
         onCompleted={(id) => setJustDone(id)}
       />
     </main>
@@ -122,11 +124,30 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
   const open = !!node;
   const prev = index > 0 ? nodes[index - 1] : null;
   const next = index >= 0 && index < nodes.length - 1 ? nodes[index + 1] : null;
+
+  // Walk the path from the keyboard: ← previous, → next. The drawer already
+  // owns Escape via Drawer; arrows are the in-drawer equivalent of the footer.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft" && prev) onSelect(prev.id);
+      if (e.key === "ArrowRight" && next) onSelect(next.id);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, prev, next, onSelect]);
+
+  // Each newly opened node starts at the top of the panel.
+  useEffect(() => {
+    if (open) document.querySelector(".drawer")?.scrollTo({ top: 0 });
+  }, [open, node?.id]);
+
   return (
     <Drawer open={open} onClose={onClose} label={node ? `${node.domain} · Node ${index + 1} of ${total}` : "Node"}>
       {node && (
         <>
-          <p className="display display-md">{node.title}</p>
+          <p className="meta">Node {index + 1} of {total}{isDone ? " · completed" : isNext ? " · you are here" : ""}</p>
+          <p className="display display-md mt-2">{node.title}</p>
           <p className="meta mt-3">
             {isDone ? "Completed" : isNext ? "Up next" : "Upcoming"}
             {node.difficulty_level ? ` · ${node.difficulty_level}` : ""}
@@ -142,7 +163,7 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
             <ul className="mt-3 space-y-1">
               {linked.map((r) => (
                 <li key={r.id}>
-                  <Link href={`/student/resources/${r.id}`} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
+                  <Link href={`/student/resources/${r.id}`} prefetch={false} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
                     <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
                     <span className="meta shrink-0">{r.minutes} min</span>
                   </Link>
@@ -152,20 +173,22 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
             </ul>
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-2 border-t pt-5" style={{ borderColor: "var(--line)" }}>
+          <nav className="mt-6 flex items-stretch gap-2 border-t pt-5" style={{ borderColor: "var(--line)" }} aria-label="Walk the path">
             {prev ? (
-              <button onClick={() => onSelect(prev.id)} className="text-xs font-semibold hover:underline" style={{ color: "var(--text)" }}>
-                ← {prev.title}
+              <button onClick={() => onSelect(prev.id)} className="row-link min-w-0 flex-1 px-3 py-3 text-left" aria-label={`Previous node: ${prev.title}`}>
+                <span className="meta block">← Previous</span>
+                <span className="mt-1 block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{prev.title}</span>
               </button>
-            ) : <span />}
+            ) : <span className="flex-1" />}
             {next ? (
-              <button onClick={() => onSelect(next.id)} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                {next.title} →
+              <button onClick={() => onSelect(next.id)} className="row-link min-w-0 flex-1 px-3 py-3 text-right" aria-label={`Next node: ${next.title}`}>
+                <span className="meta block">Next →</span>
+                <span className="mt-1 block truncate text-sm font-semibold" style={{ color: "var(--accent)" }}>{next.title}</span>
               </button>
-            ) : <span />}
-          </div>
+            ) : <span className="flex-1" />}
+          </nav>
           <div className="mt-4 text-center">
-            <Link href={`/student/roadmap/${node.id}`} className="text-xs hover:underline" style={{ color: "var(--text-muted)" }}>
+            <Link href={`/student/roadmap/${node.id}`} prefetch={false} className="text-xs hover:underline" style={{ color: "var(--text-muted)" }}>
               Open full detail page
             </Link>
           </div>
