@@ -16,14 +16,8 @@ export const tenantDomains = pgTable("tenant_domains", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
 });
 
-export const tenantDatabaseRoutes = pgTable("tenant_database_routes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  tenantId: uuid("tenant_id").notNull(),
-  databaseUrlSecretName: text("database_url_secret_name").notNull(),
-  poolMode: text("pool_mode").notNull().default("serverless"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
-
+// NOTE: no `tenant_database_routes` — single DATABASE_URL, no per-tenant
+// routing was ever built (dead table dropped in migration 012).
 export const featureFlags = pgTable("feature_flags", {
   id: uuid("id").primaryKey().defaultRandom(),
   tenantId: uuid("tenant_id").notNull(),

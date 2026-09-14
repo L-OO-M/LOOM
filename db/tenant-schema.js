@@ -1,13 +1,7 @@
 import { boolean, date, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  email: text("email").notNull(),
-  role: text("role").notNull().default("student"),
-  tenantId: uuid("tenant_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
-
+// NOTE: no `users` mirror table — profiles is the single source of truth
+// for identity, role, and tenant (dead mirror dropped in migration 012).
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull().unique(),
@@ -93,14 +87,8 @@ export const githubConnections = pgTable("github_connections", {
   connectedAt: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow()
 });
 
-export const roadmaps = pgTable("roadmaps", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  domain: text("domain").notNull(),
-  title: text("title").notNull(),
-  published: boolean("published").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
-
+// NOTE: no `roadmaps` table — the catalog lives in roadmap_nodes keyed by
+// domain (dead table dropped in migration 012).
 export const roadmapNodes = pgTable("roadmap_nodes", {
   id: text("id").primaryKey(),
   roadmapId: uuid("roadmap_id"),
@@ -178,14 +166,8 @@ export const mentorSessions = pgTable("mentor_sessions", {
   scheduledAt: timestamp("scheduled_at", { withTimezone: true })
 });
 
-export const leaderboardSnapshots = pgTable("leaderboard_snapshots", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  scope: text("scope").notNull(),
-  period: text("period").notNull(),
-  data: jsonb("data").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
-});
-
+// NOTE: no `leaderboard_snapshots` — the board computes live from profiles +
+// activity + progress (dead table dropped in migration 012).
 export const auditLogs = pgTable("audit_logs", {  id: uuid("id").primaryKey().defaultRandom(),
   actorId: text("actor_id").notNull(),
   action: text("action").notNull(),

@@ -69,11 +69,6 @@ async function main() {
           primary_domain = EXCLUDED.primary_domain, github_username = EXCLUDED.github_username,
           onboarding_completed = true
       `;
-      await sql`
-        INSERT INTO users (id, email, role, tenant_id)
-        VALUES (${uid}, ${uid + "@seed.local"}, 'student', ${tid})
-        ON CONFLICT (id) DO NOTHING
-      `;
     }
     // dummy mentor (promote one seed student)
     await sql`

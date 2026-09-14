@@ -53,7 +53,6 @@ async function main() {
         "DELETE FROM public.contests WHERE title LIKE 'Seed%'",
         "DELETE FROM public.mentors WHERE user_id LIKE 'seed-user-%'",
         "DELETE FROM public.profiles WHERE user_id LIKE 'seed-user-%'",
-        "DELETE FROM public.users WHERE id LIKE 'seed-user-%'",
         "DELETE FROM public.audit_logs WHERE actor_id = 'seed'"
       ];
       for (const s of stmts) {
@@ -68,8 +67,8 @@ async function main() {
       "mentor_sessions", "mentors", "projects", "resource_progress",
       "student_roadmap_progress", "student_daily_activity", "github_events",
       "repositories", "github_connections", "contests", "resources",
-      "roadmap_nodes", "profiles", "users", "feature_flags",
-      "tenant_domains", "tenant_database_routes", "platform_admins", "tenants"
+      "roadmap_nodes", "profiles", "feature_flags",
+      "tenant_domains", "platform_admins", "tenants"
     ];
     await sql.unsafe(`TRUNCATE TABLE ${tables.map((t) => `public.${t}`).join(", ")} RESTART IDENTITY CASCADE`);
     console.log("full wipe complete. schema_migrations preserved. Re-run: seed-control-plane, seed-content, then register via /setup.");
