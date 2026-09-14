@@ -62,8 +62,50 @@ export default function LandingPage() {
   const stepsRef = useRef(null);
   const collegesRef = useRef(null);
   const ctaRef = useRef(null);
+  const glowRef = useRef(null);
+  const magA = useMagnetic();
+  const magB = useMagnetic();
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState(null);
+
+  // Cursor glow follower — lerped, transform-only, hero-scoped.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+    const el = glowRef.current, hero = heroRef.current;
+    if (!el || !hero) return;
+    let raf = 0, x = 0, y = 0, tx = 0, ty = 0, seen = false;
+    const render = () => {
+      x += (tx - x) * 0.12; y += (ty - y) * 0.12;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.opacity = seen ? "1" : "0";
+      if (Math.abs(tx - x) > 0.5 || Math.abs(ty - y) > 0.5) raf = requestAnimationFrame(render);
+      else raf = 0;
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(render); };
+    const onMove = (e) => {
+      const r = hero.getBoundingClientRect();
+      tx = e.clientX - r.left; ty = e.clientY - r.top; seen = true;
+      kick();
+    };
+    hero.addEventListener("pointermove", onMove, { passive: true });
+    return () => { hero.removeEventListener("pointermove", onMove); cancelAnimationFrame(raf); };
+  }, []);
+
+  // One delegated spotlight: any .spot-card lights up under the cursor
+  // via CSS vars — zero React state, zero re-renders.
+  useEffect(() => {
+    const onMove = (e) => {
+      const card = e.target?.closest?.(".spot-card");
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      card.style.setProperty("--mx", `${e.clientX - r.left}px`);
+      card.style.setProperty("--my", `${e.clientY - r.top}px`);
+    };
+    document.addEventListener("pointermove", onMove, { passive: true });
+    return () => document.removeEventListener("pointermove", onMove);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -104,6 +146,13 @@ export default function LandingPage() {
           { yPercent: 10, opacity: 0.2, ease: "none", scrollTrigger: { trigger: heroRef.current, start: "top top", end: "bottom top", scrub: true } }
         );
       }
+
+      // Journey progress — the gradient hairline fills as the steps pass.
+      if (stepsRef.current) {
+        gsap.to(".journey-fill",
+          { scaleX: 1, ease: "none", scrollTrigger: { trigger: stepsRef.current, start: "top 75%", end: "bottom 55%", scrub: 0.6 } }
+        );
+      }
     }, [heroRef, featuresRef, stepsRef, collegesRef, ctaRef]);
 
     return () => ctx.revert();
@@ -116,7 +165,7 @@ export default function LandingPage() {
           <BrandMark size={30} />
           <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
             {navLinks.map(([label, href]) => (
-              <a key={label} href={href} className="text-sm font-medium transition hover:opacity-100" style={{ color: "var(--text-muted)" }}>
+              <a key={label} href={href} className="link-slide text-sm font-medium transition hover:opacity-100" style={{ color: "var(--text-muted)" }}>
                 {label}
               </a>
             ))}
@@ -188,6 +237,7 @@ export default function LandingPage() {
         }} />
         {/* Bottom fade into the page body. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28" aria-hidden="true" style={{ background: "linear-gradient(to bottom, transparent, rgba(10,22,40,0.9))" }} />
+        <div ref={glowRef} className="cursor-glow left-1/2 top-1/3" aria-hidden="true" />
         <div className="hero-inner relative mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pb-32">
           <p className="hero-label kicker mb-7 flex items-center gap-3" style={{ color: "#e8c26a" }}>
             <span className="inline-block h-px w-8" style={{ background: "#e8c26a" }} />
@@ -195,19 +245,23 @@ export default function LandingPage() {
           </p>
           <h1 className="hero-title font-display max-w-5xl text-6xl font-medium leading-[0.95] sm:text-7xl lg:text-[6.5rem]" style={{ color: "#f4f1e8" }}>
             Weaving the future<br />
-            <em className="font-light" style={{ color: "rgba(244,241,232,0.6)" }}>of technical culture.</em>
+            <em className="font-light text-shader">of technical culture.</em>
           </h1>
           <p className="hero-desc mt-8 max-w-2xl text-base leading-8 sm:text-lg" style={{ color: "rgba(244,241,232,0.72)" }}>
             L.O.O.M. is an ecosystem, not an event organizer — a place where students learn, build,
             and grow regardless of prior experience, until they become the mentors of the next intake.
           </p>
           <div className="hero-actions mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href="/register" className="btn-ink justify-center !px-6 !py-3 !text-base">
-              Start your journey <ArrowRight size={17} strokeWidth={2} />
-            </Link>
-            <a href="#pillars" className="justify-center !px-6 !py-3 !text-base font-semibold transition hover:opacity-85" style={{ color: "#f4f1e8", border: "1px solid rgba(244,241,232,0.3)", borderRadius: 10 }}>
-              What L.O.O.M. means
-            </a>
+            <span ref={magA} className="magnet inline-flex">
+              <Link href="/register" className="btn-ink justify-center !px-6 !py-3 !text-base">
+                Start your journey <ArrowRight size={17} strokeWidth={2} />
+              </Link>
+            </span>
+            <span ref={magB} className="magnet inline-flex">
+              <a href="#pillars" className="justify-center !px-6 !py-3 !text-base font-semibold transition hover:opacity-85" style={{ color: "#f4f1e8", border: "1px solid rgba(244,241,232,0.3)", borderRadius: 10 }}>
+                What L.O.O.M. means
+              </a>
+            </span>
           </div>
         </div>
       </section>
@@ -251,8 +305,8 @@ export default function LandingPage() {
           </h2>
           <ol className="mt-12">
             {pillars.map((p, i) => (
-              <li key={p.name} className="scroll-reveal grid gap-4 border-t py-8 sm:grid-cols-[110px_1fr_1.4fr] sm:items-baseline" style={{ borderColor: "var(--line)" }}>
-                <span className="font-display text-6xl font-medium" style={{ color: p.color }} aria-hidden="true">{p.letter}</span>
+              <li key={p.name} className="pillar-row scroll-reveal grid gap-4 border-t py-8 sm:grid-cols-[110px_1fr_1.4fr] sm:items-baseline" style={{ borderColor: "var(--line)" }}>
+                <span className="pillar-letter font-display text-6xl font-medium" style={{ color: p.color }} aria-hidden="true">{p.letter}</span>
                 <h3 className="font-display text-3xl font-medium" style={{ color: "var(--text)" }}>{p.name}</h3>
                 <p className="max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>{p.body}</p>
               </li>
@@ -269,11 +323,14 @@ export default function LandingPage() {
       </section>
 
       {/* JOURNEY — the generational cycle. */}
-      <section id="journey" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+      <section id="journey" ref={stepsRef} className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
         <p className="kicker scroll-reveal">The student journey</p>
         <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
           A self-sustaining cycle of mastery.
         </h2>
+        <div className="mt-10 h-px w-full" aria-hidden="true" style={{ background: "var(--line)" }}>
+          <div className="journey-fill h-px w-full" style={{ background: "linear-gradient(to right, var(--thread-cyan), var(--thread-gold), var(--thread-coral))" }} />
+        </div>
         <ol className="mt-12 flex flex-wrap items-center gap-y-6">
           {journey.map((step, i) => (
             <li key={step} className="scroll-reveal flex items-center">
@@ -321,7 +378,7 @@ export default function LandingPage() {
           </p>
           <ol className="mt-10 grid gap-px overflow-hidden rounded-2xl sm:grid-cols-2 lg:grid-cols-3" style={{ background: "rgba(242,243,241,0.15)" }}>
             {cadence.map((c, i) => (
-              <li key={c.title} className="scroll-reveal group p-6 sm:p-7" style={{ background: "#101314" }}>
+              <li key={c.title} className="spot-card scroll-reveal group p-6 sm:p-7" style={{ background: "#101314" }}>
                 <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{String(i + 1).padStart(2, "0")} · {c.sub}</span>
                 <h3 className="mt-3 text-xl font-semibold">{c.title}</h3>
                 <p className="mt-2 text-sm leading-6" style={{ color: "rgba(242,243,241,0.65)" }}>{c.body}</p>
@@ -382,7 +439,7 @@ export default function LandingPage() {
         </h2>
         <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2" style={{ borderColor: "var(--line)", background: "var(--line)" }}>
           {outcomes.map((o) => (
-            <div key={o.title} className="college-reveal p-6 sm:p-8" style={{ background: "var(--bg-elevated)" }}>
+            <div key={o.title} className="spot-card college-reveal p-6 sm:p-8" style={{ background: "var(--bg-elevated)" }}>
               <h3 className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>{o.title}</h3>
               <p className="mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>{o.body}</p>
             </div>
@@ -399,7 +456,7 @@ export default function LandingPage() {
         <div className="cta-content mx-auto max-w-3xl">
           <p className="kicker">The culture, in one line</p>
           <h2 className="font-display mt-5 text-4xl font-medium sm:text-6xl" style={{ color: "var(--text)" }}>
-            Students Learn →<br />Students Build →<br /><em className="font-light">Students Each Other → Students Contribute.</em>
+            Students Learn →<br />Students Build →<br /><em className="font-light text-shader">Students Each Other → Students Contribute.</em>
           </h2>
           <p className="mx-auto mt-6 max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>
             L.O.O.M. exists not to conduct events, but to build a lasting technical culture that outlives its founders.
@@ -439,9 +496,51 @@ export default function LandingPage() {
   );
 }
 
-/* Live federation proof — real members and merges, or an honest fallback. */
+/* Magnetic pressable — drifts toward the cursor inside a small radius, eases
+   home on leave. Transform-only, rAF-lerped, reduced-motion exempt. */
+function useMagnetic() {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0, x = 0, y = 0, tx = 0, ty = 0;
+    const render = () => {
+      x += (tx - x) * 0.2; y += (ty - y) * 0.2;
+      el.style.transform = (Math.abs(tx - x) > 0.1 || Math.abs(ty - y) > 0.1)
+        ? `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`
+        : "";
+      if (el.style.transform) raf = requestAnimationFrame(render);
+      else raf = 0;
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(render); };
+    const onMove = (e) => {
+      const r = el.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy), R = 90;
+      if (d < R) { const f = (1 - d / R) * 0.35; tx = dx * f; ty = dy * f; }
+      else { tx = 0; ty = 0; }
+      kick();
+    };
+    const onLeave = () => { tx = 0; ty = 0; kick(); };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return ref;
+}
+
+/* Live federation proof — real members and merges, or an honest fallback.
+   Numbers count up once on entry (final values under reduced motion). */
 function LiveStats() {
   const [stats, setStats] = useState(null);
+  const [shown, setShown] = useState(null);
+  const boxRef = useRef(null);
   useEffect(() => {
     let live = true;
     fetch("/api/chapters").then((r) => r.json()).then((d) => {
@@ -457,20 +556,47 @@ function LiveStats() {
   }, []);
   const items = stats && (stats.students > 0 || stats.chapters > 0)
     ? [
-      [String(stats.students), "students learning across chapters"],
-      [String(stats.merges), "verified open-source merges"],
-      [String(stats.chapters), stats.chapters === 1 ? "chapter, and counting" : "chapters, and counting"]
+      [stats.students, "students learning across chapters"],
+      [stats.merges, "verified open-source merges"],
+      [stats.chapters, stats.chapters === 1 ? "chapter, and counting" : "chapters, and counting"]
     ]
     : [
       ["01", "founding chapter — yours could be next"],
       ["00", "merges so far — the first is the hardest"],
       ["05", "learning tracks, open to absolute beginners"]
     ];
+  const numeric = items.map(([v]) => /^\d+$/.test(v) ? Number(v) : null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(numeric.map((n) => n ?? 0));
+      return;
+    }
+    let raf = 0;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now(), dur = 1200;
+      const tick = (now) => {
+        const p = Math.min(1, (now - t0) / dur);
+        const e = 1 - Math.pow(1 - p, 3);
+        setShown(numeric.map((n) => (n == null ? 0 : Math.round(n * e))));
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats]);
   return (
-    <div className="college-reveal mt-10 grid gap-6 border-t pt-8 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
-      {items.map(([v, l]) => (
+    <div ref={boxRef} className="college-reveal mt-10 grid gap-6 border-t pt-8 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
+      {items.map(([v, l], i) => (
         <div key={l} className="flex items-baseline gap-4">
-          <strong className="font-display text-4xl font-semibold" style={{ color: "var(--text)" }}>{v}</strong>
+          <strong className="font-display text-4xl font-semibold" style={{ color: "var(--text)" }}>
+            {shown && numeric[i] != null ? String(shown[i]).padStart(v.length, "0") : v}
+          </strong>
           <span className="max-w-44 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{l}</span>
         </div>
       ))}

@@ -574,3 +574,90 @@ button, a { -webkit-tap-highlight-color: transparent; }
     radial-gradient(700px 380px at 8% 95%, var(--wash), transparent 72%);
   clip-path: polygon(0 0, 100% 0, 100% 72%, 62% 100%, 0 88%);
 }
+
+/* ---- Loom design tokens — thread palette, loom light, motion ---- */
+:root {
+  --thread-cyan: #3fd2e0;
+  --thread-amber: #e8a83e;
+  --thread-coral: #e86a5e;
+  --thread-slate: #8fa8c8;
+  --thread-gold: #e8c26a;
+  --thread-cream: #f4f1e8;
+  --loom-navy: #0a1628;
+  --loom-beam: rgba(232, 194, 106, 0.5);
+  --glow-gold: rgba(232, 194, 106, 0.16);
+  --glow-cyan: rgba(63, 210, 224, 0.13);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---- Text shader — light sweeping across display type ---- */
+.text-shader {
+  background: linear-gradient(100deg, var(--thread-gold) 0%, var(--thread-cream) 28%, var(--thread-cyan) 52%, var(--thread-cream) 76%, var(--thread-gold) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shader-pan 9s ease-in-out infinite;
+}
+@keyframes shader-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ---- Cursor spotlight for cards (position fed via --mx/--my, no re-render) ---- */
+.spot-card { position: relative; }
+.spot-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease-out);
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), var(--accent-glow), transparent 70%);
+}
+.spot-card:hover::before { opacity: 1; }
+
+/* ---- Magnetic pressables (transform driven from JS, eased back on leave) ---- */
+.magnet { will-change: transform; }
+
+/* ---- Landing anchor underline ---- */
+.link-slide { position: relative; }
+.link-slide::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.25s var(--ease-out);
+}
+.link-slide:hover::after { transform: scaleX(1); transform-origin: left; }
+
+/* ---- Pillar rows breathe on hover ---- */
+.pillar-row { transition: background 0.25s var(--ease-out); }
+.pillar-row:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.pillar-row .pillar-letter { display: inline-block; transition: transform 0.3s var(--ease-spring); }
+.pillar-row:hover .pillar-letter { transform: translateX(6px); }
+
+/* ---- Journey fill bar (scaleX driven by scroll scrub) ---- */
+.journey-fill { transform: scaleX(0); transform-origin: left; }
+
+/* ---- Cursor glow follower (hero only, hidden on touch / reduced motion) ---- */
+.cursor-glow {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(232, 194, 106, 0.14), transparent 65%);
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%);
+}
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .cursor-glow { display: none; }
+  .text-shader { animation: none; }
+}
