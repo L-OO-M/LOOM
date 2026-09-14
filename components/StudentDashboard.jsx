@@ -56,7 +56,7 @@ export function StudentDashboard({
                 <p className="narrative mt-3">{nextNode.description}</p>
               )}
               <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Link href="/student/roadmap" className="btn-ink !px-6 !py-3 !text-base">Continue →</Link>
+                <Link href="/student/roadmap" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue →</Link>
                 <ActionLink href={`/student/roadmap/${nextNode.id}`}>Node detail</ActionLink>
               </div>
             </div>
@@ -66,7 +66,7 @@ export function StudentDashboard({
               <p className="display display-md mt-2">The whole path, walked.</p>
               <p className="narrative mt-3">Every node complete. Turn this momentum into public proof — or mentor someone two steps behind you.</p>
               <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Link href="/student/credentials" className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
+                <Link href="/student/credentials" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
                 <ActionLink href="/student/opensource">Find an OSS issue</ActionLink>
               </div>
             </div>
@@ -86,7 +86,7 @@ export function StudentDashboard({
                 { title: "Finish your first node", body: "Open the roadmap and complete milestone one. The next unlocks itself." },
                 { title: "Connect GitHub", body: "Real commits become growth evidence, automatically." }
               ]}
-              action={<Link href="/student/roadmap" className="btn-ink">Open your roadmap →</Link>}
+              action={<Link href="/student/roadmap" prefetch={false} className="btn-ink">Open your roadmap →</Link>}
             />
           </section>
         </Reveal>
@@ -232,7 +232,7 @@ export function StudentDashboard({
                     Nightly rollups begin once you have real activity. Connect GitHub and finish your first roadmap node — then this space becomes your growth story.
                   </p>
                   <div className="mt-5">
-                    <Link href="/student/github" className="btn-ink">Connect GitHub →</Link>
+                    <Link href="/student/github" prefetch={false} className="btn-ink">Connect GitHub →</Link>
                   </div>
                 </div>
               )}
@@ -247,7 +247,7 @@ export function StudentDashboard({
 function RhythmRow({ label, detail, href }) {
   return (
     <li>
-      <Link href={href} className="row-link flex items-baseline justify-between gap-4 px-2 py-2.5">
+      <Link href={href} prefetch={false} className="row-link flex items-baseline justify-between gap-4 px-2 py-2.5">
         <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{label}</span>
         <span className="meta truncate text-right">{detail}</span>
       </Link>
@@ -310,7 +310,7 @@ function LoopBody({ loop }) {
           Your proof speaks: {loop.stats?.pct}% of the path, {loop.stats?.proof} public contribution{loop.stats?.proof === 1 ? "" : "s"}.{" "}
           <strong style={{ color: "var(--text)" }}>You're ready to mentor.</strong>
         </p>
-        <Link href="/student/mentorship" className="btn-ink">Become a mentor →</Link>
+        <Link href="/student/mentorship" prefetch={false} className="btn-ink">Become a mentor →</Link>
       </div>
     );
   }
@@ -325,7 +325,7 @@ function LoopBody({ loop }) {
         <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
           {threads.map((t) => (
             <li key={t.id}>
-              <Link href={`/student/community/forums/${t.id}`} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
+              <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
                 <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{t.title}</span>
                 <span className="meta shrink-0">0 replies · answer →</span>
               </Link>
@@ -363,8 +363,8 @@ function ComingUp({ contests, events, sessions }) {
   if (rows.length === 0) {
     return (
       <p className="narrative mt-3">
-        Nothing scheduled. <Link href="/student/contests" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Browse challenges</Link> or{" "}
-        <Link href="/student/events" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>find an event</Link> to put something on the horizon.
+        Nothing scheduled. <Link href="/student/contests" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Browse challenges</Link> or{" "}
+        <Link href="/student/events" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>find an event</Link> to put something on the horizon.
       </p>
     );
   }
@@ -374,7 +374,7 @@ function ComingUp({ contests, events, sessions }) {
         <li key={i} className="flex items-baseline gap-4 py-3">
           <span className="meta w-24 shrink-0">{r.when}</span>
           <span className="min-w-0 flex-1">
-            <Link href={r.href} className="block truncate text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
+            <Link href={r.href} prefetch={false} className="block truncate text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
             <span className="meta mt-0.5 block truncate">{r.sub}</span>
           </span>
         </li>

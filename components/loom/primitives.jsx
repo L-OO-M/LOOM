@@ -39,11 +39,14 @@ export function StatusPill({ tone = "", children }) {
   return <span className={`pill ${tone ? `is-${tone}` : ""}`}>{children}</span>;
 }
 
-/* Action link with a nudge on hover. */
+/* Action link with a nudge on hover. Prefetch stays off: every app route is a
+   live server render with ~20 DB queries, so background prefetching turns one
+   page view into a query storm against the pooler. Clicks render on demand. */
 export function ActionLink({ href, children, className = "" }) {
   return (
     <Link
       href={href}
+      prefetch={false}
       className={`group inline-flex items-center gap-1.5 text-sm font-semibold transition ${className}`}
       style={{ color: "var(--accent)" }}
     >

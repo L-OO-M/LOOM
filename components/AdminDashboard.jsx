@@ -59,7 +59,7 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
           <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
             {attention.map((a) => (
               <li key={a.href}>
-                <Link href={a.href} className="row-link flex items-baseline justify-between gap-3 px-2 py-3.5">
+                <Link href={a.href} prefetch={false} className="row-link flex items-baseline justify-between gap-3 px-2 py-3.5">
                   <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{a.label}</span>
                   <span className="figure-mono text-base font-semibold" style={{ color: a.count > 0 ? "var(--accent)" : "var(--text-muted)" }}>
                     {a.count}
@@ -74,7 +74,7 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
         <section aria-label="Upcoming">
           <div className="flex items-baseline justify-between">
             <Meta>Upcoming gatherings</Meta>
-            <Link href="/admin/events" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Manage →</Link>
+            <Link href="/admin/events" prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Manage →</Link>
           </div>
           {upcoming.length === 0 ? (
             <p className="narrative mt-3">Nothing on the calendar. Chapters that gather, grow — schedule the next one.</p>
@@ -85,7 +85,7 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
                   <span className="meta w-24 shrink-0">
                     {new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
                   </span>
-                  <Link href="/admin/events" className="truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>
+                  <Link href="/admin/events" prefetch={false} className="truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>
                     {e.title}
                   </Link>
                   <span className="meta ml-auto shrink-0">{e.event_type}</span>
@@ -99,7 +99,7 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
       <section className="mt-12" aria-label="Audit trail">
         <div className="flex items-baseline justify-between">
           <Meta>Latest admin actions</Meta>
-          <Link href="/admin/audit" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Full log →</Link>
+          <Link href="/admin/audit" prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Full log →</Link>
         </div>
         <div className="mt-2">
           {auditEntries.length === 0 ? (

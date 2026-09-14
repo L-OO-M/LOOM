@@ -36,9 +36,14 @@ test.describe("route protection", () => {
     });
   }
 
-  test("setup is public (first-admin bootstrap)", async ({ page }) => {
-    await page.goto("/setup");
-    await expect(page).not.toHaveURL(/\/login/);
+  // Server-level publicity: /setup must serve 200, not a login redirect.
+  // (The page itself bounces logged-out browsers to /login via client JS
+  // because claiming admin needs a user — asserting on page URL races that
+  // bounce and flakes. The status code tests exactly what "public" means here.)
+  test("setup is public (first-admin bootstrap)", async ({ request }) => {
+    const res = await request.get("/setup");
+    expect(res.status()).toBe(200);
+    expect(res.url()).toMatch(/\/setup$/);
   });
 });
 

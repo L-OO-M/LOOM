@@ -89,6 +89,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
                     <Link
                       key={item.id}
                       href={item.href}
+                      prefetch={false}
                       aria-label={item.label}
                       className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
@@ -134,6 +135,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
                               <Link
                                 key={child.id}
                                 href={child.href}
+                                prefetch={false}
                                 role="menuitem"
                                 className="row-link flex items-start gap-3 px-3 py-2.5"
                                 style={{ background: childActive ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}
@@ -168,6 +170,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               </button>
               <Link
                 href="/student/settings"
+                prefetch={false}
                 className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
                 style={{ color: activeTab === "settings" ? "var(--accent)" : "var(--text-muted)" }}
                 aria-label="Settings"
@@ -200,6 +203,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     className="flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95"
                     style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}
                   >
