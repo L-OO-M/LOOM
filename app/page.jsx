@@ -6,6 +6,14 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { WeaveField } from "@/components/WeaveField";
+import { LoomLetters } from "@/components/landing/LoomLetters";
+import { ThreadRail } from "@/components/landing/ThreadRail";
+import { PillarConstellation } from "@/components/landing/PillarConstellation";
+import { LoopWheel } from "@/components/landing/LoopWheel";
+import { LivingNetwork } from "@/components/landing/LivingNetwork";
+import { CadenceTimeline } from "@/components/landing/CadenceTimeline";
+import { MergeChain } from "@/components/landing/MergeChain";
+import { FindThread } from "@/components/landing/FindThread";
 import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -30,24 +38,6 @@ const features = [
   { icon: Medal, number: "05", title: "Contests", body: "Weekly practice, CTFs, hackathons, and focused challenges that strengthen applied skill." },
   { icon: Users, number: "06", title: "Mentorship", body: "Learn with seniors who remember the first step and help you find the next one." },
   { icon: BriefcaseBusiness, number: "07", title: "Opportunities", body: "Discover project teams, open-source sprints, competitions, and career-building experiences." }
-];
-
-const pillars = [
-  { letter: "L", name: "Learning", color: "#3fd2e0", body: "Gaining knowledge and fundamentals — structured beginner-level guidance, not fragmented links." },
-  { letter: "O", name: "Opportunity", color: "#e8a83e", body: "Access to projects, competitions, talks, and exposure. Learning unlocks opportunity." },
-  { letter: "O", name: "Open Source", color: "#e86a5e", body: "Contributing beyond the classroom and collaborating publicly. Exposure drives contribution." },
-  { letter: "M", name: "Mentorship", color: "#8fa8c8", body: "Seniors helping juniors grow — until juniors become mentors themselves. The loop fuels itself." }
-];
-
-const journey = ["Beginner", "Learn", "Practice", "Build", "Collaborate", "Mentor Others"];
-
-const cadence = [
-  { title: "Beginner Workshops", sub: "Onboarding", href: "/student/onboarding", body: "Zero-barrier entry. Prior experience is never a prerequisite." },
-  { title: "Weekly DSA & Problem-Solving", sub: "Habit-building", href: "/student/contests", body: "Small, steady, every week. Streaks are a side effect, not the goal." },
-  { title: "Peer-to-Peer Mentorship", sub: "Continuous support", href: "/student/mentorship", body: "Guidance from seniors who remember the first step." },
-  { title: "Mini-projects & Showcases", sub: "Applied learning", href: "/student/projects", body: "Ship small, ship often. Proof beats progress." },
-  { title: "Tech Talks", sub: "Industry exposure", href: "/student/events", body: "Practitioners, not influencers. Real work, shown honestly." },
-  { title: "Hackathons & OSS Sprints", sub: "External contribution", href: "/student/opensource", body: "Break out of the classroom and merge into the real world." }
 ];
 
 const outcomes = [
@@ -126,7 +116,7 @@ export default function LandingPage() {
         .fromTo(".hero-actions", { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 }, "-=0.2");
 
       for (const [ref, sel] of [
-        [featuresRef, ".feature-card"], [stepsRef, ".step-row"],
+        [featuresRef, ".feature-card"], [stepsRef, ".generational-card"],
         [collegesRef, ".college-reveal"], [ctaRef, ".cta-content"]
       ]) {
         if (!ref.current) continue;
@@ -149,12 +139,7 @@ export default function LandingPage() {
         );
       }
 
-      // Journey progress — the gradient hairline fills as the steps pass.
-      if (stepsRef.current) {
-        gsap.to(".journey-fill",
-          { scaleX: 1, ease: "none", scrollTrigger: { trigger: stepsRef.current, start: "top 75%", end: "bottom 55%", scrub: 0.6 } }
-        );
-      }
+      // (Loop progress lives inside LoopWheel; merge-chain fill inside MergeChain.)
     }, [heroRef, featuresRef, stepsRef, collegesRef, ctaRef]);
 
     return () => ctx.revert();
@@ -283,13 +268,16 @@ export default function LandingPage() {
               </a>
             </span>
           </div>
+          <LoomLetters />
         </div>
       </section>
+
+      <ThreadRail />
 
       {/* THESIS — ecosystem, not event organizer. */}
       <section id="ecosystem" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="scroll-reveal grid gap-8 border-b pb-14 lg:grid-cols-2" style={{ borderColor: "var(--line)" }}>
-          <p className="kicker">The thesis</p>
+          <p className="kicker">Thread 01 — The thesis</p>
           <div>
             <h2 className="font-display text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
               An ecosystem,<br />not an event organizer.
@@ -316,62 +304,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PILLARS — what L.O.O.M. means, spelled out. */}
+      {/* PILLARS — the constellation. */}
       <section id="pillars" className="scroll-mt-20 border-y px-5 py-20 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
         <div className="mx-auto max-w-7xl">
-          <p className="kicker scroll-reveal">Four letters, one engine</p>
+          <p className="kicker scroll-reveal">Thread 02 — Four letters, one engine</p>
           <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
             Every letter is a promise. Together, a loop.
           </h2>
-          <ol className="mt-12">
-            {pillars.map((p, i) => (
-              <li key={p.name} className="pillar-row scroll-reveal grid gap-4 border-t py-8 sm:grid-cols-[110px_1fr_1.4fr] sm:items-baseline" style={{ borderColor: "var(--line)" }}>
-                <span className="pillar-letter font-display text-6xl font-medium" style={{ color: p.color }} aria-hidden="true">{p.letter}</span>
-                <h3 className="font-display text-3xl font-medium" style={{ color: "var(--text)" }}>{p.name}</h3>
-                <p className="max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>{p.body}</p>
-              </li>
-            ))}
-          </ol>
-          <p className="scroll-reveal mt-10 max-w-3xl text-sm leading-7" style={{ color: "var(--text-muted)" }}>
-            Learning unlocks opportunity. Exposure drives contribution. Open source creates public
-            accountability. Mentorship loops back to fuel continuous learning.
-            <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>
-              Beginner-friendly · Inclusive · Collaborative · Contribution-driven
-            </span>
+          <p className="scroll-reveal mt-5 max-w-2xl leading-7" style={{ color: "var(--text-muted)" }}>
+            Touch a letter. Each one lights its threads — and everything eventually feeds everything else.
           </p>
+          <div className="scroll-reveal">
+            <PillarConstellation />
+          </div>
         </div>
       </section>
 
-      {/* JOURNEY — the generational cycle. */}
+      {/* JOURNEY — the generational cycle, as a loop. */}
       <section id="journey" ref={stepsRef} className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <p className="kicker scroll-reveal">The student journey</p>
+        <p className="kicker scroll-reveal">Thread 03 — The student journey</p>
         <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
           A self-sustaining cycle of mastery.
         </h2>
-        <div className="mt-10 h-px w-full" aria-hidden="true" style={{ background: "var(--line)" }}>
-          <div className="journey-fill h-px w-full" style={{ background: "linear-gradient(to right, var(--thread-cyan), var(--thread-gold), var(--thread-coral))" }} />
+        <div className="scroll-reveal">
+          <LoopWheel />
         </div>
-        <ol className="mt-12 flex flex-wrap items-center gap-y-6">
-          {journey.map((step, i) => (
-            <li key={step} className="scroll-reveal flex items-center">
-              <div className="flex flex-col items-start gap-2 pr-2">
-                <span
-                  className="grid size-11 place-items-center rounded-full border font-mono text-xs font-semibold"
-                  style={i === journey.length - 1
-                    ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
-                    : { borderColor: "var(--accent)", color: "var(--text)" }}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>{step}</span>
-              </div>
-              {i < journey.length - 1 && (
-                <span className="mx-2 mb-7 text-lg sm:mx-4" style={{ color: "var(--accent)" }} aria-hidden="true">→</span>
-              )}
-            </li>
-          ))}
-        </ol>
-        <div className="scroll-reveal mt-10 max-w-3xl rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
+        <div className="generational-card scroll-reveal mt-10 max-w-3xl rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
           <p className="text-base font-medium leading-7" style={{ color: "var(--text)" }}>
             The generational cycle: the ultimate goal of a member is to become a mentor for the next intake.
           </p>
@@ -384,59 +342,46 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CADENCE — year-round life. */}
-      <section className="relative px-5 py-20 lg:px-8 lg:py-28" style={{ background: "#101314", color: "#f2f3f1" }}>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" style={{ background: "linear-gradient(to right, transparent, rgba(232,194,106,0.55), transparent)" }} />
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{ background: "radial-gradient(40rem 20rem at 50% -6rem, rgba(232,194,106,0.07), transparent 65%)" }} />
-        <div className="mx-auto max-w-7xl">
-          <p className="kicker scroll-reveal">Year-round, not once a semester</p>
-          <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl">
-            The vision, on a calendar.
-          </h2>
-          <p className="scroll-reveal mt-5 max-w-2xl leading-7" style={{ color: "rgba(242,243,241,0.65)" }}>
-            Six rhythms keep the ecosystem alive every week of the year. Each one lives somewhere real inside the platform.
-          </p>
-          <ol className="mt-10 grid gap-px overflow-hidden rounded-2xl sm:grid-cols-2 lg:grid-cols-3" style={{ background: "rgba(242,243,241,0.15)" }}>
-            {cadence.map((c, i) => (
-              <li key={c.title} className="spot-card scroll-reveal group p-6 sm:p-7" style={{ background: "#101314" }}>
-                <span className="font-mono text-xs" style={{ color: "var(--accent)" }}>{String(i + 1).padStart(2, "0")} · {c.sub}</span>
-                <h3 className="mt-3 text-xl font-semibold">{c.title}</h3>
-                <p className="mt-2 text-sm leading-6" style={{ color: "rgba(242,243,241,0.65)" }}>{c.body}</p>
-                <Link href={c.href} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold transition group-hover:gap-2" style={{ color: "var(--accent)" }}>
-                  See it live <ArrowRight size={14} />
-                </Link>
-              </li>
-            ))}
-          </ol>
+      {/* NETWORK — LOOM is already moving. */}
+      <section id="network" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <p className="kicker scroll-reveal">Thread 04 — LOOM is already moving</p>
+        <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
+          The network, live.
+        </h2>
+        <p className="scroll-reveal mt-5 max-w-2xl leading-7" style={{ color: "var(--text-muted)" }}>
+          Not a metaphor — a map. Every node is a real chapter, every number real members and merges.
+          Move your cursor and the nearest threads wake up.
+        </p>
+        <div className="scroll-reveal">
+          <LivingNetwork />
         </div>
       </section>
 
-      {/* METRIC SHIFT — certificates to merges. */}
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <div className="scroll-reveal grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <p className="kicker">The metric shift</p>
-            <h2 className="font-display mt-5 text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
-              From holding certificates to merging code.
-            </h2>
-          </div>
-          <div>
-            <p className="text-lg leading-8" style={{ color: "var(--text-muted)" }}>
-              The classroom makes <span style={{ color: "var(--text-muted)", opacity: 0.7 }}>passive consumers of knowledge</span>.
-              L.O.O.M. measures something else: <strong style={{ color: "var(--text)" }}>code merged into real-world, global projects</strong> —
-              public proof no certificate can fake.
-            </p>
-            <Link href="/student/opensource" className="btn-ink mt-7">
-              Enter the open-source portal <ArrowRight size={16} />
-            </Link>
-          </div>
+      {/* CADENCE — the vision, on a timeline. */}
+      <section id="cadence" className="relative scroll-mt-20 px-5 py-20 lg:px-8 lg:py-28" style={{ background: "#101314", color: "#f2f3f1" }}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px" aria-hidden="true" style={{ background: "linear-gradient(to right, transparent, rgba(232,194,106,0.55), transparent)" }} />
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{ background: "radial-gradient(40rem 20rem at 50% -6rem, rgba(232,194,106,0.07), transparent 65%)" }} />
+        <div className="mx-auto max-w-7xl">
+          <p className="kicker scroll-reveal">Thread 05 — Year-round, not once a semester</p>
+          <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl">
+            The vision, on a timeline.
+          </h2>
+          <p className="scroll-reveal mt-5 max-w-2xl leading-7" style={{ color: "rgba(242,243,241,0.65)" }}>
+            Six rhythms keep the ecosystem alive every week of the year. Expand any stop — each one lives somewhere real inside the platform.
+          </p>
+          <CadenceTimeline />
         </div>
+      </section>
+
+      {/* METRIC SHIFT — certificates to merges, as a descent. */}
+      <section id="merge" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <MergeChain />
       </section>
 
       {/* PRODUCT — the platform that runs it. */}
       <section id="product" ref={featuresRef} className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
         <div className="grid gap-8 border-b pb-14 lg:grid-cols-2" style={{ borderColor: "var(--line)" }}>
-          <p className="kicker">One connected system</p>
+          <p className="kicker">Thread 07 — One connected system</p>
           <div>
             <h2 className="font-display text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
               Everything growth needs,<br />woven together.
@@ -451,9 +396,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* OUTCOMES — for colleges, with live proof. */}
+      {/* OUTCOMES — proof, monumental. */}
       <section id="colleges" ref={collegesRef} className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <p className="kicker">For colleges · measured in outcomes</p>
+        <p className="kicker">Thread 08 — For colleges · measured in outcomes</p>
         <h2 className="font-display mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
           Success you can point at.
         </h2>
@@ -468,7 +413,19 @@ export default function LandingPage() {
         <LiveStats />
       </section>
 
-      <ChapterStrip />
+      {/* FIND YOUR THREAD — the onboarding ritual. */}
+      <section id="find" className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
+        <p className="kicker scroll-reveal">Thread 09 — Find your thread</p>
+        <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
+          Enter as whoever you are.
+        </h2>
+        <p className="scroll-reveal mt-5 max-w-2xl leading-7" style={{ color: "var(--text-muted)" }}>
+          Not a brochure — a compass. Tell LOOM what brings you here and it answers with a path.
+        </p>
+        <div className="scroll-reveal">
+          <FindThread />
+        </div>
+      </section>
 
       {/* CLOSING — the mantra. */}
       <section id="opportunities" ref={ctaRef} className="relative scroll-mt-20 overflow-hidden border-y px-5 py-20 text-center lg:px-8 lg:py-24" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
@@ -506,7 +463,10 @@ export default function LandingPage() {
               <FooterGroup title="Legal" links={[["Privacy", "/student/privacy"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
             </div>
           </div>
-          <div className="mt-16 flex flex-col gap-3 border-t pt-6 text-xs sm:flex-row sm:justify-between" style={{ borderColor: "rgba(242,243,241,0.15)", color: "rgba(242,243,241,0.5)" }}>
+          <p className="mt-14 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.4)" }} aria-hidden="true">
+            ─── the thread continues ───
+          </p>
+          <div className="mt-8 flex flex-col gap-3 border-t pt-6 text-xs sm:flex-row sm:justify-between" style={{ borderColor: "rgba(242,243,241,0.15)", color: "rgba(242,243,241,0.5)" }}>
             <p>© 2026 L.O.O.M. Technical Society</p>
             <p>Beginner-friendly. Contribution-driven.</p>
           </div>
@@ -614,50 +574,13 @@ function LiveStats() {
     <div ref={boxRef} className="college-reveal mt-10 grid gap-6 border-t pt-8 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
       {items.map(([v, l], i) => (
         <div key={l} className="flex items-baseline gap-4">
-          <strong className="font-display text-4xl font-semibold" style={{ color: "var(--text)" }}>
+          <strong className="font-display text-6xl font-semibold sm:text-7xl" style={{ color: "var(--text)" }}>
             {shown && numeric[i] != null ? String(shown[i]).padStart(v.length, "0") : v}
           </strong>
           <span className="max-w-44 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{l}</span>
         </div>
       ))}
     </div>
-  );
-}
-
-function ChapterStrip() {
-  const [chapters, setChapters] = useState(null);
-  useEffect(() => {
-    let live = true;
-    fetch("/api/chapters").then((r) => r.json()).then((d) => {
-      if (live && d.ok) setChapters(d.data.chapters);
-    }).catch(() => {});
-    return () => { live = false; };
-  }, []);
-  if (!chapters || chapters.length === 0) return null;
-  return (
-    <section className="px-5 py-16 lg:px-8" aria-label="Chapters">
-      <div className="mx-auto max-w-7xl">
-        <p className="kicker">Chapters</p>
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-display max-w-xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
-            One society, many campuses.
-          </h2>
-          <Link href="/register" className="text-sm font-medium" style={{ color: "var(--accent)" }}>
-            Bring L.O.O.M. to your college →
-          </Link>
-        </div>
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {chapters.slice(0, 6).map((c) => (
-            <li key={c.slug} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <p className="font-medium" style={{ color: "var(--text)" }}>{c.public_name}</p>
-              <p className="mt-3 font-mono text-sm" style={{ color: "var(--text)" }}>
-                {c.members} <span className="font-sans text-xs" style={{ color: "var(--text-muted)" }}>members · {c.oss_merges} OSS merges</span>
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
   );
 }
 

@@ -673,3 +673,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 /* Pillar letters are fixed hexes — deepen them on ivory so cyan/slate read. */
 [data-theme="light"] .pillar-letter { filter: brightness(0.66) saturate(1.3); }
+/* The hero stays navy in both themes — keep the bright shader inside it. */
+[data-theme="light"] .hero-title .text-shader {
+  background: linear-gradient(100deg, var(--thread-gold) 0%, var(--thread-cream) 28%, var(--thread-cyan) 52%, var(--thread-cream) 76%, var(--thread-gold) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
