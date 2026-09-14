@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 const publicPaths = [
   "/",
@@ -26,7 +27,11 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  const { createServerClient } = await import("@supabase/ssr");
+  // Cookie-local session read — no network round-trip. This is a coarse gate
+  // (redirect logged-out navigations); pages and API routes still verify
+  // identity with getUser(), which revalidates the JWT against Auth.
+  // Previously this called getUser() here too, costing one Singapore
+  // round-trip on EVERY navigation for logged-in users.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -42,9 +47,9 @@ export async function middleware(request) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session) {
     // API routes get machine-readable 401; pages get a login redirect.
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(

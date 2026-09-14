@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -39,6 +39,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const activeGroup = groupForTab(tabs, activeTab);
   const [openMenu, setOpenMenu] = useState(null);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const inbox = useInbox(area === "student");
   const menuRef = useRef(null);
 
   // Close the dropdown on route change or outside interaction.
@@ -156,7 +157,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
             </div>
             <span className="mx-1 h-5 w-px shrink-0" style={{ background: "var(--line)" }} aria-hidden="true" />
             <div className="flex shrink-0 items-center">
-              {area === "student" && <InboxBell onOpen={() => setInboxOpen(true)} />}
+              {area === "student" && <InboxBell unread={inbox.unread} onOpen={() => setInboxOpen(true)} />}
               <button
                 onClick={toggle}
                 className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
@@ -211,22 +212,46 @@ export function AppShell({ area = "student", tenant, user, children }) {
           </nav>
         )}
 
-        {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} />}
+        {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} inbox={inbox} />}
       </div>
     </TabContext.Provider>
   );
 }
 
-/* Bell with a live unread dot — opens the inbox drawer, not a page. */
-function InboxBell({ onOpen }) {
+/* One shared inbox fetch for the bell + drawer. Previously each fetched
+   /api/notifications on its own (two authed API round-trips per page view:
+   one on mount, one on open). Now the shell loads once and both read it;
+   the drawer only refetches on open if the first load never completed. */
+function useInbox(enabled) {
+  const [items, setItems] = useState(null);
   const [unread, setUnread] = useState(0);
-  useEffect(() => {
-    let live = true;
-    fetch("/api/notifications").then((r) => r.json()).then((d) => {
-      if (live && d?.ok) setUnread(d.data?.unread ?? 0);
-    }).catch(() => {});
-    return () => { live = false; };
+  const load = useCallback(async () => {
+    try {
+      const d = await fetch("/api/notifications").then((r) => r.json());
+      if (d?.ok) {
+        setItems(d.data?.notifications ?? []);
+        setUnread(d.data?.unread ?? 0);
+      } else {
+        setItems((prev) => prev ?? []);
+      }
+    } catch {
+      setItems((prev) => prev ?? []);
+    }
   }, []);
+  useEffect(() => { if (enabled) load(); }, [enabled, load]);
+  const markRead = useCallback(async (n) => {
+    if (n.read_at) return;
+    setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+    setUnread((u) => Math.max(0, u - 1));
+    try {
+      await fetch(`/api/notifications/${n.id}/read`, { method: "POST" });
+    } catch { /* optimistic; the list already moved on */ }
+  }, []);
+  return { items, unread, load, markRead };
+}
+
+/* Bell with a live unread dot — opens the inbox drawer, not a page. */
+function InboxBell({ unread, onOpen }) {
   return (
     <button
       onClick={onOpen}
@@ -249,30 +274,12 @@ function InboxBell({ onOpen }) {
 
 /* Inbox drawer — the notification surface for everyday use.
    The full /student/notifications page remains for deep history. */
-function InboxDrawer({ open, onClose }) {
-  const [items, setItems] = useState(null);
-  const [unread, setUnread] = useState(0);
+function InboxDrawer({ open, onClose, inbox }) {
+  const { items, unread, load, markRead } = inbox;
 
   useEffect(() => {
-    if (!open) return;
-    let live = true;
-    fetch("/api/notifications").then((r) => r.json()).then((d) => {
-      if (live && d?.ok) {
-        setItems(d.data?.notifications ?? []);
-        setUnread(d.data?.unread ?? 0);
-      } else if (live) setItems([]);
-    }).catch(() => { if (live) setItems([]); });
-    return () => { live = false; };
-  }, [open ]);
-
-  async function markRead(n) {
-    if (n.read_at) return;
-    setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
-    setUnread((u) => Math.max(0, u - 1));
-    try {
-      await fetch(`/api/notifications/${n.id}/read`, { method: "POST" });
-    } catch { /* optimistic; the list already moved on */ }
-  }
+    if (open && items === null) load();
+  }, [open, items, load]);
 
   return (
     <Drawer open={open} onClose={onClose} label={unread > 0 ? `Inbox · ${unread} unread` : "Inbox"}>
