@@ -59,6 +59,8 @@ test.describe("api authorization", () => {
     "/api/profile",
     "/api/github",
     "/api/departments",
+    "/api/announcements",
+    "/api/contributions",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -89,6 +91,13 @@ test.describe("api authorization", () => {
         : await request.patch(url, { data });
       expect(res.status()).toBe(401);
     }
+  });
+
+  test("announcement and contribution writes return 401 without session", async ({ request }) => {
+    const post = await request.post("/api/announcements", { data: { scope: "society", title: "x", body: "y" } });
+    expect(post.status()).toBe(401);
+    const log = await request.post("/api/contributions", { data: { kind: "project", title: "Public proof" } });
+    expect(log.status()).toBe(401);
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {
