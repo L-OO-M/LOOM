@@ -413,6 +413,31 @@ export default function LandingPage() {
         <LiveStats />
       </section>
 
+      {/* PUBLIC PULSE — real events, projects, and departments. */}
+      <section id="upcoming" className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
+        <p className="kicker scroll-reveal">Happening soon</p>
+        <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
+          Upcoming events.
+        </h2>
+        <UpcomingEventsStrip />
+      </section>
+
+      <section id="showcase" className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
+        <p className="kicker scroll-reveal">Built by members</p>
+        <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
+          Student work, shipped.
+        </h2>
+        <ProjectShowcase />
+      </section>
+
+      <section id="domains" className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
+        <p className="kicker scroll-reveal">Find your thread</p>
+        <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
+          Departments, open to beginners.
+        </h2>
+        <DepartmentQuickLinks />
+      </section>
+
       {/* FIND YOUR THREAD — the onboarding ritual. */}
       <section id="find" className="mx-auto max-w-7xl scroll-mt-20 border-t px-5 py-20 sm:px-6 lg:px-8 lg:py-28" style={{ borderColor: "var(--line)" }}>
         <p className="kicker scroll-reveal">Thread 09 — Find your thread</p>
@@ -459,7 +484,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
               <FooterGroup title="Product" links={[["Roadmaps", "/student/roadmap"], ["Projects", "/student/projects"], ["Mentorship", "/student/mentorship"]]} />
               <FooterGroup title="Resources" links={[["Learning paths", "/student/resources"], ["Contests", "/student/contests"], ["Open source", "/student/opensource"]]} />
-              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
+              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
               <FooterGroup title="Legal" links={[["Privacy", "/student/privacy"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
             </div>
           </div>
@@ -580,6 +605,116 @@ function LiveStats() {
           <span className="max-w-44 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{l}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* Public pulse — real rows from the public APIs, or honest empty states.
+   Same fetch pattern as LiveStats: fire once, .catch(()=>{}) silence. */
+function UpcomingEventsStrip() {
+  const [events, setEvents] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/public/events").then((r) => r.json()).then((d) => {
+      if (!live || !d.ok) return;
+      setEvents(d.data?.events ?? []);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const top = (events ?? []).slice(0, 3);
+  return (
+    <div className="scroll-reveal mt-10">
+      {top.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {top.map((e) => (
+            <article key={e.id} className="spot-card rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--accent)" }}>{e.event_type}</p>
+              <h3 className="font-display mt-2 text-xl font-medium" style={{ color: "var(--text)" }}>{e.title}</h3>
+              <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                {new Date(e.starts_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                {" · "}{e.is_online ? "Online" : (e.location || "Venue TBA")}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-6 max-w-2xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+          No upcoming events yet — workshops are posted by department leads through the week. Check back soon.
+        </p>
+      )}
+      <Link href="/events" prefetch={false} className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+        Full calendar <ArrowRight size={15} />
+      </Link>
+    </div>
+  );
+}
+
+function ProjectShowcase() {
+  const [projects, setProjects] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/public/projects").then((r) => r.json()).then((d) => {
+      if (!live || !d.ok) return;
+      setProjects(d.data?.projects ?? []);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const top = (projects ?? []).slice(0, 3);
+  return (
+    <div className="scroll-reveal mt-10">
+      {top.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {top.map((p) => (
+            <article key={p.id} className="spot-card rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <h3 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{p.title}</h3>
+              {p.description && <p className="mt-2 line-clamp-3 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{p.description}</p>}
+              <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                {p.owner_name ? `by ${p.owner_name}` : "by a member"}
+                {p.repo_url ? <> · <a href={p.repo_url} target="_blank" rel="noreferrer" className="font-semibold" style={{ color: "var(--accent)" }}>repo ↗</a></> : null}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-6 max-w-2xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+          No showcased projects yet — members ship every semester, and the first builds land here automatically.
+        </p>
+      )}
+      <Link href="/register" prefetch={false} className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+        Start building <ArrowRight size={15} />
+      </Link>
+    </div>
+  );
+}
+
+function DepartmentQuickLinks() {
+  const [depts, setDepts] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/public/departments").then((r) => r.json()).then((d) => {
+      if (!live || !d.ok) return;
+      setDepts(d.data?.departments ?? []);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const list = depts ?? [];
+  return (
+    <div className="scroll-reveal mt-10">
+      {list.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((d) => (
+            <Link key={d.id} href={`/domains/${d.slug}`} prefetch={false} className="spot-card rounded-2xl border p-5 transition hover:opacity-90" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <h3 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{d.name}</h3>
+              {d.description && <p className="mt-2 line-clamp-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{d.description}</p>}
+              <p className="mt-3 text-xs font-semibold" style={{ color: "var(--accent)" }}>{d.members} member{d.members === 1 ? "" : "s"} →</p>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-6 max-w-2xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+          Departments are still being set up for this chapter — the directory appears here as soon as the first one goes active.
+        </p>
+      )}
     </div>
   );
 }

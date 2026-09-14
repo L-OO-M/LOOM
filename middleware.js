@@ -3,12 +3,18 @@ import { createServerClient } from "@supabase/ssr";
 
 const publicPaths = [
   "/",
+  "/about",
+  "/faq",
+  "/events",
   "/login",
   "/register",
   "/setup",
   "/auth/callback",
   "/api/health",
   "/api/chapters",
+  "/api/public/events",
+  "/api/public/projects",
+  "/api/public/departments",
   "/api/admin/check-setup",
   "/api/admin/claim-first",
   "/api/github/webhook"
@@ -24,6 +30,12 @@ export async function middleware(request) {
 
   // Public credential verification links: /verify/credential/<id>
   if (pathname === "/verify" || pathname.startsWith("/verify/")) {
+    return NextResponse.next();
+  }
+
+  // Public department pages: /domains/<slug> (active departments only;
+  // the page itself returns an honest empty state for unknown slugs).
+  if (pathname === "/domains" || pathname.startsWith("/domains/")) {
     return NextResponse.next();
   }
 
