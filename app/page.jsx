@@ -6,10 +6,11 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { WeaveField } from "@/components/WeaveField";
+import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight, BookOpen, BriefcaseBusiness, Code2, Github,
-  GraduationCap, Medal, Menu, Users, X
+  GraduationCap, Medal, Menu, Moon, Sun, Users, X
 } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -67,6 +68,7 @@ export default function LandingPage() {
   const magB = useMagnetic();
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState(null);
+  const { theme, toggle, mounted } = useTheme();
 
   // Cursor glow follower — lerped, transform-only, hero-scoped.
   useEffect(() => {
@@ -171,6 +173,14 @@ export default function LandingPage() {
             ))}
           </nav>
           <div className="hidden items-center gap-2 lg:flex">
+            <button
+              onClick={toggle}
+              className="rounded-full p-2 transition hover:opacity-80 active:scale-95"
+              style={{ color: "var(--text-muted)" }}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {mounted && theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             {email ? (
               <>
                 <span className="max-w-44 truncate text-sm" style={{ color: "var(--text-muted)" }}>{email}</span>
@@ -188,15 +198,25 @@ export default function LandingPage() {
               </>
             )}
           </div>
-          <button
-            className="rounded-lg p-2 lg:hidden"
-            style={{ color: "var(--text)" }}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          <div className="flex items-center gap-1 lg:hidden">
+            <button
+              onClick={toggle}
+              className="rounded-lg p-2"
+              style={{ color: "var(--text)" }}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {mounted && theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button
+              className="rounded-lg p-2"
+              style={{ color: "var(--text)" }}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
         </div>
         {menuOpen && (
           <nav className="border-t px-5 py-4 lg:hidden" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }} aria-label="Mobile">
@@ -456,7 +476,7 @@ export default function LandingPage() {
         <div className="cta-content mx-auto max-w-3xl">
           <p className="kicker">The culture, in one line</p>
           <h2 className="font-display mt-5 text-4xl font-medium sm:text-6xl" style={{ color: "var(--text)" }}>
-            Students Learn →<br />Students Build →<br /><em className="font-light text-shader">Students Each Other → Students Contribute.</em>
+            Students Learn →<br />Students Build →<br /><em className="font-light text-shader">Students Mentor → Students Contribute.</em>
           </h2>
           <p className="mx-auto mt-6 max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>
             L.O.O.M. exists not to conduct events, but to build a lasting technical culture that outlives its founders.

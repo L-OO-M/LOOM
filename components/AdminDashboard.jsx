@@ -13,7 +13,7 @@ export function AdminDashboard({ outcomes, attention, upcoming, auditEntries }) 
   const o = outcomes;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6">
+    <main className="animate-in mx-auto max-w-6xl px-4 sm:px-6">
       <Meta>Operations · {new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })}</Meta>
       <h1 className="h-product mt-3" style={{ fontSize: "1.8rem" }}>
         {waiting > 0 ? `${waiting} thing${waiting === 1 ? "" : "s"} need${waiting === 1 ? "s" : ""} a human.` : "Nothing waiting. The chapter is humming."}

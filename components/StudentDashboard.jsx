@@ -40,7 +40,7 @@ export function StudentDashboard({
     <main className="mx-auto max-w-6xl px-4 sm:px-6">
       {/* HERO — what should I do next? */}
       <Reveal>
-        <section className="hero-field rounded-3xl border px-6 py-10 sm:px-10 sm:py-14" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <section className="spot-card hero-field rounded-3xl border px-6 py-10 sm:px-10 sm:py-14" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           <Meta>{todayLabel}</Meta>
           <Display size="xl" className="mt-3">
             {greeting}, {name}.

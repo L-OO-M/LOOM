@@ -62,7 +62,7 @@ export function ResourceForm() {
     <form onSubmit={submit} className="grid gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Add / update resource</p>
       <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} placeholder="domain" style={input} />
         <input value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} placeholder="level" style={input} />
         <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} style={input}>
@@ -108,7 +108,7 @@ export function ContestForm() {
       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Create contest</p>
       <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
       <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2} placeholder="Description" style={input} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} style={input}>
           <option value="draft">draft</option>
           <option value="published">published</option>
