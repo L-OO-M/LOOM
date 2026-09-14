@@ -41,7 +41,7 @@ export async function POST(request) {
     ON CONFLICT (user_id) DO UPDATE SET expertise = EXCLUDED.expertise, bio = EXCLUDED.bio, available = EXCLUDED.available
     RETURNING *
   `;
-  await sql`UPDATE profiles SET role = 'mentor' WHERE user_id = ${body.userId} AND role = 'student'`;
+  await sql`UPDATE profiles SET role = 'core' WHERE user_id = ${body.userId} AND role = 'student'`;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "upserted_mentor", resource: "mentor", resourceId: mentor.id, after: { userId: body.userId } });
   return ok({ mentor }, { status: 201 });
 }

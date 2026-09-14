@@ -16,7 +16,7 @@ export async function GET(request) {
   return ok({ students: rows });
 }
 
-const roleSchema = z.object({ userId: z.string().min(1), role: z.enum(["student", "mentor", "admin"]) });
+const roleSchema = z.object({ userId: z.string().min(1), role: z.enum(["student", "core", "dept_lead", "vertical_lead", "admin"]) });
 
 export async function PATCH(request) {
   const ctx = await getRequestContext({ adminOnly: true });

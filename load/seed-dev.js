@@ -76,7 +76,7 @@ async function main() {
       VALUES ('seed-user-sneha', ${tid}, 'React, Node.js, CI/CD', 'Seed mentor. Final-year student who ships.', true)
       ON CONFLICT (user_id) DO UPDATE SET expertise = EXCLUDED.expertise, bio = EXCLUDED.bio, available = true
     `;
-    await sql`UPDATE profiles SET role = 'mentor' WHERE user_id = 'seed-user-sneha' AND role = 'student'`;
+    await sql`UPDATE profiles SET role = 'core' WHERE user_id = 'seed-user-sneha' AND role = 'student'`;
     console.log("seeded 5 students + 1 mentor");
 
     // --- roadmap progress (staggered so leaderboard has shape) ---

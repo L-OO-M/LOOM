@@ -25,9 +25,11 @@ export default function RoleForm({ userId, currentRole }) {
   return (
     <form onSubmit={save} className="flex items-center gap-2">
       <select value={role} onChange={(e) => setRole(e.target.value)} style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }}>
-        <option value="student">student</option>
-        <option value="mentor">mentor</option>
-        <option value="admin">admin</option>
+        <option value="student">student · General</option>
+        <option value="core">core · Core Member</option>
+        <option value="dept_lead">dept_lead · Head / Co-Head</option>
+        <option value="vertical_lead">vertical_lead · Vertical Lead</option>
+        <option value="admin">admin · Super Admin</option>
       </select>
       <button disabled={busy} className="btn-ink disabled:opacity-50">
         {busy ? "Saving…" : "Save role"}
