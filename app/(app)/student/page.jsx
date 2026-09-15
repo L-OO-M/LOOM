@@ -2,7 +2,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { getSql, queryTenant } from "@/lib/db";
 import { eligibilityFor } from "@/lib/mentorship";
 import { AppShell } from "@/components/AppShell";
-import { StudentDashboard } from "@/components/StudentDashboard";
+import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
 
 export default async function StudentPage() {
   const supabase = await createServerSupabase();

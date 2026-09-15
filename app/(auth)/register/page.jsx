@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signUp } from "@/lib/auth-client";
-import { LevelGuide } from "@/components/LevelGuide";
+import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
 
 const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 

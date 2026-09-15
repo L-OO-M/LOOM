@@ -1,7 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getSql, queryTenant } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
-import { AdminDashboard } from "@/components/AdminDashboard";
+import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 
 export default async function AdminPage() {
   const supabase = await createServerSupabase();

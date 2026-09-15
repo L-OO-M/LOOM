@@ -14,6 +14,7 @@ import { LivingNetwork } from "@/components/landing/LivingNetwork";
 import { CadenceTimeline } from "@/components/landing/CadenceTimeline";
 import { MergeChain } from "@/components/landing/MergeChain";
 import { FindThread } from "@/components/landing/FindThread";
+import { JsonLd, organizationSchema, webSiteSchema } from "@/components/seo/JsonLd";
 import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -153,6 +154,8 @@ export default function LandingPage() {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd data={organizationSchema()} />
+      <JsonLd data={webSiteSchema()} />
       <header className="fixed top-0 z-50 h-16 w-full border-b backdrop-blur-md" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
           <BrandMark size={30} />

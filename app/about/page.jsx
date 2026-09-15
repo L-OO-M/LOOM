@@ -5,8 +5,19 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { SITE_DESCRIPTION, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "About",
+  description: "What L.O.O.M. is: a beginner-first developer loop — learn, practice, build, collaborate, mentor — run by student departments, measured on accessibility, readiness, excellence, and network.",
+  ...canonicalFor("/about"),
+  openGraph: {
+    title: "About | L.O.O.M.",
+    description: SITE_DESCRIPTION
+  }
+};
 
 const THESIS = [
   ["Accessibility", "Traditional societies leave beginners out.", "Strictly beginner-friendly participation and onboarding."],

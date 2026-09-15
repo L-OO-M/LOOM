@@ -5,8 +5,19 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Events",
+  description: "Real workshops, hackathons, and talks from the chapter calendar — the year-round rhythm. Reserve a seat from your dashboard.",
+  ...canonicalFor("/events"),
+  openGraph: {
+    title: "Events | L.O.O.M.",
+    description: "Workshops, hackathons, and talks from the chapter calendar."
+  }
+};
 
 async function resolvePublicTenant() {
   try {

@@ -4,8 +4,42 @@ import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { BrandMark } from "@/components/BrandMark";
+import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  let name = null;
+  let description = null;
+  try {
+    const tenant = await resolvePublicTenant();
+    const tid = tenant?.id ?? null;
+    const sql = getSql();
+    const [row] = await sql`
+      SELECT name, description FROM departments
+      WHERE slug = ${slug} AND is_active
+        AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      LIMIT 1
+    `;
+    name = row?.name ?? null;
+    description = row?.description ?? null;
+  } catch {
+    name = null;
+  }
+  if (!name) {
+    return { title: "Domain not found", robots: { index: false, follow: true } };
+  }
+  return {
+    title: `${name} Department`,
+    description: description || `Join the ${name} department — roadmap, workshops, seniors, and real proof of work.`,
+    ...canonicalFor(`/domains/${slug}`),
+    openGraph: {
+      title: `${name} Department | L.O.O.M.`,
+      description: description || `Join the ${name} department.`
+    }
+  };
+}
 
 async function resolvePublicTenant() {
   try {

@@ -5,8 +5,20 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, itemListSchema } from "@/components/seo/JsonLd";
+import { absoluteUrl, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Domains",
+  description: "Five technical tracks, zero assumed knowledge: AI/ML, web development, cybersecurity, DSA, and blockchain — each with a roadmap, seniors, and real proof.",
+  ...canonicalFor("/domains"),
+  openGraph: {
+    title: "Domains | L.O.O.M.",
+    description: "Every department is a door with the same handle: zero assumed knowledge, a real roadmap."
+  }
+};
 
 async function resolvePublicTenant() {
   try {
@@ -45,6 +57,10 @@ export default async function DomainsPage() {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd data={itemListSchema({
+        name: "L.O.O.M. departments",
+        items: departments.map((d) => ({ name: d.name, url: absoluteUrl(`/domains/${d.slug}`) }))
+      })} />
       <PublicNav />
       <div className="pt-16">
         <PageHero

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signIn } from "@/lib/auth-client";
 import { homeForRole } from "@/lib/auth";
-import { LevelGuide } from "@/components/LevelGuide";
+import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
 
 function LoginForm() {
   const router = useRouter();

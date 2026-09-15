@@ -3,7 +3,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
-import { HandoverBoard } from "@/components/HandoverBoard";
+import { HandoverBoard } from "@/app/(app)/admin/handover/_components/HandoverBoard";
 
 export default async function AdminHandoverPage() {
   const ctx = await getRequestContext({ adminOnly: true });

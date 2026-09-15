@@ -5,8 +5,20 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, faqPageSchema } from "@/components/seo/JsonLd";
+import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "FAQ",
+  description: "How joining L.O.O.M. works, who it is for, and what happens after you sign up — straight answers, no invented fine print.",
+  ...canonicalFor("/faq"),
+  openGraph: {
+    title: "FAQ | L.O.O.M.",
+    description: "How joining works, who it is for, and what happens after you sign up."
+  }
+};
 
 async function resolvePublicTenant() {
   try {
@@ -39,6 +51,7 @@ export default async function FaqPage() {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd data={faqPageSchema(faqs)} />
       <PublicNav />
       <div className="pt-16">
         <PageHero

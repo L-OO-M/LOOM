@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { RoadmapJourney } from "@/components/RoadmapJourney";
+import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 
 export default async function RoadmapPage() {
   const ctx = await getRequestContext();

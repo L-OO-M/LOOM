@@ -95,3 +95,49 @@ test.describe("L.O.O.M. public site", () => {
     }
   });
 });
+test.describe("L.O.O.M. SEO surfaces", () => {
+  test("sitemap lists public routes + departments", async ({ request }) => {
+    const res = await request.get("/sitemap.xml");
+    expect(res.ok()).toBeTruthy();
+    const xml = await res.text();
+    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+      expect(xml).toContain(path);
+    }
+  });
+
+  test("robots allows public pages, blocks app + api", async ({ request }) => {
+    const res = await request.get("/robots.txt");
+    expect(res.ok()).toBeTruthy();
+    const txt = await res.text();
+    expect(txt).toContain("sitemap");
+    expect(txt).toContain("/api/");
+    expect(txt).toContain("/admin");
+  });
+
+  test("public pages carry canonical + description + single h1", async ({ page }) => {
+    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+      await page.goto(path);
+      expect(await page.locator("h1").count()).toBe(1);
+      const canonical = page.locator('link[rel="canonical"]');
+      expect(await canonical.count()).toBe(1);
+      expect(await canonical.getAttribute("href")).toContain(path);
+      const desc = page.locator('meta[name="description"]');
+      expect(await desc.count()).toBe(1);
+      expect((await desc.getAttribute("content"))?.length ?? 0).toBeGreaterThan(40);
+    }
+  });
+
+  test("private app marks noindex", async ({ page }) => {
+    await page.goto("/login");
+    const robots = page.locator('meta[name="robots"]');
+    expect(await robots.count()).toBe(1);
+    expect(await robots.getAttribute("content")).toContain("noindex");
+  });
+
+  test("faq ships FAQPage structured data", async ({ page }) => {
+    await page.goto("/faq");
+    const ld = page.locator('script[type="application/ld+json"]');
+    expect(await ld.count()).toBeGreaterThan(0);
+    expect(await ld.first().textContent()).toContain("FAQPage");
+  });
+});
