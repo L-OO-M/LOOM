@@ -144,5 +144,6 @@ tests/ (10 files) · e2e/ (app + public incl. SEO specs)
 | Public site + SEO surfaces | `docs/18-public-site.md` |
 | Departments/volunteers/reports/handover/finance | `docs/19-operations.md` |
 | Audit stub/dummy-data policy | Zero mocks — honest empty states, never fabricated metrics |
+| Agent rules: how to change pages without breaking the site + mandatory gates | `AGENTS.md` (read before touching code) |
 
 Good luck — the foundation is solid, the gates are green, and §6 is the whole roadmap. Start at A1.
