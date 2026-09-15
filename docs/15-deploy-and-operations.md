@@ -15,9 +15,9 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `DEV_TENANT_SLUG` | no (default `demo-college`) | Fallback tenant for first-visit profiles |
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC; also fallback signing secret |
 | `CREDENTIAL_SECRET` | no | Credential HMAC (falls back to webhook secret) |
-| `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | for job queue | GitHub aggregation worker |
-| `R2_*` | for uploads | S3-compatible storage |
-| `SENTRY_DSN` | no | Error tracking |
+| `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | reserved (unused) | No queue/cache integration in use — webhook processes inline, rate limits are in-memory |
+| `R2_*` | reserved (unused) | No object-storage integration in use |
+| `SENTRY_DSN` | reserved (unused) | SDK not installed; errors surface via logs + `app/error.jsx` |
 
 ## 3. Scripts
 
@@ -34,7 +34,7 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `node load/shoot.js [landing\|auth\|all] [--theme=...]` | Playwright screenshots to `.screenshots/` |
 | `npm run db:wipe` / `db:wipe:full` | dev data reset (explicit `--confirm`) |
 
-Seed scripts embed the dev `DATABASE_URL` fallback; prefer exporting `DATABASE_URL` explicitly.
+All `load/*.js` scripts read `DATABASE_URL` from the environment with a `.env.local` fallback (`load/env-local.js`); secrets are never hardcoded. Export `DATABASE_URL` explicitly in production shells.
 
 ## 4. Deploy checklist
 

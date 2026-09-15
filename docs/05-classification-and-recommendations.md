@@ -1,5 +1,7 @@
 # Classification and Recommendations
 
+> Design intent, not yet wired in: the helpers that implemented this (`lib/classification.js`, `lib/recommendations.js`) were removed as unused — dashboards currently compute progress, reputation (`lib/reputation.js`), and trends inline. Reintroduce tested helpers when a real recommendation surface ships, and keep them deterministic per the principle below.
+
 ## Classification Principle
 
 Classification is deterministic. The dashboard reads stored output instead of recalculating live.

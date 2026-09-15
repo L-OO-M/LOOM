@@ -196,3 +196,13 @@ ormalized.payload never existed) found by HMAC-signed delivery tests.
 - Tenant renamed Demo College ? MSIT (	enants.name, chapter_profiles.public_name); seed-control-plane is now insert-only on tenant name so reruns never clobber it.
 - New surfaces: LevelGuide (auth pages explain all 5 levels; roles are granted, never self-selected), StatTiles (visual metric tiles on student/admin/lead dashboards), /admin/departments (create/rename/archive), /admin/handover (transfer checklist board), budget-head creation on /admin/finance, global pp/error.jsx + pp/not-found.jsx, role-scoped assignment in PATCH /api/admin/students (dept_lead requires department + fills Head?Co-Head slots; vertical_lead requires vertical).
 
+
+## 9. Security invariants (ported from retired 02-tenant-and-security-model)
+
+- Tenant identity never comes from the client: authority is profiles.tenant_id (lib/auth-server.js); host/domain lookup (lib/tenant.js) is only a fallback helper for public pages.
+- Every mutation runs session ? tenant membership ? role check (lib/permissions.js can()) ? zod validation ? standard {ok,data/error} envelope ? writeAudit() (+ 
+otify() where a human waits)./api/* returns machine 401 {ok:false}; pages redirect to /login.
+- GitHub webhook verifies x-hub-signature-256, rejects unsigned/mismatched with 401, dedupes on GitHub delivery id, and honors the per-chapter pause gate (GITHUB_INGESTION_PAUSED) before storing anything.
+- Audit rows carry actor, tenant, action, resource type/id, before/after, request metadata, timestamp; append-only in app flows.
+- Secrets live only in env / .env.local (untracked). load/*.js scripts share load/env-local.js and refuse to run without DATABASE_URL; hardcoded connection strings were purged.
+

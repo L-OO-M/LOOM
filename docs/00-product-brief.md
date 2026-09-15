@@ -74,8 +74,8 @@ Motion explains hierarchy, progress, and state changes. The backend favors deter
 
 The MVP succeeds when:
 
-- A student can join a demo college, view a roadmap, complete a node, and see recommendations update
-- A student can connect or simulate GitHub activity and see aggregate activity appear
+- A student can join the MSIT chapter, view a roadmap, complete a node, and see progress update
+- A student can link GitHub and, once the chapter opts into ingestion, see aggregate activity appear
 - An admin can view student progress, edit roadmap/resource data, and inspect an audit log
 - Tenant identity is resolved server-side
 - Core flows have tests and documented acceptance evidence

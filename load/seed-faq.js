@@ -4,10 +4,9 @@
 // refreshes copy, never duplicates. Only honest, process-level answers:
 // no invented people, dates, or statistics.
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const FAQS = [
   {

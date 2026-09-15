@@ -1,6 +1,7 @@
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL = "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
@@ -60,7 +61,7 @@ try {
     { id: "res_btc_dev", title: "Bitcoin Developer Guide", domain: "blockchain", kind: "doc", level: "foundation_plus", minutes: 180, url: "https://developer.bitcoin.org/" },
     // Platform engineering (existing catalog, kept)
     { id: "res_node_express", title: "Express route design", domain: "backend", kind: "article", level: "foundation", minutes: 30 },
-    { id: "res_db_drizzle", title: "Drizzle ORM schema design", domain: "backend", kind: "article", level: "foundation_plus", minutes: 35 },
+    { id: "res_db_drizzle", title: "Postgres schema design", domain: "backend", kind: "article", level: "foundation_plus", minutes: 35 },
     { id: "res_deploy_railway", title: "Deploy to production", domain: "devops", kind: "article", level: "foundation", minutes: 25 }
   ];
 

@@ -27,7 +27,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 019 | `019_operations.sql` | `volunteer_slots`, `volunteer_signups`, `dept_reports`, `handover_checklists`, `budget_heads`, `expenses`, `sponsorships` |
 | 020 | `020_github_pause.sql` | data only: `github_integration` flag off (opt-in ingestion) |
 
-Drizzle mirror: `db/tenant-schema.js` (product tables), `db/control-plane-schema.js` (`tenants`, `tenant_domains`, `tenant_database_routes`, `feature_flags`, `platform_admins`).
+Tracked migrations are the single source of truth for schema — there is no ORM mirror. All server queries are parameterized `postgres` template strings via `getSql()` in `lib/db.js` (`{max:10,idle_timeout:10,prepare:false}` for the PgBouncer pooler); tenant config is memoized 60s in `queryTenant()`.
 
 ## Tables by area
 

@@ -1,6 +1,7 @@
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL = "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
@@ -36,7 +37,7 @@ try {
   }
 
   console.log("Seed complete — tenant:", tenant.id);
-  console.log("Next: create a Supabase Auth user via the dashboard, then run load/seed-profiles.js with their user ID");
+  console.log("Next: register at /register, sign in at /login, then claim the first admin at /setup");
 } catch (e) {
   console.error("Seed failed:", e.message);
 } finally {

@@ -2,27 +2,20 @@
 
 ## App IA
 
-Primary student navigation:
+Student navigation follows five verbs (source: `lib/nav.js`):
 
-- Dashboard
-- Roadmap
-- Resources
-- GitHub
-- Contests
-- Mentorship
-- Profile
+- Home (`/student`)
+- Learn — Roadmap, Resources
+- Build — Projects, GitHub, Open Source
+- Prove — Proof (credentials), Challenges (contests), Standings (leaderboard)
+- Connect — Mentors, Community (forums/wiki/snippets), Events
+- Discover — People, Chapters (network)
 
-Primary admin navigation:
+Secondary: Inbox (notifications), Settings. Mobile bar: Home, Learn, Build, Connect, Proof.
 
-- Overview
-- Students
-- Roadmaps
-- Resources
-- Contests
-- Mentorship
-- Analytics
-- Settings
-- Audit
+Admin navigation groups: Overview; People (Students, Mentors, Departments); Content (Roadmaps, Resources, OSS, Community); Programs (Contests, Events, Projects); Trust (Proof, Data, Finance, Reports); System (Settings, Handover, Flags, FAQ, Audit).
+
+Leads (`dept_lead` / `vertical_lead`) get a separate `/lead` console (Console, Roster, Workshops) — not the admin workspace.
 
 ## Product Feel
 
@@ -69,10 +62,4 @@ All motion respects `prefers-reduced-motion`. Reduced motion disables long trans
 
 ## Visual System
 
-The initial app uses:
-
-- Light theme with strong contrast
-- Neutral surfaces
-- One green accent for progress and action
-- 8px radius for product surfaces
-- Stable grid dimensions for roadmap and dashboard panels
+The app ships two themes: dark (near-black `#0a0b0c`, gold `#d6b25e`) and light (warm ivory `#faf6ee`, brass `#8a6d1f`). Display type is Fraunces (`--font-display`); product surfaces use spot-cards, thread tokens, and stable skeleton loaders (`loading.jsx` + `(app)/error.jsx` boundary). Every app `<Link>` carries `prefetch={false}` to keep pooler-backed navigation cheap.

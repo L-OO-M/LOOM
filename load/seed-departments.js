@@ -4,8 +4,9 @@
 // line up with org units. Non-technical departments ship inactive — a Super
 // Admin activates them when the chapter staffs those verticals.
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL = "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const DEPARTMENTS = [
   { name: "AI / ML", slug: "ai_ml", vertical: "technical", description: "Machine learning fundamentals, paper reading, dataset contests, applied projects." },

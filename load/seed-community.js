@@ -1,12 +1,11 @@
 // Seeds curated OSS projects + demo chapter profile.
 // Enriches each repo with LIVE GitHub API data (stars, language, open
 // good-first-issues) so nothing is invented; falls back to static values offline.
-// Usage: DATABASE_URL=... node load/seed-community.js
+// Usage: node load/seed-community.js  (needs DATABASE_URL in env or .env.local)
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 

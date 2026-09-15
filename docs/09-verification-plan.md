@@ -8,8 +8,6 @@ Cover:
 - RBAC checks
 - Zod schemas
 - API envelopes
-- Classification logic
-- Recommendation rules
 - GitHub event normalization
 - Anti-gaming caps
 
@@ -20,8 +18,7 @@ Cover:
 - API route authorization
 - Tenant isolation
 - Roadmap progress writes
-- GitHub webhook idempotency
-- QStash job processing
+- GitHub webhook idempotency + paused-gate behavior
 - Audit-log creation
 
 ## Browser Tests
@@ -32,7 +29,7 @@ Playwright covers:
 - Student dashboard render
 - Roadmap completion path
 - Resource filtering
-- GitHub connection placeholder
+- GitHub connect flow (paused by default; opt-in per chapter)
 - Admin overview render
 - Admin audit visibility
 - Mobile layout sanity
@@ -58,7 +55,7 @@ k6 scenarios target:
 - Admin analytics
 - GitHub webhook processing
 
-Run at 100, 500, 1000, 2000, and 3000 concurrent-user simulation steps with realistic route mixes.
+`load/k6-smoke.js` is a single 30s ramp to 100 VUs (landing, `/student`, `/admin`, `/api/health`). Extend it before claiming multi-thousand-user capacity.
 
 ## Evidence Rule
 

@@ -1,11 +1,10 @@
 // Daily federation rollup: refreshes chapter_profiles.public_stats and writes
 // today's federation_metrics row. Run via cron/scheduler once a day.
-// Usage: DATABASE_URL=... node load/rollup-federation.js
+// Usage: node load/rollup-federation.js  (needs DATABASE_URL in env or .env.local)
 import postgres from "postgres";
+import { databaseUrl } from "./env-local.js";
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.gbkpocjtcnozihvacmtg:LOOMLOBBY1234@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
+const DATABASE_URL = databaseUrl();
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
