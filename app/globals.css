@@ -590,6 +590,18 @@ button, a { -webkit-tap-highlight-color: transparent; }
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* ---- Dashboard accent (SaaS analytics, lavender in both themes) ---- */
+[data-theme="light"] {
+  --dash-accent: #6d5ef0;
+  --dash-accent-strong: #5748c9;
+  --dash-accent-soft: rgba(109, 94, 240, 0.10);
+}
+[data-theme="dark"] {
+  --dash-accent: #8f81ff;
+  --dash-accent-strong: #b3a8ff;
+  --dash-accent-soft: rgba(143, 129, 255, 0.14);
+}
+
 /* ---- Text shader — light sweeping across display type ---- */
 .text-shader {
   background: linear-gradient(100deg, var(--thread-gold) 0%, var(--thread-cream) 28%, var(--thread-cyan) 52%, var(--thread-cream) 76%, var(--thread-gold) 100%);

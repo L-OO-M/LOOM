@@ -17,6 +17,7 @@ const publicPaths = [
   "/api/public/departments",
   "/api/admin/check-setup",
   "/api/admin/claim-first",
+  "/api/analytics/track",
   "/api/github/webhook"
 ];
 

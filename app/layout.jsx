@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme";
+import { PageViewBeacon } from "@/components/PageViewBeacon";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,7 +62,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable}`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider><PageViewBeacon />{children}</ThemeProvider>
       </body>
     </html>
   );

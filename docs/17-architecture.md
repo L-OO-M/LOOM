@@ -67,9 +67,9 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `resource_progress` | Per-student completions → resource detail pages (write path is page-local, no dedicated endpoint) |
 | `projects` | Student builds + tags + repo_url → `/api/projects(+[id])`, `/api/public/projects` showcase, project pages |
 | `repositories` | Linked GitHub repos → `/api/github`, `/student/github` |
-| `mentors` | Approved mentors (user_id-keyed) → `/api/mentorship`, `/api/admin/mentors`, mentorship page |
+| `mentors` | Approved mentors (user_id-keyed) → `/api/mentors`, `/api/mentor/*`, `/student/mentorship` (+`[id]`, `/sessions`, `/manage`) |
 | `mentor_applications` | Applications + eligibility snapshot (pending/approved/rejected) → `/api/mentorship/apply`, `/api/admin/mentor-applications` |
-| `mentor_sessions` | Mentor↔student sessions → `/api/mentorship` |
+| `mentor_sessions` | Mentor↔student sessions → `/api/mentors/[id]/book`, `/api/my-sessions`, `/api/mentor/requests` |
 | `mentor_reviews` | 1–5 ratings (unique mentor+reviewer) → `/api/social/discover` (mentor review), discover page |
 
 **Proof & Credentials** — verifiable outcomes.
@@ -163,9 +163,9 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 
 | Area | Pages |
 |------|-------|
-| `/student` | Home dashboard (roadmap progress, GitHub, threads, horizon). Learn: `roadmap`, `roadmap/[nodeId]`, `resources`, `resources/[resourceId]`, `projects`, `projects/new`, `projects/[id]`, `github`, `opensource`, `contests`, `contests/[id]`. Gather: `events`, `events/[id]`, `community/forums(+[id])`, `community/wiki(+[slug])`, `community/snippets`, `mentorship`, `network(+[slug])`, `discover`. Proof: `credentials`, `certificates(+[code])`, `insights`, `leaderboard`. Self: `[username]`, `notifications`, `onboarding`, `settings`, `privacy`. |
+| `/student` | Home dashboard (roadmap progress, GitHub, threads, horizon). Learn: `roadmap`, `roadmap/[nodeId]`, `resources`, `resources/[resourceId]`, `projects`, `projects/new`, `projects/[id]`, `github`, `opensource`, `contests`, `contests/[id]`. Gather: `events`, `events/[id]`, `community/forums(+[id])`, `community/wiki(+[slug])`, `community/snippets`, `mentorship(+`[id]`, `/sessions`, `/manage`)`, `network(+[slug])`, `discover`. Proof: `credentials`, `certificates(+[code])`, `insights`, `leaderboard`. Self: `[username]`, `notifications`, `onboarding`, `settings`, `privacy`. |
 | `/lead` | Lead console (shared query in `lib/lead.js` with `GET /api/lead/overview`): led departments + roster + core requests, workshops, `proposed` approval queue (VL/admin), vertical calendar with conflict detection (VL/admin), succession flags, recent contribution logs, report compile/submit entry. |
-| `/admin` | `overview` command deck (per-dept cards + approval counts); `students(+[id])` roles/memberships + bulk; `analytics` rollups; `audit` trail; `community` mod queue; `flags` kill-switches; `contests`, `events` (+attendance), `opensource` (curation + claims), `verification` (badges/achievements/mentors); `projects`, `resources`, `roadmaps` content; `reports` submitted + export; `finance` heads/expenses/sponsors; `faq` manager; `settings`. |
+| `/admin` | `overview` command deck (per-dept cards + approval counts); `students(+[id])` roles/memberships + bulk; `analytics` SaaS dashboard (`/api/analytics/summary`); `audit` trail; `community` mod queue; `flags` kill-switches; `contests`, `events` (+attendance), `opensource` (curation + claims), `verification` (badges/achievements/mentors); `projects`, `resources`, `roadmaps` content; `reports` submitted + export; `finance` heads/expenses/sponsors; `faq` manager; `settings`. |
 
 ## 6. Key workflows
 

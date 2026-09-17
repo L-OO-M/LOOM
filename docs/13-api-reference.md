@@ -52,6 +52,24 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1–3) |
 | POST | `/api/admin/achievements` | admin | issue to a chapter student + notify |
 | GET | `/api/insights` | user | latest snapshot, 14-trend, peer avgs, rank, heuristic recommendation |
+| GET | `/api/analytics/summary` | admin | SaaS dashboard: `?period=daily\|monthly\|yearly` → KPIs + series + behavior + performance + tops (real rollups) |
+| POST | `/api/analytics/track` | public (rate-limited) | first-party visit intake `{path, visitorKey, referrer?, userId?}` — deduped per visitor+path per 30 min, tenant from host |
+
+## Mentors (booking workflow)
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/mentors` | user | directory `?q=&expertise=` + enrichment + weekly availability map |
+| GET | `/api/mentors/[id]` | user | profile + schedule + reviews + 14-day booked slots |
+| POST | `/api/mentors/[id]/book` | user | book `{duration 30\|60, date, time, topic?, message?}` — double-booking safe, 201 |
+| GET/POST | `/api/mentors/[id]/reviews` | user | list / review (only after a completed session) |
+| GET/POST | `/api/mentors/[id]/messages` | participants | thread (marks read) / send; mentors GET own id for inbox threads |
+| GET | `/api/my-sessions` | user | grouped upcoming / past / cancelled |
+| PATCH | `/api/my-sessions/[id]` | owner | `{action: cancel\|reschedule\|review}` |
+| GET | `/api/mentor/overview` | mentor | requests + upcoming + stats + availability + inbox |
+| PATCH | `/api/mentor/requests/[id]` | mentor | `{decision: accept\|reject\|complete, meetingUrl?}` + notify |
+| PUT | `/api/mentor/availability` | mentor | replace weekly schedule `{slots: [{day, start, end}]}` |
+| PATCH | `/api/mentor/profile` | mentor | own profile fields only |
 
 ## Community
 

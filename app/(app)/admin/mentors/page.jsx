@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Stat } from "@/components/ui";
 import { MentorForm } from "@/components/admin-forms";
 import { ReviewButtons } from "./ReviewButtons";
 
@@ -13,6 +13,12 @@ export default async function AdminMentorsPage() {
   const { user, tenant, sql } = ctx;
   const mentors = await sql`SELECT m.*, p.name as mentor_name FROM mentors m LEFT JOIN profiles p ON p.user_id = m.user_id WHERE m.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL ORDER BY m.created_at DESC LIMIT 50`;
   const sessions = await sql`SELECT * FROM mentor_sessions ORDER BY id DESC LIMIT 20`;
+  const [mstats] = await sql`
+    SELECT (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'requested') AS pending,
+           (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'scheduled') AS upcoming,
+           (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'completed') AS completed,
+           (SELECT COALESCE(AVG(rating),0)::numeric FROM mentor_reviews) AS rating
+  `;
   const applications = await sql`
     SELECT a.*, p.name AS applicant_name FROM mentor_applications a
     LEFT JOIN profiles p ON p.user_id = a.student_id
@@ -25,7 +31,13 @@ export default async function AdminMentorsPage() {
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <PageHeader kicker="Guidance" title="Mentors" desc="Add mentors from enrolled students; sessions requested by students appear here." />
-        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Pending requests" value={mstats?.pending ?? 0} />
+          <Stat label="Scheduled" value={mstats?.upcoming ?? 0} />
+          <Stat label="Completed" value={mstats?.completed ?? 0} />
+          <Stat label="Avg rating" value={Number(mstats?.rating ?? 0).toFixed(1)} />
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_340px]">
           <div className="space-y-2">
             {mentors.map((m) => (
               <div key={m.id} className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>

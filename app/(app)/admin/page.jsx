@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getSql, queryTenant } from "@/lib/db";
+import { getAnalyticsSummary } from "@/lib/analytics";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 
@@ -101,6 +102,22 @@ export default async function AdminPage() {
   const auditEntries = await sql`
     SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 8
   `;
+  // Users-over-time graph + mentoring snapshot for the console rail.
+  const analyticsInitial = await getAnalyticsSummary(sql, tid, "monthly").catch(() => null);
+  const [mstats] = await sql`
+    SELECT (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'requested') AS pending,
+           (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'scheduled') AS upcoming,
+           (SELECT COUNT(*)::int FROM mentor_sessions WHERE status = 'completed') AS completed,
+           (SELECT COALESCE(AVG(rating),0)::numeric FROM mentor_reviews) AS rating
+  `;
+  const sessionRequests = await sql`
+    SELECT s.id, s.topic, s.scheduled_at, ps.name AS student_name, pm.name AS mentor_name
+    FROM mentor_sessions s
+    LEFT JOIN profiles ps ON ps.user_id = s.student_id
+    LEFT JOIN profiles pm ON pm.user_id = s.mentor_id
+    WHERE s.status = 'requested'
+    ORDER BY s.scheduled_at ASC NULLS LAST LIMIT 5
+  `;
 
   const total = students?.c ?? 0;
   return (
@@ -137,6 +154,8 @@ export default async function AdminPage() {
         departments={departments}
         upcoming={upcoming}
         auditEntries={auditEntries}
+        analyticsInitial={analyticsInitial}
+        mentoring={{ stats: mstats ?? null, requests: sessionRequests }}
       />
     </AppShell>
   );
