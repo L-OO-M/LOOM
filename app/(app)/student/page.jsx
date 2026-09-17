@@ -125,9 +125,9 @@ export default async function StudentPage() {
     ORDER BY created_at DESC LIMIT 2
   `;
   const recentProjects = await sql`
-    SELECT id, title, status, created_at FROM projects
+    SELECT id, title, description, status, repo_url, tags, created_at FROM projects
     WHERE owner_id = ${user?.id ?? ""}
-    ORDER BY created_at DESC LIMIT 2
+    ORDER BY created_at DESC LIMIT 3
   `;
   const proof = [
     ...recentNodes.map((r) => ({
@@ -149,6 +149,33 @@ export default async function StudentPage() {
       hot: false
     }))
   ].slice(0, 5);
+
+  // Notifications preview: unread first, then newest. Mark-read stays in the
+  // inbox drawer + notifications page — home only links.
+  const notificationsPreview = await sql`
+    SELECT id, type, title, body, link, read_at, created_at FROM notifications
+    WHERE user_id = ${user?.id ?? ""}
+    ORDER BY read_at NULLS FIRST, created_at DESC LIMIT 5
+  `;
+  const [notifUnread] = await sql`
+    SELECT COUNT(*)::int AS c FROM notifications
+    WHERE user_id = ${user?.id ?? ""} AND read_at IS NULL
+  `;
+
+  // Achievements preview: earned badges + source achievements (real rows only).
+  const achievementsPreview = await sql`
+    SELECT a.id, a.level, a.source_type, a.evidence_url, a.earned_at,
+      b.name AS badge_name, b.tier AS badge_tier
+    FROM student_achievements a LEFT JOIN skill_badges b ON b.id = a.badge_id
+    WHERE a.student_id = ${user?.id ?? ""}
+    ORDER BY a.earned_at DESC LIMIT 4
+  `;
+  const [achievementCount] = await sql`
+    SELECT COUNT(*)::int AS c FROM student_achievements WHERE student_id = ${user?.id ?? ""}
+  `;
+  const [credentialCount] = await sql`
+    SELECT COUNT(*)::int AS c FROM verifiable_credentials WHERE student_id = ${user?.id ?? ""}
+  `;
 
   // Growth story (insights folded in): latest snapshot + peers.
   const [snapshot] = await sql`
@@ -250,6 +277,13 @@ export default async function StudentPage() {
         events={events}
         sessions={sessions}
         proof={proof}
+        notificationsPreview={notificationsPreview}
+        notifUnread={notifUnread?.c ?? 0}
+        projectsPreview={recentProjects}
+        projectCount={myProjects[0]?.c ?? 0}
+        achievementsPreview={achievementsPreview}
+        achievementCount={achievementCount?.c ?? 0}
+        credentialCount={credentialCount?.c ?? 0}
         snapshot={snapshot}
         peers={peers}
         loop={loop}

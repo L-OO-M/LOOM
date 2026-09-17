@@ -4,16 +4,16 @@
    stops: [{ label, state: "done"|"now"|"todo" }]. Labels only on done/now
    to stay quiet; full detail lives in the timeline beside it. */
 
-export function ProgressPath({ stops, percent, ariaLabel = "Progress" }) {
+export function ProgressPath({ stops, percent, ariaLabel = "Progress", bare = false }) {
   return (
     <div className="journey" role="img" aria-label={ariaLabel}>
       <div className="journey-track">
         <div className="journey-fill" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
       </div>
-      <div className="journey-stops" style={{ height: 44 }}>
+      <div className="journey-stops" style={{ height: bare ? 12 : 44 }}>
         {stops.map((s, i) => {
           const left = stops.length === 1 ? 100 : (i / (stops.length - 1)) * 100;
-          const show = s.state !== "todo" || i === stops.length - 1;
+          const show = !bare && (s.state !== "todo" || i === stops.length - 1);
           return (
             <div key={i} className={`journey-stop ${s.state === "done" ? "is-done" : s.state === "now" ? "is-now" : ""}`} style={{ left: `${left}%` }}>
               <span className="journey-pip" aria-hidden="true" />
