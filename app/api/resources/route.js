@@ -10,7 +10,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get("domain");
   const q = searchParams.get("q");
-  const kind = ["article", "doc", "video"].includes(searchParams.get("kind")) ? searchParams.get("kind") : null;
+  const kind = ["article", "doc", "video", "course"].includes(searchParams.get("kind")) ? searchParams.get("kind") : null;
 
   const resources = await sql`
     SELECT * FROM resources

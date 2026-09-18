@@ -43,17 +43,26 @@ export function MarkCompleteButton({ nodeId, completed }) {
 export function ResourceCompleteButton({ resourceId, completed }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
   async function run() {
     setBusy(true);
-    await postJSON("/api/resources", { resourceId });
+    setMsg("");
+    const data = await postJSON("/api/resources", { resourceId });
     setBusy(false);
+    if (!data.ok) {
+      setMsg(data.error?.message || "Couldn't save. Try again.");
+      return;
+    }
     router.refresh();
   }
   if (completed) return <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Done ✓</span>;
   return (
-    <button onClick={run} disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
-      {busy ? "Saving…" : "Mark done"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button onClick={run} disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+        {busy ? "Saving…" : "Mark done"}
+      </button>
+      {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
+    </span>
   );
 }
 
