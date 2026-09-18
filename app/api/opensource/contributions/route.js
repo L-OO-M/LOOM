@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseContributionUrl } from "@/lib/oss";
 
@@ -53,7 +53,8 @@ export async function POST(request) {
     INSERT INTO student_oss_contributions
       (student_id, tenant_id, project_id, repo_url, pr_url, pr_number, title, contribution_type, status)
     VALUES (${user.id}, ${tenant?.id ?? null}, ${project.id}, ${project.github_repo_url}, ${body.prUrl}, ${parsed.number}, ${body.title || `Contribution #${parsed.number}`}, ${body.contributionType}, 'claimed')
-    ON CONFLICT (student_id, pr_url) DO UPDATE SET title = EXCLUDED.title RETURNING *
+    ON CONFLICT (student_id, pr_url) DO UPDATE SET title = EXCLUDED.title, contribution_type = EXCLUDED.contribution_type RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "claimed_oss_contribution", resource: "oss_contribution", resourceId: row.id, after: { prUrl: body.prUrl, contributionType: body.contributionType, projectId: project.id } });
   return ok({ contribution: row }, { status: 201 });
 }
