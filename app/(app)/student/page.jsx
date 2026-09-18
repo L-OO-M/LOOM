@@ -100,7 +100,8 @@ export default async function StudentPage() {
     SELECT e.id, e.title, e.event_type, e.starts_at, e.location, e.is_online,
       EXISTS(SELECT 1 FROM event_registrations r WHERE r.event_id = e.id AND r.student_id = ${user?.id ?? ""}) AS registered
     FROM events e
-    WHERE e.starts_at >= NOW() - INTERVAL '2 hours'
+    WHERE e.tenant_id = ${tenant?.id ?? null}::uuid AND e.status IN ('upcoming', 'live')
+      AND e.starts_at >= NOW() - INTERVAL '2 hours'
     ORDER BY e.starts_at ASC LIMIT 3
   `;
   const sessions = await sql`

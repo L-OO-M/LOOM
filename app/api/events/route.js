@@ -25,13 +25,30 @@ export async function GET(request) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
-  const scope = searchParams.get("scope") === "past" ? "past" : "upcoming";
+  const rawScope = searchParams.get("scope");
+  const scope = rawScope === "past" ? "past" : rawScope === "registered" ? "registered" : "upcoming";
+  // Students only ever see approved events: upcoming/live going forward,
+  // approved history going back. `proposed` stays in the lead/admin queue.
+  if (scope === "registered") {
+    const events = await sql`
+      SELECT e.*, (SELECT COUNT(*)::int FROM event_registrations r WHERE r.event_id = e.id AND r.status <> 'cancelled') AS seats_taken,
+        TRUE AS registered
+      FROM events e JOIN event_registrations r ON r.event_id = e.id
+      WHERE r.student_id = ${user.id} AND r.status <> 'cancelled'
+        AND e.tenant_id = ${tenant?.id ?? null}::uuid AND e.status <> 'cancelled'
+      ORDER BY e.starts_at DESC
+      LIMIT 50
+    `;
+    return ok({ events });
+  }
   const events = await sql`
     SELECT e.*, (SELECT COUNT(*)::int FROM event_registrations r WHERE r.event_id = e.id AND r.status <> 'cancelled') AS seats_taken,
       EXISTS (SELECT 1 FROM event_registrations r WHERE r.event_id = e.id AND r.student_id = ${user.id} AND r.status <> 'cancelled') AS registered
     FROM events e
-    WHERE e.tenant_id = ${tenant?.id ?? null}::uuid AND e.status <> 'cancelled'
-      AND ${scope === "past" ? sql`e.starts_at < now()` : sql`e.starts_at >= now() - interval '2 hours'`}
+    WHERE e.tenant_id = ${tenant?.id ?? null}::uuid
+      AND ${scope === "past"
+        ? sql`e.status IN ('upcoming', 'live', 'past') AND e.starts_at < now() - interval '2 hours'`
+        : sql`e.status IN ('upcoming', 'live') AND e.starts_at >= now() - interval '2 hours'`}
     ORDER BY e.starts_at ${scope === "past" ? sql`DESC` : sql`ASC`}
     LIMIT 50
   `;
