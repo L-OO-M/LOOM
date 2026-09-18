@@ -12,6 +12,7 @@ const protectedPages = [
   "/student/contests",
   "/student/mentorship",
   "/student/leaderboard",
+  "/student/credentials",
   "/student/notifications",
   "/student/privacy",
   "/student/settings",
@@ -64,6 +65,7 @@ test.describe("api authorization", () => {
     "/api/notifications",
     "/api/profile",
     "/api/github",
+    "/api/credentials",
     "/api/departments",
     "/api/announcements",
     "/api/contributions",
@@ -85,6 +87,18 @@ test.describe("api authorization", () => {
   test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
     const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
     expect(res.status()).toBe(401);
+  });
+
+  test("POST /api/credentials returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/credentials", {
+      data: { achievementId: "00000000-0000-0000-0000-000000000000", expiresInDays: 365 }
+    });
+    expect(res.status()).toBe(401);
+  });
+
+  test("public credential verification needs no session but 404s unknown ids", async ({ request }) => {
+    const res = await request.get("/verify/credential/cred_doesnotexist000");
+    expect(res.status()).toBe(404);
   });
 
   test("department membership writes return 401 without session", async ({ request }) => {
