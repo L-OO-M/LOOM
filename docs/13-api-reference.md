@@ -20,7 +20,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST | `/api/mentorship` | user | request/list sessions |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
-| GET | `/api/leaderboard` | user | `?scope=college\|global` |
+| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (≤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST | `/api/github` | user | link username, list repos/activity |

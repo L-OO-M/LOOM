@@ -80,7 +80,7 @@ export default async function ChapterPage({ params }) {
             </ul>
             {!isMine && (
               <p className="narrative mt-5">
-                Racing this chapter? <Link href="/student/leaderboard" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Climb your board →</Link>
+                Racing this chapter? <Link href="/student/leaderboard" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>See where you stand →</Link>
               </p>
             )}
           </section>
