@@ -89,14 +89,12 @@ export default async function ResourcesPage({ searchParams }) {
     ${q ? sql`AND title ILIKE ${"%" + q + "%"}` : sql``}
     ${kind ? sql`AND kind = ${kind}` : sql``}
     ${level ? sql`AND level = ${level}` : sql``}
+    ${status === "completed" ? sql`AND EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
+    ${status === "todo" ? sql`AND NOT EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
     ORDER BY minutes ASC LIMIT 60
   `;
 
-  const visible = status === "completed"
-    ? resources.filter((r) => doneSet.has(r.id))
-    : status === "todo"
-      ? resources.filter((r) => !doneSet.has(r.id))
-      : resources;
+  const visible = resources;
   const visibleDone = visible.filter((r) => doneSet.has(r.id)).length;
 
   // Continue learning: next unfinished pieces in the student's own track
