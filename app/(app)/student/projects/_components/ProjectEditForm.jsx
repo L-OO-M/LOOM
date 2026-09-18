@@ -4,87 +4,86 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, inputStyle } from "@/components/ui";
 
-export default function NewProjectForm({ milestones = [] }) {
+export default function ProjectEditForm({ project, milestones = [] }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [repoUrl, setRepoUrl] = useState("");
-  const [tags, setTags] = useState("");
-  const [milestone, setMilestone] = useState("");
+  const [title, setTitle] = useState(project.title || "");
+  const [description, setDescription] = useState(project.description || "");
+  const [repoUrl, setRepoUrl] = useState(project.repo_url || "");
+  const [tags, setTags] = useState((project.tags || []).join(", "));
+  const [milestone, setMilestone] = useState(project.roadmap_node_id || "");
   const [msg, setMsg] = useState("");
+  const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setMsg("");
+    setSaved(false);
     const trimmedTitle = title.trim();
     if (trimmedTitle.length < 3) {
-      setMsg("Give your project a title of at least 3 characters.");
+      setMsg("Title needs at least 3 characters.");
       setBusy(false);
       return;
     }
     if (repoUrl.trim() && !/^https?:\/\/.+\..+/.test(repoUrl.trim())) {
-      setMsg("Repository URL must be a full URL starting with http(s):// — or leave it empty.");
+      setMsg("Repository URL must be a full URL starting with http(s)://.");
       setBusy(false);
       return;
     }
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           title: trimmedTitle,
           description,
           repoUrl: repoUrl.trim() || null,
           tags: tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 8),
-          roadmapNodeId: milestone || null
-        })
+          roadmapNodeId: milestone || null,
+        }),
       });
       const data = await res.json();
       if (!data.ok) {
-        setMsg(data.error?.message || "Creation failed. Try again.");
+        setMsg(data.error?.message || "Save failed.");
         return;
       }
-      router.push(`/student/projects/${data.data.project.id}`);
+      setSaved(true);
       router.refresh();
     } catch {
-      setMsg("Network error — the project was not created. Try again.");
+      setMsg("Network error — changes were not saved.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="mt-6 space-y-5 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+    <form onSubmit={submit} className="space-y-4">
       <Field label="Title" hint="3–120 characters. Name the thing you're building.">
         <input
-          id="new-title"
+          id="edit-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
           minLength={3}
           maxLength={120}
-          autoFocus
-          placeholder="e.g. Campus lost-and-found board"
-          aria-describedby="new-title-hint"
+          aria-invalid={msg ? true : undefined}
           style={inputStyle}
         />
       </Field>
-      <Field label="Description" hint="What will it do, and who is it for? Max 2000 characters.">
+      <Field label="Description" hint="What does it do, and what did you learn? Max 2000 characters.">
         <textarea
-          id="new-desc"
+          id="edit-desc"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           maxLength={2000}
-          placeholder="A simple board where students post and claim lost items…"
           style={inputStyle}
         />
       </Field>
-      <Field label="Repository URL (optional)" hint="Link the code now, or add it later from the project page.">
+      <Field label="Repository URL" hint="Optional. A full https:// link to the code.">
         <input
-          id="new-repo"
+          id="edit-repo"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           type="url"
@@ -93,9 +92,9 @@ export default function NewProjectForm({ milestones = [] }) {
           style={inputStyle}
         />
       </Field>
-      <Field label="Tags (optional)" hint="Comma-separated, up to 8 — e.g. react, firebase, auth.">
+      <Field label="Tags" hint="Optional, comma-separated, up to 8. Lowercase, e.g. react, auth.">
         <input
-          id="new-tags"
+          id="edit-tags"
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           maxLength={200}
@@ -104,9 +103,9 @@ export default function NewProjectForm({ milestones = [] }) {
         />
       </Field>
       {milestones.length > 0 && (
-        <Field label="Roadmap milestone (optional)" hint="Which milestone does this project grow from?">
+        <Field label="Roadmap milestone" hint="Optional. Which milestone does this project grow from?">
           <select
-            id="new-milestone"
+            id="edit-milestone"
             value={milestone}
             onChange={(e) => setMilestone(e.target.value)}
             style={inputStyle}
@@ -119,12 +118,10 @@ export default function NewProjectForm({ milestones = [] }) {
         </Field>
       )}
       {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
-      <div className="flex flex-wrap items-center gap-3">
-        <button disabled={busy} className="btn-ink disabled:opacity-50">
-          {busy ? "Creating…" : "Create project"}
-        </button>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>It starts as Active — you&apos;ll mark it Completed when it ships.</p>
-      </div>
+      {saved && !msg && <p role="status" className="text-xs" style={{ color: "var(--accent)" }}>Saved.</p>}
+      <button disabled={busy} className="btn-ink !py-2 text-sm disabled:opacity-50">
+        {busy ? "Saving…" : "Save changes"}
+      </button>
     </form>
   );
 }
