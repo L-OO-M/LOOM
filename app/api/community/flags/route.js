@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
+import { FLAG_REASONS } from "@/lib/community";
 
 const flagSchema = z.object({
   targetType: z.enum(["thread", "reply"]),
   targetId: z.string().uuid(),
-  reason: z.string().max(60).default("spam")
+  reason: z.enum(FLAG_REASONS).default("spam")
 });
 
 export async function POST(request) {
@@ -19,15 +20,20 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  await sql`
+  // Only count the flag when a new row was actually inserted — a repeat
+  // flag from the same student is a no-op, not another vote for hiding.
+  const inserted = await sql`
     INSERT INTO forum_flags (student_id, target_type, target_id, reason)
     VALUES (${user.id}, ${body.targetType}, ${body.targetId}, ${body.reason})
     ON CONFLICT (student_id, target_type, target_id) DO NOTHING
+    RETURNING id
   `;
-  if (body.targetType === "thread") {
-    await sql`UPDATE forum_threads SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
-  } else {
-    await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
+  if (inserted.length > 0) {
+    if (body.targetType === "thread") {
+      await sql`UPDATE forum_threads SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
+    } else {
+      await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
+    }
   }
   return ok({ flagged: true });
 }
