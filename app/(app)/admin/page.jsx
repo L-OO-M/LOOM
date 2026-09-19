@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getSql, queryTenant } from "@/lib/db";
+import { getSql } from "@/lib/db";
+import { resolveRequestTenant } from "@/lib/tenant";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 
@@ -7,7 +8,7 @@ export default async function AdminPage() {
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   const sql = getSql();
-  const tenant = await queryTenant("demo-college");
+  const tenant = await resolveRequestTenant();
   const tid = tenant.id;
 
   const [students] = await sql`SELECT COUNT(*)::int AS c FROM profiles WHERE role = 'student' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)`;
@@ -58,9 +59,20 @@ export default async function AdminPage() {
     WHERE (tenant_a_id = ${tid} OR tenant_b_id = ${tid}) AND status = 'active'
   `;
   // Attention queue — things waiting on a human.
+  // Scoped to this chapter's content via the parent thread (replies inherit
+  // tenancy; flags carry no tenant_id of their own).
   const [flagged] = await sql`
-    SELECT COUNT(*)::int AS c FROM forum_flags
-    WHERE created_at >= NOW() - INTERVAL '7 days'
+    SELECT COUNT(*)::int AS c FROM forum_flags f
+    WHERE f.created_at >= NOW() - INTERVAL '7 days'
+      AND (
+        (f.target_type = 'thread' AND EXISTS (
+          SELECT 1 FROM forum_threads t WHERE t.id = f.target_id AND (t.tenant_id = ${tid} OR t.tenant_id IS NULL)
+        ))
+        OR (f.target_type = 'reply' AND EXISTS (
+          SELECT 1 FROM forum_replies r JOIN forum_threads t ON t.id = r.thread_id
+          WHERE r.id = f.target_id AND (t.tenant_id = ${tid} OR t.tenant_id IS NULL)
+        ))
+      )
   `;
   const [claims] = await sql`
     SELECT COUNT(*)::int AS c FROM student_oss_contributions
@@ -98,8 +110,12 @@ export default async function AdminPage() {
     WHERE tenant_id = ${tid} AND starts_at >= NOW()
     ORDER BY starts_at ASC LIMIT 4
   `;
+  // writeAudit stores the chapter in metadata JSONB (audit_logs has no
+  // tenant_id column) — filter on it so one chapter never sees another's feed.
   const auditEntries = await sql`
-    SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 8
+    SELECT * FROM audit_logs
+    WHERE (metadata->>'tenant_id') = ${tid}::text
+    ORDER BY created_at DESC LIMIT 8
   `;
 
   const total = students?.c ?? 0;

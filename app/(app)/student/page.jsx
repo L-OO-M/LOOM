@@ -1,5 +1,6 @@
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getSql, queryTenant } from "@/lib/db";
+import { getSql } from "@/lib/db";
+import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
@@ -9,7 +10,9 @@ export default async function StudentPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   const sql = getSql();
-  const tenant = await queryTenant("demo-college");
+  // Chapter resolved from the request host (multi-chapter safe); demo slug
+  // is only a fallback when host headers are absent (local dev, tests).
+  const tenant = await resolveRequestTenant();
 
   let [profile] = await sql`
     SELECT * FROM profiles WHERE user_id = ${user?.id ?? ""} LIMIT 1
