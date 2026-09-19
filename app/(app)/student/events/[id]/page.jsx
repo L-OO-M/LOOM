@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, StatusPill } from "@/components/loom/primitives";
+import { Display, Meta, StatusPill, ActionLink } from "@/components/loom/primitives";
 import { env } from "@/lib/env";
 import { RegisterButton, FeedbackForm, MaterialForm, CheckInForm } from "../EventsBits";
+import { displayState, isFull, nextStepFor, TYPE_LABEL, HISTORY_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -21,30 +23,41 @@ export default async function EventDetailPage({ params }) {
   if (ctx.error) redirect("/login?redirect=/student/events");
   const { user, profile, tenant, sql } = ctx;
   const { id } = await params;
-  const isAdmin = profile?.role === "admin";
+  const admin = isAdmin({ role: profile?.role });
 
-  const [event] = await sql`
-    SELECT e.*, (SELECT COUNT(*)::int FROM event_registrations r WHERE r.event_id = e.id AND r.status <> 'cancelled') AS seats_taken
-    FROM events e WHERE e.id = ${id} AND e.tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1
-  `;
+  const [event] = admin
+    ? await sql`
+      SELECT e.*, (SELECT COUNT(*)::int FROM event_registrations r WHERE r.event_id = e.id AND r.status <> 'cancelled') AS seats_taken
+      FROM events e WHERE e.id = ${id} AND e.tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1
+    `
+    : await sql`
+      SELECT e.*, (SELECT COUNT(*)::int FROM event_registrations r WHERE r.event_id = e.id AND r.status <> 'cancelled') AS seats_taken
+      FROM events e WHERE e.id = ${id} AND e.tenant_id = ${tenant?.id ?? null}::uuid AND e.status = ANY(${HISTORY_STATUSES}) LIMIT 1
+    `;
   if (!event) notFound();
   const [mine] = await sql`SELECT * FROM event_registrations WHERE event_id = ${id} AND student_id = ${user.id} LIMIT 1`;
   const materials = await sql`SELECT * FROM event_materials WHERE event_id = ${id} ORDER BY uploaded_at ASC`;
-  const attendees = isAdmin ? await sql`
+  const attendees = admin ? await sql`
     SELECT r.*, p.name AS student_name FROM event_registrations r
     LEFT JOIN profiles p ON p.user_id = r.student_id
     WHERE r.event_id = ${id} ORDER BY r.registered_at ASC LIMIT 200
   ` : [];
   const [cert] = mine ? await sql`SELECT * FROM certificates WHERE event_id = ${id} AND student_id = ${user.id} LIMIT 1` : [];
-  const full = event.capacity && event.seats_taken >= event.capacity && !mine;
+
+  const registered = !!mine && mine.status !== "cancelled";
+  const state = displayState(event, mine);
+  const full = isFull(event, mine);
+  const past = state.key === "past";
+  const step = nextStepFor(event);
+  const seatsTaken = Number(event.seats_taken ?? 0);
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Link href="/student/events" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Events</Link>
+        <Link href="/student/events" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Events</Link>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <StatusPill tone={mine && mine.status !== "cancelled" ? "live" : ""}>
-            {event.event_type} · {mine && mine.status !== "cancelled" ? "you're in" : new Date(event.starts_at) < new Date() ? "past" : "open"}
+          <StatusPill tone={state.tone}>
+            {TYPE_LABEL[event.event_type] || event.event_type} · {state.label}
           </StatusPill>
           <span className="meta">
             {new Date(event.starts_at).toLocaleString("en-IN", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
@@ -54,21 +67,58 @@ export default async function EventDetailPage({ params }) {
         <Display size="lg" className="mt-3">{event.title}</Display>
         <p className="lede mt-4 whitespace-pre-wrap">{event.description || "Details coming soon."}</p>
         {event.speaker_name && <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>with <span style={{ color: "var(--text)" }} className="font-medium">{event.speaker_name}</span>{event.speaker_bio ? ` — ${event.speaker_bio}` : ""}</p>}
-        <div className="mt-6 flex flex-wrap items-center gap-4 border-y py-5" style={{ borderColor: "var(--line)" }}>
-          <RegisterButton eventId={event.id} registered={!!mine && mine.status !== "cancelled"} full={full} />
-          <a href={gcalUrl(event)} target="_blank" rel="noreferrer" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>Add to calendar ↗</a>
-          {event.capacity && <span className="meta ml-auto">{event.seats_taken}/{event.capacity} seats</span>}
-        </div>
+        {(event.domain && event.domain !== "general") && (
+          <p className="meta mt-3">
+            Filed under{" "}
+            <Link href={`/student/roadmap?domain=${encodeURIComponent(event.domain)}`} prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+              {event.domain}
+            </Link>
+          </p>
+        )}
 
-        {mine && mine.status !== "cancelled" && (
+        {!past ? (
+          <div className="mt-6 flex flex-wrap items-center gap-4 border-y py-5" style={{ borderColor: "var(--line)" }}>
+            <RegisterButton eventId={event.id} registered={registered} full={full} />
+            <a href={gcalUrl(event)} target="_blank" rel="noreferrer" className="text-sm font-medium hover:underline" style={{ color: "var(--text-muted)" }}>Add to calendar ↗</a>
+            {event.capacity && <span className="meta ml-auto">{seatsTaken}/{event.capacity} seats</span>}
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-wrap items-center gap-4 border-y py-5" style={{ borderColor: "var(--line)" }}>
+            <StatusPill>{mine?.status === "attended" ? "Attended" : "Past"}</StatusPill>
+            {event.capacity && <span className="meta ml-auto">{seatsTaken}/{event.capacity} seats</span>}
+          </div>
+        )}
+
+        {registered && (
           <section className="mt-8" aria-label="Your registration">
             <Meta style={{ color: "var(--accent)" }}>Your seat</Meta>
             <p className="mt-2 font-mono text-lg font-semibold" style={{ color: "var(--text)" }}>
               {mine.status === "attended" ? "Attended ✓" : mine.check_in_code}
             </p>
-            {mine.status !== "attended" && <p className="meta mt-1">show this code at the door</p>}
-            {cert && <Link href={`/student/certificates/${cert.verification_code}`} className="mt-2 inline-block text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>View certificate →</Link>}
+            {mine.status !== "attended" && <p className="meta mt-1">Show this code at the door.</p>}
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+              {cert && <Link href={`/student/certificates/${cert.verification_code}`} prefetch={false} className="inline-block text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>View certificate →</Link>}
+              {mine.status === "attended" && (
+                <Link href="/student/leaderboard" prefetch={false} className="inline-block text-sm font-medium hover:underline" style={{ color: "var(--text-muted)" }}>
+                  Participation counts toward your standing →
+                </Link>
+              )}
+            </div>
             {mine.status === "attended" && !mine.feedback_score && <div className="mt-3"><FeedbackForm eventId={event.id} /></div>}
+          </section>
+        )}
+
+        {step && !past && (
+          <section className="mt-8" aria-label="Next step">
+            <Meta>Next step</Meta>
+            <div className="mt-2">
+              <ActionLink href={step.href}>{step.label}</ActionLink>
+            </div>
+            <div className="mt-2">
+              <Link href={`/student/community/forums?event=${event.id}`} prefetch={false} className="text-sm font-medium hover:underline" style={{ color: "var(--text-muted)" }}>
+                Continue the conversation →
+              </Link>
+            </div>
           </section>
         )}
 
@@ -86,10 +136,10 @@ export default async function EventDetailPage({ params }) {
               ))}
             </ul>
           )}
-          {isAdmin && <div className="mt-3"><MaterialForm eventId={event.id} /></div>}
+          {admin && <div className="mt-3"><MaterialForm eventId={event.id} /></div>}
         </section>
 
-        {isAdmin && (
+        {admin && (
           <section className="mt-10 border-t pt-6" style={{ borderColor: "var(--line)" }} aria-label="Check-in">
             <Meta>Door check-in · {attendees.filter((a) => a.status === "attended").length}/{attendees.length} attended</Meta>
             <div className="mt-3"><CheckInForm eventId={event.id} /></div>
