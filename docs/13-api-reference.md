@@ -33,7 +33,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/opensource/projects` | user | global curated + own tenant; includes my counts |
 | POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing |
 | GET | `/api/opensource/contributions` | user | my claims + badges |
-| POST | `/api/opensource/contributions` | user | claim PR/issue URL in a tracked repo → `claimed` (20/min) |
+| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
 | PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — awards badges + achievements + notify |
 
 ## Chapters & network
