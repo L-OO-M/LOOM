@@ -57,13 +57,13 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 | Method | Route | Notes |
 |--------|-------|-------|
-| GET/POST | `/api/community/threads` | list (q, domain, sort) / create (10/min) |
-| GET/POST/PATCH | `/api/community/threads/[id]` | detail+replies / reply / solve (author) or pin (admin) |
+| GET/POST | `/api/community/threads` | list (q, domain, sort, state=all/unsolved/unanswered) / create (10/min) |
+| GET/POST/PATCH | `/api/community/threads/[id]` | detail+replies (read-only, no view bump) / reply (notifies author at `/student/community/forums/[id]`) / solve (author, notifies replier) or pin (admin) |
 | POST | `/api/community/votes` | toggle vote thread/reply/snippet (60/min) |
-| POST | `/api/community/flags` | flag thread/reply for moderation |
+| POST | `/api/community/flags` | flag thread/reply for moderation (reason: spam/abuse/off-topic; repeat flags don&apos;t recount) |
 | GET/POST | `/api/community/wiki` | search / create page |
-| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits / suggest (student) · apply/review (admin) |
-| GET/POST | `/api/community/snippets` | search / share |
+| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) · apply/review (admin) |
+| GET/POST | `/api/community/snippets` | search (q, language, domain) / share |
 | GET/PATCH | `/api/admin/community` | admin: flag queues / hide-visible |
 
 ## Events & social

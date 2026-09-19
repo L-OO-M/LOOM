@@ -19,6 +19,8 @@ export async function GET(request) {
   const q = (searchParams.get("q") || "").trim();
   const domain = searchParams.get("domain") || "";
   const sort = searchParams.get("sort") === "top" ? "top" : "recent";
+  const rawState = searchParams.get("state") || "all";
+  const state = ["all", "unsolved", "unanswered"].includes(rawState) ? rawState : "all";
   const order = sort === "top"
     ? sql`ORDER BY t.pinned DESC, t.upvote_count DESC, t.updated_at DESC`
     : sql`ORDER BY t.pinned DESC, t.updated_at DESC`;
@@ -27,6 +29,7 @@ export async function GET(request) {
     LEFT JOIN profiles p ON p.user_id = t.author_id
     WHERE t.tenant_id = ${tenant?.id ?? null}::uuid AND t.status = 'visible'
       AND (${domain} = '' OR t.domain = ${domain})
+      AND (${state} = 'all' OR (${state} = 'unsolved' AND t.solved = false) OR (${state} = 'unanswered' AND t.reply_count = 0))
       AND (${q} = '' OR (t.title ILIKE ${`%${q}%`} OR t.body ILIKE ${`%${q}%`}))
     ${order}
     LIMIT 50

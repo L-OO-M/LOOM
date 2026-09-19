@@ -22,7 +22,8 @@ export async function GET(request, { params }) {
     LIMIT 1
   `;
   if (!thread) return fail("NOT_FOUND", "Thread not found", 404);
-  await sql`UPDATE forum_threads SET view_count = view_count + 1 WHERE id = ${id}`;
+  // NOTE: view counting lives on the student page render. Incrementing here
+  // as well double-counted every page load, so this endpoint stays read-only.
   const replies = await sql`
     SELECT r.*, p.name AS author_name FROM forum_replies r
     LEFT JOIN profiles p ON p.user_id = r.author_id
@@ -59,7 +60,7 @@ export async function POST(request, { params }) {
     await notify({
       sql, tenantId: tenant?.id, userId: thread.author_id,
       type: "forum_reply", title: "New reply to your thread",
-      body: "Someone replied to your discussion.", link: `/community/forums/${id}`
+      body: "Someone replied to your discussion.", link: `/student/community/forums/${id}`
     });
   }
   return ok({ reply }, { status: 201 });
@@ -90,8 +91,17 @@ export async function PATCH(request, { params }) {
   }
   if (thread.author_id !== user.id && !isAdmin) return fail("FORBIDDEN", "Only the author can mark a solution", 403);
   if (!body.replyId) return fail("VALIDATION_ERROR", "replyId is required", 400);
+  const [answer] = await sql`SELECT id, author_id FROM forum_replies WHERE id = ${body.replyId} AND thread_id = ${id} LIMIT 1`;
+  if (!answer) return fail("NOT_FOUND", "Reply not found", 404);
   await sql`UPDATE forum_replies SET is_answer = false WHERE thread_id = ${id}`;
   await sql`UPDATE forum_replies SET is_answer = true WHERE id = ${body.replyId} AND thread_id = ${id}`;
   await sql`UPDATE forum_threads SET solved = true, solution_post_id = ${body.replyId} WHERE id = ${id}`;
+  if (answer.author_id !== user.id) {
+    await notify({
+      sql, tenantId: tenant?.id, userId: answer.author_id,
+      type: "forum_solution", title: "Your answer was marked as the solution",
+      body: "A thread author picked your reply as the solution.", link: `/student/community/forums/${id}`
+    });
+  }
   return ok({ solved: true });
 }
