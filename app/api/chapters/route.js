@@ -11,7 +11,7 @@ export async function GET() {
            (SELECT COUNT(*)::int FROM student_oss_contributions o WHERE o.tenant_id = c.tenant_id AND o.status = 'verified') AS oss_merges
     FROM chapter_profiles c
     WHERE c.is_public = true
-    ORDER BY c.is_featured DESC, members DESC
+    ORDER BY c.is_featured DESC, members DESC, c.slug ASC
     LIMIT 24
   `;
   const [{ students = 0 } = {}] = await sql`SELECT COUNT(*)::int AS students FROM profiles WHERE tenant_id IS NOT NULL`;
