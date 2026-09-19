@@ -52,7 +52,7 @@ export default async function AdminStudentsPage({ searchParams }) {
 
   const rows = await sql`
     SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
-           p.github_username, p.updated_at, p.created_at, p.vertical,
+           p.github_username, p.updated_at, p.vertical,
       (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
        FROM department_memberships m JOIN departments d ON d.id = m.department_id
        WHERE m.user_id = p.user_id) AS departments

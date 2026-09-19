@@ -22,7 +22,7 @@ export default async function AdminStudentDetailPage({ params }) {
   const { user, tenant, sql } = ctx;
 
   const [s] = await sql`
-    SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical, tenant_id, created_at, updated_at
+    SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical, tenant_id, updated_at
     FROM profiles
     WHERE user_id = ${id} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1
   `;
@@ -75,7 +75,7 @@ export default async function AdminStudentDetailPage({ params }) {
               {s.primary_domain && <><span>·</span><span className="rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{s.primary_domain}</span></>}
             </p>
             <p className="meta mt-1 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-1"><Clock3 size={12} /> Joined {new Date(s.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
+              <span className="inline-flex items-center gap-1"><Clock3 size={12} /> Updated {new Date(s.updated_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
               {s.github_username ? (
                 <a href={`https://github.com/${s.github_username}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium hover:underline" style={{ color: "var(--accent)" }}>
                   <Github size={12} /> @{s.github_username} <ExternalLink size={10} />
