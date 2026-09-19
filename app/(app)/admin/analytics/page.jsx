@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { BarChart3, Users, TrendingUp, GraduationCap } from "lucide-react";
 import { PageHeader, Card } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
+import { DomainBars, ActivityLine, BottleneckBars } from "@/components/admin/AnalyticsCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function AdminAnalyticsPage() {
   `;
   const history = await sql`
     SELECT cohort_date, active_students_7d, avg_consistency FROM cohort_metrics
-    WHERE tenant_id = ${tenant?.id ?? null}::uuid ORDER BY cohort_date DESC LIMIT 14
+    WHERE tenant_id = ${tenant?.id ?? null}::uuid ORDER BY cohort_date DESC LIMIT 30
   `;
   const bottlenecks = await sql`
     SELECT n.*, r.title FROM roadmap_node_analytics n
@@ -41,7 +42,18 @@ export default async function AdminAnalyticsPage() {
     FROM contests k ORDER BY k.created_at DESC NULLS LAST LIMIT 8
   `;
   const dist = health?.domain_distribution || {};
-  const distMax = Math.max(1, ...Object.values(dist).map(Number));
+  const domainData = Object.entries(dist).map(([name, value]) => ({ name, value: Number(value) })).sort((a, b) => b.value - a.value);
+  const activityData = [...history].reverse().map((h) => ({
+    label: new Date(h.cohort_date).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+    active: Number(h.active_students_7d ?? 0),
+    consistency: Number(h.avg_consistency ?? 0),
+  }));
+  const bottleneckData = bottlenecks.map((b) => ({
+    name: (b.title || b.node_id || "node").slice(0, 22),
+    drop: Number(b.drop_off_pct ?? 0),
+    started: b.total_started,
+    completed: b.total_completed,
+  }));
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -62,35 +74,17 @@ export default async function AdminAnalyticsPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Domain distribution</h2>
-            {Object.keys(dist).length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No data yet.</p>
-            ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {Object.entries(dist).map(([d, n]) => (
-                  <li key={d}>
-                    <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
-                      <span className="capitalize">{d}</span><span>{n}</span>
-                    </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full" style={{ background: "var(--bg-muted)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${(Number(n) / distMax) * 100}%`, background: "var(--accent)" }} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h2 className="mt-6 font-medium" style={{ color: "var(--text)" }}>Activity — last {history.length} days</h2>
-            <div className="mt-3 flex h-20 items-end gap-1.5">
-              {[...history].reverse().map((h) => {
-                const max = Math.max(1, ...history.map((x) => x.active_students_7d));
-                return <div key={h.cohort_date} title={`${h.cohort_date}: ${h.active_students_7d} active`} className="flex-1 rounded-t" style={{ height: `${Math.max(6, (h.active_students_7d / max) * 100)}%`, background: "var(--accent)", opacity: 0.85 }} />;
-              })}
-            </div>
-          </Card>
+          <DomainBars data={domainData} />
+          <ActivityLine data={activityData} />
+        </div>
 
+        <div className="mt-6">
+          <BottleneckBars data={bottleneckData} />
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Bottleneck nodes — highest drop-off</h2>
+            <h2 className="font-medium" style={{ color: "var(--text)" }}>Bottleneck details</h2>
             {bottlenecks.length === 0 ? (
               <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No funnel data yet. Nodes appear once students start them.</p>
             ) : (

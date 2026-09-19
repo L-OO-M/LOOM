@@ -111,7 +111,30 @@ export default async function AdminPage() {
     ORDER BY a.created_at DESC LIMIT 8
   `;
 
+  // Chart data — sequential, tenant-scoped, single-pass aggregates (pooler-safe).
+  const roleDistRaw = await sql`
+    SELECT role, COUNT(*)::int AS c FROM profiles
+    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    GROUP BY role ORDER BY c DESC
+  `;
+  const projectStatusRaw = await sql`
+    SELECT COALESCE(pr.status, 'unknown') AS status, COUNT(*)::int AS c
+    FROM projects pr JOIN profiles p ON p.user_id = pr.owner_id
+    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    GROUP BY pr.status ORDER BY c DESC
+  `;
+  const dailyRaw = await sql`
+    SELECT a.day::text AS day, SUM(a.commits + a.pull_requests + a.reviews)::int AS total
+    FROM student_daily_activity a JOIN profiles p ON p.user_id = a.student_id
+    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND a.day >= CURRENT_DATE - INTERVAL '14 days'
+    GROUP BY a.day ORDER BY a.day ASC
+  `;
+
   const total = counts?.students ?? 0;
+  const roleDist = roleDistRaw.map((r) => ({ name: r.role, value: r.c }));
+  const projectStatus = projectStatusRaw.map((r) => ({ name: r.status, value: r.c }));
+  const dailyActivity = dailyRaw.map((r) => ({ label: new Date(r.day).toLocaleDateString("en-IN", { month: "short", day: "numeric" }), value: r.total, day: r.day }));
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <AdminDashboard
@@ -147,6 +170,7 @@ export default async function AdminPage() {
         departments={departments}
         upcoming={upcoming}
         auditEntries={auditEntries}
+        charts={{ roleDist, projectStatus, dailyActivity }}
       />
     </AppShell>
   );

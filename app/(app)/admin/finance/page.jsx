@@ -6,6 +6,7 @@ import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
+import { ExpenseStatusDonut, SponsorshipPipelineBars, MonthlyExpenseBars } from "@/components/admin/FinanceCharts";
 
 async function decideExpense(formData) {
   "use server";
@@ -126,6 +127,31 @@ export default async function AdminFinancePage() {
   `;
 
   const pending = expenses.filter((e) => e.status === "proposed");
+  const expenseStatus = [
+    { name: "proposed", value: expenses.filter((e) => e.status === "proposed").length },
+    { name: "approved", value: expenses.filter((e) => e.status === "approved").length },
+    { name: "rejected", value: expenses.filter((e) => e.status === "rejected").length },
+  ];
+  const sponsorshipPipeline = ["pipeline", "committed", "received"].map((s) => ({
+    name: s,
+    value: sponsorships.filter((x) => x.status === s).reduce((sum, x) => sum + Number(x.amount || 0), 0),
+  }));
+  const monthlyMap = new Map();
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("en-IN", { month: "short" });
+    monthlyMap.set(k, { label, value: 0 });
+  }
+  for (const e of expenses) {
+    if (e.status !== "approved" || !e.created_at) continue;
+    const d = new Date(e.created_at);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (monthlyMap.has(k)) monthlyMap.get(k).value += Number(e.amount || 0);
+  }
+  const monthlySpend = [...monthlyMap.values()];
+
   const input = "w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_14%,transparent)]";
   const inputStyle = { borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" };
 
@@ -148,6 +174,12 @@ export default async function AdminFinancePage() {
             </div>
           ))}
         </div>
+
+        <section className="grid gap-4 lg:grid-cols-3" aria-label="Finance visuals">
+          <ExpenseStatusDonut data={expenseStatus} />
+          <MonthlyExpenseBars data={monthlySpend} />
+          <SponsorshipPipelineBars data={sponsorshipPipeline} />
+        </section>
 
         <section aria-label="Budget heads">
           <div className="flex items-baseline gap-2">

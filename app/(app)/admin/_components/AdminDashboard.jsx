@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Clock3, Users, Layers, Sparkles, ShieldCheck, ArrowUpRight, Inbox, CalendarDays, Building2, AlertCircle } from "lucide-react";
 import { Meta } from "@/components/loom/primitives";
 import { StatTile, TileGrid } from "@/components/loom/StatTiles";
+import { RoleDonut, ProjectStatusBars, ActivitySparklineChart } from "@/components/admin/OverviewCharts";
 
 function fmtDate(d) {
   try { return new Date(d).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return String(d); }
@@ -17,7 +18,7 @@ function timeAgo(v) {
    metrics; the attention queue is the only place that demands action.
    Every number is a live prop. */
 
-export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attention, departments = [], upcoming, auditEntries }) {
+export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attention, departments = [], upcoming, auditEntries, charts = null }) {
   const waiting = attention.reduce((s, a) => s + a.count, 0);
   const o = outcomes;
   const sortedAttention = [...attention].sort((a, b) => b.count - a.count);
@@ -100,6 +101,15 @@ export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attent
           </TileGrid>
         </section>
       </div>
+
+      {/* Charts — pre-attentive: hue per category, value bar length, temporal trend */}
+      {charts && (
+        <section className="mt-8 grid gap-4 lg:grid-cols-3" aria-label="Chapter visuals">
+          <RoleDonut data={charts.roleDist} />
+          <ProjectStatusBars data={charts.projectStatus} />
+          <ActivitySparklineChart data={charts.dailyActivity} />
+        </section>
+      )}
 
       {/* Departments */}
       <section className="mt-8 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg)" }} aria-label="Departments">
