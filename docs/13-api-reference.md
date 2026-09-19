@@ -40,8 +40,8 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/chapters` | public | featured public chapters, anonymized counts |
-| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row |
+| GET | `/api/chapters` | public | featured public chapters, anonymized counts, ordered featured → members → slug |
+| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row, ordered featured → members → slug |
 
 ## Credentials & insights
 

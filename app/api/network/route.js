@@ -7,6 +7,8 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { tenant, sql } = ctx;
+  // Deterministic: curated signal first, then size, then slug —
+  // ties must never shuffle between renders.
   const chapters = await sql`
     SELECT c.*, t.name AS tenant_name,
            (SELECT COUNT(*)::int FROM profiles p WHERE p.tenant_id = c.tenant_id) AS members,
@@ -15,7 +17,7 @@ export async function GET() {
     FROM chapter_profiles c
     JOIN tenants t ON t.id = c.tenant_id
     WHERE c.is_public = true
-    ORDER BY members DESC
+    ORDER BY c.is_featured DESC, members DESC, c.slug ASC
     LIMIT 50
   `;
   const partnerships = tenant ? await sql`
