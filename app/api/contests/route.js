@@ -37,16 +37,23 @@ export async function POST(request) {
       return validationError(e);
     }
     const [contest] = await sql`SELECT * FROM contests WHERE id = ${body.contestId} LIMIT 1`;
-    if (!contest) return fail("NOT_FOUND", "Contest not found", 404);
+    if (!contest) return fail("NOT_FOUND", "Challenge not found", 404);
     if (tenant?.id && contest.tenant_id && contest.tenant_id !== tenant.id) return fail("FORBIDDEN", "Wrong college", 403);
+    if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {
+      return fail("NOT_OPEN", "This challenge is not accepting entries", 403);
+    }
+    if (contest.ends_at && new Date(contest.ends_at) <= new Date()) {
+      return fail("DEADLINE_CLOSED", "Entries have closed for this challenge", 403);
+    }
     const [reg] = await sql`SELECT id FROM contest_registrations WHERE contest_id = ${body.contestId} AND student_id = ${user.id} LIMIT 1`;
-    if (!reg) return fail("NOT_REGISTERED", "Register for the contest first", 403);
+    if (!reg) return fail("NOT_REGISTERED", "Register for this challenge first", 403);
     const [sub] = await sql`
       INSERT INTO contest_submissions (contest_id, student_id, url, note)
       VALUES (${body.contestId}, ${user.id}, ${body.url || null}, ${body.note || null})
       RETURNING *
     `;
     await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "submitted_contest", resource: "contest", resourceId: body.contestId, after: { submissionId: sub.id } });
+    await notify({ sql, tenantId: tenant?.id, userId: user.id, type: "contest", title: `Entry submitted: ${contest.title}`, body: "Your chapter will review it after the deadline.", link: `/student/contests/${contest.id}` });
     return ok({ submission: sub }, { status: 201 });
   }
 
@@ -57,7 +64,7 @@ export async function POST(request) {
     return validationError(e);
   }
   const [contest] = await sql`SELECT * FROM contests WHERE id = ${body.contestId} LIMIT 1`;
-  if (!contest) return fail("NOT_FOUND", "Contest not found", 404);
+  if (!contest) return fail("NOT_FOUND", "Challenge not found", 404);
   if (tenant?.id && contest.tenant_id && contest.tenant_id !== tenant.id) return fail("FORBIDDEN", "Wrong college", 403);
   if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {
     return fail("NOT_OPEN", "Contest is not open for registration", 403);

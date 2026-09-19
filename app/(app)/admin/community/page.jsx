@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ShieldCheck, Flag, BookOpen, Pin, EyeOff, Clock3 } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
+import { Meta } from "@/components/loom/primitives";
 import { HideButton, PinButton, WikiReviewButtons } from "./AdminCommunity";
-
-export const dynamic = "force-dynamic";
 
 export default async function AdminCommunityPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -15,8 +15,16 @@ export default async function AdminCommunityPage() {
   const { tenant, user, sql } = ctx;
   const tid = tenant?.id ?? null;
 
+  const [stats] = await sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM forum_threads WHERE tenant_id = ${tid}::uuid AND flag_count > 0 AND status = 'visible') AS flagged_threads,
+      (SELECT COUNT(*)::int FROM forum_replies r JOIN forum_threads t ON t.id = r.thread_id WHERE t.tenant_id = ${tid}::uuid AND r.flag_count > 0 AND r.status = 'visible') AS flagged_replies,
+      (SELECT COUNT(*)::int FROM wiki_edit_requests e JOIN wiki_pages w ON w.id = e.page_id WHERE w.tenant_id = ${tid}::uuid AND e.status = 'pending') AS pending_edits,
+      (SELECT COUNT(*)::int FROM forum_threads WHERE tenant_id = ${tid}::uuid AND pinned = true AND status = 'visible') AS pinned
+  `;
+
   const flaggedThreads = await sql`
-    SELECT t.id, t.title, t.flag_count, t.pinned, p.name AS author_name FROM forum_threads t
+    SELECT t.id, t.title, t.flag_count, t.pinned, t.created_at, p.name AS author_name FROM forum_threads t
     LEFT JOIN profiles p ON p.user_id = t.author_id
     WHERE t.tenant_id = ${tid}::uuid AND t.flag_count > 0 AND t.status = 'visible'
     ORDER BY t.flag_count DESC LIMIT 20
@@ -35,73 +43,92 @@ export default async function AdminCommunityPage() {
     WHERE w.tenant_id = ${tid}::uuid AND e.status = 'pending'
     ORDER BY e.created_at DESC LIMIT 20
   `;
-  const [{ pinned = 0 } = {}] = await sql`SELECT COUNT(*)::int AS pinned FROM forum_threads WHERE tenant_id = ${tid}::uuid AND pinned = true AND status = 'visible'`;
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="Admin · Trust" title="Community moderation" desc="Flags, featured threads, and the wiki review queue." />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Stat label="Flagged threads" value={flaggedThreads.length} />
-          <Stat label="Flagged replies" value={flaggedReplies.length} />
-          <Stat label="Pending wiki edits" value={pendingEdits.length} />
+      <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+        <PageHeader kicker={`Trust · ${stats?.flagged_threads ?? 0} flagged threads · ${stats?.pending_edits ?? 0} wiki edits pending`} title="Community moderation" desc="Triage flags, curate featured threads, and review wiki suggestions. Every hide/pin is audited." />
+
+        <div className="mb-6 grid gap-3 sm:grid-cols-4">
+          {[
+            { label: "Flagged threads", value: stats?.flagged_threads ?? 0, icon: Flag, sub: "visible" },
+            { label: "Flagged replies", value: stats?.flagged_replies ?? 0, icon: EyeOff, sub: "visible" },
+            { label: "Wiki pending", value: stats?.pending_edits ?? 0, icon: BookOpen, sub: "suggestions" },
+            { label: "Pinned", value: stats?.pinned ?? 0, icon: Pin, sub: "featured" },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: s.label.includes("Flagged") && (s.value > 0) ? "color-mix(in srgb, var(--danger) 22%, transparent)" : "var(--line)", background: s.label.includes("Flagged") && s.value > 0 ? "color-mix(in srgb, var(--danger) 10%, var(--bg))" : "var(--bg)", color: s.label.includes("Flagged") && s.value > 0 ? "var(--danger)" : "var(--text-muted)" }}><s.icon size={14} /></span>
+              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Flagged threads</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Flag size={14} /> Flagged threads · {flaggedThreads.length}</h2>
             {flaggedThreads.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Queue clear. {pinned} pinned thread{pinned === 1 ? "" : "s"} live.</p>
+              <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <p className="narrative">Queue clear. {stats?.pinned ?? 0} pinned thread{(stats?.pinned ?? 0) === 1 ? "" : "s"} live — pin the best discussions to surface them.</p>
+              </div>
             ) : (
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-4 space-y-2">
                 {flaggedThreads.map((t) => (
-                  <li key={t.id} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-                    <div className="min-w-0 text-sm">
-                      <Link href={`/student/community/forums/${t.id}`} className="font-medium hover:underline" style={{ color: "var(--text)" }}>{t.title}</Link>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t.author_name || "a student"} · {t.flag_count} flags</p>
+                  <li key={t.id} className="group flex items-start justify-between gap-3 rounded-xl border p-3 transition hover:shadow-sm" style={{ borderColor: "color-mix(in srgb, var(--danger) 14%, var(--line))", background: "var(--bg)" }}>
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="block truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>{t.title}</Link>
+                      <p className="meta mt-1 flex flex-wrap items-center gap-1.5">
+                        <span>{t.author_name || "a student"}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5" style={{ borderColor: "color-mix(in srgb, var(--danger) 18%, transparent)", background: "color-mix(in srgb, var(--danger) 10%, var(--bg))", color: "var(--danger)" }}><Flag size={10} /> {t.flag_count} flags</span>
+                        <span className="inline-flex items-center gap-1"><Clock3 size={10} /> {new Date(t.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
+                        {t.pinned && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--accent)" }}><Pin size={10} /> Pinned</span>}
+                      </p>
                     </div>
-                    <span className="flex shrink-0 gap-3"><PinButton threadId={t.id} pinned={t.pinned} /><HideButton targetType="thread" targetId={t.id} /></span>
+                    <span className="flex shrink-0 items-center gap-1.5"><PinButton threadId={t.id} pinned={t.pinned} /><HideButton targetType="thread" targetId={t.id} /></span>
                   </li>
                 ))}
               </ul>
             )}
-            <h2 className="mt-6 font-medium" style={{ color: "var(--text)" }}>Flagged replies</h2>
+
+            <h2 className="mt-8 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><EyeOff size={14} /> Flagged replies · {flaggedReplies.length}</h2>
             {flaggedReplies.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No flagged replies.</p>
+              <p className="narrative mt-3">No flagged replies.</p>
             ) : (
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-4 space-y-2">
                 {flaggedReplies.map((r) => (
-                  <li key={r.id} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-                    <div className="min-w-0 text-sm">
-                      <p className="truncate" style={{ color: "var(--text)" }}>{r.body}</p>
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{r.author_name || "a student"} · {r.flag_count} flags · <Link href={`/student/community/forums/${r.thread_id}`} style={{ color: "var(--accent)" }}>thread →</Link></p>
+                  <li key={r.id} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm leading-5" style={{ color: "var(--text)" }}>{r.body}</p>
+                      <p className="meta mt-1">{r.author_name || "a student"} · {r.flag_count} flags · <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false} style={{ color: "var(--accent)" }} className="hover:underline">thread →</Link></p>
                     </div>
                     <HideButton targetType="reply" targetId={r.id} />
                   </li>
                 ))}
               </ul>
             )}
-          </Card>
+          </section>
 
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Wiki review queue</h2>
+          <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><BookOpen size={14} /> Wiki review queue · {pendingEdits.length}</h2>
+            <p className="narrative mt-1">Approve to publish — the edit becomes the new version and the requester is credited.</p>
             {pendingEdits.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No pending suggestions.</p>
+              <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <p className="narrative">No pending suggestions. Wiki edits from students land here.</p>
+              </div>
             ) : (
-              <ul className="mt-3 space-y-3">
+              <ul className="mt-4 space-y-3">
                 {pendingEdits.map((e) => (
-                  <li key={e.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
+                  <li key={e.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
                     <p className="text-sm" style={{ color: "var(--text)" }}>
-                      <Link href={`/student/community/wiki/${e.slug}`} className="font-medium hover:underline">{e.page_title}</Link>
-                      <span style={{ color: "var(--text-muted)" }}> — {e.requester_name || "a student"}: {e.reason || "No reason"}</span>
+                      <Link href={`/student/community/wiki/${e.slug}`} prefetch={false} className="font-medium hover:underline">{e.page_title}</Link>
+                      <span style={{ color: "var(--text-muted)" }}> — {e.requester_name || "a student"}{e.reason ? `: ${e.reason}` : ""}</span>
                     </p>
-                    <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg p-3 font-mono text-xs" style={{ background: "var(--bg-muted)", color: "var(--text-muted)" }}>{e.proposed_content.slice(0, 400)}</pre>
+                    <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>{e.proposed_content.slice(0, 600)}</pre>
                     <div className="mt-2"><WikiReviewButtons slug={e.slug} editId={e.id} /></div>
                   </li>
                 ))}
               </ul>
             )}
-          </Card>
+          </section>
         </div>
       </main>
     </AppShell>

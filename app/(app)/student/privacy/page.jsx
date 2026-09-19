@@ -27,7 +27,7 @@ export default async function PrivacyPage() {
       why: "Only your public username is stored — never tokens. Unlinking stops attribution; already-recorded activity stays as history."
     },
     {
-      label: "Leaderboard",
+      label: "Standings",
       value: "Participating",
       href: "/student/leaderboard",
       link: "See standings",

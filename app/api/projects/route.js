@@ -15,9 +15,10 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
   const rows = profile.role === "admin"
-    ? await sql`SELECT * FROM projects WHERE tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL ORDER BY created_at DESC LIMIT 100`
-    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} ORDER BY created_at DESC LIMIT 100`;
+    ? await sql`SELECT * FROM projects WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY created_at DESC LIMIT 100`
+    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} AND (${tid}::uuid IS NULL OR tenant_id IS NULL OR tenant_id = ${tid}::uuid) ORDER BY created_at DESC LIMIT 100`;
   return ok({ projects: rows });
 }
 

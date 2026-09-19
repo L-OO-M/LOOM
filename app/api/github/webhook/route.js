@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { env, assertProductionSecrets } from "@/lib/env";
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -8,6 +8,7 @@ import { notify } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 
 export async function POST(request) {
+  assertProductionSecrets();
   const tenant = await getTenantFromRequest(request);
   if (!tenant) return fail("TENANT_NOT_FOUND", "Tenant could not be resolved", 404);
 

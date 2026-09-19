@@ -13,7 +13,7 @@ export async function POST(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
-  const { user, sql } = ctx;
+  const { user, tenant, sql } = ctx;
   // In-memory per-instance bucket: cheap abuse brake, not a distributed limiter.
   const limited = checkRateLimit(`votes:${user.id}`, { limit: 60, windowMs: 60000 });
   if (!limited.ok) return fail("RATE_LIMITED", "Too many votes — slow down", 429);
@@ -24,7 +24,7 @@ export async function POST(request) {
     return validationError(e);
   }
   try {
-    const result = await toggleVote({ sql, studentId: user.id, targetType: body.targetType, targetId: body.targetId });
+    const result = await toggleVote({ sql, studentId: user.id, targetType: body.targetType, targetId: body.targetId, tenantId: tenant?.id ?? null });
     return ok(result);
   } catch {
     return fail("INVALID_TARGET", "Vote target is invalid", 400);

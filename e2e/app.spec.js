@@ -9,21 +9,30 @@ const protectedPages = [
   "/student/projects",
   "/student/projects/new",
   "/student/github",
+  "/student/opensource",
   "/student/contests",
+  "/student/events",
   "/student/mentorship",
   "/student/community",
   "/student/discover",
   "/student/network",
   "/student/network/demo-college",
   "/student/leaderboard",
+  "/student/credentials",
+  "/student/community",
+  "/student/community/forums",
+  "/student/community/wiki",
+  "/student/community/snippets",
   "/student/notifications",
   "/student/privacy",
   "/student/settings",
   "/student/onboarding",
   "/admin",
+  "/admin/events",
   "/admin/students",
   "/admin/roadmaps",
   "/admin/resources",
+  "/admin/opensource",
   "/admin/projects",
   "/admin/contests",
   "/admin/mentors",
@@ -46,6 +55,11 @@ test.describe("route protection", () => {
     });
   }
 
+  test("/student/events/00000000-0000-0000-0000-000000000000 redirects to login when unauthenticated", async ({ page }) => {
+    await page.goto("/student/events/00000000-0000-0000-0000-000000000000");
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+  });
+
   // Server-level publicity: /setup must serve 200, not a login redirect.
   // (The page itself bounces logged-out browsers to /login via client JS
   // because claiming admin needs a user — asserting on page URL races that
@@ -63,15 +77,25 @@ test.describe("api authorization", () => {
     "/api/resources",
     "/api/projects",
     "/api/contests",
+    "/api/events",
+    "/api/events?scope=past",
+    "/api/events?scope=registered",
     "/api/mentorship",
     "/api/leaderboard",
     "/api/notifications",
     "/api/profile",
     "/api/github",
+    "/api/opensource/projects",
+    "/api/opensource/contributions",
+    "/api/credentials",
     "/api/departments",
     "/api/network",
     "/api/announcements",
     "/api/contributions",
+    "/api/community/threads",
+    "/api/community/wiki",
+    "/api/community/snippets",
+    "/api/admin/community",
     "/api/admin/overview",
     "/api/lead/overview",
     "/api/admin/students",
@@ -87,9 +111,40 @@ test.describe("api authorization", () => {
     });
   }
 
+  test("event detail, registration, and feedback return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const get = await request.get(`/api/events/${id}`);
+    expect(get.status()).toBe(401);
+    expect((await get.json()).ok).toBe(false);
+    const post = await request.post(`/api/events/${id}`, { data: { action: "register" } });
+    expect(post.status()).toBe(401);
+    const cancel = await request.post(`/api/events/${id}`, { data: { action: "cancel" } });
+    expect(cancel.status()).toBe(401);
+    const patch = await request.patch(`/api/events/${id}`, { data: { feedbackScore: 5 } });
+    expect(patch.status()).toBe(401);
+    const materials = await request.post(`/api/events/${id}/materials`, {
+      data: { title: "Slides", storageUrl: "https://example.com/slides", fileType: "link" }
+    });
+    expect(materials.status()).toBe(401);
+    const attendance = await request.post(`/api/admin/events/${id}/attendance`, { data: { checkInCode: "LOOM-TEST" } });
+    expect(attendance.status()).toBe(401);
+  });
+
   test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
     const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
     expect(res.status()).toBe(401);
+  });
+
+  test("POST /api/credentials returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/credentials", {
+      data: { achievementId: "00000000-0000-0000-0000-000000000000", expiresInDays: 365 }
+    });
+    expect(res.status()).toBe(401);
+  });
+
+  test("public credential verification needs no session but 404s unknown ids", async ({ request }) => {
+    const res = await request.get("/verify/credential/cred_doesnotexist000");
+    expect(res.status()).toBe(404);
   });
 
   test("department membership writes return 401 without session", async ({ request }) => {
