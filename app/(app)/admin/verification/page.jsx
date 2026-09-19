@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
 import { BadgeForm, IssueForm } from "./AdminVerification";
+import { TierDonut, WeeklyIssuanceBars } from "@/components/admin/RemainingCharts";
 
 const TIER = ["", "Bronze", "Silver", "Gold"];
 function tierTone(t) {
@@ -54,6 +55,15 @@ export default async function AdminVerificationPage({ searchParams }) {
     WHERE a.tenant_id IS NULL OR a.tenant_id = ${tid}::uuid
     ORDER BY a.earned_at DESC LIMIT 30
   `;
+  const tierRows = await sql`
+    SELECT tier, COUNT(*)::int AS c FROM skill_badges
+    WHERE tenant_id IS NULL OR tenant_id = ${tid}::uuid GROUP BY tier ORDER BY tier
+  `;
+  const weeklyRows = await sql`
+    SELECT to_char(date_trunc('week', earned_at), 'Mon DD') AS label, COUNT(*)::int AS c
+    FROM student_achievements WHERE (tenant_id IS NULL OR tenant_id = ${tid}::uuid) AND earned_at >= NOW() - INTERVAL '8 weeks'
+    GROUP BY date_trunc('week', earned_at) ORDER BY date_trunc('week', earned_at) ASC
+  `;
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -72,6 +82,11 @@ export default async function AdminVerificationPage({ searchParams }) {
             </div>
           ))}
         </div>
+
+        <section className="grid gap-4 lg:grid-cols-2" aria-label="Verification visuals">
+          <TierDonut data={tierRows.map((r) => ({ name: TIER[Number(r.tier)] || `Tier ${r.tier}`, value: r.c }))} />
+          <WeeklyIssuanceBars data={weeklyRows.map((r) => ({ label: r.label, value: r.c }))} />
+        </section>
 
         <form method="get" className="mb-4 flex items-center gap-2 rounded-2xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
           <Search size={14} style={{ color: "var(--text-muted)" }} />

@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
 import { DepartmentCard } from "./_components/DepartmentCard";
+import { DeptSizeBars, VerticalSplitDonut } from "@/components/admin/RemainingCharts";
 
 async function saveDepartment(formData) {
   "use server";
@@ -95,6 +96,14 @@ export default async function AdminDepartmentsPage() {
             </div>
           ))}
         </div>
+
+        <section className="grid gap-4 lg:grid-cols-2" aria-label="Dept visuals">
+          <DeptSizeBars data={departments.slice(0, 6).map((d) => ({ name: d.name, value: d.members }))} />
+          <VerticalSplitDonut data={[
+            { name: "Technical", value: departments.filter((d) => d.vertical === "technical").length },
+            { name: "Non-technical", value: departments.filter((d) => d.vertical === "non_technical").length },
+          ]} />
+        </section>
 
         <section aria-label="Active departments">
           <div className="flex items-baseline gap-2">

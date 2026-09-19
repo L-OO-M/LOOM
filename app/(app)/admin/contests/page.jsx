@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
 import { ContestForm } from "@/components/admin-forms";
+import { ContestFunnelBars, ContestConversionBars } from "@/components/admin/RemainingCharts";
 
 function statusTone(s) {
   const m = {
@@ -78,6 +79,15 @@ export default async function AdminContestsPage({ searchParams }) {
             </div>
           ))}
         </div>
+
+        <section className="grid gap-4 lg:grid-cols-2" aria-label="Contest visuals">
+          <ContestFunnelBars data={[
+            { name: "Draft", value: stats?.drafts ?? 0 },
+            { name: "Live", value: stats?.live ?? 0 },
+            { name: "Closed", value: Math.max(0, (stats?.total ?? 0) - (stats?.drafts ?? 0) - (stats?.live ?? 0)) },
+          ]} />
+          <ContestConversionBars data={rows.slice(0, 5).map((r) => ({ name: r.title.slice(0, 14), regs: r.registrations, subs: r.submissions }))} />
+        </section>
 
         <form method="get" className="mb-4 flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row sm:items-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
           <div className="relative flex-1">
