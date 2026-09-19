@@ -46,9 +46,9 @@ Secondary icons (top bar): Alerts (notifications), Privacy (your data controls),
 
 ## 5. Public identity
 
-- Claim a username (2–30 chars, letters/numbers/`-`/`_`) to get `/student/<username>`.
-- Your card shows bio, reputation, proof counts, endorsements, and links. Only same-chapter members (or you) can view it unless you make it public.
-- Follow builders and endorse skills from their cards.
+- Claim a username (2–30 chars, letters/numbers/`-`/`_`) to get `/student/<username>`. Names used by app pages (`discover`, `projects`, `settings`, …) are reserved.
+- Your card shows bio, reputation, proof counts, endorsements, and links. Only same-chapter members (or you) can view it unless you make it public. Discovery lists, follow/endorse lookups, and activity links all respect the same boundary.
+- Follow builders and endorse skills from their cards. New followers get a notification linking to your profile when it is visible.
 
 ## 6. Rules that protect you
 

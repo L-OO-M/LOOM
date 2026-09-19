@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
-import { reputationFor } from "@/lib/reputation";
+import { reputationForMany } from "@/lib/reputation";
 
 const reviewSchema = z.object({
   mentorId: z.string().min(1).max(100),
@@ -33,10 +33,21 @@ export async function GET() {
     WHERE m.tenant_id = ${tid}::uuid AND m.available = true
     GROUP BY m.user_id, m.expertise, p.name ORDER BY avg_rating DESC, reviews DESC LIMIT 5
   `;
-  const students = await sql`SELECT user_id, name FROM profiles WHERE tenant_id = ${tid}::uuid AND role = 'student' LIMIT 30`;
+  // Rising builders: only public cards in the caller's chapter. The page
+  // query owns the same predicate — the API must not leak private or
+  // card-less students (previously this read profiles with no visibility
+  // filter at all).
+  const students = await sql`
+    SELECT up.user_id, up.username, p.name FROM user_profiles up
+    JOIN profiles p ON p.user_id = up.user_id
+    WHERE up.tenant_id = ${tid}::uuid AND up.is_public = true
+      AND p.tenant_id = ${tid}::uuid
+    ORDER BY up.updated_at DESC LIMIT 30
+  `;
+  const reps = await reputationForMany(sql, students.map((s) => s.user_id)).catch(() => new Map());
   const scored = [];
   for (const s of students) {
-    const rep = await reputationFor(sql, s.user_id).catch(() => ({ score: 0 }));
+    const rep = reps.get(s.user_id) || { score: 0 };
     if (rep.score > 0) scored.push({ ...s, score: rep.score });
   }
   scored.sort((a, b) => b.score - a.score);

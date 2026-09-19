@@ -195,7 +195,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
 
         {area === "student" && (
           <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Primary mobile">
-            <div className="floatbar grid grid-cols-5 rounded-3xl px-1 py-1.5">
+            <div className="floatbar grid grid-cols-6 rounded-3xl px-1 py-1.5">
               {mobileNav.map((item) => {
                 const Icon = icons[item.icon] || Home;
                 const isActive = item.group ? activeGroup?.id === item.group : (pathname || "") === "/student";

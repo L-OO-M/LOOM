@@ -12,6 +12,8 @@ const protectedPages = [
   "/student/contests",
   "/student/mentorship",
   "/student/leaderboard",
+  "/student/discover",
+  "/student/network",
   "/student/notifications",
   "/student/privacy",
   "/student/settings",
@@ -123,6 +125,20 @@ test.describe("api authorization", () => {
       data: "{}"
     });
     expect([400, 401]).toContain(res.status());
+  });
+
+  test("bare username profile redirects to login when unauthenticated", async ({ page }) => {
+    await page.goto("/student/some-builder");
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+  });
+
+  test("GET /api/social/* returns 401 without session", async ({ request }) => {
+    for (const path of ["/api/social/profile", "/api/social/connections", "/api/social/discover"]) {
+      const res = await request.get(path);
+      expect(res.status()).toBe(401);
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+    }
   });
 });
 

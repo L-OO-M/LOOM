@@ -73,9 +73,9 @@ export function FollowButton({ username, initial }) {
   }
 
   return (
-    <button disabled={busy} onClick={toggle} className={following ? "rounded-xl border px-4 py-2 text-sm disabled:opacity-50" : "btn-ink disabled:opacity-50"}
+    <button disabled={busy} onClick={toggle} aria-pressed={following} aria-label={following ? `Unfollow ${username}` : `Follow ${username}`} className={following ? "rounded-xl border px-4 py-2 text-sm disabled:opacity-50" : "btn-ink disabled:opacity-50"}
       style={following ? { borderColor: "var(--line)", color: "var(--text-muted)" } : undefined}>
-      {following ? "Following ✓" : "Follow"}
+      {busy ? "…" : following ? "Following ✓" : "Follow"}
     </button>
   );
 }
