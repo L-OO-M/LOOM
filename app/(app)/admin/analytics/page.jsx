@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card, Stat } from "@/components/ui";
+import { BarChart3, Users, TrendingUp, GraduationCap } from "lucide-react";
+import { PageHeader, Card } from "@/components/ui";
+import { Meta } from "@/components/loom/primitives";
 
 export const dynamic = "force-dynamic";
 
@@ -43,13 +45,20 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <PageHeader kicker="Admin · Data" title="Chapter analytics" desc="Cohort health, bottlenecks, mentors, and contests — rolled up nightly." />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Students" value={health?.total_students ?? 0} />
-          <Stat label="Active (7d)" value={health?.active_students_7d ?? 0} />
-          <Stat label="Avg consistency" value={`${Number(health?.avg_consistency || 0)}%`} />
-          <Stat label="Avg roadmap" value={`${Number(health?.avg_roadmap_pct || 0)}%`} />
+      <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+        <PageHeader kicker={`Data · ${health ? new Date(health.cohort_date).toLocaleDateString("en-IN") : "no snapshot yet"} · rolled up nightly`} title="Chapter analytics" desc="Cohort health, bottlenecks, mentors, and contests — real rollups, not live aggregates." />
+        <div className="mb-6 grid gap-3 sm:grid-cols-4">
+          {[
+            { label: "Students", value: health?.total_students ?? 0, icon: Users, sub: "cohort" },
+            { label: "Active 7d", value: health?.active_students_7d ?? 0, icon: TrendingUp, sub: "weekly" },
+            { label: "Consistency", value: `${Number(health?.avg_consistency || 0)}%`, icon: BarChart3, sub: "avg" },
+            { label: "Roadmap", value: `${Number(health?.avg_roadmap_pct || 0)}%`, icon: GraduationCap, sub: "avg" },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}><s.icon size={14} /></span>
+              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
+            </div>
+          ))}
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
