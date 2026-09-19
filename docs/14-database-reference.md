@@ -26,6 +26,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 018 | `018_faq.sql` | `faqs` |
 | 019 | `019_operations.sql` | `volunteer_slots`, `volunteer_signups`, `dept_reports`, `handover_checklists`, `budget_heads`, `expenses`, `sponsorships` |
 | 020 | `020_github_pause.sql` | data only: `github_integration` flag off (opt-in ingestion) |
+| 021 | `021_head_retention_cleanup.sql` | idempotent repair: clears stale `profiles.vertical` + downgrades orphan `dept_lead` memberships to `core` |
 
 Tracked migrations are the single source of truth for schema — there is no ORM mirror. All server queries are parameterized `postgres` template strings via `getSql()` in `lib/db.js` (`{max:10,idle_timeout:10,prepare:false}` for the PgBouncer pooler); tenant config is memoized 60s in `queryTenant()`.
 
@@ -67,3 +68,5 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 **Operations (019)**: `volunteer_slots(event_id, title, capacity > 0, created_by)` + `volunteer_signups(slot_id, user_id unique pair)` — one seat per member, capacity enforced live in the API; `dept_reports((department_id, month) unique, draft jsonb auto-compiled, status draft|submitted, submitted_by/at)`; `handover_checklists(title, category, detail, done)` — admin-owned continuity items; `budget_heads(name, allocated ≥ 0, vertical nullable = society-wide)` + `expenses(head_id, department_id, amount > 0, status proposed|approved|rejected, created_by, decided_by)` + `sponsorships(name, amount, status pipeline|committed|received, contact)` — the finance snapshot (VLs `recommend_only`, enforced in code).
 
 **Ingestion pause (020, data only)**: no schema change — sets `feature_flags.github_integration = false` per tenant and inserts the row where missing, so webhook deliveries are acked but never stored until enabled at `/admin/flags`.
+
+**Head retention cleanup (021, idempotent repair)**: no new columns — repairs drift from earlier promotion paths: clears `profiles.vertical` where `role <> 'vertical_lead'` and downgrades orphaned `department_memberships.level='dept_lead'` to `core` when the owner no longer holds a leading role (preserves engagement history, capability is revoked).

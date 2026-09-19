@@ -2,6 +2,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
 
@@ -264,8 +265,24 @@ export default async function StudentPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
 
+  const promoted = profile?.role === "vertical_lead" || profile?.role === "dept_lead" || profile?.role === "admin";
+  const verticalLabel = profile?.role === "vertical_lead" ? (profile.vertical ? ` · ${profile.vertical.replace("_", " ")}` : "") : "";
+
   return (
     <AppShell area="student" tenant={tenant} user={user}>
+      {promoted && (
+        <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 18%, var(--line))", background: "color-mix(in srgb, var(--accent) 7%, var(--bg-elevated))" }}>
+            <p className="text-sm" style={{ color: "var(--text)" }}>
+              <span className="font-semibold">New capabilities unlocked</span>
+              <span style={{ color: "var(--text-muted)" }}> — you&apos;re now {profile.role.replace("_", " ")}{verticalLabel}. {profile.role === "admin" ? "Admin overview" : "Lead console"} is available without signing out.</span>
+            </p>
+            <Link href={profile.role === "admin" ? "/admin" : "/lead"} prefetch={false} className="btn-ink !py-1.5 !px-4 text-sm shrink-0">
+              Open {profile.role === "admin" ? "Admin" : "Lead"} →
+            </Link>
+          </div>
+        </div>
+      )}
       <StudentDashboard
         profile={profile}
         greeting={greeting}

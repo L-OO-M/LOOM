@@ -40,6 +40,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [inboxOpen, setInboxOpen] = useState(false);
   const inbox = useInbox(area === "student");
+  useRoleSync(true);
   const menuRef = useRef(null);
 
   // Close the dropdown on route change or outside interaction.
@@ -256,6 +257,46 @@ function useInbox(enabled) {
     } catch { /* optimistic; the list already moved on */ }
   }, []);
   return { items, unread, load, markRead };
+}
+
+/* Same-login propagation (polling — no realtime sockets). Lightweight
+   /api/profile check on visibility + 30s interval; on role/vertical change
+   triggers router.refresh() so server components re-run getRequestContext
+   and the UI instantly reflects new capabilities. Pooler-safe: one tiny
+   query per poll, no extra connections. */
+function useRoleSync(enabled) {
+  const router = useRouter();
+  const last = useRef(null);
+  const check = useCallback(async () => {
+    try {
+      const d = await fetch("/api/profile", { cache: "no-store" }).then((r) => r.json());
+      const p = d?.data?.profile;
+      if (!p) return;
+      const key = `${p.role}|${p.vertical ?? ""}|${(p.memberships || []).map((m) => `${m.department_id}:${m.level}`).sort().join(",")}`;
+      if (last.current === null) {
+        last.current = key;
+        return;
+      }
+      if (key !== last.current) {
+        last.current = key;
+        router.refresh();
+      }
+    } catch {
+      // poll is best-effort; network failures never break the shell
+    }
+  }, [router]);
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(check, 30000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [enabled, check]);
 }
 
 /* Bell with a live unread dot — opens the inbox drawer, not a page. */

@@ -14,12 +14,16 @@ const patchSchema = z.object({
   onboardingCompleted: z.boolean().optional()
 });
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { profile, tenant } = ctx;
-  return ok({ profile, tenant: tenant ? { id: tenant.id, slug: tenant.slug, name: tenant.name } : null });
+  const res = ok({ profile, tenant: tenant ? { id: tenant.id, slug: tenant.slug, name: tenant.name } : null });
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
 }
 
 export async function PATCH(request) {
