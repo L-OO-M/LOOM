@@ -172,7 +172,7 @@ export default async function DiscoverPage() {
   `;
   const gatherings = await sql`
     SELECT title, starts_at FROM events
-    WHERE tenant_id = ${tid}::uuid AND starts_at >= NOW()
+    WHERE tenant_id = ${tid}::uuid AND status IN ('upcoming', 'live') AND starts_at >= NOW()
     ORDER BY starts_at ASC LIMIT 3
   `;
   const stream = [

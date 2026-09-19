@@ -43,17 +43,26 @@ export function MarkCompleteButton({ nodeId, completed }) {
 export function ResourceCompleteButton({ resourceId, completed }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
   async function run() {
     setBusy(true);
-    await postJSON("/api/resources", { resourceId });
+    setMsg("");
+    const data = await postJSON("/api/resources", { resourceId });
     setBusy(false);
+    if (!data.ok) {
+      setMsg(data.error?.message || "Couldn't save. Try again.");
+      return;
+    }
     router.refresh();
   }
   if (completed) return <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Done ✓</span>;
   return (
-    <button onClick={run} disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
-      {busy ? "Saving…" : "Mark done"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button onClick={run} disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97] disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+        {busy ? "Saving…" : "Mark done"}
+      </button>
+      {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
+    </span>
   );
 }
 
@@ -124,9 +133,9 @@ export function MarkNotificationRead({ id, read }) {
   );
 }
 
-export function GithubConnectForm() {
+export function GithubConnectForm({ initial = "", submitLabel = "Link GitHub" }) {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(initial);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   async function run(e) {
@@ -146,7 +155,7 @@ export function GithubConnectForm() {
       <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="github-username" required pattern="[a-zA-Z0-9-]+" maxLength={39}
         style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }} />
       <button disabled={busy} className="btn-ink disabled:opacity-50">
-        {busy ? "Linking…" : "Link GitHub"}
+        {busy ? "Linking…" : submitLabel}
       </button>
       {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
     </form>

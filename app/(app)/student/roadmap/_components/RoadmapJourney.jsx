@@ -4,26 +4,59 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Reveal } from "@/components/motion/Reveal";
-import { Display, Meta } from "@/components/loom/primitives";
-import { ProgressPath } from "@/components/loom/ProgressPath";
+import { Meta } from "@/components/loom/primitives";
 import { Drawer } from "@/components/loom/Drawer";
 import { OnboardingState } from "@/components/loom/States";
+import { RoadmapHero } from "@/app/(app)/student/roadmap/_components/RoadmapHero";
+import { RoadmapTopicCard } from "@/app/(app)/student/roadmap/_components/RoadmapTopicCard";
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-const DOMAIN_LABEL = { ai_ml: "AI / ML", web: "Web Development", cybersecurity: "Cybersecurity", dsa: "DSA", blockchain: "Blockchain" };
+const DOMAIN_LABEL = {
+  ai_ml: "AI / ML",
+  web: "Web Development",
+  cybersecurity: "Cybersecurity",
+  dsa: "DSA",
+  blockchain: "Blockchain",
+  backend: "Backend",
+  devops: "DevOps",
+};
 
-/* The roadmap as a journey: chapters, a path, a you-are-here,
-   and a drawer that treats each node as a small destination. */
+/* The roadmap as a full map: a central vertical path with stages stacked
+   down the page and each topic branching off it with real material,
+   real builds, and the real completion control. LOOM theme only. */
 
-export function RoadmapJourney({ nodes, doneIds, nextId, resourcesByDomain }) {
+export function RoadmapJourney({
+  nodes,
+  doneIds,
+  nextId,
+  resourcesByDomain,
+  resourceDoneIds = [],
+  projectsByNode = {},
+}) {
   const done = useMemo(() => new Set(doneIds), [doneIds]);
-  // null = drawer closed. (Previously this initialized to nextId with an
-  // onClose that re-selected nextId, so the close button could never close it.)
+  const resourceDoneSet = useMemo(() => new Set(resourceDoneIds), [resourceDoneIds]);
+  // null = drawer closed.
   const [selectedId, setSelectedId] = useState(null);
   const [justDone, setJustDone] = useState(null);
 
   const selected = selectedId ? nodes.find((n) => n.id === selectedId) ?? null : null;
   const selIndex = selected ? nodes.findIndex((n) => n.id === selected.id) : -1;
+
+  const percent = nodes.length > 0 ? Math.round((doneIds.length / nodes.length) * 100) : 0;
+
+  const stages = useMemo(() => {
+    const order = [];
+    for (const n of nodes) {
+      if (!order.includes(n.domain)) order.push(n.domain);
+    }
+    return order.map((domain, si) => ({
+      domain,
+      numeral: ROMAN[si] || String(si + 1),
+      items: nodes
+        .map((n, globalIndex) => ({ node: n, globalIndex }))
+        .filter(({ node }) => node.domain === domain),
+    }));
+  }, [nodes]);
 
   if (nodes.length === 0) {
     return (
@@ -37,70 +70,143 @@ export function RoadmapJourney({ nodes, doneIds, nextId, resourcesByDomain }) {
     );
   }
 
-  const stops = nodes.map((n) => ({
-    label: n.title,
-    state: done.has(n.id) ? "done" : n.id === nextId ? "now" : "todo"
-  }));
-  const percent = Math.round((doneIds.length / nodes.length) * 100);
-
-  let chapter = -1;
-  let lastDomain = null;
-
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6">
-      <Reveal>
-        <Meta>Roadmap · {doneIds.length} of {nodes.length} in place</Meta>
-        <Display size="lg" className="mt-3">Walk the path.</Display>
-        <div className="mt-8">
-          <ProgressPath stops={stops} percent={percent} ariaLabel={`${percent} percent of roadmap complete`} />
-        </div>
-      </Reveal>
+    <main className="pb-24">
+      <RoadmapHero nodes={nodes} doneIds={doneIds} nextId={nextId} />
 
-      <div className="mt-10">
-        {nodes.map((n, i) => {
-          const isDone = done.has(n.id);
-          const isNext = n.id === nextId;
-          const isSel = selected && n.id === selected.id;
-          const fresh = justDone === n.id;
-          if (n.domain !== lastDomain) { chapter += 1; lastDomain = n.domain; }
-          const chapterHead = i === 0 || nodes[i - 1].domain !== n.domain;
-          const dim = !isDone && !isNext && i > doneIds.length + 2;
+      <div className="rm-map mx-auto mt-4 max-w-6xl px-4 sm:px-6">
+        <div className="rm-spine" aria-hidden="true">
+          <div className="rm-spine-fill" style={{ height: `${percent}%` }} />
+        </div>
+
+        {stages.map((stage) => {
+          const stageDone = stage.items.filter(({ node }) => done.has(node.id)).length;
+          const stageMins = (resourcesByDomain[stage.domain] || []).reduce(
+            (s, r) => s + (r.minutes || 0),
+            0
+          );
           return (
-            <div key={n.id}>
-              {chapterHead && (
-                <div className="mb-5 mt-10 flex items-baseline gap-4 first:mt-2">
-                  <span className="index-num">{ROMAN[chapter] || chapter + 1}</span>
+            <section key={stage.domain} id={`rm-stage-${stage.domain}`} aria-label={`${DOMAIN_LABEL[stage.domain] || stage.domain} stage`} className="rm-stage scroll-mt-24">
+              <Reveal>
+                <div className="mb-2 flex items-baseline gap-4">
+                  <span className="index-num">{stage.numeral}</span>
                   <h2 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>
-                    {DOMAIN_LABEL[n.domain] || n.domain}
+                    {DOMAIN_LABEL[stage.domain] || stage.domain}
                   </h2>
                   <span className="rule-fade flex-1" aria-hidden="true" />
                 </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedId(n.id)}
-                aria-current={isNext ? "step" : undefined}
-                className={`tl-item w-full text-left ${isDone ? "is-done" : isNext ? "is-now line-illuminate" : ""} ${isSel ? "halo rounded-xl" : ""}`}
-                style={{ opacity: dim ? 0.45 : 1 }}
-              >
-                <span className={`tl-dot ${fresh ? "node-pop" : ""}`} aria-hidden="true" />
-                <span className="flex items-baseline justify-between gap-4">
-                  <span className="min-w-0">
-                    <span className="block text-[1.02rem] font-semibold leading-6" style={{ color: "var(--text)" }}>
-                      {isDone && <span style={{ color: "var(--accent)" }}>✓ </span>}{n.title}
-                    </span>
-                    <span className="meta mt-1 block">
-                      Milestone {String(i + 1).padStart(2, "0")}
-                      {n.difficulty_level ? ` · ${n.difficulty_level}` : ""}
-                      {isNext ? " · you are here" : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-lg" style={{ color: "var(--text-muted)" }} aria-hidden="true">›</span>
-                </span>
-              </button>
-            </div>
+                <p className="meta mb-8">
+                  Stage {stage.numeral} · {stageDone} of {stage.items.length} in place
+                  {stageMins ? ` · ≈ ${stageMins} min of linked material` : ""}
+                </p>
+              </Reveal>
+
+              {stage.items.map(({ node, globalIndex }) => {
+                const isDone = done.has(node.id);
+                const isNext = node.id === nextId;
+                const isSel = selected && node.id === selected.id;
+                const fresh = justDone === node.id;
+                const side = globalIndex % 2 === 0 ? "left" : "right";
+                const linked = resourcesByDomain[node.domain] ?? [];
+                const builds = projectsByNode[node.id] ?? [];
+                return (
+                  <div key={node.id} id={`rm-node-${node.id}`} className="rm-row scroll-mt-28">
+                    <div className={`rm-cell rm-cell-left ${side === "left" ? "has-card" : ""}`}>
+                      {side === "left" ? (
+                        <Reveal>
+                          <RoadmapTopicCard
+                            node={node}
+                            index={globalIndex}
+                            isDone={isDone}
+                            isNext={isNext}
+                            isSelected={!!isSel}
+                            justCompleted={fresh}
+                            resources={linked}
+                            resourceDoneSet={resourceDoneSet}
+                            projects={builds}
+                            onOpen={() => setSelectedId(node.id)}
+                          />
+                        </Reveal>
+                      ) : (
+                        <TrailNote state={isDone ? "done" : isNext ? "now" : "todo"} />
+                      )}
+                    </div>
+
+                    <div className="rm-center">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(node.id)}
+                        aria-current={isNext ? "step" : undefined}
+                        aria-label={`Open ${node.title} details`}
+                        className={`rm-node ${isDone ? "is-done" : isNext ? "is-now line-illuminate" : ""} ${isSel ? "halo" : ""}`}
+                      >
+                        <span className={`rm-pip ${fresh ? "node-pop" : ""}`} aria-hidden="true">
+                          {isDone ? "✓" : String(globalIndex + 1).padStart(2, "0")}
+                        </span>
+                      </button>
+                      <span className="rm-milestone" aria-hidden="true">
+                        M{String(globalIndex + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+
+                    <div className={`rm-cell rm-cell-right ${side === "right" ? "has-card" : ""}`}>
+                      {side === "right" ? (
+                        <Reveal>
+                          <RoadmapTopicCard
+                            node={node}
+                            index={globalIndex}
+                            isDone={isDone}
+                            isNext={isNext}
+                            isSelected={!!isSel}
+                            justCompleted={fresh}
+                            resources={linked}
+                            resourceDoneSet={resourceDoneSet}
+                            projects={builds}
+                            onOpen={() => setSelectedId(node.id)}
+                          />
+                        </Reveal>
+                      ) : (
+                        <TrailNote state={isDone ? "done" : isNext ? "now" : "todo"} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
           );
         })}
+
+        <Reveal>
+          <section
+            aria-label="Where this roadmap leads"
+            className="mx-auto mt-20 max-w-3xl rounded-2xl border px-6 py-8 text-center"
+            style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
+          >
+            <Meta>Learn → Practice → Build → Proof</Meta>
+            <p className="font-display mt-3 text-2xl font-medium" style={{ color: "var(--text)" }}>
+              {doneIds.length >= nodes.length
+                ? "Path complete. Turn it into proof."
+                : "Keep walking — every topic ends in proof."}
+            </p>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+              Finish a topic&apos;s material, ship a linked project, and milestones
+              become achievements on your record — the same trail credentials are built from.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              {nextId ? (
+                <a href={`#rm-node-${nextId}`} className="btn-ink">
+                  Return to your position →
+                </a>
+              ) : null}
+              <Link href="/student/projects" prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                Open your builds
+              </Link>
+              <Link href="/student/credentials" prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                View proof
+              </Link>
+            </div>
+          </section>
+        </Reveal>
       </div>
 
       <NodeDrawer
@@ -116,7 +222,89 @@ export function RoadmapJourney({ nodes, doneIds, nextId, resourcesByDomain }) {
         onClose={() => setSelectedId(null)}
         onCompleted={(id) => setJustDone(id)}
       />
+
+      <style>{`
+        .rm-map { position: relative; }
+        .rm-spine {
+          position: absolute; top: 0; bottom: 0; left: 20px; width: 2px;
+          background: var(--line); border-radius: 999px; overflow: hidden;
+        }
+        .rm-spine-fill {
+          position: absolute; top: 0; left: 0; right: 0;
+          background: linear-gradient(180deg, var(--accent-dark), var(--accent));
+          transition: height 0.7s var(--ease-out);
+        }
+        .rm-stage { position: relative; padding: 2.5rem 0 1rem; }
+        .rm-row {
+          position: relative; display: grid; gap: 0.75rem;
+          grid-template-columns: 40px 1fr; padding: 1.25rem 0 1.25rem 0;
+        }
+        .rm-cell-left { display: none; }
+        .rm-cell-right { min-width: 0; }
+        .rm-center { grid-row: 1; grid-column: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding-top: 0.35rem; }
+        .rm-cell-right { grid-row: 1; grid-column: 2; }
+        .rm-node {
+          position: relative; z-index: 1; width: 40px; height: 40px; border-radius: 999px;
+          display: grid; place-items: center;
+          border: 1.5px solid var(--line); background: var(--bg);
+          transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+        }
+        .rm-node:hover { transform: translateY(-1px); }
+        .rm-pip {
+          font-family: ui-monospace, "SF Mono", Menlo, monospace;
+          font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+        }
+        .rm-node.is-done { border-color: var(--accent); background: var(--accent); }
+        .rm-node.is-done .rm-pip { color: #101314; }
+        .rm-node.is-now { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
+        .rm-node.is-now .rm-pip { color: var(--accent); }
+        .rm-milestone {
+          font-family: ui-monospace, "SF Mono", Menlo, monospace;
+          font-size: 0.62rem; letter-spacing: 0.1em; color: var(--text-muted);
+        }
+        .rm-card {
+          position: relative; border: 1px solid var(--line); border-radius: 16px;
+          background: var(--bg-elevated); padding: 1.1rem 1.15rem;
+          min-width: 0; overflow-wrap: anywhere;
+        }
+        .rm-trail { display: none; }
+        @media (min-width: 900px) {
+          .rm-spine { left: 50%; transform: translateX(-50%); }
+          .rm-row {
+            grid-template-columns: 1fr 88px 1fr; align-items: start;
+            padding: 2rem 0;
+          }
+          .rm-cell-left { display: block; grid-row: 1; grid-column: 1; min-width: 0; }
+          .rm-center { grid-row: 1; grid-column: 2; padding-top: 1.4rem; }
+          .rm-cell-right { grid-row: 1; grid-column: 3; }
+          .rm-cell { position: relative; }
+          .rm-cell-left.has-card::after, .rm-cell-right.has-card::after {
+            content: ""; position: absolute; top: 64px; width: 44px;
+            border-top: 1px dashed var(--line);
+          }
+          .rm-cell-left.has-card::after { right: -44px; }
+          .rm-cell-right.has-card::after { left: -44px; }
+          .rm-trail {
+            display: block; padding-top: 3.2rem; text-align: center;
+            font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-muted);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .rm-spine-fill, .rm-node { transition: none; }
+        }
+      `}</style>
     </main>
+  );
+}
+
+function TrailNote({ state }) {
+  const label =
+    state === "done" ? "In place ✓" : state === "now" ? "You are here" : "Further down the path";
+  return (
+    <p className="rm-trail" aria-hidden="true">
+      {label}
+    </p>
   );
 }
 

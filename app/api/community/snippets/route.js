@@ -18,10 +18,14 @@ export async function GET(request) {
   const { tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") || "").trim();
+  const language = (searchParams.get("language") || "").trim().slice(0, 30);
+  const domain = (searchParams.get("domain") || "").trim().slice(0, 40);
   const snippets = await sql`
     SELECT s.*, p.name AS author_name FROM code_snippets s
     LEFT JOIN profiles p ON p.user_id = s.author_id
     WHERE (s.tenant_id IS NULL OR s.tenant_id = ${tenant?.id ?? null}::uuid) AND s.status = 'visible'
+      AND (${language} = '' OR s.language = ${language})
+      AND (${domain} = '' OR s.domain = ${domain})
       AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.code ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`}))
     ORDER BY s.upvote_count DESC, s.created_at DESC LIMIT 50
   `;

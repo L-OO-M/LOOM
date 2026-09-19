@@ -27,6 +27,14 @@ export async function PATCH(request) {
   if (!admin && myLevel !== "dept_lead") {
     return fail("FORBIDDEN", "Only the department's Head or Co-Head can mark succession", 403);
   }
+  // The membership lookup above is tenant-scoped, but the admin path skips
+  // it — verify the department lives in the caller's chapter before writing,
+  // otherwise an admin of tenant B could mutate tenant A's memberships.
+  // NULL tenant fails closed (matches nothing).
+  const [dept] = await sql`
+    SELECT id FROM departments WHERE id = ${body.departmentId} AND tenant_id = ${tenant?.id} LIMIT 1
+  `;
+  if (!dept) return fail("NOT_FOUND", "Department not found in your chapter", 404);
   const [row] = await sql`
     UPDATE department_memberships SET succession_ready = ${body.ready}
     WHERE user_id = ${body.userId} AND department_id = ${body.departmentId}

@@ -198,7 +198,11 @@ export function AppShell({ area = "student", tenant, user, children }) {
             <div className="floatbar grid grid-cols-6 rounded-3xl px-1 py-1.5">
               {mobileNav.map((item) => {
                 const Icon = icons[item.icon] || Home;
-                const isActive = item.group ? activeGroup?.id === item.group : (pathname || "") === "/student";
+                // Exact destination wins so two items sharing a group (e.g.
+                // Challenges + Proof under "prove") never light up together.
+                const current = pathname || "";
+                const exactHit = mobileNav.some((m) => m.href === current);
+                const isActive = current === item.href || (item.group ? activeGroup?.id === item.group && !exactHit : current === "/student");
                 return (
                   <Link
                     key={item.href}

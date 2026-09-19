@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminNav, groupForTab, pathToTab, studentAliases, studentNav, studentSecondary } from "@/lib/nav";
+import { adminNav, groupForTab, mobileNav, pathToTab, studentAliases, studentNav, studentSecondary } from "@/lib/nav";
 
 describe("five-verb navigation", () => {
   it("resolves leaf destinations, not groups", () => {
@@ -59,5 +59,11 @@ describe("five-verb navigation", () => {
 
   it("holds exactly five verbs plus home", () => {
     expect(studentNav.map((n) => n.id)).toEqual(["dashboard", "learn", "build", "prove", "connect", "discover"]);
+  });
+
+  it("exposes challenges in the mobile bar without duplicate destinations", () => {
+    const hrefs = mobileNav.map((n) => n.href);
+    expect(hrefs).toContain("/student/contests");
+    expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 });

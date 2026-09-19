@@ -7,7 +7,7 @@ const resourceSchema = z.object({
   title: z.string().min(3).max(160),
   domain: z.string().min(1).max(40).default("web"),
   level: z.string().min(1).max(40).default("foundation"),
-  kind: z.enum(["article", "doc", "video"]).default("article"),
+  kind: z.enum(["article", "doc", "video", "course"]).default("article"),
   url: z.string().url().nullable().optional(),
   minutes: z.number().int().min(1).max(600).default(30)
 });
