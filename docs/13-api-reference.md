@@ -23,7 +23,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/leaderboard` | user | `?scope=college\|global` |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
-| GET/POST | `/api/github` | user | link username, list repos/activity |
+| GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |
 | POST | `/api/jobs/github/process` | service | QStash worker: aggregates webhook events |
 
 ## Open source

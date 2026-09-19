@@ -6,14 +6,19 @@ export default function ExportGithubButton({ data }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "loom-github-stats.json";
+    a.download = "loom-github-activity.json";
     a.click();
     URL.revokeObjectURL(url);
   }
 
   return (
-    <button onClick={download} className="rounded-xl border px-3 py-2 text-sm transition active:scale-[0.97]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
-      Export JSON
+    <button
+      onClick={download}
+      type="button"
+      title="Download your recorded GitHub activity as JSON"
+      className="btn-ghost !py-2 text-sm transition active:scale-[0.97]"
+    >
+      ↓ Export activity
     </button>
   );
 }

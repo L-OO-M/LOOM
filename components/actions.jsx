@@ -133,9 +133,9 @@ export function MarkNotificationRead({ id, read }) {
   );
 }
 
-export function GithubConnectForm() {
+export function GithubConnectForm({ initial = "", submitLabel = "Link GitHub" }) {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(initial);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   async function run(e) {
@@ -155,7 +155,7 @@ export function GithubConnectForm() {
       <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="github-username" required pattern="[a-zA-Z0-9-]+" maxLength={39}
         style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }} />
       <button disabled={busy} className="btn-ink disabled:opacity-50">
-        {busy ? "Linking…" : "Link GitHub"}
+        {busy ? "Linking…" : submitLabel}
       </button>
       {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
     </form>
