@@ -13,6 +13,9 @@
   --wash: rgba(214, 178, 94, 0.06);
   --gold: #d6b25e;
   --danger: #e5484d;
+  --success: #0fa37a;
+  --warn: #d68a1a;
+  --info: #6b8db5;
   --nav-bg: rgba(10, 11, 12, 0.72);
 }
 
@@ -29,6 +32,9 @@
   --wash: rgba(176, 141, 62, 0.08);
   --gold: #a37c26;
   --danger: #b42318;
+  --success: #0c8a6a;
+  --warn: #b87312;
+  --info: #4a6d96;
   --nav-bg: rgba(250, 246, 238, 0.82);
 }
 
