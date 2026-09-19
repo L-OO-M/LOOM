@@ -106,3 +106,14 @@ node load/verify-gate.js status               # only when touching GitHub ingest
 ## 7. Emergency brake
 
 If the site breaks after your change: `git log --oneline -5` → `git revert <your-commit>` → push the revert → then debug on a clean tree. Reverting is always preferable to hot-patching forward. Production-impacting, destructive, auth/security-boundary, or paid-resource actions: stop and ask a human first.
+
+---
+
+## 8. Version-matched Next.js reference (don't trust training data)
+
+The toolchain pins `next` 15.5.x (see `package.json`). Next.js APIs shift between majors — never copy App Router patterns from memory or blogs without checking the version-matched source first:
+
+- Local copy: `.next-docs/` (gitignored scratch, generated via `npx @next/codemod@canary agents-md --version <installed> --output .next-docs/AGENTS-INDEX.md`; start from `.next-docs/AGENTS-INDEX.md`). Regenerate after every Next upgrade.
+- Over the network: append `.md` to any `nextjs.org/docs` page URL, or read `https://nextjs.org/docs/llms.txt`. Per-error pages under `/docs/messages/*` are network-only.
+- Docs examples are TypeScript — translate to this repo's JavaScript/JSX (iron rule 1) before applying.
+- Not on our version (Next 16.x only, verified absent in 15.5.25): bundled `node_modules/next/dist/docs/`, auto-generated `AGENTS.md`/`CLAUDE.md`, `logging.browserToTerminal`. Keep this file hand-maintained; if we ever adopt 16.3+, our content must live outside the `<!-- BEGIN:nextjs-agent-rules -->` managed block.
