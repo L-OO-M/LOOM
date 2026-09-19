@@ -8,6 +8,7 @@ import { Meta } from "@/components/loom/primitives";
 import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
+import { RosterLevelBars, WorkshopTimelineBars, ApprovalDonut } from "@/components/lead/LeadCharts";
 
 export default async function LeadConsolePage() {
   const ctx = await getRequestContext();
@@ -23,6 +24,19 @@ export default async function LeadConsolePage() {
     members: data.roster.filter((r) => r.department_id === d.id),
     requests: data.roster.filter((r) => r.department_id === d.id && r.core_requested && r.level === "general")
   }));
+  const rosterLevels = ["general", "core", "dept_lead"].map((lvl) => ({
+    name: lvl,
+    value: data.roster.filter((r) => r.level === lvl).length,
+  }));
+  const workshopTimeline = [...data.workshops].slice(0, 8).map((w) => ({
+    label: new Date(w.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+    value: 1,
+    title: w.title,
+  }));
+  const approvalDonut = [
+    { name: "Core requests", value: pendingRequests.length },
+    { name: "Proposed events", value: data.proposed.length },
+  ];
 
   return (
     <AppShell area="lead" tenant={tenant} user={user}>
@@ -40,6 +54,12 @@ export default async function LeadConsolePage() {
           <StatTile value={pendingRequests.length} unit="waiting" label="Core requests needing a human" tone={pendingRequests.length > 0 ? "var(--accent)" : undefined} />
           <StatTile value={data.workshops.length} unit="soon" label="upcoming workshops on the horizon" />
         </TileGrid>
+
+        <section className="mt-6 grid gap-4 lg:grid-cols-3" aria-label="Lead visuals">
+          <RosterLevelBars data={rosterLevels} />
+          <WorkshopTimelineBars data={workshopTimeline} />
+          <ApprovalDonut data={approvalDonut} />
+        </section>
 
         {pendingRequests.length > 0 && (
           <section className="rounded-2xl border p-5" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }} aria-label="Core requests">

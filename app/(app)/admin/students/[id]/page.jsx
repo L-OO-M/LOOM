@@ -4,6 +4,8 @@ import { Clock3, Github, Layers, GraduationCap, Shield, ExternalLink, Award, Fol
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import RoleForm from "./RoleForm";
+import { ActivityBars } from "@/components/admin/DetailCharts";
+import { HeatStrip } from "@/components/loom/HeatStrip";
 
 function initials(name) {
   if (!name) return "?";
@@ -48,6 +50,14 @@ export default async function AdminStudentDetailPage({ params }) {
   const achievements = await sql`SELECT id, source_type, source_ref, level, created_at FROM student_achievements WHERE student_id = ${id} ORDER BY created_at DESC LIMIT 6`;
 
   const pct = stats?.total_nodes ? Math.round((stats.done / stats.total_nodes) * 100) : 0;
+  const activityBars = [...activity].reverse().map((a) => ({
+    label: new Date(a.day).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+    value: (Number(a.commits) || 0) + (Number(a.pull_requests) || 0) + (Number(a.reviews) || 0),
+  }));
+  const heatDays = [...activity].reverse().map((a) => ({
+    label: String(a.day).slice(0, 10),
+    value: (Number(a.commits) || 0) + (Number(a.pull_requests) || 0) + (Number(a.reviews) || 0),
+  }));
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -119,6 +129,12 @@ export default async function AdminStudentDetailPage({ params }) {
               <p className="narrative mt-1">Grant is scoped — Heads require a department, Vertical Leads require a vertical. Every change is audited.</p>
               <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} /></div>
             </section>
+
+            <ActivityBars data={activityBars} />
+            <div className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <p className="meta">Heat · saturation = signals</p>
+              <div className="mt-2"><HeatStrip days={heatDays} emptyLabel="No signals in 14 days" /></div>
+            </div>
 
             <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Activity size={14} /> Recent activity · last 14 days</h2>

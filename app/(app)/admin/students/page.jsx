@@ -4,6 +4,7 @@ import { Search, Users, Shield, Crown, GraduationCap, Filter, ArrowUpRight, X } 
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
+import { RoleDistributionDonut, DeptMembershipBars } from "@/components/admin/StudentsCharts";
 
 function roleTone(role) {
   switch (role) {
@@ -64,6 +65,14 @@ export default async function AdminStudentsPage({ searchParams }) {
     ORDER BY p.updated_at DESC LIMIT 50
   `;
 
+  // Charts — sequential tenant-scoped aggregates (pooler-safe).
+  const deptCounts = await sql`
+    SELECT d.name, COUNT(*)::int AS c FROM department_memberships m
+    JOIN departments d ON d.id = m.department_id
+    WHERE (d.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    GROUP BY d.name ORDER BY c DESC LIMIT 6
+  `;
+
   const activeFilters = [q && `search: ${q}`, role && `role: ${role}`, dept && `dept: ${dept}`].filter(Boolean);
   const clearHref = "/admin/students";
 
@@ -101,8 +110,18 @@ export default async function AdminStudentsPage({ searchParams }) {
           ))}
         </div>
 
+        <section className="grid gap-4 lg:grid-cols-2" aria-label="Distribution visuals">
+          <RoleDistributionDonut data={[
+            { name: "Student", value: stats?.students ?? 0 },
+            { name: "Core", value: stats?.core ?? 0 },
+            { name: "Leads", value: stats?.leads ?? 0 },
+            { name: "Admin", value: stats?.admins ?? 0 },
+          ]} />
+          <DeptMembershipBars data={deptCounts.map((r) => ({ name: r.name, value: r.c }))} />
+        </section>
+
         {/* Filters — professional filter bar: search + selects + pills, like Linear/Notion directories */}
-        <form method="get" className="mb-4 rounded-2xl border p-3 sm:p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
+        <form method="get" className="mb-4 mt-4 rounded-2xl border p-3 sm:p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
