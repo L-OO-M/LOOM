@@ -8,8 +8,9 @@ export function ClaimCard({ hasCard }) {
   if (hasCard) return null;
   return (
     <div className="rounded-2xl border p-5" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
-      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Claim your public profile</p>
-      <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Pick a username to appear in Discover and share your proof.</p>
+      <p className="meta" style={{ color: "var(--accent)" }}>Your place in Discover</p>
+      <p className="mt-1.5 text-sm font-medium" style={{ color: "var(--text)" }}>Claim your builder card</p>
+      <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Pick a username to appear alongside the builders above and share your proof.</p>
       <UsernameForm />
     </div>
   );

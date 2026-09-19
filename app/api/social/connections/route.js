@@ -8,9 +8,17 @@ const endorseSchema = z.object({
   skill: z.string().min(2).max(40)
 });
 
-async function resolveUser(sql, username) {
-  const [card] = await sql`SELECT user_id FROM user_profiles WHERE username = ${username.trim().toLowerCase()} LIMIT 1`;
-  return card?.user_id || null;
+async function resolveUser(sql, username, viewer) {
+  const [card] = await sql`SELECT user_id, tenant_id, is_public FROM user_profiles WHERE username = ${username.trim().toLowerCase()} LIMIT 1`;
+  if (!card) return null;
+  // Visibility boundary: same-chapter public cards, or the owner's own card.
+  // Anything else resolves as not-found so private and cross-tenant profiles
+  // can be neither inspected nor followed/endorsed through this API.
+  if (card.user_id !== viewer.id) {
+    if (!card.is_public) return null;
+    if (!card.tenant_id || !viewer.tenantId || card.tenant_id !== viewer.tenantId) return null;
+  }
+  return card.user_id;
 }
 
 export async function GET(request) {
@@ -18,7 +26,8 @@ export async function GET(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { searchParams } = new URL(request.url);
-  const target = await resolveUser(ctx.sql, searchParams.get("username") || "");
+  const viewer = { id: ctx.user.id, tenantId: ctx.tenant?.id ?? null };
+  const target = await resolveUser(ctx.sql, searchParams.get("username") || "", viewer);
   if (!target) return fail("NOT_FOUND", "User not found", 404);
   const { user, sql } = ctx;
   const [following] = await sql`SELECT id FROM followers WHERE follower_id = ${user.id} AND following_id = ${target} LIMIT 1`;
@@ -42,7 +51,7 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  const target = await resolveUser(sql, body.username);
+  const target = await resolveUser(sql, body.username, { id: user.id, tenantId: tenant?.id ?? null });
   if (!target) return fail("NOT_FOUND", "User not found", 404);
   if (target === user.id) return fail("INVALID", "You cannot follow or endorse yourself", 400);
 
@@ -59,9 +68,16 @@ export async function POST(request) {
     return ok({ following: false });
   }
   await sql`INSERT INTO followers (follower_id, following_id) VALUES (${user.id}, ${target}) ON CONFLICT DO NOTHING`;
+  // Point at the follower's own profile when they have a visible card in the
+  // same chapter; otherwise fall back to Discover. The target already passed
+  // the same-chapter check above, so a same-tenant username never leaks.
+  const [mine] = await sql`SELECT username, tenant_id, is_public FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
+  const followLink = mine?.username && mine.tenant_id === tenant?.id && mine.is_public
+    ? `/student/${mine.username}`
+    : "/student/discover";
   await notify({
     sql, tenantId: tenant?.id, userId: target, type: "follow",
-    title: "New follower", body: "Someone from your chapter followed you.", link: "/student/discover"
+    title: "New follower", body: "Someone from your chapter followed you.", link: followLink
   });
   return ok({ following: true });
 }

@@ -74,9 +74,9 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
 | POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
-| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated) |
-| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` |
-| GET/POST | `/api/social/discover` | trending threads, mentors, rising builders / mentor review |
+| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved) |
+| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible |
+| GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
 ## Errors & limits
 
