@@ -54,6 +54,7 @@ export function LeadConsoleTabs({ initialData, userId, isVertical }) {
     { name: "Proposed events", value: data.proposed.length },
   ];
 
+  const [q, setQ] = useState("");
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "roster", label: `Roster · ${data.roster.length}` },
@@ -61,7 +62,11 @@ export function LeadConsoleTabs({ initialData, userId, isVertical }) {
     { id: "reports", label: "Reports" },
     ...(isVertical ? [{ id: "succession", label: "Succession" }] : []),
   ];
-  if (!isVertical) tabs.splice(2, 0); // keep order overview, roster, workshops, reports
+  if (!isVertical) tabs.splice(2, 0);
+  const cap = isVertical
+    ? ["Approve society events", "View vertical calendar & conflicts", "Grant Core in vertical", "Recommend budget (not approve)", "Succession overview"]
+    : ["Grant Core in own dept", "Publish dept workshops", "Propose society events (needs approval)", "Mark succession-ready", "Compile dept reports"];
+
 
   return (
     <div>
@@ -88,6 +93,11 @@ export function LeadConsoleTabs({ initialData, userId, isVertical }) {
         <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }} className="mt-6">
           {tab === "overview" && (
             <div className="space-y-6">
+              <section className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--accent) 5%, var(--bg-elevated))" }}>
+                <Meta>What you can do — {isVertical ? "Vertical Lead" : "Dept Lead"} · scoped, audited, no self-escalation</Meta>
+                <ul className="mt-2 flex flex-wrap gap-2">{cap.map((c) => <li key={c} className="mono-tag rounded-full border px-2.5 py-1" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>{c}</li>)}</ul>
+                <p className="mono-tag mt-2">All writes are tenant-scoped, audit-logged, and upward-only — see <span style={{ color: "var(--text)" }}>/admin/audit</span>.</p>
+              </section>
               <TileGrid cols={3}>
                 <motion.div whileHover={{ y: -1 }} transition={{ type: "spring", stiffness: 380 }}><StatTile value={data.roster.length} unit="members" label={isVertical ? "members across your vertical" : "members across your departments"} /></motion.div>
                 <motion.div whileHover={{ y: -1 }}><StatTile value={pendingRequests.length} unit="waiting" label="Core requests needing a human" tone={pendingRequests.length > 0 ? "var(--accent)" : undefined} /></motion.div>
@@ -131,22 +141,31 @@ export function LeadConsoleTabs({ initialData, userId, isVertical }) {
           )}
 
           {tab === "roster" && (
-            <div className="grid gap-6 lg:grid-cols-2">
-              {byDept.length === 0 ? <p className="narrative">No departments in your scope yet.</p> : byDept.map((d) => (
-                <section key={d.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                  <div className="flex items-baseline justify-between"><h2 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{d.name}</h2><span className="mono-tag">{d.members.length} member{d.members.length === 1 ? "" : "s"}</span></div>
-                  {d.requests.length > 0 && <p className="mono-tag mt-2" style={{ color: "var(--accent)" }}>{d.requests.length} Core request{d.requests.length === 1 ? "" : "s"} open</p>}
-                  <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                    {d.members.length === 0 && <li className="mono-tag">No members yet.</li>}
-                    {d.members.map((m) => (
-                      <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[var(--wash)] transition" style={{ background: "var(--bg)" }}>
-                        <span className="min-w-0 text-sm" style={{ color: "var(--text)" }}><span className="font-medium">{m.name}</span> <span className="mono-tag">{m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""}</span></span>
-                        <span className="flex gap-2">{m.core_requested && m.level === "general" && <GrantCoreButton departmentId={d.id} userId={m.user_id} name={m.name || "member"} />}{(m.level === "core" || m.level === "dept_lead") && m.user_id !== userId && <SuccessionToggle departmentId={d.id} userId={m.user_id} name={m.name || "member"} ready={m.succession_ready} />}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 items-center">
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search roster by name, year, github…" className="min-w-[220px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} aria-label="Search roster" />
+                {q && <button onClick={() => setQ("")} className="btn-ghost !py-1.5 !text-xs">Clear</button>}
+                <span className="mono-tag">{q ? `${byDept.flatMap((d) => d.members).filter((m) => `${m.name} ${m.year || ""} ${m.github_username || ""}`.toLowerCase().includes(q.toLowerCase())).length} matches` : `${data.roster.length} total`}</span>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {byDept.length === 0 ? <p className="narrative">No departments in your scope yet.</p> : byDept.map((d) => {
+                  const visible = q ? d.members.filter((m) => `${m.name} ${m.year || ""} ${m.github_username || ""}`.toLowerCase().includes(q.toLowerCase())) : d.members;
+                  return (
+                  <section key={d.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                    <div className="flex items-baseline justify-between"><h2 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{d.name}</h2><span className="mono-tag">{visible.length}/{d.members.length} member{d.members.length === 1 ? "" : "s"}</span></div>
+                    {d.requests.length > 0 && <p className="mono-tag mt-2" style={{ color: "var(--accent)" }}>{d.requests.length} Core request{d.requests.length === 1 ? "" : "s"} open — audited, tenant-scoped</p>}
+                    <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {visible.length === 0 && <li className="mono-tag">{q ? "No matches" : "No members yet."}</li>}
+                      {visible.map((m) => (
+                        <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[var(--wash)] transition" style={{ background: "var(--bg)" }}>
+                          <span className="min-w-0 text-sm" style={{ color: "var(--text)" }}><span className="font-medium">{m.name}</span> <span className="mono-tag">{m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""} · yr {m.year || "—"} · @{m.github_username || "—"}</span></span>
+                          <span className="flex gap-2">{m.core_requested && m.level === "general" && <GrantCoreButton departmentId={d.id} userId={m.user_id} name={m.name || "member"} />}{(m.level === "core" || m.level === "dept_lead") && m.user_id !== userId && <SuccessionToggle departmentId={d.id} userId={m.user_id} name={m.name || "member"} ready={m.succession_ready} />}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );})}
+              </div>
             </div>
           )}
 
