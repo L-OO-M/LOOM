@@ -5,6 +5,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { RoleDistributionDonut, DeptMembershipBars } from "@/components/admin/StudentsCharts";
+import { classifyMany } from "@/lib/tiers";
 
 function roleTone(role) {
   switch (role) {
@@ -32,6 +33,7 @@ export default async function AdminStudentsPage({ searchParams }) {
   const q = (sp?.q || "").trim();
   const role = sp?.role || "";
   const dept = sp?.dept || "";
+  const tierFilter = sp?.tier || "";
 
   const departments = await sql`
     SELECT slug, name FROM departments
@@ -51,7 +53,7 @@ export default async function AdminStudentsPage({ searchParams }) {
     WHERE (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
   `;
 
-  const rows = await sql`
+  let rows = await sql`
     SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
            p.github_username, p.updated_at, p.vertical,
       (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
@@ -65,6 +67,23 @@ export default async function AdminStudentsPage({ searchParams }) {
     ORDER BY p.updated_at DESC LIMIT 50
   `;
 
+  // Tier segregation — computed live, never stored, not shown as public tags
+  let tierMap = new Map();
+  let tierCounts = { beginner: 0, intermediate: 0, advanced: 0 };
+  if (rows.length > 0) {
+    try {
+      tierMap = await classifyMany(sql, rows.map((r) => r.user_id));
+      for (const r of rows) {
+        const t = tierMap.get(r.user_id)?.tier || "beginner";
+        tierCounts[t] = (tierCounts[t] || 0) + 1;
+        r._tier = t;
+      }
+      if (tierFilter && ["beginner", "intermediate", "advanced"].includes(tierFilter)) {
+        rows = rows.filter((r) => r._tier === tierFilter);
+      }
+    } catch { /* tier must never break roster */ }
+  }
+
   // Charts — sequential tenant-scoped aggregates (pooler-safe).
   const deptCounts = await sql`
     SELECT d.name, COUNT(*)::int AS c FROM department_memberships m
@@ -73,7 +92,7 @@ export default async function AdminStudentsPage({ searchParams }) {
     GROUP BY d.name ORDER BY c DESC LIMIT 6
   `;
 
-  const activeFilters = [q && `search: ${q}`, role && `role: ${role}`, dept && `dept: ${dept}`].filter(Boolean);
+  const activeFilters = [q && `search: ${q}`, role && `role: ${role}`, dept && `dept: ${dept}`, tierFilter && `tier: ${tierFilter}`].filter(Boolean);
   const clearHref = "/admin/students";
 
   return (
@@ -108,6 +127,21 @@ export default async function AdminStudentsPage({ searchParams }) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Tier segregation — for heads to distribute work (not shown as public tags) */}
+        <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+          <span className="meta mr-2">Tiers (internal):</span>
+          {[
+            { id: "beginner", label: "Beginner", count: tierCounts.beginner, color: "#64748b", desc: "needs support" },
+            { id: "intermediate", label: "Intermediate", count: tierCounts.intermediate, color: "#d97706", desc: "needs guidance" },
+            { id: "advanced", label: "Advanced", count: tierCounts.advanced, color: "#16a34a", desc: "ready to build" },
+          ].map((t) => (
+            <Link key={t.id} href={tierFilter === t.id ? clearHref : `/admin/students?tier=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${role ? `&role=${role}` : ""}${dept ? `&dept=${dept}` : ""}`} prefetch={false} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: tierFilter === t.id ? t.color : "var(--line)", background: tierFilter === t.id ? t.color : "transparent", color: tierFilter === t.id ? "white" : "var(--text-muted)" }}>
+              <span className="size-2 rounded-full" style={{ background: t.color }} /> {t.label} · {t.count} <span className="hidden sm:inline opacity-60">· {t.desc}</span>
+            </Link>
+          ))}
+          <span className="meta ml-auto hidden sm:inline">Hidden from student UI · for distribution only</span>
         </div>
 
         <section className="grid gap-4 lg:grid-cols-2" aria-label="Distribution visuals">
@@ -150,6 +184,12 @@ export default async function AdminStudentsPage({ searchParams }) {
                 <option value="">All departments</option>
                 {departments.map((d) => <option key={d.slug} value={d.slug}>{d.name}</option>)}
               </select>
+              <select name="tier" defaultValue={tierFilter} aria-label="Filter by tier" className="rounded-xl border py-2.5 pl-3 pr-8 text-sm outline-none" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
+                <option value="">All tiers</option>
+                <option value="beginner">Beginner — needs support</option>
+                <option value="intermediate">Intermediate — needs guidance</option>
+                <option value="advanced">Advanced — ready to build</option>
+              </select>
               <button className="btn-ink !py-2.5 !px-5 text-sm">Search</button>
               {(q || role || dept) && (
                 <Link href={clearHref} prefetch={false} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium hover:bg-[var(--bg)]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
@@ -184,6 +224,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                   <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--bg)" }}>
                     <th className="whitespace-nowrap px-4 py-3 font-medium">Student</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Role</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Tier</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Track</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Departments</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Year</th>
@@ -195,6 +236,8 @@ export default async function AdminStudentsPage({ searchParams }) {
                   {rows.map((r) => {
                     const tone = roleTone(r.role);
                     const mems = Array.isArray(r.departments) ? r.departments : [];
+                    const tier = tierMap.get(r.user_id);
+                    const tierColor = tier?.tier === "advanced" ? "#16a34a" : tier?.tier === "intermediate" ? "#d97706" : "#64748b";
                     return (
                       <tr key={r.user_id} className="group transition hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
                         <td className="px-4 py-3">
@@ -208,6 +251,11 @@ export default async function AdminStudentsPage({ searchParams }) {
                         </td>
                         <td className="px-3 py-3">
                           <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>{tone.label}</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: tierColor }} title={tier?.need || ""}>
+                            <span className="size-2 rounded-full" style={{ background: tierColor }} />{tier?.tier || "beginner"}
+                          </span>
                         </td>
                         <td className="px-3 py-3"><span className="meta rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{r.primary_domain || "—"}</span></td>
                         <td className="px-3 py-3">
