@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { cached } from "@/lib/cache";
+import { getCachedResourceCounts, getCachedResourceLevels, getCachedResourceTotal } from "@/lib/server-cache";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
@@ -59,14 +60,15 @@ export default async function ResourcesPage({ searchParams }) {
   const status = ["completed", "todo"].includes(sp?.status) ? sp.status : "";
   const base = { ...(q ? { q } : {}), ...(kind ? { kind } : {}), ...(level ? { level } : {}), ...(status ? { status } : {}) };
 
-  // Sequential page queries — global catalog reads are cached 30s to keep
-  // pooler pressure low; user progress stays uncached and sequential per AGENTS rule.
+  // Sequential page queries — global catalog reads via unstable_cache 30s
+  // (survives restarts, shared across workers). User progress stays 10s via
+  // server-cache tags and revalidateTag on mutations.
   const profile = await sql`SELECT primary_domain FROM profiles WHERE user_id = ${user.id} LIMIT 1`;
   const primaryDomain = profile[0]?.primary_domain || "";
 
-  const counts = await cached("resources:counts", 30000, async () => sql`SELECT domain, COUNT(*)::int AS n FROM resources GROUP BY domain`);
-  const levelRows = await cached("resources:levels", 30000, async () => sql`SELECT DISTINCT level FROM resources ORDER BY level ASC`);
-  const totalRows = await cached("resources:total", 30000, async () => sql`SELECT COUNT(*)::int AS n FROM resources`);
+  const counts = await getCachedResourceCounts();
+  const levelRows = await getCachedResourceLevels();
+  const totalRows = await getCachedResourceTotal();
   const countBy = Object.fromEntries(counts.map((c) => [c.domain, c.n]));
   const levels = levelRows.map((r) => r.level).filter(Boolean);
   const totalResources = totalRows[0]?.n ?? 0;
