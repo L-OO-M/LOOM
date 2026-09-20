@@ -83,7 +83,16 @@ export async function middleware(request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  // Security headers (P0.5)
+  res.headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co; frame-ancestors 'none'");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // HSTS only on https (prod)
+  if (request.nextUrl.protocol === "https:") res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  return res;
 }
 
 export const config = {

@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { milestoneFor } from "@/lib/mentorship";
+import { recordRankingEvent, recomputeScores } from "@/lib/ranking";
 
 const progressSchema = z.object({
   nodeId: z.string().min(1),
@@ -57,6 +58,21 @@ export async function POST(request) {
         : "Roadmap progress updated.",
       link: milestone ? "/student/credentials" : "/student/roadmap"
     });
+    // Evidence-based ranking
+    await recordRankingEvent({ sql, tenantId: tenant?.id, userId: user.id, kind: "roadmap_done", refId: body.nodeId });
+    await recomputeScores(sql, tenant?.id);
+  } else {
+    // Recurrent stuck signal: count active->active without progress as struggle
+    try {
+      const [cnt] = await sql`SELECT COUNT(*)::int AS n FROM student_roadmap_progress WHERE student_id=${user.id} AND node_id=${body.nodeId} AND status='active'`;
+      if (cnt.n >= 1) {
+        await sql`
+          INSERT INTO help_signals (tenant_id, user_id, kind, ref_id, failures_count, last_failed_at, status, updated_at)
+          VALUES (${tenant?.id}::uuid, ${user.id}, 'roadmap_node', ${body.nodeId}, 1, now(), 'open', now())
+          ON CONFLICT (tenant_id, user_id, kind, ref_id) DO UPDATE SET failures_count = help_signals.failures_count + 1, last_failed_at=now(), updated_at=now()
+        `;
+      }
+    } catch {}
   }
 
   return ok({ progress: row, studentId: user.id, role: profile.role, milestone });

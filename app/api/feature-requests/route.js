@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 
 const createSchema = z.object({
   title: z.string().min(4).max(160),
@@ -24,8 +25,8 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const ctx = await getRequestContext();
-  if (ctx.error) return fail(ctx.error, "Auth required", ctx.error === "UNAUTHORIZED" ? 401 : 404);
+  let ctx;
+  try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
   const { user, tenant, sql } = ctx;
   let body;
   try { body = createSchema.parse(await request.json()); } catch (e) { return validationError(e); }

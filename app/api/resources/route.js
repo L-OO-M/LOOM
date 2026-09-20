@@ -2,6 +2,7 @@ import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { recordRankingEvent, recomputeScores } from "@/lib/ranking";
 
 export async function GET(request) {
   const ctx = await getRequestContext();
@@ -51,5 +52,7 @@ export async function POST(request) {
   revalidateTag("resources:counts");
   revalidateTag("resources:total");
   revalidateTag("progress:nodes");
+  await recordRankingEvent({ sql, tenantId: tenant?.id, userId: user.id, kind: "resource_done", refId: body.resourceId });
+  await recomputeScores(sql, tenant?.id);
   return ok({ progress: row });
 }
