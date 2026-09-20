@@ -123,30 +123,24 @@ export function MentorsBrowser({ mentors }) {
             const reviewOpen = openReview === m.user_id;
             return (
               <li key={m.id} className="rounded-xl border p-5 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  {m.profile_username ? (
-                    <Link
-                      href={`/student/${m.profile_username}`}
-                      prefetch={false}
-                      className="font-display text-2xl font-medium hover:underline"
-                      style={{ color: "var(--text)" }}
-                    >
-                      {m.mentor_name || "Mentor"}
-                    </Link>
-                  ) : (
-                    <p className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>
-                      {m.mentor_name || "Mentor"}
-                    </p>
-                  )}
-                  <span className="meta shrink-0">
-                    {rated ? `★ ${Number(m.avg_rating).toFixed(1)} · ${reviews} review${reviews === 1 ? "" : "s"}` : "New guide"}
-                  </span>
-                </div>
+                <div className="flex gap-4">
+                  <span className="hidden sm:grid size-12 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ background: "color-mix(in srgb, var(--accent) 14%, var(--bg-muted))", color: "var(--accent)", boxShadow: "0 0 0 8px var(--accent-glow)" }} aria-hidden="true">{String(m.mentor_name || "?").trim().slice(0,2).toUpperCase()}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      {m.profile_username ? (
+                        <Link href={`/student/${m.profile_username}`} prefetch={false} className="font-display text-xl font-medium hover:underline" style={{ color: "var(--text)" }}>{m.mentor_name || "Mentor"}</Link>
+                      ) : (
+                        <p className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{m.mentor_name || "Mentor"}</p>
+                      )}
+                      <span className="meta shrink-0">{rated ? `★ ${Number(m.avg_rating).toFixed(1)} · ${reviews} review${reviews === 1 ? "" : "s"}` : "New guide"}</span>
+                    </div>
                 <p className="meta mt-2" style={{ color: "var(--accent)" }}>{m.expertise || "General guidance"}</p>
                 {metaBits.length > 0 && (
                   <p className="meta mt-1.5">{metaBits.join(" · ")}</p>
                 )}
-                {m.bio && <p className="narrative mt-3" style={{ color: "var(--text)" }}>{m.bio}</p>}
+                {m.bio && <p className="narrative mt-2" style={{ color: "var(--text)" }}>{m.bio}</p>}
+                  </div>
+                </div>
                 <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
                   <MentorRequestButton mentorId={m.user_id} />
                   {sessions > 0 && (
