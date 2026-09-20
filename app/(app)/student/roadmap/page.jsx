@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
+import RoadmapGraph from "@/app/(app)/student/roadmap/_components/RoadmapGraph";
 
 export default async function RoadmapPage() {
   const ctx = await getRequestContext();
@@ -9,10 +10,26 @@ export default async function RoadmapPage() {
   const { user, tenant, sql } = ctx;
 
   const nodes = await sql`SELECT * FROM roadmap_nodes ORDER BY sort_order ASC`;
+  // Graph edges — nullable for linear fallback (seed still linear)
+  let edges = [];
+  try {
+    edges = await sql`SELECT id, from_id, to_id, kind, label FROM roadmap_edges ORDER BY from_id`;
+  } catch {
+    edges = [];
+  }
   const done = await sql`SELECT node_id FROM student_roadmap_progress WHERE student_id = ${user.id} AND status = 'completed'`;
   const doneIds = done.map((d) => d.node_id);
-  // The honest "do this next": first uncompleted node in path order.
-  const nextId = nodes.find((n) => !doneIds.includes(n.id))?.id ?? null;
+  // Topological next: first uncompleted where all deps done, fallback linear
+  let nextId = null;
+  if (edges.length > 0) {
+    const doneSet = new Set(doneIds);
+    for (const n of nodes) {
+      const preds = edges.filter((e) => e.to_id === n.id).map((e) => e.from_id);
+      if (preds.every((p) => doneSet.has(p)) && !doneSet.has(n.id)) { nextId = n.id; break; }
+    }
+  } else {
+    nextId = nodes.find((n) => !doneIds.includes(n.id))?.id ?? null;
+  }
 
   const allResources = await sql`SELECT id, title, minutes, domain, kind, level, url FROM resources ORDER BY minutes ASC`;
   const resourcesByDomain = {};
@@ -32,17 +49,38 @@ export default async function RoadmapPage() {
     projectsByNode[p.roadmap_node_id].push(p);
   }
 
+  const hasGraph = edges.length > 0 || nodes.length > 7;
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <div className="pt-4">
-        <RoadmapJourney
-          nodes={nodes}
-          doneIds={doneIds}
-          nextId={nextId}
-          resourcesByDomain={resourcesByDomain}
-          resourceDoneIds={resourceDoneIds}
-          projectsByNode={projectsByNode}
-        />
+        {hasGraph ? (
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="meta">Roadmap.sh style · branching graph · yellow = recommended</p>
+              <a href="#list" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>List view ↓</a>
+            </div>
+            <RoadmapGraph nodes={nodes} edges={edges} doneIds={doneIds} nextId={nextId} />
+            <div id="list" className="mt-8">
+              <RoadmapJourney
+                nodes={nodes}
+                doneIds={doneIds}
+                nextId={nextId}
+                resourcesByDomain={resourcesByDomain}
+                resourceDoneIds={resourceDoneIds}
+                projectsByNode={projectsByNode}
+              />
+            </div>
+          </div>
+        ) : (
+          <RoadmapJourney
+            nodes={nodes}
+            doneIds={doneIds}
+            nextId={nextId}
+            resourcesByDomain={resourcesByDomain}
+            resourceDoneIds={resourceDoneIds}
+            projectsByNode={projectsByNode}
+          />
+        )}
       </div>
     </AppShell>
   );
