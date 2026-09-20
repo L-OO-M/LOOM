@@ -258,36 +258,42 @@ function EventRow({ e, mine, showAction }) {
   const state = displayState(e, mine);
   const full = isFull(e, mine);
   const step = nextStepFor(e);
+  const pct = e.capacity ? Math.min(100, Math.round((e.seats_taken / e.capacity) * 100)) : null;
   return (
-    <li className="border-b py-6 first:border-t" style={{ borderColor: "var(--line)" }}>
+    <li className="rounded-xl border bg-[var(--bg-elevated)] p-5 transition hover:shadow-sm sm:p-6" style={{ borderColor: "var(--line)" }}>
       <div className="flex gap-5">
         <div className="w-14 shrink-0 text-center" aria-hidden="true">
           <p className="figure text-3xl">{formatDay(e.starts_at)}</p>
-          <p className="meta mt-1">{formatMonth(e.starts_at)}</p>
-          <p className="meta">{formatWeekday(e.starts_at)}</p>
+          <p className="mono-tag mt-1">{formatMonth(e.starts_at)}</p>
+          <p className="mono-tag">{formatWeekday(e.starts_at)}</p>
+          {pct !== null && (
+            <div className="mx-auto mt-3 h-1.5 w-10 overflow-hidden rounded-full" style={{ background: "var(--bg-muted)" }}>
+              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 90 ? "var(--danger)" : pct >= 70 ? "var(--warn)" : "var(--accent)" }} />
+            </div>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <Link href={`/student/events/${e.id}`} prefetch={false} className="text-lg font-semibold hover:underline" style={{ color: "var(--text)" }}>{e.title}</Link>
+            <Link href={`/student/events/${e.id}`} prefetch={false} className="font-display text-lg font-medium hover:underline" style={{ color: "var(--text)" }}>{e.title}</Link>
             {(state.key === "in" || state.key === "attended") && <StatusPill tone="live">{state.label}</StatusPill>}
             {state.key === "full" && <StatusPill>{state.label}</StatusPill>}
             {state.key === "live" && <StatusPill tone="live">{state.label}</StatusPill>}
           </div>
-          <p className="meta mt-1.5">
+          <p className="mono-tag mt-1.5">
             {TYPE_LABEL[e.event_type] || e.event_type}
-            {e.domain && e.domain !== "general" ? ` · ${e.domain}` : ""}
-            {` · ${formatTime(e.starts_at)}`}
-            {e.is_online ? " · online" : e.location ? ` · ${e.location}` : ""}
-            {e.capacity ? ` · ${e.seats_taken}/${e.capacity} seats` : ""}
+            {e.domain && e.domain !== "general" ? <span className="dot-sep">{e.domain}</span> : ""}
+            <span className="dot-sep">{formatTime(e.starts_at)}</span>
+            {e.is_online ? <span className="dot-sep">online</span> : e.location ? <span className="dot-sep">{e.location}</span> : ""}
+            {e.capacity ? <span className="dot-sep">{e.seats_taken}/{e.capacity} seats · {pct}% filled</span> : ""}
           </p>
-          {e.speaker_name && <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>with {e.speaker_name}</p>}
+          {e.speaker_name && <p className="mt-2 flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}><span className="size-6 rounded-full bg-[var(--bg-muted)] grid place-items-center text-[10px] font-bold" style={{ color: "var(--text)" }}>{e.speaker_name.slice(0,2).toUpperCase()}</span>with {e.speaker_name}</p>}
           {step && (
-            <Link href={step.href} prefetch={false} className="mt-1.5 inline-block text-sm font-medium hover:underline" style={{ color: "var(--accent)" }}>
+            <Link href={step.href} prefetch={false} className="mono-tag mt-2 inline-block hover:underline" style={{ color: "var(--accent)" }}>
               {step.label} →
             </Link>
           )}
           {showAction && (
-            <div className="mt-3"><RegisterButton eventId={e.id} registered={!!mine} full={full && !mine} /></div>
+            <div className="mt-4"><RegisterButton eventId={e.id} registered={!!mine} full={full && !mine} /></div>
           )}
         </div>
       </div>
@@ -362,38 +368,40 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
       )}
 
       {events.length > 0 && (
-        <div className="mt-7 flex flex-wrap items-center gap-2" role="group" aria-label="Filter by event type">
-          {["all", ...EVENT_TYPES].map((t) => {
-            const active = type === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={active ? "true" : "false"}
-                onClick={() => setType(t)}
-                className={active ? "rounded-full px-3.5 py-1 text-xs font-semibold" : "rounded-full px-3.5 py-1 text-xs font-semibold"}
-                style={active ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
-              >
-                {t === "all" ? "All" : TYPE_LABEL[t]}
-              </button>
-            );
-          })}
+        <div className="mt-7 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border p-1.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+          <div className="seg !m-0 flex flex-wrap gap-1 border-0 bg-transparent p-0" role="group" aria-label="Filter by event type">
+            {["all", ...EVENT_TYPES].map((t) => {
+              const active = type === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={active ? "true" : "false"}
+                  onClick={() => setType(t)}
+                  className="rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-[0.98]"
+                  style={active ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)", background: "transparent" }}
+                >
+                  {t === "all" ? "All" : TYPE_LABEL[t]}
+                </button>
+              );
+            })}
+          </div>
           {domains.length > 1 && (
-            <label className="meta ml-1 flex items-center gap-2">
-              Domain
+            <span className="ml-auto flex items-center gap-2">
+              <span className="mono-tag">Domain</span>
               <select
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 aria-label="Filter by domain"
-                className="rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ color: "var(--text)", border: "1px solid var(--line)", background: "transparent" }}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                style={{ color: "var(--text)", border: "1px solid var(--line)", background: "var(--bg-muted)" }}
               >
                 <option value="all">All domains</option>
                 {domains.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-            </label>
+            </span>
           )}
         </div>
       )}
@@ -420,7 +428,7 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
               Showing {visible.length} of {events.length} gatherings
             </p>
           )}
-          <ol className="mt-4">
+          <ol className="mt-4 grid gap-4">
             {visible.map((e) => (
               <EventRow key={e.id} e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
             ))}

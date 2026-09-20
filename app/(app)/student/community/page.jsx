@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, ActionLink, PlainStat } from "@/components/loom/primitives";
+import { Display, Meta, ActionLink, PlainStat, Rule } from "@/components/loom/primitives";
 import { reputationFor } from "@/lib/reputation";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +46,11 @@ export default async function CommunityPage() {
   const [{ wikiPages = 0 } = {}] = await sql`SELECT COUNT(*)::int AS wikiPages FROM wiki_pages WHERE author_id = ${user.id} AND status = 'published'`;
   const rep = await reputationFor(sql, user.id).catch(() => ({ score: 0 }));
 
+  function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
   const rooms = [
-    { href: "/student/community/forums", index: "01", title: "Forums", body: "Ask, answer, solve.", count: `${threads} threads` },
-    { href: "/student/community/wiki", index: "02", title: "Wiki", body: "The chapter's durable memory.", count: `${pages} pages` },
-    { href: "/student/community/snippets", index: "03", title: "Snippets", body: "Copy-paste knowledge.", count: `${snippets} snippets` }
+    { href: "/student/community/forums", index: "01", title: "Forums", body: "Ask, answer, solve — discussion is the primary loop.", count: plural(threads, "thread", "threads"), cta: "+ New Thread" },
+    { href: "/student/community/wiki", index: "02", title: "Wiki", body: "The chapter's durable memory — curated, linked, lasting.", count: plural(pages, "page", "pages"), cta: "Browse Wiki" },
+    { href: "/student/community/snippets", index: "03", title: "Snippets", body: "Copy-paste knowledge — tiny, runnable, reusable.", count: plural(snippets, "snippet", "snippets"), cta: "Explore Snippets" }
   ];
 
   return (
@@ -61,20 +62,22 @@ export default async function CommunityPage() {
           Three rooms, three jobs. Ask in forums, preserve in the wiki, reuse from snippets.
         </p>
 
-        <ol className="mt-10">
+        <div className="mt-6 flex justify-end">
+          <Link href="/student/community/forums" prefetch={false} className="btn-ink text-sm">+ New Thread</Link>
+        </div>
+        <ol className="mt-4 grid gap-4 sm:grid-cols-3">
           {rooms.map((r) => (
-            <li key={r.href} className="border-b first:border-t" style={{ borderColor: "var(--line)" }}>
-              <Link href={r.href} prefetch={false} className="row-link flex items-baseline gap-5 px-2 py-6">
-                <span className="index-num shrink-0">{r.index}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="font-display block text-2xl font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
-                  <span className="mt-1 block max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>{r.body}</span>
-                </span>
-                <span className="meta shrink-0">{r.count}</span>
+            <li key={r.href} className="rounded-xl border p-5 transition hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <Link href={r.href} prefetch={false} className="block">
+                <span className="mono-tag flex items-center justify-between"><span>{r.index}</span><span>{r.count}</span></span>
+                <span className="font-display mt-3 block text-xl font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
+                <span className="mt-1.5 block text-sm leading-6" style={{ color: "var(--text-muted)" }}>{r.body}</span>
+                <span className="mono-tag mt-4 inline-block" style={{ color: "var(--accent)" }}>{r.cta} →</span>
               </Link>
             </li>
           ))}
         </ol>
+        <Rule className="mt-8" fade />
 
         <section className="mt-12" aria-label="Needs help now">
           <div className="flex items-baseline justify-between gap-3">

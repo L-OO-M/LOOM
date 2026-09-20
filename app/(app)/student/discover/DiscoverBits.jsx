@@ -7,16 +7,14 @@ import { inputStyle, Field } from "@/components/ui";
 export function ClaimCard({ hasCard }) {
   if (hasCard) return null;
   return (
-    <div className="rounded-2xl border p-5" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
-      <p className="meta" style={{ color: "var(--accent)" }}>Your place in Discover</p>
-      <p className="mt-1.5 text-sm font-medium" style={{ color: "var(--text)" }}>Claim your builder card</p>
-      <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Pick a username to appear alongside the builders above and share your proof.</p>
-      <UsernameForm />
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-dashed px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))", background: "var(--wash)" }}>
+      <span className="text-sm" style={{ color: "var(--text)" }}><span className="meta mr-2" style={{ color: "var(--accent)" }}>Discover</span>Claim your builder card to appear in Discover — <span style={{ color: "var(--text-muted)" }}>pick a username and share proof.</span></span>
+      <span className="flex items-center gap-2"><UsernameForm compact /></span>
     </div>
   );
 }
 
-function UsernameForm() {
+function UsernameForm({ compact = false }) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [msg, setMsg] = useState("");
@@ -41,6 +39,15 @@ function UsernameForm() {
     router.refresh();
   }
 
+  if (compact) {
+    return (
+      <form onSubmit={submit} className="flex items-center gap-2">
+        <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={2} maxLength={30} placeholder="aanya-dev" aria-label="Username" style={{ ...inputStyle, minWidth: 140, padding: "7px 10px" }} />
+        <button disabled={busy} className="btn-ink !px-3 !py-1.5 text-xs disabled:opacity-50">{busy ? "…" : "Claim"}</button>
+        {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
+      </form>
+    );
+  }
   return (
     <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-2">
       <Field label="Username">

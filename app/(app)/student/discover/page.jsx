@@ -3,10 +3,10 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { reputationForMany } from "@/lib/reputation";
-import { Display, Meta, ActionLink, StatusPill } from "@/components/loom/primitives";
+import { Display, Meta, ActionLink, StatusPill, Rule } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
-import { ClaimCard, MentorReviewForm } from "./DiscoverBits";
+import { ClaimCard } from "./DiscoverBits";
 
 export const dynamic = "force-dynamic";
 
@@ -55,22 +55,22 @@ function BuilderRow({ b }) {
   const signal = proofSignal(b);
   return (
     <li>
-      <Link href={`/student/${b.username}`} prefetch={false} className="row-link flex items-start gap-4 px-2 py-4">
-        <PersonAvatar name={b.name} avatarUrl={b.avatar_url} />
+      <Link href={`/student/${b.username}`} prefetch={false} className="row-link flex items-start gap-4 rounded-xl px-3 py-4 hover:bg-[var(--wash)]">
+        <PersonAvatar name={b.name} avatarUrl={b.avatar_url} size={44} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>
+            <span className="min-w-0 truncate font-display text-[1.05rem] font-medium" style={{ color: "var(--text)" }}>
               {b.name}{" "}
-              {b.isGuide && <StatusPill>Guide</StatusPill>}
+              {b.isGuide && <span className="mono-tag ml-1 rounded-full border px-2 py-0.5 text-[10px] tracking-widest" style={{ borderColor: "var(--line)", color: "var(--accent)" }}>GUIDE</span>}
             </span>
-            <span className="figure-mono shrink-0 text-sm font-semibold" style={{ color: "var(--accent)" }}>{b.score}</span>
+            <span className="figure-mono shrink-0 text-sm font-semibold tabular-nums" style={{ color: "var(--accent)" }}>{String(b.score).padStart(2, "0")}</span>
           </span>
-          <span className="meta mt-0.5 block truncate">@{b.username}{b.primary_domain ? ` · ${b.primary_domain}` : ""}</span>
-          <span className="mt-1 block text-sm" style={{ color: "var(--text-muted)" }}>
+          <span className="mono-tag mt-1 block truncate">@{b.username}{b.primary_domain ? ` · ${b.primary_domain}` : ""}</span>
+          <span className="mt-1.5 block text-sm leading-6" style={{ color: "var(--text-muted)" }}>
             {b.building ? <>Building: <strong style={{ color: "var(--text)" }}>{b.building}</strong></> : b.bio || `Learning ${b.primary_domain || "across tracks"}`}
           </span>
-          <span className="meta mt-1.5 block">
-            {signal ? `${signal} · ` : ""}{b.followers > 0 ? `${b.followers} follower${b.followers === 1 ? "" : "s"} · ` : ""}view profile →
+          <span className="mono-tag mt-2 block">
+            <span style={{ color: signal ? "var(--text)" : "var(--text-muted)" }}>{signal || "new builder"}</span>{b.followers > 0 ? <span className="dot-sep">{b.followers} follower{b.followers === 1 ? "" : "s"}</span> : null}<span className="dot-sep" style={{ color: "var(--accent)" }}>view profile →</span>
           </span>
         </span>
       </Link>
@@ -201,9 +201,10 @@ export default async function DiscoverPage() {
           Real builders, contributors, and guides from your chapter — surfaced through shipped
           projects, verified work, and proof, not profiles alone.
         </p>
-        <div className="mt-6 max-w-2xl"><ClaimCard hasCard={!!myCard} /></div>
+        <div className="mt-5"><ClaimCard hasCard={!!myCard} /></div>
+        <Rule className="mt-8" />
 
-        <div className="mt-12 grid gap-12 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1.65fr_0.95fr] lg:gap-16">
           <div>
             <section aria-labelledby="builders-heading">
               <Meta>Builders in your college</Meta>
@@ -212,15 +213,19 @@ export default async function DiscoverPage() {
                 People with recent proof of building, contributing, or showing up.
               </p>
               {builders.length === 0 ? (
-                <p className="narrative mt-4">
+                <p className="narrative mt-6">
                   No builders to show yet. Earn some proof — finish a node, merge a PR, ship a
                   project — then claim your card so the chapter can find you.
                 </p>
               ) : (
                 orderedGroups.map(([domain, members]) => (
-                  <section key={domain} aria-label={domain} className="mt-8">
-                    <h3 className="meta" style={{ color: "var(--accent)" }}>{domain} · {members.length}</h3>
-                    <ol className="mt-1 divide-y" style={{ borderColor: "var(--line)" }}>
+                  <section key={domain} aria-label={domain} className="mt-10">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="meta" style={{ color: "var(--accent)" }}>{domain} · {members.length}</h3>
+                      <span className="mono-tag">{members.length} builder{members.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <Rule className="mt-2" fade />
+                    <ol className="mt-1">
                       {members.map((s) => <BuilderRow key={s.user_id} b={s} />)}
                     </ol>
                   </section>
@@ -255,23 +260,23 @@ export default async function DiscoverPage() {
             )}
 
             {mentors.length > 0 && (
-              <section aria-labelledby="guides-heading" className="mt-12">
+              <section aria-labelledby="guides-heading" className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }}>
                 <div className="flex items-baseline justify-between gap-3">
                   <div>
                     <Meta>Guidance</Meta>
                     <h2 id="guides-heading" className="h-product mt-2">Guides worth your time</h2>
+                    <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>Proven guides — view profile to request and review after a session.</p>
                   </div>
                   <ActionLink href="/student/mentorship">Explore mentors</ActionLink>
                 </div>
-                <ul className="mt-4 space-y-5">
+                <ul className="mt-6 space-y-4">
                   {mentors.map((m) => (
-                    <li key={m.user_id} className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-sm" style={{ color: "var(--text)" }}>
-                        <strong className="font-semibold">{m.name || "Mentor"}</strong>{" "}
-                        <span style={{ color: "var(--text-muted)" }}>· {m.expertise || "general"}</span>
-                      </p>
-                      <p className="meta">{Number(m.reviews) > 0 ? `★${Number(m.avg_rating).toFixed(1)} (${m.reviews})` : "new guide"}</p>
-                      <div className="w-full"><MentorReviewForm mentorId={m.user_id} /></div>
+                    <li key={m.user_id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-[var(--wash)]">
+                      <Link href={m.user_id ? `/student/${encodeURIComponent(m.user_id)}` : "/student/mentorship"} prefetch={false} className="min-w-0">
+                        <p className="truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{m.name || "Mentor"} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {m.expertise || "general"}</span></p>
+                        <p className="mono-tag mt-0.5">{Number(m.reviews) > 0 ? `★ ${Number(m.avg_rating).toFixed(1)} · ${m.reviews} review${Number(m.reviews) === 1 ? "" : "s"}` : "new guide · no reviews yet"}</p>
+                      </Link>
+                      <ActionLink href="/student/mentorship">View →</ActionLink>
                     </li>
                   ))}
                 </ul>
