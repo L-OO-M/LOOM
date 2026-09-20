@@ -178,6 +178,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               >
                 <Settings size={16} />
               </Link>
+              {area === "student" && <MyProfileLink />}
               <form action="/auth/signout" method="post" className="hidden sm:block">
                 <button
                   type="submit"
@@ -297,6 +298,33 @@ function useRoleSync(enabled) {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [enabled, check]);
+}
+
+function MyProfileLink() {
+  const [card, setCard] = useState(null);
+  useEffect(() => {
+    fetch("/api/social/profile").then((r) => r.json()).then((d) => {
+      if (d?.ok && d.data?.card) setCard(d.data.card);
+      else if (d?.ok && d.data?.username) setCard({ username: d.data.username, is_public: d.data.is_public });
+    }).catch(() => {});
+  }, []);
+  if (!card?.username) return null;
+  const href = card.is_public ? `/u/${card.username}` : `/student/${card.username}`;
+  const label = card.is_public ? "Your public card — share on Discord/Insta" : "Your card (private) — make it public to share";
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="hidden sm:inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
+      style={{ borderColor: card.is_public ? "var(--accent)" : "var(--line)", color: card.is_public ? "var(--accent)" : "var(--text-muted)" }}
+      aria-label={label}
+      title={label}
+    >
+      <span className="size-5 grid place-items-center rounded-full text-[10px] font-bold" style={{ background: card.is_public ? "var(--accent)" : "var(--bg-muted)", color: card.is_public ? "#101314" : "var(--text-muted)" }}>{card.username.slice(0,2).toUpperCase()}</span>
+      <span className="hidden lg:inline">@{card.username}</span>
+      {card.is_public && <span className="hidden lg:inline text-[10px]">↗</span>}
+    </Link>
+  );
 }
 
 /* Bell with a live unread dot — opens the inbox drawer, not a page. */

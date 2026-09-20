@@ -54,8 +54,8 @@ function proofSignal(b) {
 function BuilderRow({ b }) {
   const signal = proofSignal(b);
   return (
-    <li>
-      <Link href={`/student/${b.username}`} prefetch={false} className="row-link flex items-start gap-4 rounded-xl px-3 py-4 hover:bg-[var(--wash)]">
+    <li className="group flex items-start gap-4 rounded-xl px-3 py-4 hover:bg-[var(--wash)]">
+      <Link href={`/u/${b.username}`} prefetch={false} className="flex min-w-0 flex-1 items-start gap-4">
         <PersonAvatar name={b.name} avatarUrl={b.avatar_url} size={44} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-3">
@@ -74,6 +74,7 @@ function BuilderRow({ b }) {
           </span>
         </span>
       </Link>
+      <a href={`/u/${b.username}`} target="_blank" className="hidden shrink-0 rounded-full border px-3 py-1 text-xs font-semibold group-hover:inline-flex" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }} title="Open shareable card">Share ↗</a>
     </li>
   );
 }

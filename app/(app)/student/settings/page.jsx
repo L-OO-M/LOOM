@@ -10,12 +10,34 @@ export default async function SettingsPage() {
   if (ctx.error) redirect("/login?redirect=/student/settings");
   const { tenant, user, profile, sql } = ctx;
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
+  const [card] = await sql`SELECT username, is_public, bio FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
         <Meta>Account · profile, membership, sign-out</Meta>
         <Display size="lg" className="mt-3">Settings.</Display>
+
+        <section className="mt-6 rounded-2xl border p-5" style={{ borderColor: card?.is_public ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }} aria-label="Public card">
+          <Meta>{card?.username ? `Your public card — @${card.username}` : "Your public card"}</Meta>
+          {card?.username ? (
+            <>
+              <p className="narrative mt-2">Shareable anywhere — Discord, Insta story, Snapchat, Twitter. Unfurls with your Proof Score.</p>
+              <p className="mt-3 font-mono text-sm font-semibold" style={{ color: "var(--accent)" }}>loom.sh/u/{card.username}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href={`/u/${card.username}`} target="_blank" className="btn-ink !py-2 text-sm">View public card ↗</a>
+                <a href={`/u/${card.username}/opengraph-image`} target="_blank" className="btn-ghost !py-2 text-sm">Download card PNG</a>
+                <Link href={`/student/${card.username}`} prefetch={false} className="rounded-full border px-4 py-2 text-sm font-semibold" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Edit card</Link>
+              </div>
+              <p className="meta mt-2">{card.is_public ? "Public · visible to anyone with the link" : "Private · only you can see it — toggle Public in Edit"}</p>
+            </>
+          ) : (
+            <>
+              <p className="narrative mt-2">Claim a username to get a shareable card — like Spotify cards for builders.</p>
+              <Link href="/student/discover" prefetch={false} className="btn-ink mt-3 inline-block !py-2 text-sm">Claim username →</Link>
+            </>
+          )}
+        </section>
 
         <section className="mt-8" aria-label="Profile">
           <SettingsClient profile={profile} />
