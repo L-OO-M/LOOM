@@ -101,11 +101,11 @@ export default async function PublicProfilePage({ params }) {
             </div>
           </div>
         </div>
-        <div className="mt-8 flex flex-wrap gap-2 rounded-full border p-1.5 w-fit" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ background: "var(--text)", color: "var(--bg)" }}>Overview</span>
-          <Link href={`/student/projects?owner=${card.user_id}`} prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Projects</Link>
-          <Link href="/student/credentials" prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Proofs</Link>
-          <Link href="/student/network" prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Network</Link>
+        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 border-y py-4" style={{ borderColor: "var(--line)" }}>
+          <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Overview</span>
+          <Link href={`/student/projects?owner=${card.user_id}`} prefetch={false} className="text-sm hover:underline" style={{ color: "var(--text-muted)" }}>Projects</Link>
+          <Link href="/student/credentials" prefetch={false} className="text-sm hover:underline" style={{ color: "var(--text-muted)" }}>Proofs</Link>
+          <Link href="/student/network" prefetch={false} className="text-sm hover:underline" style={{ color: "var(--text-muted)" }}>Network</Link>
         </div>
 
         {/* bio rendered in header card above */}
