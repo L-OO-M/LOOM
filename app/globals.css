@@ -543,6 +543,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .row-link { transition: background 0.15s var(--ease-out); border-radius: 12px; }
 .row-link:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 
+/* ---- Site shader — clipped translucent gradient wash (global, non-intrusive) ---- */
+.site-shader {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.55;
+  background:
+    radial-gradient(900px 520px at 8% -6%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 62%),
+    radial-gradient(720px 480px at 96% 12%, color-mix(in srgb, var(--info) 8%, transparent), transparent 60%),
+    radial-gradient(640px 420px at 50% 100%, color-mix(in srgb, var(--success) 6%, transparent), transparent 70%);
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 72% 100%, 0 92%);
+}
+[data-theme="light"] .site-shader { opacity: 0.38; }
+
 /* ---- Page shell (editorial 1200px cap: aligns floatbar with body) ---- */
 .shell { max-width: 1200px; margin-inline: auto; padding-inline: 1.5rem; }
 @media (max-width: 640px) { .shell { padding-inline: 1rem; } }

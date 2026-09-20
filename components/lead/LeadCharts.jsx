@@ -23,7 +23,7 @@ export function RosterLevelBars({ data }) {
         <YAxis type="category" dataKey="name" tick={{ fill: "var(--text)", fontSize: 11 }} width={84} axisLine={false} tickLine={false} />
         <Tooltip content={<Tip />} cursor={{ fill: "color-mix(in srgb, var(--accent) 6%, transparent)" }} />
         <Bar dataKey="value" name="Members" radius={[0, 8, 8, 0]} isAnimationActive={false}>
-          {data.map((e, i) => <Cell key={e.name} fill={e.name.includes("general") ? "var(--info)" : e.name.includes("core") ? "var(--warn)" : "var(--success)"} />)}
+          {data.map((e, i) => <Cell key={e.name} fill={e.name.includes("general") ? "color-mix(in srgb, var(--info) 72%, transparent)" : e.name.includes("core") ? "color-mix(in srgb, var(--warn) 74%, transparent)" : "color-mix(in srgb, var(--success) 70%, transparent)"} />)}
         </Bar>
       </BarChart>
     </ChartShell>
@@ -39,7 +39,7 @@ export function WorkshopTimelineBars({ data }) {
         <XAxis dataKey="label" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
         <YAxis hide />
         <Tooltip content={<Tip />} cursor={{ fill: "color-mix(in srgb, var(--accent) 6%, transparent)" }} />
-        <Bar dataKey="value" name="Workshops" fill="var(--accent)" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="value" name="Workshops" fill="color-mix(in srgb, var(--accent) 68%, transparent)" radius={[6, 6, 0, 0]} isAnimationActive={false} />
       </BarChart>
     </ChartShell>
   );
@@ -52,7 +52,7 @@ export function ApprovalDonut({ data }) {
     <ChartShell title="Queues at a glance" subtitle="Core + proposed events" height={220}>
       <PieChart>
         <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={48} outerRadius={72} paddingAngle={2} isAnimationActive={false}>
-          {data.map((e, i) => <Cell key={e.name} fill={CATEGORICAL[i % CATEGORICAL.length]} stroke="var(--bg-elevated)" strokeWidth={2} />)}
+          {data.map((e, i) => <Cell key={e.name} fill={`color-mix(in srgb, ${CATEGORICAL[i % CATEGORICAL.length]} 64%, transparent)`} stroke="var(--bg-elevated)" strokeWidth={2} />)}
         </Pie>
         <Tooltip content={<Tip />} />
       </PieChart>

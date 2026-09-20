@@ -124,7 +124,11 @@ export function StudentDashboard({
               <Display size="lg" className="mt-2">
                 The L.O.O.M. Builder&apos;s Hub: Your Path to Proof.
               </Display>
-              <p className="meta mt-2">{todayLabel} · {greeting}, {name}.</p>
+              <p className="mt-3 flex flex-wrap gap-2">
+                <span className="pill is-live">{profile?.role ?? "student"}</span>
+                {profile?.vertical && <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{profile.vertical}</span>}
+                <span className="mono-tag">· {todayLabel} · {greeting}, {name}</span>
+              </p>
               {nextNode ? (
                 <>
                   <p className="narrative mt-3">

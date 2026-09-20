@@ -61,6 +61,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable}`}>
+        <div aria-hidden="true" className="site-shader" />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
