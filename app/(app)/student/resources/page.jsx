@@ -198,21 +198,31 @@ export default async function ResourcesPage({ searchParams }) {
           </section>
         )}
 
-        {/* BROWSE BY TRACK */}
+        {/* EDITOR'S PICK — large editorial preview */}
+        {visible.length > 0 && !hasAnyFilter && (
+          <section className="mt-10 hero-field rounded-2xl border px-6 py-8 sm:px-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Editor's pick">
+            <Meta>Editor&apos;s pick</Meta>
+            <Link href={`/student/resources/${visible[0].id}`} prefetch={false} className="display display-md mt-3 block max-w-2xl hover:underline" style={{ color: "var(--text)" }}>
+              {visible[0].title}
+            </Link>
+            <p className="meta mt-2">{trackLabelFor(visible[0].domain)} · {visible[0].kind} · {visible[0].minutes} min</p>
+            <p className="narrative mt-3 max-w-xl">A curated starting point from the shelf — open it, then continue along your track.</p>
+            <Link href={`/student/resources/${visible[0].id}`} prefetch={false} className="btn-ink mt-5 inline-block">Open resource →</Link>
+          </section>
+        )}
+
+        {/* BROWSE BY TRACK — typographic navigator */}
         <section className="mt-10" aria-label="Learning tracks">
           <Meta>Browse by track</Meta>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-y py-4" style={{ borderColor: "var(--line)" }}>
+            <Link href={qs({ q, kind, level, status }, {})} prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: !domain ? "var(--accent)" : "var(--text-muted)" }}>All tracks · {totalResources}</Link>
             {TRACKS.map((t) => (
-              <TrackCard
-                key={t.id}
-                t={t}
-                count={countBy[t.id] ?? 0}
-                done={doneBy[t.id] ?? 0}
-                href={domain === t.id ? qs({ q, kind, level, status }, {}) : qs({ q, kind, level, status }, { domain: t.id })}
-                active={domain === t.id}
-              />
+              <Link key={t.id} href={domain === t.id ? qs({ q, kind, level, status }, {}) : qs({ q, kind, level, status }, { domain: t.id })} prefetch={false} className="text-sm hover:underline" style={{ color: domain === t.id ? "var(--accent)" : "var(--text)", fontWeight: domain === t.id ? 700 : 500 }}>
+                {t.label} <span className="meta ml-1 normal-case tracking-normal">{countBy[t.id] ?? 0}</span>
+              </Link>
             ))}
           </div>
+          <p className="narrative mt-3 text-sm">Pick a thread. Each shelf is curated — not infinite.</p>
         </section>
 
         {/* SEARCH + FILTERS */}
@@ -310,7 +320,7 @@ export default async function ResourcesPage({ searchParams }) {
           </details>
         </section>
 
-        {/* RESOURCE RESULTS + PROGRESS */}
+        {/* RESOURCE RESULTS — alternating large/small editorial */}
         <section className="mt-10" aria-label="Resources">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <Meta>
@@ -319,6 +329,9 @@ export default async function ResourcesPage({ searchParams }) {
             </Meta>
             <p className="meta">{visible.length} pieces · {visibleDone} finished in view</p>
           </div>
+          {visible.length > 1 && (
+            <p className="narrative mt-2 text-sm">Large first, compact second — rhythm over grid.</p>
+          )}
 
           {totalResources === 0 ? (
             <OnboardingState
