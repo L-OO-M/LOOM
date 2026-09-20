@@ -10,7 +10,13 @@ export default async function FeatureRequestsPage() {
   if (ctx.error) redirect("/login?redirect=/student/feature-requests");
   const { user, tenant, sql } = ctx;
   const tid = tenant?.id ?? null;
-  const rows = await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY fr.created_at DESC LIMIT 100`;
+  let rows = [];
+  try {
+    rows = await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY fr.created_at DESC LIMIT 100`;
+  } catch (e) {
+    if (e?.code !== "42P01") throw e;
+    rows = [];
+  }
   // enhance with isOwner flag for UI
   const withOwner = rows.map((r) => ({ ...r, isOwner: r.requester_id === user.id }));
   return (
