@@ -21,7 +21,8 @@ const publicPaths = [
 ];
 
 export async function middleware(request) {
-  const { pathname } = request.nextUrl;
+  const raw = request.nextUrl.pathname;
+  const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
 
   // Exact-match public pages; /api/* is NOT blanket-public (only listed routes).
   if (publicPaths.includes(pathname)) {

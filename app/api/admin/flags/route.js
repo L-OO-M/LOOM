@@ -33,12 +33,9 @@ export async function PATCH(request) {
   const [flag] = await sql`
     INSERT INTO feature_flags (tenant_id, key, enabled)
     VALUES (${tenant?.id}, ${body.key}, ${body.enabled})
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (tenant_id, key) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = NOW()
     RETURNING *
-  `.catch(async () => {
-    const [updated] = await sql`UPDATE feature_flags SET enabled = ${body.enabled}, updated_at = NOW() WHERE tenant_id = ${tenant?.id} AND key = ${body.key} RETURNING *`;
-    return [updated];
-  });
+  `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_feature_flag", resource: "feature_flag", resourceId: body.key, before: { enabled: before?.enabled }, after: { enabled: body.enabled } });
   return ok({ flag });
 }

@@ -17,14 +17,22 @@ export async function POST(request, { params }) {
   if (!slot) return fail("NOT_FOUND", "Volunteer slot not found", 404);
   const [existing] = await sql`SELECT * FROM volunteer_signups WHERE slot_id = ${id} AND user_id = ${user.id} LIMIT 1`;
   if (existing) return ok({ signup: existing, already: true });
-  const [{ count }] = await sql`SELECT COUNT(*)::int AS count FROM volunteer_signups WHERE slot_id = ${id}`;
-  if (count >= slot.capacity) return fail("EVENT_FULL", "This volunteer slot is full", 409);
-  const [signup] = await sql`
-    INSERT INTO volunteer_signups (slot_id, user_id)
-    VALUES (${id}, ${user.id})
-    ON CONFLICT (slot_id, user_id) DO NOTHING
-    RETURNING *
-  `;
+  const enrolled = await sql.begin(async (tx) => {
+    const [locked] = await tx`SELECT capacity FROM volunteer_slots WHERE id = ${id} FOR UPDATE`;
+    if (!locked) return null;
+    const [{ count }] = await tx`SELECT COUNT(*)::int AS count FROM volunteer_signups WHERE slot_id = ${id} FOR UPDATE`;
+    if (count >= locked.capacity) return "FULL";
+    const [row] = await tx`
+      INSERT INTO volunteer_signups (slot_id, user_id)
+      VALUES (${id}, ${user.id})
+      ON CONFLICT (slot_id, user_id) DO NOTHING
+      RETURNING *
+    `;
+    return row || "EXISTS";
+  });
+  if (enrolled === null) return fail("NOT_FOUND", "Volunteer slot not found", 404);
+  if (enrolled === "FULL") return fail("EVENT_FULL", "This volunteer slot is full", 409);
+  const signup = enrolled === "EXISTS" ? existing : enrolled;
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: "volunteer_signup",
     resource: "volunteer_slot", resourceId: id, after: { slotId: id }

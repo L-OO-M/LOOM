@@ -29,10 +29,11 @@ export async function POST(request) {
     RETURNING id
   `;
   if (inserted.length > 0) {
+    const tid = ctx.tenant?.id ?? null;
     if (body.targetType === "thread") {
-      await sql`UPDATE forum_threads SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
+      await sql`UPDATE forum_threads SET flag_count = flag_count + 1 WHERE id = ${body.targetId} AND tenant_id = ${tid}::uuid`;
     } else {
-      await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId}`;
+      await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId} AND tenant_id = ${tid}::uuid`;
     }
   }
   return ok({ flagged: true });

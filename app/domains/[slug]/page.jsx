@@ -4,6 +4,7 @@ import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { BrandMark } from "@/components/BrandMark";
+import { JoinButtonClient } from "./_components/JoinButtonClient";
 import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -65,40 +66,8 @@ function formatWhen(value) {
   }
 }
 
-// Logged-in join button: plain fetch POST to the real join endpoint, so this
-// server-rendered page needs no client-component file of its own. A 401
-// (logged-out) falls back to the register page.
 function JoinButton({ departmentId }) {
-  const script = `
-    (function () {
-      var btn = document.getElementById("dept-join-btn");
-      if (!btn) return;
-      btn.addEventListener("click", function () {
-        btn.disabled = true;
-        var original = btn.textContent;
-        btn.textContent = "Joining…";
-        fetch("/api/departments/${departmentId}/join", { method: "POST" })
-          .then(function (r) {
-            if (r.status === 401) { window.location.href = "/register"; return null; }
-            return r.json();
-          })
-          .then(function (d) {
-            if (!d) return;
-            btn.textContent = d && d.ok ? "You are a member ✓" : "Join failed — try again";
-            if (!(d && d.ok)) btn.disabled = false;
-          })
-          .catch(function () { btn.textContent = original; btn.disabled = false; });
-      });
-    })();
-  `;
-  return (
-    <>
-      <button id="dept-join-btn" type="button" className="btn-ink !px-6 !py-3 !text-base">
-        Join this department
-      </button>
-      <script dangerouslySetInnerHTML={{ __html: script }} />
-    </>
-  );
+  return <JoinButtonClient departmentId={departmentId} />;
 }
 
 export default async function DomainPage({ params }) {
