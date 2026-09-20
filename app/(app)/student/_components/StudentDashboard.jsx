@@ -1,28 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Route, FolderKanban, Award, Zap, GitBranch, Flag } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { Display, Meta, ActionLink, StatusPill } from "@/components/loom/primitives";
-import { Card, EmptyState } from "@/components/ui";
-import { ProgressPath } from "@/components/loom/ProgressPath";
-import { WeekStrip } from "@/components/loom/Heatmap";
-import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
-import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { DepartmentsSection } from "@/components/student/OrgPanels";
 
-function relDate(iso) {
+function relDay(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  const now = new Date();
-  const day = new Date(d); day.setHours(0, 0, 0, 0);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.round((day - today) / 86400000);
+  const now = new Date(); now.setHours(0,0,0,0);
+  const day = new Date(d); day.setHours(0,0,0,0);
+  const diff = Math.round((day - now) / 86400000);
   if (diff <= 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff < 7) return d.toLocaleDateString("en-IN", { weekday: "long" });
   return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+function relShort(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
 }
 
 const LOOP_STAGES = ["Beginner", "Learn", "Practice", "Build", "Collaborate", "Mentor"];
@@ -35,156 +32,58 @@ export function StudentDashboard({
 }) {
   const name = profile?.name?.split(" ")[0] || "there";
   const done = new Set(doneIds);
+  const fresh = !profile?.primary_domain || doneIds.length === 0;
   const stops = nodes.map((n) => ({
     label: n.title,
     state: done.has(n.id) ? "done" : nextNode && n.id === nextNode.id ? "now" : "todo"
   }));
-  const fresh = !profile?.primary_domain || doneIds.length === 0;
-  const upcoming = nodes.filter((n) => !done.has(n.id)).slice(0, 3);
-
-  // What's next: rule-based on real state only — never invented.
-  const nextActions = [];
-  if (nextNode) {
-    nextActions.push({
-      title: nextNode.title,
-      detail: `${nextNode.domain || "Roadmap"} · Milestone ${doneIds.length + 1} of ${nodes.length}`,
-      href: "/student/roadmap",
-      cta: "Continue",
-      primary: true
-    });
-  }
-  const openContest = (contests || []).find((c) => !c.registered);
-  if (openContest) {
-    nextActions.push({
-      title: openContest.title,
-      detail: `Contest · ends ${relDate(openContest.ends_at || openContest.starts_at)}`,
-      href: "/student/contests",
-      cta: "Register"
-    });
-  }
-  const upcomingEvent = (events || []).find((e) => !e.registered);
-  if (upcomingEvent) {
-    nextActions.push({
-      title: upcomingEvent.title,
-      detail: `${upcomingEvent.event_type || "Event"} · ${relDate(upcomingEvent.starts_at)}`,
-      href: "/student/events",
-      cta: "Join"
-    });
-  }
-  if ((projectCount ?? 0) === 0) {
-    nextActions.push({
-      title: "Ship your first project",
-      detail: "Proof beats progress",
-      href: "/student/projects/new",
-      cta: "Start"
-    });
-  }
-  if (!profile?.github_username) {
-    nextActions.push({
-      title: "Connect GitHub",
-      detail: "Turn real commits into evidence",
-      href: "/student/github",
-      cta: "Connect"
-    });
-  }
-  if ((sessions || []).length === 0 && (cadence?.mentors ?? 0) > 0) {
-    nextActions.push({
-      title: "Find a mentor",
-      detail: `${cadence.mentors} ${cadence.mentors === 1 ? "guide" : "guides"} available`,
-      href: "/student/mentorship",
-      cta: "Browse"
-    });
-  }
-  if (loop && !loop.isMentor && loop.eligible && loop.applicationStatus !== "pending") {
-    nextActions.push({
-      title: "Become a mentor",
-      detail: "Your proof qualifies you to guide juniors",
-      href: "/student/mentorship",
-      cta: "Apply"
-    });
-  }
-  if (nextActions.length === 0) {
-    nextActions.push({
-      title: "Share your proof",
-      detail: "Every node complete — make it travel",
-      href: "/student/credentials",
-      cta: "Open"
-    });
-  }
-  const shownActions = nextActions.slice(0, 4);
+  const remaining = nodes.length - doneIds.length;
+  const domainLabel = nextNode?.domain ? nextNode.domain.replace(/_/g, " ").replace(/\b\w/g, c=>c.toUpperCase()) : "Roadmap";
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6">
-      {/* COMMAND HERO — status and next move beside the week pulse */}
+    <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      {/* HERO — inside environment, not a card. Clipped gradient field */}
       <Reveal>
-        <section className="spot-card hero-field rounded-3xl border px-6 py-8 sm:px-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <div className="min-w-0 flex-1">
-              <Meta>Discover · Your college</Meta>
-              <Display size="lg" className="mt-2">
-                The L.O.O.M. Builder&apos;s Hub: Your Path to Proof.
-              </Display>
-              <p className="mt-3 flex flex-wrap gap-2">
-                <span className="pill is-live">{profile?.role ?? "student"}</span>
-                {profile?.vertical && <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{profile.vertical}</span>}
-                <span className="mono-tag">· {todayLabel} · {greeting}, {name}</span>
+        <section className="hero-field -mx-4 sm:-mx-6 px-4 sm:px-6 pt-6 pb-10 sm:pt-8 sm:pb-14" aria-label="Where you are">
+          <p className="meta">{greeting.toUpperCase()}, {name.toUpperCase()}</p>
+          {nextNode ? (
+            <>
+              <p className="narrative mt-3 max-w-2xl" style={{ color: "var(--text-muted)" }}>
+                You are <strong style={{ color: "var(--text)" }}>{remaining === 1 ? "1 step" : `${remaining} steps`} away</strong> from completing your next {domainLabel} milestone.
               </p>
-              {nextNode ? (
-                <>
-                  <p className="narrative mt-3">
-                    You are {overallPercent}% through your roadmap — {doneIds.length} of {nodes.length} milestones complete.
-                  </p>
-                  <p className="mt-2 text-sm" style={{ color: "var(--text)" }}>
-                    <span style={{ color: "var(--text-muted)" }}>Next up — </span>
-                    <strong className="font-semibold">{nextNode.title}</strong>
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-4">
-                    <Link href="/student/roadmap" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue roadmap →</Link>
-                    <ActionLink href={`/student/roadmap/${nextNode.id}`}>Node detail</ActionLink>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="narrative mt-3">
-                    The whole path, walked — {doneIds.length} of {nodes.length} milestones complete. Turn this momentum into public proof.
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center gap-4">
-                    <Link href="/student/credentials" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
-                    <ActionLink href="/student/opensource">Find an OSS issue</ActionLink>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="w-full shrink-0 rounded-2xl border p-4 sm:p-5 lg:w-72" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
-              <div className="flex items-baseline justify-between gap-2">
-                <Meta>This week</Meta>
-                <span className="meta" style={{ color: "var(--accent)" }}>
-                  {weekCounts.sessions} {weekCounts.sessions === 1 ? "session" : "sessions"}
-                </span>
+              <h1 className="display display-lg mt-4 max-w-3xl">{nextNode.title}</h1>
+              <p className="meta mt-3">{nextNode.domain ? `${nextNode.domain.replace(/_/g, " ")} · ` : ""}Roadmap · {nextNode.difficulty_level || "Milestone"}</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href={`/student/roadmap/${nextNode.id}`} prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue →</Link>
+                <Link href="/student/roadmap" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">View roadmap</Link>
               </div>
-              <div className="mt-3">
-                <WeekStrip days={weekDays} />
+            </>
+          ) : (
+            <>
+              <h1 className="display display-lg mt-4 max-w-3xl">The whole path, walked.</h1>
+              <p className="narrative mt-3 max-w-2xl">Every milestone complete — {doneIds.length} of {nodes.length}. Turn momentum into public proof.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/student/credentials" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
+                <Link href="/student/opensource" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Find an OSS issue</Link>
               </div>
-              <p className="meta mt-3">
-                {weekCounts.contributions} logged · Milestone {Math.min(doneIds.length + 1, Math.max(nodes.length, 1))} of {nodes.length}
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 h-1.5 overflow-hidden rounded-full" role="img" aria-label={`Roadmap ${overallPercent} percent complete`} style={{ background: "var(--line)" }}>
-            <div className="h-full rounded-full" style={{ width: `${overallPercent}%`, background: "linear-gradient(to right, var(--thread-cyan), var(--thread-gold))" }} />
+            </>
+          )}
+          <p className="meta mt-6">{todayLabel} · {overallPercent}% complete · {doneIds.length} of {nodes.length} milestones</p>
+          <div className="mt-3 h-1.5 max-w-xl overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
+            <div className="h-full rounded-full" style={{ width: `${overallPercent}%`, background: "linear-gradient(90deg,var(--thread-cyan),var(--thread-gold))" }} />
           </div>
         </section>
       </Reveal>
 
       {fresh ? (
-        <Reveal delay={0.08}>
-          <section className="mt-10" aria-label="Begin">
+        <Reveal delay={0.06}>
+          <section className="mt-2">
             <OnboardingState
               eyebrow="Your first week"
               title="Three small steps unlock everything."
-              why="L.O.O.M. reads your real activity — roadmap progress, commits, shipped projects — and turns it into proof. Nothing here is manual theatre."
+              why="L.O.O.M. reads your real activity — roadmap progress, commits, shipped projects — and turns it into proof."
               steps={[
-                { title: "Set your direction", body: "Pick a track in onboarding so recommendations know where to point." },
+                { title: "Set your direction", body: "Pick a track in onboarding so recommendations point correctly." },
                 { title: "Finish your first node", body: "Open the roadmap and complete milestone one. The next unlocks itself." },
                 { title: "Connect GitHub", body: "Real commits become growth evidence, automatically." }
               ]}
@@ -194,242 +93,262 @@ export function StudentDashboard({
         </Reveal>
       ) : (
         <>
-          {/* METRICS — one component, hairline dividers, individually scannable */}
-          <Reveal delay={0.05}>
-            <section className="mt-8" aria-label="Overview">
-              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-3 lg:grid-cols-6" style={{ borderColor: "var(--line)", background: "var(--line)" }}>
-                <MetricCell icon={Route} value={`${overallPercent}%`} label="roadmap complete" />
-                <MetricCell icon={FolderKanban} value={projectCount ?? 0} unit={(projectCount ?? 0) === 1 ? "project" : "projects"} label="shipped by you" />
-                <MetricCell icon={Award} value={achievementCount ?? 0} unit={(achievementCount ?? 0) === 1 ? "badge" : "badges"} label="achievements earned" />
-                <MetricCell icon={Zap} value={weekCounts.sessions} unit="sessions" label="learning sessions this week" />
-                <MetricCell icon={GitBranch} value={weekCounts.contributions} unit="proof" label="contributions logged this week" />
-                <MetricCell icon={Flag} value={weekCounts.milestones} unit={weekCounts.milestones === 1 ? "milestone" : "milestones"} label="milestones completed this week" />
+          {/* WEEK — open strip, no card */}
+          <Reveal delay={0.04}>
+            <section className="mt-4 border-y py-6 sm:py-8" style={{ borderColor: "var(--line)" }} aria-label="This week">
+              <div className="flex items-baseline justify-between gap-3">
+                <Meta>This week</Meta>
+                <span className="meta">{weekCounts.sessions} sessions · {weekCounts.contributions} contributions · {weekCounts.milestones} milestones</span>
+              </div>
+              <div className="weekstrip mt-4">
+                {weekDays.map((d) => (
+                  <div key={d.label} className={`weekday ${d.hit ? "is-hit" : ""} ${d.today ? "is-today" : ""}`}>
+                    <span className="meta text-[10px] leading-none">{d.label.slice(0,3).toUpperCase()}</span>
+                    <span className="weekpip" aria-label={`${d.label} ${d.hit ? "active" : "quiet"}${d.today ? " today" : ""}`}>
+                      <span className="size-1.5 rounded-full" style={{ background: d.hit ? "var(--accent)" : d.today ? "var(--line)" : "transparent", display: d.hit || d.today ? "block" : "none" }} />
+                    </span>
+                  </div>
+                ))}
               </div>
             </section>
           </Reveal>
 
-          {/* DASHBOARD DECK — numbered main column plus live rail */}
-          <div className="mt-12 grid items-start gap-8 lg:grid-cols-12">
-            <div className="min-w-0 lg:col-span-8">
-              {/* 01 — WHAT'S NEXT */}
-              <Reveal delay={0.05}>
-                <section aria-label="What is next">
-                  <SectionHead index="01" title="What is next" right={`${shownActions.length} open`} />
-                  <NextActions actions={shownActions} />
-                </section>
-              </Reveal>
-
-              {/* 02 — YOUR JOURNEY */}
-              <Reveal delay={0.06}>
-                <section className="mt-12" aria-label="Your journey">
-                  <SectionHead index="02" title="Your journey" right={`${doneIds.length} of ${nodes.length} · ${overallPercent}%`} />
-                  <Card>
-                    <div className="mt-1">
-                      <ProgressPath stops={stops} percent={overallPercent} bare ariaLabel={`${overallPercent} percent of roadmap complete`} />
-                    </div>
-                    {upcoming.length > 0 ? (
-                      <ul className="mt-5 space-y-0.5">
-                        {upcoming.map((n, i) => (
-                          <li key={n.id}>
-                            <Link
-                              href={i === 0 && nextNode ? `/student/roadmap/${nextNode.id}` : "/student/roadmap"}
-                              prefetch={false}
-                              className="row-link flex items-center gap-3 px-2 py-2"
-                            >
-                              <span
-                                className="grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-bold"
-                                style={i === 0
-                                  ? { border: "1.5px solid var(--accent)", color: "var(--accent)" }
-                                  : { border: "1.5px solid var(--line)", color: "var(--text-muted)" }}
-                                aria-hidden="true"
-                              >
-                                {i === 0 ? "→" : i + 1}
-                              </span>
-                              <span
-                                className="min-w-0 flex-1 truncate text-sm font-medium"
-                                style={{ color: i === 0 ? "var(--text)" : "var(--text-muted)" }}
-                              >
-                                {n.title}
-                              </span>
-                              {i === 0 && (
-                                <span className="meta shrink-0" style={{ color: "var(--accent)" }}>you are here</span>
-                              )}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="narrative mt-5">Every milestone complete. The loop below is how you stay in motion.</p>
-                    )}
-                    <div className="mt-4 flex justify-end">
-                      <ActionLink href="/student/roadmap">Open the path</ActionLink>
-                    </div>
-                  </Card>
-                </section>
-              </Reveal>
-
-              {/* 03 — BUILDING */}
-              <Reveal delay={0.07}>
-                <section className="mt-12" aria-label="Things you are building">
-                  <SectionHead index="03" title="Things you are building" right={`${projectCount ?? 0} shipped`} />
-                  <div className="mt-1 flex justify-end">
-                    <ActionLink href="/student/projects">All projects</ActionLink>
+          {/* JOURNEY — horizontal path, open space */}
+          <Reveal delay={0.05}>
+            <section className="mt-8 sm:mt-10" aria-label="Your journey">
+              <div className="flex items-baseline justify-between gap-3">
+                <Meta>Your journey</Meta>
+                <span className="meta">{doneIds.length} of {nodes.length} · {overallPercent}%</span>
+              </div>
+              <div className="mt-6">
+                <div className="journey">
+                  <div className="journey-track"><div className="journey-fill" style={{ width: `${overallPercent}%` }} /></div>
+                  <div className="journey-stops" style={{ height: 18 }}>
+                    {stops.map((s,i) => {
+                      const left = stops.length===1 ? 100 : (i/(stops.length-1))*100;
+                      return (
+                        <div key={i} className={`journey-stop ${s.state==="done"?"is-done":s.state==="now"?"is-now":""}`} style={{ left: `${left}%` }}>
+                          <span className="journey-pip" aria-hidden="true" />
+                        </div>
+                      );
+                    })}
                   </div>
-                  <ProjectsPreview projects={projectsPreview} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color:"var(--text-muted)" }}>
+                  {stops.slice(0,5).map((s,i) => (
+                    <span key={i} style={{ color: s.state==="now" ? "var(--accent)" : s.state==="done" ? "var(--text)" : "var(--text-muted)", fontWeight: s.state==="now" ? 700 : 400 }}>
+                      {s.state==="now" ? `● ${s.label} — you are here` : s.label}
+                    </span>
+                  ))}
+                  {stops.length>5 && <span>· +{stops.length-5} more</span>}
+                </div>
+              </div>
+              <div className="mt-4">
+                <ActionLink href="/student/roadmap">Open the path →</ActionLink>
+              </div>
+            </section>
+          </Reveal>
+
+          <div className="mt-10 grid gap-10 lg:grid-cols-[1.7fr_1fr] lg:gap-12">
+            {/* LEFT — evidence stream + coming up rail */}
+            <div className="min-w-0 space-y-10">
+              <Reveal delay={0.04}>
+                <section aria-label="Recent proof">
+                  <Meta>Recent proof</Meta>
+                  <p className="narrative mt-1">What you actually did — not what you planned.</p>
+                  {proof.length>0 ? (
+                    <ol className="tl mt-5">
+                      {proof.map((p,i) => (
+                        <li key={i} className={`tl-item ${p.hot ? "is-done" : ""}`}>
+                          <span className="tl-dot" aria-hidden="true" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-6" style={{ color:"var(--text)" }}>{p.text}</p>
+                            <p className="meta mt-0.5">{p.meta}</p>
+                            {p.href && <Link href={p.href} prefetch={false} className="mt-1 inline-block text-xs font-semibold hover:underline" style={{ color:"var(--accent)" }}>View →</Link>}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="narrative mt-4">Nothing recorded yet. Finish a node or ship a project — it will appear here with evidence attached.</p>
+                  )}
+                  <div className="mt-4">
+                    <ActionLink href="/student/credentials">Open proof →</ActionLink>
+                  </div>
                 </section>
               </Reveal>
 
-              {/* 04 — RHYTHM */}
-              <Reveal delay={0.06}>
-                <section className="mt-12" aria-label="Chapter rhythm">
-                  <SectionHead index="04" title="Chapter rhythm" right="year-round, not once a semester" />
-                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <RhythmRow
-                      label="Beginner workshops"
-                      detail={cadence?.workshop ? `${cadence.workshop.title} · ${relDate(cadence.workshop.when)}` : "none scheduled — propose one to your chapter"}
-                      href="/student/events"
-                    />
-                    <RhythmRow
-                      label="Weekly practice"
-                      detail={(cadence?.contests ?? 0) > 0 ? `${cadence.contests} open challenges` : "no open challenges right now"}
-                      href="/student/contests"
-                    />
-                    <RhythmRow
-                      label="Peer mentorship"
-                      detail={(cadence?.mentors ?? 0) > 0 ? `${cadence.mentors} guides available` : "no guides yet — be the reason there are"}
-                      href="/student/mentorship"
-                    />
-                    <RhythmRow
-                      label="Mini-projects"
-                      detail={(cadence?.projects ?? 0) > 0 ? `${cadence.projects} shipped by you` : "nothing shipped yet — proof beats progress"}
-                      href="/student/projects"
-                    />
-                    <RhythmRow
-                      label="Tech talks"
-                      detail={(cadence?.talks ?? 0) > 0 ? `${cadence.talks} upcoming` : "none upcoming"}
-                      href="/student/events"
-                    />
-                    <RhythmRow
-                      label="OSS sprints"
-                      detail={(cadence?.oss ?? 0) > 0 ? `${cadence.oss} curated repos waiting` : "no curated repos yet"}
-                      href="/student/opensource"
-                    />
+              <Reveal delay={0.05}>
+                <section aria-label="Coming up">
+                  <Meta>Coming up</Meta>
+                  <p className="narrative mt-1">What the chapter has put on the horizon.</p>
+                  <ul className="mt-4 divide-y" style={{ borderColor:"var(--line)" }}>
+                    {(() => {
+                      const rows = [
+                        ...(sessions||[]).map(s=>({ when: relDay(s.scheduled_at), title: s.mentor_name?`Mentor session with ${s.mentor_name}`:"Mentor session", sub: s.expertise||"mentorship", href:"/student/mentorship" })),
+                        ...(contests||[]).map(c=>({ when: relDay(c.ends_at||c.starts_at), title: c.title, sub: c.registered?"registered · contest":"contest — registration open", href:"/student/contests" })),
+                        ...(events||[]).map(e=>({ when: relDay(e.starts_at), title: e.title, sub: `${e.event_type||"event"}${e.is_online?" · online":e.location?` · ${e.location}`:""}`, href:"/student/events" }))
+                      ].slice(0,5);
+                      if (!rows.length) return <li className="py-3 text-sm" style={{ color:"var(--text-muted)" }}>Nothing scheduled. <Link href="/student/contests" style={{ color:"var(--accent)" }} className="font-semibold hover:underline">Browse challenges</Link> or <Link href="/student/events" style={{ color:"var(--accent)" }} className="font-semibold hover:underline">find an event</Link>.</li>;
+                      return rows.map((r,i)=>(
+                        <li key={i} className="flex items-center gap-3 py-3">
+                          <span className="meta w-24 shrink-0">{r.when.toUpperCase()}</span>
+                          <span className="min-w-0 flex-1">
+                            <Link href={r.href} prefetch={false} className="block truncate text-sm font-semibold hover:underline" style={{ color:"var(--text)" }}>{r.title}</Link>
+                            <span className="meta block truncate">{r.sub}</span>
+                          </span>
+                        </li>
+                      ));
+                    })()}
                   </ul>
                 </section>
               </Reveal>
 
-              {/* 05 — THE LOOP */}
-              <Reveal delay={0.05}>
-                <section className="mt-12" aria-label="The loop">
-                  <SectionHead index="05" title="The loop continues through you" />
-                  <Card>
-                    <p className="meta">
-                      Stage {Math.min((loop?.stageIndex ?? 0) + 1, 6)} of 6 — {LOOP_STAGES[Math.min(loop?.stageIndex ?? 0, 5)]}
-                    </p>
-                    <LoopStrip stage={loop?.stageIndex ?? 0} />
-                    <LoopBody loop={loop} />
-                  </Card>
+              {/* BUILDING — editorial featured + list */}
+              <Reveal delay={0.04}>
+                <section aria-label="Things you are building">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Meta>Things you are building</Meta>
+                    <span className="meta">{projectCount ?? 0} shipped</span>
+                  </div>
+                  {projectsPreview && projectsPreview.length>0 ? (
+                    <>
+                      <Link href={`/student/projects/${projectsPreview[0].id}`} prefetch={false} className="mt-4 block rounded-2xl border p-5 sm:p-6 hover:shadow-sm" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
+                        <span className="pill is-live">{projectsPreview[0].status}</span>
+                        <p className="display display-md mt-3" style={{ overflowWrap:"break-word" }}>{projectsPreview[0].title}</p>
+                        {projectsPreview[0].description && <p className="narrative mt-2">{projectsPreview[0].description}</p>}
+                        <span className="meta mt-3 block" style={{ color:"var(--accent)" }}>Open →</span>
+                      </Link>
+                      {projectsPreview.length>1 && (
+                        <ul className="mt-3 space-y-2">
+                          {projectsPreview.slice(1,3).map((p,i)=>(
+                            <li key={p.id} className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
+                              <span className="index-num hidden sm:block">{String(i+2).padStart(2,"0")}</span>
+                              <Link href={`/student/projects/${p.id}`} prefetch={false} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline" style={{ color:"var(--text)" }}>{p.title}</Link>
+                              <span className="meta shrink-0 hidden sm:block">{p.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border p-6" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
+                      <p className="text-sm font-semibold" style={{ color:"var(--text)" }}>Ship your first build.</p>
+                      <p className="narrative mt-2">Projects turn learning into proof — they feed your profile, credentials, and reports.</p>
+                      <Link href="/student/projects/new" prefetch={false} className="btn-ink mt-4 inline-block">Create project →</Link>
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    <ActionLink href="/student/projects">All projects →</ActionLink>
+                  </div>
                 </section>
               </Reveal>
             </div>
 
-            {/* LIVE RAIL — one grouped surface for attention and quick scanning */}
-            <aside className="min-w-0 lg:col-span-4" aria-label="Live from your chapter">
-              <Reveal delay={0.05}>
-                <Card>
+            {/* RIGHT — live rail: inbox + rhythm + loop + growth */}
+            <aside className="min-w-0 space-y-8" aria-label="Live">
+              <Reveal delay={0.04}>
+                <section>
                   <div className="flex items-baseline justify-between gap-2">
                     <Meta>Inbox</Meta>
-                    {notifUnread > 0 ? (
-                      <span className="meta" style={{ color: "var(--accent)" }}>{notifUnread} unread</span>
-                    ) : (
-                      <ActionLink href="/student/notifications">View all</ActionLink>
-                    )}
+                    {notifUnread>0 ? <span className="meta" style={{ color:"var(--accent)" }}>{notifUnread} unread</span> : <ActionLink href="/student/notifications">History</ActionLink>}
                   </div>
-                  <NotificationsPreview items={notificationsPreview} />
-                  {notifUnread > 0 && (
-                    <div className="mt-3 text-right">
-                      <ActionLink href="/student/notifications">View all</ActionLink>
+                  {notificationsPreview && notificationsPreview.length>0 ? (
+                    <ul className="mt-3 divide-y" style={{ borderColor:"var(--line)" }}>
+                      {notificationsPreview.slice(0,5).map(n=>(
+                        <li key={n.id} className="flex gap-2.5 py-2.5">
+                          <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ background: n.read_at?"var(--line)":"var(--accent)" }} aria-hidden="true" />
+                          <Link href={n.link||"/student/notifications"} prefetch={false} className="min-w-0">
+                            <span className="block truncate text-sm font-medium" style={{ color:"var(--text)" }}>{n.title}</span>
+                            {n.body && <span className="block truncate text-xs" style={{ color:"var(--text-muted)" }}>{n.body}</span>}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="narrative mt-3 text-sm">All caught up. Mentions and chapter news land here.</p>
+                  )}
+                </section>
+              </Reveal>
+
+              <div className="rule" aria-hidden="true" />
+
+              <Reveal delay={0.05}>
+                <section aria-label="Chapter rhythm">
+                  <Meta>Chapter rhythm</Meta>
+                  <p className="narrative mt-1 text-sm">Year-round, not once a semester.</p>
+                  <ul className="mt-3 space-y-2">
+                    {[
+                      [cadence?.workshop?`${cadence.workshop.title} · ${relShort(cadence.workshop.when)}`:"no workshop — propose one","Workshops","/student/events"],
+                      [`${cadence?.contests??0} open`, "Challenges","/student/contests"],
+                      [`${cadence?.mentors??0} guides`, "Mentors","/student/mentorship"],
+                      [`${cadence?.projects??0} shipped`, "Projects","/student/projects"],
+                      [`${cadence?.oss??0} repos`, "OSS","/student/opensource"]
+                    ].map(([detail,label,href],i)=>(
+                      <li key={i} className="flex items-baseline justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
+                        <span className="meta">{label}</span>
+                        <span className="truncate text-xs font-semibold" style={{ color:"var(--text)" }}>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              </Reveal>
+
+              <div className="rule" aria-hidden="true" />
+
+              <Reveal delay={0.05}>
+                <section aria-label="The loop">
+                  <Meta>Stage {Math.min((loop?.stageIndex??0)+1,6)} of 6 — {LOOP_STAGES[Math.min(loop?.stageIndex??0,5)]}</Meta>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {LOOP_STAGES.map((s,i)=>(
+                      <span key={s} className="rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={i<(loop?.stageIndex??0)?{background:"var(--accent)",borderColor:"var(--accent)",color:"#101314"}:i===(loop?.stageIndex??0)?{borderColor:"var(--accent)",color:"var(--accent)"}:{borderColor:"var(--line)",color:"var(--text-muted)"}}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                  <LoopBody loop={loop} />
+                </section>
+              </Reveal>
+
+              <div className="rule" aria-hidden="true" />
+
+              <Reveal delay={0.04}>
+                <section id="growth" className="scroll-mt-20" aria-label="Your growth">
+                  <Meta>Your last 30 days</Meta>
+                  {snapshot ? (
+                    <>
+                      <div className="mt-3 flex flex-wrap gap-x-8 gap-y-4">
+                        <PlainStat value={`${Number(snapshot.consistency_score||0)}%`} label="days active" />
+                        <PlainStat value={`${Number(snapshot.roadmap_completion_pct||0)}%`} label="roadmap" />
+                        <PlainStat value={snapshot.total_commits??0} label="commits" />
+                      </div>
+                      <p className="meta mt-3">{peers?.n>0 ? `Avg consistency ${Number(peers.ac||0)}% across ${peers.n} peers` : "Peer comparison appears once the chapter has snapshots."}</p>
+                    </>
+                  ) : (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium" style={{ color:"var(--text)" }}>Numbers arrive after motion.</p>
+                      <p className="narrative mt-1 text-sm">Connect GitHub and finish your first node — then this becomes your growth story.</p>
+                      <Link href="/student/github" prefetch={false} className="mt-3 inline-block text-xs font-semibold hover:underline" style={{ color:"var(--accent)" }}>Connect GitHub →</Link>
                     </div>
                   )}
-                  <div className="rule mt-6" aria-hidden="true" />
-                  <div className="mt-6 flex items-baseline justify-between gap-2">
-                    <Meta>Coming up</Meta>
-                    <ActionLink href="/student/events">Calendar</ActionLink>
-                  </div>
-                  <ComingUp contests={contests} events={events} sessions={sessions} />
-                  <div className="rule mt-6" aria-hidden="true" />
-                  <div className="mt-6 flex items-baseline justify-between gap-2">
-                    <Meta>Evidence</Meta>
-                    <ActionLink href="/student/credentials">Open proof</ActionLink>
-                  </div>
-                  <AchievementsPreview items={achievementsPreview} credentialCount={credentialCount} />
-                  <p className="meta mt-5">Latest proof</p>
-                  <div className="mt-1">
-                    {proof.length > 0 ? (
-                      <ActivityStream items={proof} />
-                    ) : (
-                      <p className="narrative mt-2">Nothing recorded yet. Finish a node or ship a project — it will appear here, with evidence attached.</p>
-                    )}
-                  </div>
-                </Card>
+                </section>
               </Reveal>
             </aside>
           </div>
-
-          {/* GROWTH STORY — insights folded in, never a dead end */}
-          <Reveal delay={0.05}>
-            <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Your growth">
-              {snapshot ? (
-                <>
-                  <Meta>Your last 30 days</Meta>
-                  <TileGrid cols={3}>
-                    <StatTile value={`${Number(snapshot.consistency_score || 0)}%`} label="days active out of the last 30" pct={Number(snapshot.consistency_score || 0)} />
-                    <StatTile value={`${Number(snapshot.roadmap_completion_pct || 0)}%`} label="roadmap complete and climbing" pct={Number(snapshot.roadmap_completion_pct || 0)} />
-                    <StatTile value={snapshot.total_commits ?? 0} unit="commits" label="in the last 30 days" />
-                  </TileGrid>
-                  <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                      {peers?.n > 0
-                        ? `Chapter average consistency is ${Number(peers.ac || 0)}% across ${peers.n} peers.`
-                        : "Peer comparison appears once the chapter has snapshots."}
-                    </p>
-                    <ActionLink href="/student/insights">Full story</ActionLink>
-                  </div>
-                </>
-              ) : (
-                <div className="max-w-2xl">
-                  <Meta>Your story is just starting</Meta>
-                  <p className="display display-md mt-3">Numbers arrive after motion.</p>
-                  <p className="narrative mt-3">
-                    Nightly rollups begin once you have real activity. Connect GitHub and finish your first roadmap node — then this space becomes your growth story.
-                  </p>
-                  <div className="mt-5">
-                    <Link href="/student/github" prefetch={false} className="btn-ink">Connect GitHub →</Link>
-                  </div>
-                </div>
-              )}
-            </section>
-          </Reveal>
         </>
       )}
 
-      {/* COMMUNITY & GROWTH — departments, volunteering, and the chapter feed */}
-      <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Community and growth">
+      <section className="mt-12 border-t pt-8" style={{ borderColor:"var(--line)" }} aria-label="Community and growth">
         <Meta>Community &amp; growth</Meta>
-        <p className="narrative mt-2">Departments, volunteering, and the chapter feed — where learning turns social.</p>
-        <div className="mt-6">
-          <DepartmentsSection />
-        </div>
+        <p className="narrative mt-1">Departments, volunteering, and the chapter feed — where learning turns social.</p>
+        <div className="mt-6"><DepartmentsSection /></div>
       </section>
 
-      {/* FINALE — the page closes on motion, not on database sections */}
       <Reveal>
-        <section className="hero-field mt-12 rounded-3xl border px-6 py-10 text-center sm:px-10" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Keep building">
+        <section className="hero-field mt-12 rounded-3xl border px-6 py-10 text-center sm:px-10" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
           <Meta>Keep building</Meta>
           <p className="display display-md mx-auto mt-3">Keep building, {name}.</p>
-          <p className="narrative mx-auto mt-3 text-center">
-            Progress becomes proof when learning turns into projects, contributions, and community.
-          </p>
+          <p className="narrative mx-auto mt-2 text-center">Progress becomes proof when learning turns into projects, contributions, and community.</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link href="/student/roadmap" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue roadmap →</Link>
             <Link href="/student/projects" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Explore projects</Link>
@@ -440,319 +359,18 @@ export function StudentDashboard({
   );
 }
 
-/* Numbered editorial section header for the main column. */
-function SectionHead({ index, title, right }) {
+function PlainStat({ value, label }) {
   return (
-    <div className="flex items-baseline gap-3">
-      <span className="index-num" aria-hidden="true">{index}</span>
-      <Meta>{title}</Meta>
-      {right && <span className="meta ml-auto text-right">{right}</span>}
-    </div>
+    <span className="flex items-baseline gap-2">
+      <span className="figure text-xl">{value}</span>
+      <span className="meta">{label}</span>
+    </span>
   );
 }
-
-/* One metric cell inside the hairline-divider overview grid. */
-function MetricCell({ icon: Icon, value, unit, label }) {
-  return (
-    <div className="flex items-start gap-3 p-4 sm:p-5" style={{ background: "var(--bg-elevated)" }}>
-      <Icon size={16} strokeWidth={1.75} style={{ color: "var(--accent)" }} className="mt-1 shrink-0" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="font-display text-[1.65rem] font-medium leading-none" style={{ color: "var(--text)" }}>
-          {value}
-          {unit && <span className="ml-2 align-middle font-sans text-[0.65rem] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>{unit}</span>}
-        </p>
-        <p className="meta mt-2 leading-relaxed">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function RhythmRow({ label, detail, href }) {
-  return (
-    <li className="min-w-0">
-      <Link
-        href={href}
-        prefetch={false}
-        className="flex h-full flex-col justify-between gap-3 rounded-xl border p-4 transition hover:-translate-y-0.5"
-        style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
-      >
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold" style={{ color: "var(--text)" }}>{label}</span>
-          <span className="meta mt-1.5 block leading-relaxed">{detail}</span>
-        </span>
-        <span className="text-xs font-semibold" style={{ color: "var(--accent)" }}>Open →</span>
-      </Link>
-    </li>
-  );
-}
-
-function LoopStrip({ stage }) {
-  return (
-    <ol className="mt-5 flex flex-wrap items-center gap-y-3" aria-label={`You are at: ${LOOP_STAGES[Math.min(stage, 5)]}`}>
-      {LOOP_STAGES.map((s, i) => (
-        <li key={s} className="flex items-center">
-          <span className="flex items-center gap-2">
-            <span
-              className="grid size-6 place-items-center rounded-full text-[10px] font-bold"
-              style={i < stage
-                ? { background: "var(--accent)", color: "#101314" }
-                : i === stage
-                  ? { border: "1.5px solid var(--accent)", color: "var(--text)", boxShadow: "0 0 0 3px var(--accent-glow)" }
-                  : { border: "1.5px solid var(--line)", color: "var(--text-muted)" }}
-              aria-hidden="true"
-            >
-              {i < stage ? "✓" : i + 1}
-            </span>
-            <span className="pr-1 text-xs font-semibold" style={{ color: i <= stage ? "var(--text)" : "var(--text-muted)" }}>{s}</span>
-          </span>
-          {i < LOOP_STAGES.length - 1 && (
-            <span className="mx-1.5 text-xs" style={{ color: "var(--line)" }} aria-hidden="true">·</span>
-          )}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function LoopBody({ loop }) {
   if (!loop) return null;
-  if (loop.isMentor) {
-    return (
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          You close the loop. Juniors are waiting — <strong style={{ color: "var(--text)" }}>guide the next intake</strong>.
-        </p>
-        <ActionLink href="/student/mentorship">Your mentees</ActionLink>
-      </div>
-    );
-  }
-  if (loop.applicationStatus === "pending") {
-    return (
-      <p className="mt-5 text-sm" style={{ color: "var(--text-muted)" }}>
-        Your mentor application is <strong style={{ color: "var(--accent)" }}>under review</strong>.
-        Reviewers judge proof, not promises — meanwhile, answering threads below counts twice.
-      </p>
-    );
-  }
-  if (loop.eligible) {
-    return (
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Your proof speaks: {loop.stats?.pct}% of the path, {loop.stats?.proof} public contribution{loop.stats?.proof === 1 ? "" : "s"}.{" "}
-          <strong style={{ color: "var(--text)" }}>You're ready to mentor.</strong>
-        </p>
-        <Link href="/student/mentorship" prefetch={false} className="btn-ink">Become a mentor →</Link>
-      </div>
-    );
-  }
-  const threads = loop.openThreads || [];
-  return (
-    <div className="mt-5">
-      <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-        Mentor candidacy needs {loop.stats ? `${Math.max(0, Math.round(40 - loop.stats.pct))}% more path` : "path progress"}
-        {loop.stats?.proof === 0 ? " plus one public contribution" : ""}. Fastest honest route: answer a stuck peer.
-      </p>
-      {threads.length > 0 && (
-        <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
-          {threads.map((t) => (
-            <li key={t.id}>
-              <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
-                <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{t.title}</span>
-                <span className="meta shrink-0">0 replies · answer →</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-/* Numbered action rows — the primary row carries the wash tint + solid CTA. */
-function NextActions({ actions }) {
-  return (
-    <ul className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-      {actions.map((a, i) => (
-        <li
-          key={`${a.href}-${a.title}`}
-          className={i > 0 ? "border-t" : ""}
-          style={{ borderColor: "var(--line)", background: a.primary ? "var(--wash)" : "transparent" }}
-        >
-          <Link href={a.href} prefetch={false} className="row-link flex items-center gap-4 px-4 py-4 sm:px-5">
-            <span className="index-num w-6 shrink-0" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[0.95rem] font-semibold" style={{ color: "var(--text)" }}>{a.title}</span>
-              <span className="meta mt-1 block truncate">{a.detail}</span>
-            </span>
-            <span
-              className={a.primary ? "btn-ink shrink-0 !px-4 !py-2 !text-xs" : "shrink-0 text-xs font-semibold"}
-              style={a.primary ? undefined : { color: "var(--accent)" }}
-            >
-              {a.cta} →
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function NotificationsPreview({ items }) {
-  if (!items || items.length === 0) {
-    return (
-      <p className="narrative mt-3">
-        All caught up. Mentions, reviews, and chapter news land here the moment they happen.
-      </p>
-    );
-  }
-  return (
-    <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
-      {items.map((n) => (
-        <li key={n.id}>
-          <Link href={n.link || "/student/notifications"} prefetch={false} className="row-link flex items-start gap-3 px-2 py-2.5">
-            <span
-              className="mt-1.5 size-1.5 shrink-0 rounded-full"
-              style={{ background: n.read_at ? "var(--line)" : "var(--accent)" }}
-              aria-hidden="true"
-            />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold leading-5" style={{ color: "var(--text)" }}>{n.title}</span>
-              {n.body && <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--text-muted)" }}>{n.body}</span>}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ProjectsPreview({ projects }) {
-  if (!projects || projects.length === 0) {
-    return (
-      <EmptyState
-        title="Ship your first build."
-        body="Projects turn learning into proof — they feed your profile, credentials, and reports. Start small, ship publicly, iterate."
-        action={<Link href="/student/projects/new" prefetch={false} className="btn-ink">Start a project →</Link>}
-      />
-    );
-  }
-  return (
-    <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-      {projects.map((p) => (
-        <li key={p.id} className="min-w-0 rounded-xl border p-4 transition hover:-translate-y-0.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <div className="flex items-start justify-between gap-3">
-            <Link href={`/student/projects/${p.id}`} prefetch={false} className="min-w-0 truncate text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>
-              {p.title}
-            </Link>
-            <StatusPill tone={p.status === "active" ? "live" : ""}>{p.status}</StatusPill>
-          </div>
-          {Array.isArray(p.tags) && p.tags.length > 0 && (
-            <p className="meta mt-1.5 truncate">{p.tags.join(" · ")}</p>
-          )}
-          {p.description && (
-            <p className="mt-1.5 line-clamp-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{p.description}</p>
-          )}
-          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
-            {p.repo_url && (
-              <a href={p.repo_url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                Repository →
-              </a>
-            )}
-            <Link href={`/student/projects/${p.id}`} prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-              Open →
-            </Link>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-const ACHIEVEMENT_SOURCE_LABELS = { oss: "Open source", contest: "Contest", roadmap: "Roadmap", manual: "Chapter" };
-
-function AchievementsPreview({ items, credentialCount }) {
-  if (!items || items.length === 0) {
-    return (
-      <p className="narrative mt-3">
-        No badges yet. Finish roadmap milestones, merge pull requests, or place in contests — verified work becomes proof that travels.
-      </p>
-    );
-  }
-  return (
-    <div>
-      <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
-        {items.map((a) => (
-          <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>
-                {a.badge_name || `${ACHIEVEMENT_SOURCE_LABELS[a.source_type] || "Chapter"} contribution`}
-              </span>
-              <span className="meta mt-0.5 block">
-                {a.earned_at ? new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : ""}
-                {a.evidence_url ? " · verified" : ""}
-              </span>
-            </span>
-            <StatusPill tone={a.level === "gold" ? "gold" : ""}>{a.level}</StatusPill>
-          </li>
-        ))}
-      </ul>
-      {(credentialCount ?? 0) > 0 && (
-        <p className="meta mt-3">
-          {credentialCount} verifiable credential{(credentialCount ?? 0) === 1 ? "" : "s"} issued — share them from your proof page.
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* WHAT / WHEN / ACTION rows — every upcoming item answers all three. */
-function ComingUp({ contests, events, sessions }) {
-  const rows = [
-    ...(sessions || []).map((s) => ({
-      when: relDate(s.scheduled_at),
-      title: `Mentor session${s.mentor_name ? ` with ${s.mentor_name}` : ""}`,
-      sub: s.expertise || "mentorship",
-      href: "/student/mentorship",
-      action: "Open"
-    })),
-    ...(contests || []).map((c) => ({
-      when: relDate(c.ends_at || c.starts_at),
-      title: c.title,
-      sub: c.registered ? "registered · contest" : "contest — registration open",
-      href: "/student/contests",
-      action: c.registered ? "View" : "Register"
-    })),
-    ...(events || []).map((e) => ({
-      when: relDate(e.starts_at),
-      title: e.title,
-      sub: `${e.event_type || "event"}${e.is_online ? " · online" : e.location ? ` · ${e.location}` : ""}${e.registered ? " · you're in" : ""}`,
-      href: "/student/events",
-      action: e.registered ? "View" : "Join"
-    }))
-  ].slice(0, 5);
-
-  if (rows.length === 0) {
-    return (
-      <p className="narrative mt-3">
-        Nothing scheduled. <Link href="/student/contests" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Browse challenges</Link> or{" "}
-        <Link href="/student/events" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>find an event</Link> to put something on the horizon.
-      </p>
-    );
-  }
-  return (
-    <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
-      {rows.map((r, i) => (
-        <li key={i} className="flex items-center gap-3 py-2.5">
-          <span className="meta w-20 shrink-0">{r.when}</span>
-          <span className="min-w-0 flex-1">
-            <Link href={r.href} prefetch={false} className="block truncate text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
-            <span className="meta mt-0.5 block truncate">{r.sub}</span>
-          </span>
-          <Link href={r.href} prefetch={false} className="shrink-0 text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            {r.action} →
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
+  if (loop.isMentor) return <p className="narrative mt-3 text-sm">You close the loop. Juniors are waiting — <Link href="/student/mentorship" className="font-semibold hover:underline" style={{ color:"var(--accent)" }}>guide the next intake</Link>.</p>;
+  if (loop.applicationStatus==="pending") return <p className="narrative mt-3 text-sm">Your mentor application is <strong style={{ color:"var(--accent)" }}>under review</strong>.</p>;
+  if (loop.eligible) return <div className="mt-3"><p className="narrative text-sm">Your proof qualifies you to guide juniors — <strong style={{ color:"var(--text)" }}>you&apos;re ready to mentor.</strong></p><Link href="/student/mentorship" prefetch={false} className="btn-ink mt-3 inline-block !py-2 text-sm">Become a mentor →</Link></div>;
+  return <p className="narrative mt-3 text-sm">Mentor candidacy needs {loop.stats?`${Math.max(0,Math.round(40-loop.stats.pct))}% more path`:"progress"}{loop.stats?.proof===0?" plus one public contribution":""}. Fastest honest route: answer a stuck peer.</p>;
 }
