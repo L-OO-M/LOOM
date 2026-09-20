@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 
@@ -38,5 +39,8 @@ export async function POST(request) {
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "upserted_resource", resource: "resource", resourceId: id, after: { title: body.title } });
+  revalidateTag("resources:counts");
+  revalidateTag("resources:levels");
+  revalidateTag("resources:total");
   return ok({ resource }, { status: 201 });
 }

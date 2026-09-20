@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { milestoneFor } from "@/lib/mentorship";
@@ -40,6 +41,9 @@ export async function POST(request) {
     resource: "roadmap_node", resourceId: body.nodeId,
     after: { nodeId: body.nodeId, status: body.status }
   });
+  // Purge 10s stale progress cache + warm resource catalog on milestone
+  revalidateTag("progress:nodes");
+  revalidateTag("resources:counts");
 
   let milestone = null;
   if (body.status === "completed") {

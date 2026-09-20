@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 
@@ -36,5 +37,6 @@ export async function POST(request) {
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "upserted_roadmap_node", resource: "roadmap_node", resourceId: id, after: { title: body.title } });
+  revalidateTag("progress:nodes");
   return ok({ node }, { status: 201 });
 }
