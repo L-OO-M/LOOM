@@ -9,16 +9,17 @@ import { BrandMark } from "./BrandMark";
 import { Drawer } from "./loom/Drawer";
 import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut,
-  MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network
+  MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb
 } from "lucide-react";
 import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
+import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
   home: Home, book: BookOpen, library: Library, trending: TrendingUp, kanban: FolderKanban,
   branch: GitBranch, pull: GitPullRequest, trophy: Trophy, calendar: CalendarDays, chart: ChartNoAxesCombined,
   handshake: Handshake, chat: MessagesSquare, network: Network, compass: Compass, award: Award,
   users: Users, stamp: Stamp, chartbar: BarChart3, settings: Settings, flag: Flag, scroll: ScrollText,
-  bell: Bell, shield: ShieldCheck
+  bell: Bell, shield: ShieldCheck, lightbulb: Lightbulb
 };
 
 const TabContext = createContext({ activeTab: "dashboard", setActiveTab: () => {} });
@@ -223,6 +224,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
         )}
 
         {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} inbox={inbox} />}
+        {area === "student" && <FeatureRequestFab />}
       </div>
     </TabContext.Provider>
   );
@@ -302,28 +304,103 @@ function useRoleSync(enabled) {
 
 function MyProfileLink() {
   const [card, setCard] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const router = useRouter();
   useEffect(() => {
     fetch("/api/social/profile").then((r) => r.json()).then((d) => {
       if (d?.ok && d.data?.card) setCard(d.data.card);
-      else if (d?.ok && d.data?.username) setCard({ username: d.data.username, is_public: d.data.is_public });
+    }).catch(() => {});
+    fetch("/api/profile").then((r) => r.json()).then((d) => {
+      if (d?.ok && d.data?.profile) setProfile(d.data.profile);
     }).catch(() => {});
   }, []);
-  if (!card?.username) return null;
-  const href = card.is_public ? `/u/${card.username}` : `/student/${card.username}`;
-  const label = card.is_public ? "Your public card — share on Discord/Insta" : "Your card (private) — make it public to share";
+  useEffect(() => {
+    function onClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function onKey(e) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
+  }, []);
+  if (!card?.username && !profile) return null;
+  const username = card?.username || profile?.name?.toLowerCase().replace(/\s+/g, "-") || "you";
+  const isPublic = !!card?.is_public;
+  const role = profile?.role || "student";
+  const canLead = ["dept_lead", "vertical_lead", "admin"].includes(role);
+  const canAdmin = ["admin"].includes(role);
+  const initials = (card?.username || profile?.name || "You").slice(0, 2).toUpperCase();
+  const workspaces = [
+    { label: "Student", href: "/student", desc: "Learn / Build / Prove", active: true },
+    ...(canLead ? [{ label: "Lead", href: "/lead", desc: "Department / Vertical console" }] : []),
+    ...(canAdmin ? [{ label: "Admin", href: "/admin", desc: "Chapter operations" }] : []),
+  ];
   return (
-    <Link
-      href={href}
-      prefetch={false}
-      className="hidden sm:inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition hover:opacity-80"
-      style={{ borderColor: card.is_public ? "var(--accent)" : "var(--line)", color: card.is_public ? "var(--accent)" : "var(--text-muted)" }}
-      aria-label={label}
-      title={label}
-    >
-      <span className="size-5 grid place-items-center rounded-full text-[10px] font-bold" style={{ background: card.is_public ? "var(--accent)" : "var(--bg-muted)", color: card.is_public ? "#101314" : "var(--text-muted)" }}>{card.username.slice(0,2).toUpperCase()}</span>
-      <span className="hidden lg:inline">@{card.username}</span>
-      {card.is_public && <span className="hidden lg:inline text-[10px]">↗</span>}
-    </Link>
+    <div ref={ref} className="relative hidden sm:block">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full border px-2 py-1.5 pr-3 transition hover:opacity-90"
+        style={{ borderColor: isPublic ? "var(--accent)" : "var(--line)", background: isPublic ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--bg-elevated)" }}
+        title={isPublic ? "Your public card — share anywhere" : "Your card is private"}
+      >
+        <span className="grid size-7 place-items-center rounded-full text-xs font-bold shrink-0" style={{ background: isPublic ? "var(--accent)" : "var(--bg-muted)", color: isPublic ? "#101314" : "var(--text)" }}>{initials}</span>
+        <span className="hidden lg:block text-xs font-semibold text-left" style={{ color: "var(--text)" }}>
+          <span className="block leading-none">@{username}</span>
+          <span className="block text-[10px] font-normal leading-none" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{isPublic ? " · public" : " · private"}</span>
+        </span>
+        <ChevronDown size={12} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border p-2 shadow-xl"
+            style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
+          >
+            <div className="px-3 py-2">
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>@{username}</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{card?.is_public ? " · Public card" : " · Private card"}</p>
+            </div>
+            <div className="my-1 h-px" style={{ background: "var(--line)" }} />
+            {isPublic ? (
+              <Link href={`/u/${username}`} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+                <span className="grid size-7 place-items-center rounded-full text-xs" style={{ background: "var(--accent)", color: "#101314" }}>↗</span>
+                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>View public card</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>loom.sh/u/{username} · unfurls on Discord</span></span>
+              </Link>
+            ) : (
+              <Link href={`/student/${username}`} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+                <span className="grid size-7 place-items-center rounded-full border text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>✎</span>
+                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>Claim public card</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>Make it shareable like Spotify</span></span>
+              </Link>
+            )}
+            <Link href="/student/settings" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+              <Settings size={14} style={{ color: "var(--text-muted)" }} />
+              <span className="text-sm" style={{ color: "var(--text)" }}>Settings & privacy</span>
+            </Link>
+            <div className="my-1 h-px" style={{ background: "var(--line)" }} />
+            <p className="px-3 py-1 text-[11px] font-semibold tracking-widest" style={{ color: "var(--text-muted)" }}>SWITCH WORKSPACE</p>
+            {workspaces.map((w) => (
+              <button
+                key={w.href}
+                role="menuitem"
+                onClick={() => { setOpen(false); router.push(w.href); }}
+                className="row-link flex w-full items-center gap-3 px-3 py-2.5 text-left"
+              >
+                <span className="grid size-7 place-items-center rounded-full border text-[10px] font-bold" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{w.label[0]}</span>
+                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{w.label}</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>{w.desc}</span></span>
+              </button>
+            ))}
+            {!canLead && !canAdmin && <p className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>Lead/Admin appears when your role is elevated by an admin.</p>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

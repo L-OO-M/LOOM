@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState } from "@xyflow/react";
+import { ReactFlow, Background, Controls, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 
@@ -87,19 +87,17 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
         id: e.id || `${e.from_id}->${e.to_id}`,
         source: e.from_id,
         target: e.to_id,
-        animated: e.kind === "optional",
+        type: "smoothstep",
+        animated: e.kind === "optional" || e.kind === "alternative",
         style: {
-          stroke: e.kind === "optional" ? "var(--text-muted)" : "var(--accent)",
-          strokeWidth: 1.5,
-          strokeDasharray: e.kind === "optional" ? "6 6" : e.kind === "alternative" ? "2 6" : undefined,
+          stroke: e.kind === "optional" ? "#94a3b8" : e.kind === "alternative" ? "#f59e0b" : "#2563eb",
+          strokeWidth: 2,
+          strokeDasharray: e.kind === "optional" ? "8 6" : e.kind === "alternative" ? "4 8" : undefined,
         },
         label: e.label || undefined,
       })),
     [edges]
   );
-
-  const [rfNodes, , onNodesChange] = useNodesState(flowNodes);
-  const [rfEdges, , onEdgesChange] = useEdgesState(flowEdges);
 
   const onNodeClick = useCallback(
     (_, node) => {
@@ -119,24 +117,22 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
     [done, nextId, nodes]
   );
 
-  // Re-map nodes to use custom type
-  const typedNodes = useMemo(() => rfNodes.map((n) => ({ ...n, type: "default" })), [rfNodes]);
+  const typedNodes = useMemo(() => flowNodes.map((n) => ({ ...n, type: "default" })), [flowNodes]);
 
   return (
-    <div style={{ width: "100%", height: 740, borderRadius: 16, border: "1px solid var(--line)", background: "#ffffff", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: 820, borderRadius: 16, border: "2px solid #e5e7eb", background: "#ffffff", overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
       <ReactFlow
         nodes={typedNodes}
-        edges={rfEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        edges={flowEdges}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.25 }}
-        nodesDraggable={false}
+        nodesDraggable={true}
         proOptions={{ hideAttribution: false }}
+        defaultEdgeOptions={{ type: "smoothstep" }}
       >
-        <Background gap={16} size={1} color="#e5e7eb" />
+        <Background gap={20} size={1.2} color="#e5e7eb" />
         <Controls />
         <MiniMap pannable zoomable style={{ border: "1px solid #e5e7eb", background: "white" }} />
       </ReactFlow>
