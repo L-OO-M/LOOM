@@ -5,7 +5,6 @@ import { eligibilityFor } from "@/lib/mentorship";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
-import { RoadmapDonut, WeekBars } from "@/components/student/StudentCharts";
 
 export default async function StudentPage() {
   const supabase = await createServerSupabase();
@@ -284,12 +283,6 @@ export default async function StudentPage() {
           </div>
         </div>
       )}
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="mt-4 grid gap-4 lg:grid-cols-2" aria-label="Progress visuals">
-          <RoadmapDonut done={doneCount} total={totalCount} />
-          <WeekBars days={weekDays} />
-        </div>
-      </div>
       <StudentDashboard
         profile={profile}
         greeting={greeting}
