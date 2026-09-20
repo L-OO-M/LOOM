@@ -130,7 +130,7 @@ export default async function LeadConsolePage() {
             <section key={d.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label={d.name}>
               <div className="flex items-baseline justify-between">
                 <h2 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{d.name}</h2>
-                <span className="meta">{d.members} · {d.members.length} member{d.members.length === 1 ? "" : "s"}</span>
+                <span className="meta">{d.members.length} member{d.members.length === 1 ? "" : "s"}</span>
               </div>
               {d.requests.length > 0 && (
                 <p className="mt-2 text-xs font-semibold" style={{ color: "var(--accent)" }}>{d.requests.length} Core request{d.requests.length === 1 ? "" : "s"} open</p>
