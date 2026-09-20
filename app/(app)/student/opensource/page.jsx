@@ -138,52 +138,28 @@ export default async function OpenSourcePage({ searchParams }) {
                 <p className="narrative mt-3">Nothing matched that search. Try another repository, domain, or difficulty — or ask your chapter admin to curate one.</p>
               ) : (
                 <>
-                  {/* Desktop: efficient table (GFI bound to the real column) */}
-                  <div className="mt-3 hidden border-y md:block" style={{ borderColor: "var(--line)" }}>
-                    <DataTable
-                      caption="Curated repositories with difficulty, stack, and good-first-issue counts"
-                      empty="No repositories match your filters."
-                      columns={[
-                        { key: "repo", label: "Repository", kind: "repo", minWidth: 240 },
-                        { key: "difficulty", label: "Level", minWidth: 110 },
-                        { key: "language", label: "Language", minWidth: 120 },
-                        { key: "primary_domain", label: "Domain", minWidth: 120 },
-                        { key: "stars", label: "Stars", mono: true, align: "right", kind: "stars", minWidth: 80 },
-                        { key: "good_first_issues", label: "Good first issues", mono: true, align: "right", kind: "gfi", minWidth: 130 }
-                      ]}
-                      rows={visible}
-                    />
-                  </div>
-
-                  {/* Mobile: stacked cards, no cramped columns */}
-                  <ul className="mt-3 space-y-3 md:hidden">
+                  {/* Repository grid — editorial cards as in reference image (warm, pill tags, Claim repo) */}
+                  <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {visible.map((p) => (
-                      <li key={p.id} className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                      <li key={p.id} className="card-sheen flex flex-col rounded-[var(--radius-xl)] border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                         <a href={p.github_repo_url} target="_blank" rel="noreferrer" aria-label={`${p.owner}/${p.repo_name} on GitHub (opens in a new tab)`} className="font-mono text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>
                           {p.owner}/{p.repo_name}
                         </a>
-                        {p.description && (
-                          <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{p.description}</p>
-                        )}
-                        <p className="meta mt-3" style={{ textTransform: "none", letterSpacing: "0.02em" }}>
-                          {p.difficulty}{p.language ? ` · ${p.language}` : ""}{p.primary_domain ? ` · ${p.primary_domain}` : ""}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold" style={{ color: "var(--text)" }}>
-                          ★ {p.stars && p.stars >= 1000 ? `${(p.stars / 1000).toFixed(1)}k` : (p.stars ?? 0)}
-                          <span className="font-normal" style={{ color: "var(--text-muted)" }}>
-                            {"  ·  "}{(p.good_first_issues || 0) > 0 ? `${p.good_first_issues} good-first-issues` : "good-first-issues —"}
-                          </span>
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-                          <a href={p.github_repo_url} target="_blank" rel="noreferrer" aria-label={`Explore ${p.owner}/${p.repo_name} on GitHub (opens in a new tab)`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                            Explore on GitHub →
-                          </a>
+                        <span className="mono-tag mt-1 line-clamp-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{p.description || `${p.primary_domain || "general"} · ${p.language || "mixed"}`}</span>
+                        <span className="mono-tag mt-3 flex flex-wrap gap-1.5">
+                          <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{p.difficulty}</span>
+                          {p.language && <span className="rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{p.language}</span>}
+                        </span>
+                        <span className="mono-tag mt-3 flex items-center gap-3">
+                          <span>★ {p.stars && p.stars >= 1000 ? `${(p.stars / 1000).toFixed(1)}k` : (p.stars ?? 0)}</span>
+                          <span className="dot-sep">{p.good_first_issues || 0} good first issues</span>
+                        </span>
+                        <span className="mt-auto flex flex-wrap gap-x-3 gap-y-2 pt-4">
+                          <a href={p.github_repo_url} target="_blank" rel="noreferrer" className="mono-tag hover:underline" style={{ color: "var(--accent)" }}>Explore →</a>
                           {(p.good_first_issues || 0) > 0 && (
-                            <a href={gfiHref(p.owner, p.repo_name)} target="_blank" rel="noreferrer" aria-label={`Good first issues in ${p.owner}/${p.repo_name} (opens in a new tab)`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                              Good first issues →
-                            </a>
+                            <a href={gfiHref(p.owner, p.repo_name)} target="_blank" rel="noreferrer" className="mono-tag rounded-full border px-2.5 py-1 hover:bg-[var(--wash)]" style={{ borderColor: "var(--line)", color: "var(--accent)" }}>Claim repo</a>
                           )}
-                        </div>
+                        </span>
                       </li>
                     ))}
                   </ul>

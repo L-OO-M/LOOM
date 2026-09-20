@@ -120,10 +120,11 @@ export function StudentDashboard({
         <section className="spot-card hero-field rounded-3xl border px-6 py-8 sm:px-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           <div className="flex flex-col gap-6 lg:flex-row">
             <div className="min-w-0 flex-1">
-              <Meta>{todayLabel}</Meta>
+              <Meta>Discover · Your college</Meta>
               <Display size="lg" className="mt-2">
-                {greeting}, {name}.
+                The L.O.O.M. Builder&apos;s Hub: Your Path to Proof.
               </Display>
+              <p className="meta mt-2">{todayLabel} · {greeting}, {name}.</p>
               {nextNode ? (
                 <>
                   <p className="narrative mt-3">

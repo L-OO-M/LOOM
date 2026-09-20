@@ -49,53 +49,71 @@ export default async function ProjectDetailPage({ params }) {
     }
   })();
 
+  const isVerified = p.status === "completed";
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Link href="/student/projects" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Projects</Link>
+      <main className="mx-auto max-w-5xl px-4 sm:px-6">
+        <Meta>Build · Single project detail</Meta>
+        <Link href="/student/projects" prefetch={false} className="meta mt-2 inline-block hover:underline" style={{ color: "var(--accent)" }}>← Projects</Link>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <StatusPill tone={pillTone(p.status)}>{p.status}</StatusPill>
-          {started && <span className="meta">started {started}</span>}
-          {updated && updated !== started && <span className="meta">· updated {updated}</span>}
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <Display size="lg" className="break-words">{p.title}</Display>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${isVerified ? "is-live" : ""}`} style={isVerified ? { background: "var(--text)", color: "var(--bg)" } : { border: "1px solid var(--line)", color: "var(--text-muted)" }}><span className="grid size-4 place-items-center rounded-full" style={{ background: isVerified ? "var(--accent)" : "var(--line)", color: "#fff" }}>{isVerified ? "✓" : "·"}</span>{isVerified ? "Verified" : p.status}</span>
         </div>
-        <Display size="lg" className="mt-3 break-words">{p.title}</Display>
-        <p className="lede mt-4">{p.description || "No description yet — the work speaks first."}</p>
+        <p className="meta mt-3">{started && `started ${started}`} {updated && updated !== started && `· updated ${updated}`}</p>
 
-        {(p.tags || []).length > 0 && (
-          <p className="mt-5 flex flex-wrap gap-2">
-            {(p.tags || []).map((t) => (
-              <Link
-                key={t}
-                href={`/student/projects?tag=${encodeURIComponent(String(t).toLowerCase())}`}
-                prefetch={false}
-                className="rounded-full border px-2.5 py-0.5 font-mono text-xs hover:underline"
-                style={{ borderColor: "var(--line)", color: "var(--accent)" }}
-              >
-                #{t}
-              </Link>
-            ))}
-          </p>
-        )}
-
-        <section aria-label="Repository" className="mt-8 border-y py-6" style={{ borderColor: "var(--line)" }}>
-          <Meta>Repository</Meta>
-          {p.repo_url ? (
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <a
-                href={p.repo_url}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-ghost !py-2 text-sm"
-              >
-                Open repository{repoHost ? ` on ${repoHost}` : ""} ↗
-              </a>
-              <span className="block w-full truncate font-mono text-xs" style={{ color: "var(--text-muted)" }}>{p.repo_url}</span>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_0.85fr]">
+          <section aria-label="Project description" className="card-sheen rounded-[var(--radius-xl)] border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <Meta>Project description</Meta>
+            <p className="narrative mt-3" style={{ color: "var(--text)" }}>{p.description || "No description yet — the work speaks first."}</p>
+            {(p.tags || []).length > 0 && (
+              <p className="mt-5 flex flex-wrap gap-2">
+                {(p.tags || []).map((t) => {
+                  const clean = String(t).toLowerCase().trim().replace(/\s+/g, "-");
+                  return (
+                    <Link
+                      key={t}
+                      href={`/student/projects?tag=${encodeURIComponent(clean)}`}
+                      prefetch={false}
+                      className="mono-tag rounded-full border px-2.5 py-1 hover:underline"
+                      style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}
+                    >
+                      #{clean}
+                    </Link>
+                  );
+                })}
+              </p>
+            )}
+            <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--line)" }}>
+              <Meta>Collaborations</Meta>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="grid size-8 place-items-center rounded-full text-xs font-bold" style={{ background: "var(--bg-muted)", color: "var(--text)" }}>{String(profile?.full_name || p.owner_id).slice(0, 2).toUpperCase()}</span>
+                <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{profile?.full_name || "Owner"}</span>
+                <span className="mono-tag">owner</span>
+              </div>
             </div>
-          ) : (
-            <p className="narrative mt-2">No repository linked yet. {isOwner ? "Add one below so the code is one click away." : ""}</p>
-          )}
-        </section>
+          </section>
+
+          <section aria-label="Proof status" className="card-sheen rounded-[var(--radius-xl)] border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <Meta>Proof status</Meta>
+            <p className="mt-2 flex items-center gap-2 text-lg font-semibold" style={{ color: isVerified ? "var(--text)" : "var(--text-muted)" }}><span className="grid size-6 place-items-center rounded-full text-sm" style={{ background: isVerified ? "var(--text)" : "var(--line)", color: isVerified ? "var(--bg)" : "var(--text-muted)" }}>{isVerified ? "✓" : "·"}</span>{isVerified ? "Verified" : p.status}</p>
+            <div className="mt-6">
+              <Meta>GitHub repo</Meta>
+              {p.repo_url ? (
+                <a href={p.repo_url} target="_blank" rel="noreferrer" className="mt-2 block truncate font-mono text-xs hover:underline" style={{ color: "var(--text)" }}>{repoHost || p.repo_url} ↗</a>
+              ) : (
+                <p className="mono-tag mt-2">No repository linked yet.</p>
+              )}
+              {p.repo_url && <a href={p.repo_url} target="_blank" rel="noreferrer" className="btn-ghost mt-3 !py-1.5 text-xs w-fit">Open repository ↗</a>}
+            </div>
+            <div className="mt-6">
+              <Meta>Commit timeline</Meta>
+              <p className="mono-tag mt-2">{updated ? `updated ${updated}` : started ? `started ${started}` : "no commits yet"}</p>
+              <p className="mono-tag">status · {p.status}</p>
+            </div>
+            <Link href={`/student/projects/${p.id}`} prefetch={false} className="btn-ink mt-6 w-full justify-center text-sm">View project</Link>
+          </section>
+        </div>
 
         {node && (
           <p className="mt-6 text-sm" style={{ color: "var(--text-muted)" }}>

@@ -74,27 +74,41 @@ export default async function PublicProfilePage({ params }) {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Link href="/student/discover" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Discover</Link>
+      <main className="mx-auto max-w-5xl px-4 sm:px-6">
+        <Meta>Profile · Builder details</Meta>
+        <Link href="/student/discover" prefetch={false} className="mono-tag mt-2 inline-block hover:underline" style={{ color: "var(--accent)" }}>← Discover</Link>
 
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
-            <PersonAvatar name={displayName} avatarUrl={card.avatar_url} />
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.7fr_0.9fr]">
+          <div className="flex min-w-0 items-start gap-5">
+            <PersonAvatar name={displayName} avatarUrl={card.avatar_url} size={72} />
             <div className="min-w-0">
-              <Meta>{card.primary_domain || profile?.primary_domain || "student"}{card.location ? ` · ${card.location}` : ""}</Meta>
-              <Display size="lg" className="mt-2 break-words">{displayName}</Display>
-              <p className="meta mt-2 truncate">@{card.username}{guideRows.length > 0 && <> · <StatusPill>Guide</StatusPill></>}</p>
+              <p className="mono-tag">@{String(card.username).toUpperCase()} · Handle</p>
+              <Display size="lg" className="mt-1 break-words">{displayName}</Display>
+              <p className="mono-tag mt-2">@{card.username}{guideRows.length > 0 && <span className="ml-2 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>Guide</span>}</p>
+              <p className="meta mt-1">{card.primary_domain || profile?.primary_domain || "student"}{card.location ? ` · ${card.location}` : ""}</p>
+              {!isSelf && <span className="mt-3 inline-block"><FollowButton username={card.username} initial={!!isFollowing} /></span>}
+              {card.bio && <p className="narrative mt-4 max-w-xl" style={{ color: "var(--text)" }}>{card.bio}</p>}
             </div>
           </div>
-          {!isSelf && <FollowButton username={card.username} initial={!!isFollowing} />}
+          <div className="space-y-4">
+            <div className="card-sheen rounded-[var(--radius-xl)] border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <p className="mono-tag flex items-center gap-1">Proof Score: <span className="rounded-full border px-1.5 py-0.5 text-[10px]" style={{ borderColor: "var(--line)" }}>ⓘ</span></p>
+              <p className="figure-mono mt-2 text-3xl font-bold tabular-nums" style={{ color: "var(--text)" }}>{rep.score}</p>
+              <p className="mono-tag mt-3">Earned skills</p>
+              <p className="mt-2 flex flex-wrap gap-1.5">{skills.slice(0, 8).map((s)=> <span key={s.skill} className="grid size-6 place-items-center rounded-full text-[10px] font-bold" style={{ background: "var(--accent)", color: "#101314" }}>{String(s.skill).slice(0, 2).toUpperCase()}</span>)}{skills.length===0 && <span className="mono-tag">no endorsements yet</span>}</p>
+              <p className="mono-tag mt-4">Connections</p>
+              <p className="mono-tag mt-1" style={{ color: "var(--text-muted)" }}>{followers} follower{followers===1?"":"s"} · {rep.endorsements} endorsements</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-8 flex flex-wrap gap-2 rounded-full border p-1.5 w-fit" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+          <span className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ background: "var(--text)", color: "var(--bg)" }}>Overview</span>
+          <Link href={`/student/projects?owner=${card.user_id}`} prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Projects</Link>
+          <Link href="/student/credentials" prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Proofs</Link>
+          <Link href="/student/network" prefetch={false} className="rounded-full px-4 py-1.5 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Network</Link>
         </div>
 
-        {card.bio && (
-          <section aria-labelledby="about-heading" className="mt-6">
-            <h2 id="about-heading" className="meta">About</h2>
-            <p className="lede mt-2">{card.bio}</p>
-          </section>
-        )}
+        {/* bio rendered in header card above */}
 
         {latestProject[0] && (
           <section aria-labelledby="building-heading" className="mt-8">

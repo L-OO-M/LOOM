@@ -99,32 +99,35 @@ export default function StandingsBoard({ rows, scopeLabel }) {
                         </span>
                       </td>
                       <td>
-                        <span className="block min-w-0">
-                          <span className="flex flex-wrap items-center gap-2">
-                            {r.rank === 1 && (
-                              <span
-                                aria-hidden="true"
-                                className="inline-block h-4 w-0.5 shrink-0 rounded-full"
-                                style={{ background: "var(--accent)" }}
-                              />
-                            )}
-                            {r.profile_href ? (
-                              <Link
-                                href={r.profile_href}
-                                prefetch={false}
-                                className="truncate text-[0.95rem] font-semibold hover:underline"
-                                style={{ color: "var(--text)" }}
-                              >
-                                {r.name}
-                              </Link>
-                            ) : (
-                              <span className="truncate text-[0.95rem] font-semibold" style={{ color: "var(--text)" }}>
-                                {r.name}
-                              </span>
-                            )}
-                            {self && <StatusPill tone="live">You</StatusPill>}
+                        <span className="flex items-center gap-2.5">
+                          <span className="grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-bold" style={{ background: "var(--bg-muted)", color: "var(--text)" }}>{String(r.name || "?").trim().split(/\s+/).map((w)=>w[0]).join("").slice(0,2).toUpperCase() || "?"}</span>
+                          <span className="block min-w-0">
+                            <span className="flex flex-wrap items-center gap-2">
+                              {r.rank === 1 && (
+                                <span
+                                  aria-hidden="true"
+                                  className="inline-block h-4 w-0.5 shrink-0 rounded-full"
+                                  style={{ background: "var(--accent)" }}
+                                />
+                              )}
+                              {r.profile_href ? (
+                                <Link
+                                  href={r.profile_href}
+                                  prefetch={false}
+                                  className="truncate text-[0.95rem] font-semibold hover:underline"
+                                  style={{ color: "var(--text)" }}
+                                >
+                                  {r.name}
+                                </Link>
+                              ) : (
+                                <span className="truncate text-[0.95rem] font-semibold" style={{ color: "var(--text)" }}>
+                                  {r.name}
+                                </span>
+                              )}
+                              {self && <StatusPill tone="live">You</StatusPill>}
+                            </span>
+                            <span className="mono-tag mt-0.5 block">{r.primary_domain || "exploring"}</span>
                           </span>
-                          <span className="meta mt-0.5 block">{r.primary_domain || "exploring"}</span>
                         </span>
                       </td>
                       <td>
