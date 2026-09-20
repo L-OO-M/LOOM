@@ -174,6 +174,9 @@ export default async function AdminFinancePage() {
             </div>
           ))}
         </div>
+        <div className="mb-6 flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold tracking-widest" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+          <span>ALLOCATED ₹{Number(stats?.allocated ?? 0).toLocaleString("en-IN")}</span><span aria-hidden="true">↓</span><span>COMMITTED</span><span aria-hidden="true">↓</span><span>SPENT ₹{Number(stats?.spent ?? 0).toLocaleString("en-IN")}</span><span className="ml-auto hidden sm:inline meta normal-case tracking-normal">waterfall · heads below</span>
+        </div>
 
         <section className="grid gap-4 lg:grid-cols-3" aria-label="Finance visuals">
           <ExpenseStatusDonut data={expenseStatus} />
