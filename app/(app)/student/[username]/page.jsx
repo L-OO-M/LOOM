@@ -88,6 +88,7 @@ export default async function PublicProfilePage({ params }) {
               <p className="meta mt-1">{card.primary_domain || profile?.primary_domain || "student"}{card.location ? ` · ${card.location}` : ""}</p>
               {!isSelf && <span className="mt-3 inline-block"><FollowButton username={card.username} initial={!!isFollowing} /></span>}
               {card.bio && <p className="narrative mt-4 max-w-xl" style={{ color: "var(--text)" }}>{card.bio}</p>}
+              {card.is_public && <p className="meta mt-3">Public card: <Link href={`/u/${card.username}`} prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>loom.sh/u/{card.username} ↗</Link> · Share on Discord/Insta</p>}
             </div>
           </div>
           <div className="space-y-4">

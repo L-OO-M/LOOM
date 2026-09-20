@@ -34,6 +34,14 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // Public shareable profiles: /u/<username> + OG images
+  if (pathname === "/u" || pathname.startsWith("/u/")) {
+    return NextResponse.next();
+  }
+  if (pathname.startsWith("/api/og/")) {
+    return NextResponse.next();
+  }
+
   // Public department pages: /domains/<slug> (active departments only;
   // the page itself returns an honest empty state for unknown slugs).
   if (pathname === "/domains" || pathname.startsWith("/domains/")) {

@@ -18,6 +18,16 @@ async function activeDepartmentSlugs() {
   }
 }
 
+async function publicUsernames() {
+  try {
+    const sql = getSql();
+    const rows = await sql`SELECT username, updated_at FROM user_profiles WHERE is_public = true ORDER BY updated_at DESC LIMIT 500`;
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
 export default async function sitemap() {
   const now = new Date();
   const pages = [
@@ -39,6 +49,14 @@ export default async function sitemap() {
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.7
+    });
+  }
+  for (const u of await publicUsernames()) {
+    entries.push({
+      url: absoluteUrl(`/u/${u.username}`),
+      lastModified: u.updated_at || now,
+      changeFrequency: "weekly",
+      priority: 0.6
     });
   }
   return entries;
