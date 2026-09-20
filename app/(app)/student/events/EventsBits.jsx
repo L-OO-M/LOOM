@@ -428,9 +428,16 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
               Showing {visible.length} of {events.length} gatherings
             </p>
           )}
-          <ol className="mt-4 grid gap-4">
+          <ol className={scope === "upcoming" && !filtering ? "tl mt-4" : "mt-4 grid gap-4"}>
             {visible.map((e) => (
-              <EventRow key={e.id} e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
+              scope === "upcoming" && !filtering ? (
+                <li key={e.id} className={`tl-item ${e.registered ? "is-done" : ""}`}>
+                  <span className="tl-dot" aria-hidden="true" />
+                  <EventRow e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
+                </li>
+              ) : (
+                <EventRow key={e.id} e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
+              )
             ))}
           </ol>
         </>
