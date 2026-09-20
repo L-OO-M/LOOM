@@ -60,42 +60,33 @@ export function MentorsBrowser({ mentors }) {
 
   return (
     <div>
-      <div className="mt-6 flex flex-col gap-4">
-        <label className="block max-w-xl">
-          <span className="meta">Search guides</span>
-          <span className="mt-1.5 flex items-center gap-2">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a guide…"
-              aria-label="Find a guide by name, expertise, or topic"
-              className="w-full rounded-[10px] border px-3 py-2 text-sm"
-              style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}
-            />
-            {searching && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition active:scale-[0.97]"
-                style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}
-              >
-                Clear
-              </button>
-            )}
-          </span>
-        </label>
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-          <div>
-            <p className="meta mb-1.5" id="mentor-filter-label">Show</p>
-            <SegControl options={FILTERS} value={filter} onChange={setFilter} label="Filter guides" />
-          </div>
-          <div>
-            <p className="meta mb-1.5" id="mentor-sort-label">Order</p>
-            <SegControl options={SORTS} value={sort} onChange={setSort} label="Sort guides" />
-          </div>
+      <div className="mt-6 rounded-[var(--radius-lg)] border p-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name, skill, domain…"
+            aria-label="Find a guide by name, expertise, or topic"
+            className="min-w-[200px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}
+          />
+          {searching && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}
+            >
+              Clear
+            </button>
+          )}
+          <span className="mono-tag hidden sm:inline">Show</span>
+          <SegControl options={FILTERS} value={filter} onChange={setFilter} label="Filter guides" />
+          <span className="mono-tag hidden sm:inline">Order</span>
+          <SegControl options={SORTS} value={sort} onChange={setSort} label="Sort guides" />
         </div>
-        <p className="meta" role="status">
+        <p className="mono-tag mt-2" role="status">
           {searching || filter !== "all" ? `${rows.length} of ${mentors.length} guides` : `${mentors.length} guide${mentors.length === 1 ? "" : "s"}`}
         </p>
       </div>
@@ -119,7 +110,7 @@ export function MentorsBrowser({ mentors }) {
           </button>
         </div>
       ) : (
-        <ol className="mt-2">
+        <ol className="mt-4 grid gap-4">
           {rows.map((m) => {
             const reviews = Number(m.review_count) || 0;
             const rated = reviews > 0;
@@ -131,7 +122,7 @@ export function MentorsBrowser({ mentors }) {
             ].filter(Boolean);
             const reviewOpen = openReview === m.user_id;
             return (
-              <li key={m.id} className="border-b py-7 first:border-t" style={{ borderColor: "var(--line)" }}>
+              <li key={m.id} className="rounded-xl border p-5 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   {m.profile_username ? (
                     <Link

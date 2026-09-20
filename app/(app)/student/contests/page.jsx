@@ -101,10 +101,10 @@ export default async function ContestsPage({ searchParams }) {
         </Reveal>
 
         <Reveal delay={0.06}>
-          <div className="mt-8 grid gap-8 sm:grid-cols-3" aria-label="Challenge summary">
-            <PlainStat value={openNow} unit={openNow === 1 ? "challenge" : "challenges"} label="open now and ready to join" />
-            <PlainStat value={youreIn} unit={youreIn === 1 ? "challenge" : "challenges"} label="you are registered for" />
-            <PlainStat value={shipped} unit={shipped === 1 ? "entry" : "entries"} label="you have shipped" />
+          <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Challenge summary">
+            <span className="text-center"><PlainStat value={openNow} unit={openNow === 1 ? "challenge" : "challenges"} label="open now" /></span>
+            <span className="text-center"><PlainStat value={youreIn} unit={youreIn === 1 ? "challenge" : "challenges"} label="you're in" /></span>
+            <span className="text-center"><PlainStat value={shipped} unit={shipped === 1 ? "entry" : "entries"} label="shipped" /></span>
           </div>
         </Reveal>
 
@@ -135,15 +135,15 @@ export default async function ContestsPage({ searchParams }) {
           </section>
         )}
 
-        <div className="seg mt-12" role="group" aria-label="Challenge scope">
+        <div className="mt-12 flex flex-wrap rounded-[var(--radius-lg)] border p-1.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="group" aria-label="Challenge scope">
           {SCOPES.map((s) => (
             <Link
               key={s.id}
               href={qs(s.id)}
               prefetch={false}
               aria-pressed={scope === s.id ? "true" : "false"}
-              className={scope === s.id ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
-              style={scope === s.id ? undefined : { color: "var(--text-muted)" }}
+              className="rounded-full px-4 py-1.5 text-sm font-semibold"
+              style={scope === s.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
             >
               {s.label}
             </Link>
@@ -155,7 +155,7 @@ export default async function ContestsPage({ searchParams }) {
         ) : (
           <section className="mt-8" aria-label={scope === "open" ? "Open challenges" : scope === "announced" ? "Announced challenges" : "Past challenges"}>
             <Meta>{scope === "open" ? "Open now" : scope === "announced" ? "Announced" : "Past"} · {visible.length}</Meta>
-            <ol className="mt-4">
+            <ol className="mt-4 grid gap-4">
               {visible.map((c) => (
                 <ChallengeRow key={c.id} c={c} registered={regSet.has(c.id)} sub={subMap.get(c.id) || null} />
               ))}
@@ -184,25 +184,26 @@ function ChallengeRow({ c, registered, sub }) {
   const hs = humanStatus(c.status);
   const u = urgency(c);
   const past = scopeOf(c) === "past";
+  const showUrgency = !past && u && u.label !== "Closed";
   return (
-    <li className="border-b py-5 first:border-t" style={{ borderColor: "var(--line)", opacity: past ? 0.7 : 1 }}>
-      <Link href={`/student/contests/${c.id}`} prefetch={false} className="row-link flex items-start gap-4 px-2 py-1">
+    <li className="rounded-xl border p-5 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", opacity: past ? 0.72 : 1 }}>
+      <Link href={`/student/contests/${c.id}`} prefetch={false} className="flex items-start gap-4">
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>{c.title}</span>
-            {registered && <StatusPill tone="live">you&apos;re registered</StatusPill>}
-            {sub && <StatusPill tone="">entry shipped</StatusPill>}
-            {!past && u && <StatusPill tone={u.tone}>{u.label}</StatusPill>}
+            <span className="font-display text-[1.05rem] font-medium" style={{ color: "var(--text)" }}>{c.title}</span>
+            {registered && <StatusPill tone="live">you&apos;re in</StatusPill>}
+            {sub && <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)", color: "var(--success)" }}>entry shipped</span>}
+            {showUrgency && <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: u.tone === "live" ? "var(--accent)" : "var(--line)", color: u.tone === "live" ? "var(--accent)" : "var(--text-muted)" }}>{u.label}</span>}
           </span>
           {c.description && <span className="mt-1 line-clamp-2 block text-sm leading-6" style={{ color: "var(--text-muted)" }}>{c.description}</span>}
-          <span className="meta mt-2 block">
+          <span className="mono-tag mt-2 block">
             {hs.label}
-            {c.starts_at ? ` · starts ${new Date(c.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}` : ""}
-            {c.ends_at ? ` · ${past ? "closed" : "closes"} ${new Date(c.ends_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}` : " · no closing date announced"}
-            {typeof c.registrations === "number" && c.registrations > 0 ? ` · ${c.registrations} registered` : ""}
+            {c.starts_at ? <span className="dot-sep">starts {new Date(c.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span> : ""}
+            {c.ends_at ? <span className="dot-sep">{past ? "closed" : "closes"} {new Date(c.ends_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span> : <span className="dot-sep">no closing date</span>}
+            {typeof c.registrations === "number" && c.registrations > 0 ? <span className="dot-sep">{c.registrations} registered</span> : ""}
           </span>
         </span>
-        <span className="shrink-0 text-lg" style={{ color: "var(--text-muted)" }} aria-hidden="true">›</span>
+        <span className="mono-tag shrink-0" style={{ color: "var(--accent)" }} aria-hidden="true">→</span>
       </Link>
     </li>
   );

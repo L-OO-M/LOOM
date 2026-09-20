@@ -90,7 +90,7 @@ export default async function StandingsPage({ searchParams }) {
         <Rule fade className="mt-6" />
 
         {self.ranked ? (
-          <section aria-label="Your standing" className="animate-in mt-8 rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", borderLeft: "2px solid var(--accent)" }}>
+          <section aria-label="Your standing" className="animate-in mt-8 rounded-xl border px-5 py-5 sm:px-6" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--accent) 6%, var(--bg-elevated))", borderLeft: "3px solid var(--accent)" }}>
             <Meta style={{ color: "var(--accent)" }}>Your standing</Meta>
             <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
               <div>
@@ -163,8 +163,8 @@ export default async function StandingsPage({ searchParams }) {
           />
         ) : (
           <>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <div className="seg" role="group" aria-label="Ranking scope">
+            <div className="mt-8 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border p-2" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <div className="seg !border-0 !bg-transparent !p-0 flex flex-wrap" role="group" aria-label="Ranking scope">
                 {SCOPES.map((s) => (
                   <Link
                     key={s.id}
@@ -172,22 +172,23 @@ export default async function StandingsPage({ searchParams }) {
                     prefetch={false}
                     aria-pressed={scope === s.id ? "true" : "false"}
                     title={s.hint}
-                    className={scope === s.id ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
-                    style={scope === s.id ? undefined : { color: "var(--text-muted)" }}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                    style={scope === s.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
                   >
                     {s.label}
                   </Link>
                 ))}
               </div>
-              <div className="seg" role="group" aria-label="Time period">
+              <span className="mx-1 h-4 w-px" style={{ background: "var(--line)" }} aria-hidden="true" />
+              <div className="seg !border-0 !bg-transparent !p-0 flex flex-wrap" role="group" aria-label="Time period">
                 {PERIODS.map((p) => (
                   <Link
                     key={p.id}
                     href={hrefFor(scope, p.id)}
                     prefetch={false}
                     aria-pressed={period === p.id ? "true" : "false"}
-                    className={period === p.id ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
-                    style={period === p.id ? undefined : { color: "var(--text-muted)" }}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                    style={period === p.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
                   >
                     {p.label}
                   </Link>
