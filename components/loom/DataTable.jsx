@@ -94,7 +94,7 @@ export function DataTable({ columns, rows, empty = "Nothing here yet.", caption,
         <thead>
           <tr>
             {columns.map((c) => (
-              <th key={c.key} scope="col" style={c.align === "right" ? { textAlign: "right" } : undefined}>
+              <th key={c.key} scope="col" style={{ ...(c.align === "right" ? { textAlign: "right" } : {}), ...(c.minWidth ? { minWidth: c.minWidth } : {}) }}>
                 {c.label}
               </th>
             ))}
@@ -104,10 +104,10 @@ export function DataTable({ columns, rows, empty = "Nothing here yet.", caption,
           {rows.map((row, i) => (
             <tr key={row.id ?? row.key ?? i}>
               {columns.map((c) => (
-                <td
+                  <td
                   key={c.key}
                   className={c.mono ? "num" : ""}
-                  style={c.align === "right" ? { textAlign: "right" } : undefined}
+                  style={{ ...(c.align === "right" ? { textAlign: "right" } : {}), ...(c.minWidth ? { minWidth: c.minWidth } : {}) }}
                 >
                   <Cell col={c} row={row} pulse={pulse} />
                 </td>

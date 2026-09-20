@@ -43,11 +43,13 @@ export default async function ProjectsPage({ searchParams }) {
   const completed = rows.filter((p) => p.status === "completed").length;
   const withRepo = rows.filter((p) => p.repo_url).length;
 
-  const allTags = [...new Set(rows.flatMap((p) => (p.tags || []).map((t) => String(t).toLowerCase())))].sort();
+  function normalizeTag(t) { return String(t).toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""); }
+  const allTags = [...new Set(rows.flatMap((p) => (p.tags || []).map(normalizeTag).filter(Boolean)))].sort();
   const qLower = q.toLowerCase();
+  const normTag = tag ? normalizeTag(tag) : "";
   const visible = rows.filter((p) => {
     if (status && p.status !== status) return false;
-    if (tag && !(p.tags || []).map((t) => String(t).toLowerCase()).includes(tag)) return false;
+    if (normTag && !(p.tags || []).map(normalizeTag).includes(normTag)) return false;
     if (qLower && !(`${p.title || ""}\n${p.description || ""}`.toLowerCase().includes(qLower))) return false;
     return true;
   });
@@ -78,37 +80,39 @@ export default async function ProjectsPage({ searchParams }) {
           </div>
         )}
 
-        <form method="get" className="mt-8 flex flex-wrap items-center gap-2" role="search">
+        <form method="get" className="mt-6 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border p-2" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
           <input
             name="q"
             defaultValue={q}
             placeholder="Search title or description…"
             aria-label="Search projects"
-            style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14, minWidth: 220 }}
+            className="min-w-[220px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm"
+            style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}
           />
           {tag && <input type="hidden" name="tag" value={tag} />}
           {status && <input type="hidden" name="status" value={status} />}
-          <button className="btn-ink !py-2">Search</button>
-          {filtered && <Link href="/student/projects" prefetch={false} className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Clear all</Link>}
-        </form>
-
-        <div className="mt-5 flex flex-wrap gap-2" aria-label="Filter by status">
-          <FilterLink href={qs({ q, tag }, {})} active={!status}>All</FilterLink>
-          {STATUSES.map((s) => (
-            <FilterLink key={s} href={qs({ q, tag }, { status: s })} active={status === s}>
-              {s[0].toUpperCase() + s.slice(1)}
-            </FilterLink>
-          ))}
-        </div>
-
-        {allTags.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-2" aria-label="Filter by tag">
-            <FilterLink href={qs({ q, status }, {})} active={!tag} small>All tags</FilterLink>
-            {allTags.map((t) => (
-              <FilterLink key={t} href={qs({ q, status }, { tag: t })} active={tag === t} small>#{t}</FilterLink>
+          <button className="btn-ink !py-2 text-sm">Search</button>
+          {filtered && <Link href="/student/projects" prefetch={false} className="mono-tag hover:underline" style={{ color: "var(--text-muted)" }}>Clear</Link>}
+          <span className="mx-1 hidden h-4 w-px sm:block" style={{ background: "var(--line)" }} aria-hidden="true" />
+          <span className="mono-tag hidden sm:inline">Status</span>
+          <span className="flex flex-wrap gap-1.5">
+            <FilterLink href={qs({ q, tag }, {})} active={!status}>All</FilterLink>
+            {STATUSES.map((s) => (
+              <FilterLink key={s} href={qs({ q, tag }, { status: s })} active={status === s}>
+                {s[0].toUpperCase() + s.slice(1)}
+              </FilterLink>
             ))}
-          </div>
-        )}
+          </span>
+          {allTags.length > 0 && (
+            <span className="flex flex-wrap gap-1.5">
+              <span className="mono-tag hidden sm:inline">Tag</span>
+              <FilterLink href={qs({ q, status }, {})} active={!tag} small>All tags</FilterLink>
+              {allTags.slice(0, 8).map((t) => (
+                <FilterLink key={t} href={qs({ q, status }, { tag: t })} active={normTag === t} small>#{t}</FilterLink>
+              ))}
+            </span>
+          )}
+        </form>
 
         <div className="mt-8">
           {total === 0 ? (
@@ -134,39 +138,37 @@ export default async function ProjectsPage({ searchParams }) {
             <>
               <p className="meta">{visible.length} of {total} {total === 1 ? "project" : "projects"}</p>
               {showFeatured && (
-                <Link href={`/student/projects/${featured.id}`} prefetch={false} className="row-link mt-4 block border-y py-8" style={{ borderColor: "var(--line)" }}>
-                  <Meta style={{ color: "var(--accent)" }}>Latest · {featured.status}</Meta>
+                <Link href={`/student/projects/${featured.id}`} prefetch={false} className="mt-4 block rounded-xl border p-6 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                  <span className="mono-tag" style={{ color: "var(--accent)" }}>Latest · {featured.status}</span>
                   <p className="display display-md mt-3" style={{ overflowWrap: "break-word" }}>{featured.title}</p>
                   {featured.description && <p className="narrative mt-3 max-w-2xl" style={{ color: "var(--text)" }}>{featured.description}</p>}
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <StatusPill tone={pillTone(featured.status)}>{featured.status}</StatusPill>
+                  <span className="mono-tag mt-4 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border px-2 py-0.5 text-[10px] tracking-widest" style={{ borderColor: featured.status === "active" ? "var(--accent)" : "var(--line)", color: featured.status === "active" ? "var(--accent)" : "var(--text-muted)" }}>{featured.status.toUpperCase()}</span>
                     {(featured.tags || []).map((t) => (
-                      <span key={t} className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>#{t}</span>
+                      <span key={t} className="mono-tag">#{String(t).toLowerCase().trim().replace(/\s+/g, "-")}</span>
                     ))}
-                    <span className="meta">{featured.repo_url ? "· repo linked" : "· no repo yet"}</span>
-                  </div>
-                  <span className="mt-4 inline-block text-sm font-semibold" style={{ color: "var(--accent)" }}>View project →</span>
+                    <span className="dot-sep">{featured.repo_url ? "repo linked" : "no repo yet"}</span>
+                    <span style={{ color: "var(--accent)" }} className="ml-auto">View →</span>
+                  </span>
                 </Link>
               )}
-              <ol className="mt-2">
+              <ol className="mt-4 grid gap-3">
                 {(showFeatured ? rest : visible).map((p, i) => (
-                  <li key={p.id} className="border-b py-5" style={{ borderColor: "var(--line)" }}>
-                    <Link href={`/student/projects/${p.id}`} prefetch={false} className="row-link flex flex-col gap-1.5 px-2 py-1 sm:flex-row sm:items-baseline sm:gap-5">
-                      <span className="index-num hidden shrink-0 sm:block">{String(i + 1).padStart(2, "0")}</span>
+                  <li key={p.id} className="rounded-xl border p-4 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                    <Link href={`/student/projects/${p.id}`} prefetch={false} className="flex items-start gap-4">
+                      <span className="index-num hidden shrink-0 sm:block pt-1">{String(i + 1).padStart(2, "0")}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[1.02rem] font-semibold leading-6" style={{ color: "var(--text)", overflowWrap: "break-word" }}>{p.title}</span>
+                        <span className="block font-display text-[1.02rem] font-medium leading-6" style={{ color: "var(--text)", overflowWrap: "break-word" }}>{p.title}</span>
                         <span className="mt-1 block truncate text-sm" style={{ color: "var(--text-muted)" }}>
                           {p.description || "No description yet"}
                         </span>
-                        <span className="meta mt-1.5 block sm:hidden">
-                          {p.status}{p.repo_url ? " · repo" : " · no repo"}
-                          {(p.tags || []).length > 0 && ` · ${(p.tags || []).map((t) => `#${t}`).join(" ")}`}
+                        <span className="mono-tag mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full border px-2 py-0.5 text-[10px] tracking-widest" style={{ borderColor: p.status === "active" ? "var(--accent)" : "var(--line)", color: p.status === "active" ? "var(--accent)" : "var(--text-muted)" }}>{p.status.toUpperCase()}</span>
+                          {(p.tags || []).slice(0, 4).map((t) => <span key={t} className="mono-tag">#{String(t).toLowerCase().trim().replace(/\s+/g, "-")}</span>)}
+                          <span className="dot-sep">{p.repo_url ? "repo linked" : "no repo"}</span>
                         </span>
                       </span>
-                      <span className="hidden shrink-0 items-center gap-2 sm:flex">
-                        <StatusPill tone={pillTone(p.status)}>{p.status}</StatusPill>
-                        <span className="meta">{p.repo_url ? "· repo" : "· no repo"}</span>
-                      </span>
+                      <span className="mono-tag hidden shrink-0 sm:block" style={{ color: "var(--accent)" }}>→</span>
                     </Link>
                   </li>
                 ))}

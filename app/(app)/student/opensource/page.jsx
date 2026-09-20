@@ -108,27 +108,27 @@ export default async function OpenSourcePage({ searchParams }) {
               <Meta>Discover · find</Meta>
               <h2 className="h-product mt-2">Find your next contribution</h2>
               <p className="narrative mt-2">Start with something close to your current skill level.</p>
-              <form method="get" className="mt-4 flex flex-wrap gap-2">
-                <input name="q" defaultValue={sp?.q || ""} placeholder="Search repos…" aria-label="Search repositories" className="min-w-0 flex-1 basis-40 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
-                <select name="difficulty" defaultValue={diff} aria-label="Filter by difficulty" className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+              <form method="get" className="mt-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border p-2" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                <input name="q" defaultValue={sp?.q || ""} placeholder="Search repos…" aria-label="Search repositories" className="min-w-[180px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+                <select name="difficulty" defaultValue={diff} aria-label="Filter by difficulty" className="rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
                   <option value="">All levels</option>
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
-                <select name="domain" defaultValue={domain} aria-label="Filter by domain" className="max-w-40 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                <select name="domain" defaultValue={domain} aria-label="Filter by domain" className="max-w-40 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
                   <option value="">All domains</option>
                   {domains.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
-                <select name="language" defaultValue={lang} aria-label="Filter by language" className="max-w-40 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                <select name="language" defaultValue={lang} aria-label="Filter by language" className="max-w-40 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
                   <option value="">All languages</option>
                   {languages.map((l) => (
                     <option key={l} value={l}>{l}</option>
                   ))}
                 </select>
-                <button className="btn-ink !py-2" type="submit">Filter</button>
+                <button className="btn-ink !py-1.5 text-xs" type="submit">Filter</button>
               </form>
               <p className="meta mt-4" aria-live="polite">
                 {visible.length === 0 ? "No repositories match" : `${visible.length} ${visible.length === 1 ? "repository" : "repositories"}`}
@@ -144,12 +144,12 @@ export default async function OpenSourcePage({ searchParams }) {
                       caption="Curated repositories with difficulty, stack, and good-first-issue counts"
                       empty="No repositories match your filters."
                       columns={[
-                        { key: "repo", label: "Repository", kind: "repo" },
-                        { key: "difficulty", label: "Level" },
-                        { key: "language", label: "Language" },
-                        { key: "primary_domain", label: "Domain" },
-                        { key: "stars", label: "Stars", mono: true, align: "right", kind: "stars" },
-                        { key: "good_first_issues", label: "Good first issues", mono: true, align: "right", kind: "gfi" }
+                        { key: "repo", label: "Repository", kind: "repo", minWidth: 240 },
+                        { key: "difficulty", label: "Level", minWidth: 110 },
+                        { key: "language", label: "Language", minWidth: 120 },
+                        { key: "primary_domain", label: "Domain", minWidth: 120 },
+                        { key: "stars", label: "Stars", mono: true, align: "right", kind: "stars", minWidth: 80 },
+                        { key: "good_first_issues", label: "Good first issues", mono: true, align: "right", kind: "gfi", minWidth: 130 }
                       ]}
                       rows={visible}
                     />
