@@ -47,7 +47,7 @@ export default async function AdminStudentDetailPage({ params }) {
   `;
   const projects = await sql`SELECT id, title, status, repo_url, roadmap_node_id, created_at FROM projects WHERE owner_id = ${id} ORDER BY created_at DESC LIMIT 10`;
   const activity = await sql`SELECT day, commits, pull_requests, reviews, score FROM student_daily_activity WHERE student_id = ${id} ORDER BY day DESC LIMIT 14`;
-  const achievements = await sql`SELECT id, source_type, source_ref, level, created_at FROM student_achievements WHERE student_id = ${id} ORDER BY created_at DESC LIMIT 6`;
+  const achievements = await sql`SELECT id, source_type, source_ref, level, earned_at FROM student_achievements WHERE student_id = ${id} ORDER BY earned_at DESC LIMIT 6`;
 
   const pct = stats?.total_nodes ? Math.round((stats.done / stats.total_nodes) * 100) : 0;
   const activityBars = [...activity].reverse().map((a) => ({

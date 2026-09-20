@@ -36,7 +36,10 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  const [mentor] = await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} OR id = ${body.mentorId} LIMIT 1`;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.mentorId);
+  const [mentor] = isUuid
+    ? await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} OR id = ${body.mentorId}::uuid LIMIT 1`
+    : await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} LIMIT 1`;
   if (!mentor) return fail("NOT_FOUND", "Mentor not found", 404);
   const mentorUserId = mentor.user_id;
   const [session] = await sql`
