@@ -34,9 +34,12 @@ export default async function AdminReportsPage() {
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`Reports · ${stats?.submitted ?? 0} submitted · ${stats?.drafts ?? 0} drafts`} title="Department reports" desc="Submitted monthly reports — the ledger of what each department shipped, held, and grew." />
-        <p className="meta -mt-6 mb-6"><Link href="/admin" prefetch={false} className="hover:underline" style={{ color: "var(--accent)" }}>← Back to overview</Link></p>
+      <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
+        <p className="meta"><Link href="/admin" prefetch={false} className="hover:underline" style={{ color: "var(--accent)" }}>← Back to overview</Link></p>
+        <PageHeader kicker={`Reports · ${stats?.submitted ?? 0} submitted · ${stats?.drafts ?? 0} drafts`} title="Department reports" desc="Submitted monthly documents — coverage, submissions, and growth. Draft until a Head submits; then immutable." />
+        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold tracking-widest" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+          <span>DRAFT</span><span aria-hidden="true">→</span><span>SUBMITTED</span><span aria-hidden="true">→</span><span>EXPORTED</span><span className="ml-auto meta normal-case tracking-normal">document generation</span>
+        </div>
 
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           {[
@@ -51,16 +54,12 @@ export default async function AdminReportsPage() {
           ))}
         </div>
 
-        <section className="flex flex-wrap items-center gap-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Export">
-          <div className="flex items-center gap-2">
-            <Download size={14} style={{ color: "var(--accent)" }} />
-            <Meta>Export compiled JSON · submitted only</Meta>
-          </div>
-          <span className="flex gap-2">
+        <section className="flex flex-wrap items-center gap-3 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Export">
+          <span className="meta flex items-center gap-1.5"><Download size={12} style={{ color: "var(--accent)" }} /> Export JSON · submitted only</span>
+          <span className="ml-auto flex gap-2">
             <a href="/api/reports/export?scope=semester" className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold" style={{ background: "var(--text)", color: "var(--bg)" }}><Download size={12} /> Semester</a>
             <a href="/api/reports/export?scope=annual" className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", color: "var(--text)" }}><Download size={12} /> Annual</a>
           </span>
-          {(stats?.drafts ?? 0) > 0 && <span className="meta">{stats.drafts} draft{stats.drafts === 1 ? "" : "s"} still unsubmitted — exports include submitted only.</span>}
         </section>
 
         <section className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Submitted reports">

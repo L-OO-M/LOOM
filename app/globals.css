@@ -587,7 +587,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--accent);
   transform: scaleX(0);
   transform-origin: left;
-  transition: transform 0.22s var(--ease-out);
+  transition: transform 0.14s var(--ease-out);
 }
 .nav-ink.is-active::after { transform: scaleX(1); }
 
