@@ -54,11 +54,13 @@ function LoginForm() {
         <input
           id="email"
           type="email"
+          autoComplete="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={input}
           placeholder="student@college.edu"
+          aria-describedby={error ? "login-err" : undefined}
         />
       </div>
       <div>
@@ -66,16 +68,18 @@ function LoginForm() {
         <input
           id="password"
           type="password"
+          autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={input}
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p id="login-err" role="alert" className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={loading}
+        aria-busy={loading}
         className="btn-ink w-full justify-center disabled:opacity-50"
       >
         {loading ? "Signing in..." : "Sign in"}
@@ -86,7 +90,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
+    <main id="main" className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
       <div className="ambient-wash" aria-hidden="true" />
       <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[9rem]" aria-hidden="true">LOOM</span>
       <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>

@@ -4,22 +4,32 @@ import "./globals.css";
 
 const geistSans = Geist({
   subsets: ["latin"],
-  variable: "--font-geist-sans"
+  variable: "--font-geist-sans",
+  display: "swap",
+  preload: true,
+  adjustFontFallback: true,
+  fallback: ["ui-sans-serif", "system-ui"],
 });
 
 const geistMono = Geist_Mono({
   subsets: ["latin"],
-  variable: "--font-geist-mono"
+  variable: "--font-geist-mono",
+  display: "swap",
+  preload: false,
 });
 
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
-  style: ["normal", "italic"]
+  style: ["normal", "italic"],
+  display: "swap",
+  preload: true,
+  adjustFontFallback: true,
 });
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  alternates: { canonical: "/" },
   title: {
     default: "L.O.O.M. — Learn. Build. Prove. Connect.",
     template: "%s | L.O.O.M."
@@ -59,8 +69,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable}`}>
+    <html lang="en" data-theme="dark" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${display.variable}`} style={{ scrollPaddingTop: "4rem" }}>
+      <body>
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 z-[100] rounded bg-[var(--bg-elevated)] px-3 py-2 text-sm">Skip to content</a>
         <div aria-hidden="true" className="site-shader" />
         <ThemeProvider>{children}</ThemeProvider>
       </body>

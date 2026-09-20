@@ -153,7 +153,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="w-full max-w-full overflow-x-hidden">
+    <main id="main" className="w-full max-w-full overflow-x-hidden">
       <JsonLd data={organizationSchema()} />
       <JsonLd data={webSiteSchema()} />
       <header className="fixed top-0 z-50 h-16 w-full border-b backdrop-blur-md" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }}>
