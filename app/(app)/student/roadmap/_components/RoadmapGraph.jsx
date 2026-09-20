@@ -120,21 +120,21 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
   const typedNodes = useMemo(() => flowNodes.map((n) => ({ ...n, type: "default" })), [flowNodes]);
 
   return (
-    <div style={{ width: "100%", height: 820, borderRadius: 16, border: "2px solid #e5e7eb", background: "#ffffff", overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+    <div style={{ width: "100%", height: "78vh", minHeight: 560, background: "var(--bg)", overflow: "hidden" }}>
       <ReactFlow
         nodes={typedNodes}
         edges={flowEdges}
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.25 }}
+        fitViewOptions={{ padding: 0.2 }}
         nodesDraggable={true}
         proOptions={{ hideAttribution: false }}
         defaultEdgeOptions={{ type: "smoothstep" }}
       >
-        <Background gap={20} size={1.2} color="#e5e7eb" />
+        <Background gap={20} size={1.2} color="color-mix(in srgb, var(--line) 60%, transparent)" />
         <Controls />
-        <MiniMap pannable zoomable style={{ border: "1px solid #e5e7eb", background: "white" }} />
+        <MiniMap pannable zoomable style={{ border: "1px solid var(--line)", background: "var(--bg-elevated)" }} />
       </ReactFlow>
     </div>
   );

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
-import RoadmapGraph from "@/app/(app)/student/roadmap/_components/RoadmapGraph";
+import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
 
 export default async function RoadmapPage() {
   const ctx = await getRequestContext();
@@ -51,29 +51,19 @@ export default async function RoadmapPage() {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <div className="pt-4">
+      <div className="pt-2">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="meta">Roadmap.sh style · drag to pan · scroll to zoom · yellow = recommended path</p>
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef08a", borderColor: "#eab308" }} /> recommended</span>
-              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef9c3", borderColor: "#fde68a" }} /> topic</span>
-              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "white", borderColor: "var(--line)" }} /> group</span>
-              <a href="#list" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>List view ↓</a>
-            </div>
-          </div>
-          <RoadmapGraph nodes={nodes} edges={edges} doneIds={doneIds} nextId={nextId} />
-          <div id="list" className="mt-10">
-            <RoadmapJourney
-              nodes={nodes}
-              doneIds={doneIds}
-              nextId={nextId}
-              resourcesByDomain={resourcesByDomain}
-              resourceDoneIds={resourceDoneIds}
-              projectsByNode={projectsByNode}
-            />
-          </div>
+          <p className="meta">Walk the path — Foundations to production, one node at a time</p>
         </div>
+        <RoadmapTabs
+          nodes={nodes}
+          edges={edges}
+          doneIds={doneIds}
+          nextId={nextId}
+          resourcesByDomain={resourcesByDomain}
+          resourceDoneIds={resourceDoneIds}
+          projectsByNode={projectsByNode}
+        />
       </div>
     </AppShell>
   );

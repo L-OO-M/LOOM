@@ -179,7 +179,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               >
                 <Settings size={16} />
               </Link>
-              {area === "student" && <MyProfileLink />}
+              {area === "student" && <MyProfileLink user={user} />}
               <form action="/auth/signout" method="post" className="hidden sm:block">
                 <button
                   type="submit"
@@ -302,17 +302,17 @@ function useRoleSync(enabled) {
   }, [enabled, check]);
 }
 
-function MyProfileLink() {
+function MyProfileLink({ user: propUser }) {
   const [card, setCard] = useState(null);
   const [profile, setProfile] = useState(null);
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const router = useRouter();
   useEffect(() => {
-    fetch("/api/social/profile").then((r) => r.json()).then((d) => {
+    fetch("/api/social/profile", { cache: "no-store" }).then((r) => r.json()).then((d) => {
       if (d?.ok && d.data?.card) setCard(d.data.card);
     }).catch(() => {});
-    fetch("/api/profile").then((r) => r.json()).then((d) => {
+    fetch("/api/profile", { cache: "no-store" }).then((r) => r.json()).then((d) => {
       if (d?.ok && d.data?.profile) setProfile(d.data.profile);
     }).catch(() => {});
   }, []);
@@ -323,13 +323,15 @@ function MyProfileLink() {
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
   }, []);
-  if (!card?.username && !profile) return null;
-  const username = card?.username || profile?.name?.toLowerCase().replace(/\s+/g, "-") || "you";
+  // Show immediately from propUser to avoid blank → pop-in delay
+  const fallbackName = propUser?.email?.split("@")[0] || profile?.name || card?.username || "You";
+  const username = card?.username || fallbackName.toLowerCase().replace(/\s+/g, "-").slice(0, 20);
   const isPublic = !!card?.is_public;
   const role = profile?.role || "student";
   const canLead = ["dept_lead", "vertical_lead", "admin"].includes(role);
   const canAdmin = ["admin"].includes(role);
-  const initials = (card?.username || profile?.name || "You").slice(0, 2).toUpperCase();
+  const initials = (card?.username || fallbackName).slice(0, 2).toUpperCase();
+  const showAsClaim = !card?.username;
   const workspaces = [
     { label: "Student", href: "/student", desc: "Learn / Build / Prove", active: true },
     ...(canLead ? [{ label: "Lead", href: "/lead", desc: "Department / Vertical console" }] : []),
@@ -374,9 +376,9 @@ function MyProfileLink() {
                 <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>View public card</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>loom.sh/u/{username} · unfurls on Discord</span></span>
               </Link>
             ) : (
-              <Link href={`/student/${username}`} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+              <Link href={showAsClaim ? "/student/discover" : `/student/${username}`} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
                 <span className="grid size-7 place-items-center rounded-full border text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>✎</span>
-                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>Claim public card</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>Make it shareable like Spotify</span></span>
+                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{showAsClaim ? "Claim public card" : "View private card"}</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>{showAsClaim ? "Pick a username — share like Spotify" : "Make it public to share"}</span></span>
               </Link>
             )}
             <Link href="/student/settings" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
