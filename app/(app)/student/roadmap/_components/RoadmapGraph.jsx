@@ -19,21 +19,40 @@ function layout(nodes, edges) {
   });
 }
 
-function NodeCard({ data, isDone, isNext, isHighlighted }) {
+function NodeCard({ data, isDone, isNext, isHighlighted, kind }) {
+  if (kind === "label") {
+    return (
+      <div className="text-[11px] font-semibold tracking-widest uppercase px-3 py-2 rounded border border-dashed" style={{ background: "white", borderColor: "var(--line)", color: "var(--text-muted)" }}>
+        {data.title}
+      </div>
+    );
+  }
+  if (kind === "group") {
+    return (
+      <div className="rounded-xl border-2 border-dashed px-4 py-3 text-center text-xs font-semibold" style={{ background: "rgba(255,255,255,0.9)", borderColor: "var(--line)", color: "var(--text)" }}>
+        {data.title}
+      </div>
+    );
+  }
   return (
     <div
       className={`loom-flow-node ${isDone ? "is-done" : ""} ${isNext ? "is-now halo" : ""}`}
       style={{
-        background: isHighlighted ? "var(--accent)" : isDone ? "color-mix(in srgb, var(--accent) 18%, var(--bg-elevated))" : "var(--bg-elevated)",
-        borderColor: isHighlighted || isNext ? "var(--accent)" : isDone ? "var(--accent)" : "var(--line)",
-        color: isHighlighted ? "#101314" : "var(--text)",
-        minWidth: 160,
-        maxWidth: 200,
+        background: isHighlighted ? "#fef08a" : isDone ? "#dcfce7" : "#fef9c3",
+        borderColor: isHighlighted ? "#eab308" : isDone ? "#16a34a" : "#fde68a",
+        color: "#1a1a1a",
+        minWidth: 150,
+        maxWidth: 190,
         textAlign: "center",
+        fontSize: 11,
+        lineHeight: 1.3,
+        padding: "8px 10px",
+        boxShadow: isHighlighted ? "0 2px 8px rgba(234,179,8,0.25)" : "0 1px 3px rgba(0,0,0,0.08)",
       }}
     >
-      <div className="text-xs font-semibold truncate" style={{ color: isHighlighted ? "#101314" : isDone ? "var(--accent)" : "var(--text)" }}>{data.title}</div>
-      {data.domain && <div className="meta mt-1" style={{ color: isHighlighted ? "#101314" : "var(--text-muted)", fontSize: 10 }}>{data.domain}</div>}
+      <div className="font-semibold truncate" style={{ color: "#1a1a1a" }}>{data.title}</div>
+      {isDone && <div className="text-[10px] font-bold mt-1" style={{ color: "#16a34a" }}>✓ done</div>}
+      {isNext && !isDone && <div className="text-[10px] font-bold mt-1" style={{ color: "#eab308" }}>● you are here</div>}
     </div>
   );
 }
@@ -56,7 +75,7 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
       positioned.map((n) => ({
         id: n.id,
         position: { x: n.x, y: n.y },
-        data: { label: n.title, title: n.title, domain: n.domain },
+        data: { label: n.title, title: n.title, domain: n.domain, kind: n.kind },
         style: { background: "transparent", border: "none", padding: 0 },
       })),
     [positioned]
@@ -92,7 +111,10 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
   // Custom node rendering via nodeTypes
   const nodeTypes = useMemo(
     () => ({
-      default: ({ data, id }) => <NodeCard data={data} isDone={done.has(id)} isNext={id === nextId} isHighlighted={nodes.find((n) => n.id === id)?.is_highlighted} />,
+      default: ({ data, id }) => {
+        const raw = nodes.find((n) => n.id === id);
+        return <NodeCard data={data} isDone={done.has(id)} isNext={id === nextId} isHighlighted={raw?.is_highlighted} kind={raw?.kind} />;
+      },
     }),
     [done, nextId, nodes]
   );
@@ -101,7 +123,7 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
   const typedNodes = useMemo(() => rfNodes.map((n) => ({ ...n, type: "default" })), [rfNodes]);
 
   return (
-    <div style={{ width: "100%", height: 680, borderRadius: 16, border: "1px solid var(--line)", background: "var(--bg)", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: 740, borderRadius: 16, border: "1px solid var(--line)", background: "#ffffff", overflow: "hidden" }}>
       <ReactFlow
         nodes={typedNodes}
         edges={rfEdges}
@@ -110,13 +132,13 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.25 }}
         nodesDraggable={false}
         proOptions={{ hideAttribution: false }}
       >
-        <Background gap={16} size={1} color="var(--line)" />
+        <Background gap={16} size={1} color="#e5e7eb" />
         <Controls />
-        <MiniMap pannable zoomable style={{ border: "1px solid var(--line)", background: "var(--bg-elevated)" }} />
+        <MiniMap pannable zoomable style={{ border: "1px solid #e5e7eb", background: "white" }} />
       </ReactFlow>
     </div>
   );

@@ -49,38 +49,31 @@ export default async function RoadmapPage() {
     projectsByNode[p.roadmap_node_id].push(p);
   }
 
-  const hasGraph = edges.length > 0 || nodes.length > 7;
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <div className="pt-4">
-        {hasGraph ? (
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="meta">Roadmap.sh style · branching graph · yellow = recommended</p>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="meta">Roadmap.sh style · drag to pan · scroll to zoom · yellow = recommended path</p>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef08a", borderColor: "#eab308" }} /> recommended</span>
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef9c3", borderColor: "#fde68a" }} /> topic</span>
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "white", borderColor: "var(--line)" }} /> group</span>
               <a href="#list" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>List view ↓</a>
             </div>
-            <RoadmapGraph nodes={nodes} edges={edges} doneIds={doneIds} nextId={nextId} />
-            <div id="list" className="mt-8">
-              <RoadmapJourney
-                nodes={nodes}
-                doneIds={doneIds}
-                nextId={nextId}
-                resourcesByDomain={resourcesByDomain}
-                resourceDoneIds={resourceDoneIds}
-                projectsByNode={projectsByNode}
-              />
-            </div>
           </div>
-        ) : (
-          <RoadmapJourney
-            nodes={nodes}
-            doneIds={doneIds}
-            nextId={nextId}
-            resourcesByDomain={resourcesByDomain}
-            resourceDoneIds={resourceDoneIds}
-            projectsByNode={projectsByNode}
-          />
-        )}
+          <RoadmapGraph nodes={nodes} edges={edges} doneIds={doneIds} nextId={nextId} />
+          <div id="list" className="mt-10">
+            <RoadmapJourney
+              nodes={nodes}
+              doneIds={doneIds}
+              nextId={nextId}
+              resourcesByDomain={resourcesByDomain}
+              resourceDoneIds={resourceDoneIds}
+              projectsByNode={projectsByNode}
+            />
+          </div>
+        </div>
       </div>
     </AppShell>
   );
