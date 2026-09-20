@@ -192,7 +192,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
           </nav>
         </header>
 
-        <div className="pt-20 pb-24 md:pb-10">{children}</div>
+        <div className="pt-20 pb-24 md:pb-10"><div className="shell">{children}</div></div>
 
         {area === "student" && (
           <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Primary mobile">

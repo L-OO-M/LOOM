@@ -543,6 +543,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .row-link { transition: background 0.15s var(--ease-out); border-radius: 12px; }
 .row-link:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 
+/* ---- Page shell (editorial 1200px cap: aligns floatbar with body) ---- */
+.shell { max-width: 1200px; margin-inline: auto; padding-inline: 1.5rem; }
+@media (max-width: 640px) { .shell { padding-inline: 1rem; } }
+
+/* ---- Toolbar helpers ---- */
+.mono-tag { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.03em; }
+.dot-sep::before { content: "·"; margin: 0 0.4rem; color: var(--text-muted); opacity: 0.6; }
+
 /* ---- Floating editorial nav ---- */
 .floatbar {
   border: 1px solid var(--line);
