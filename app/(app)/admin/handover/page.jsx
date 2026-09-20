@@ -15,8 +15,8 @@ export default async function AdminHandoverPage() {
   const tid = tenant?.id ?? null;
   const [stats] = await sql`
     SELECT
-      (SELECT COUNT(*)::int FROM handover_items WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS total,
-      (SELECT COUNT(*)::int FROM handover_items WHERE done = true AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS done
+      (SELECT COUNT(*)::int FROM handover_checklists WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS total,
+      (SELECT COUNT(*)::int FROM handover_checklists WHERE done = true AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS done
   `;
 
   const pct = (stats?.total ?? 0) > 0 ? Math.round(((stats?.done ?? 0) / (stats.total)) * 100) : 0;

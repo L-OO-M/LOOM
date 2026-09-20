@@ -30,12 +30,22 @@ export async function PATCH(request) {
     return validationError(e);
   }
   const [before] = await sql`SELECT * FROM feature_flags WHERE tenant_id = ${tenant?.id} AND key = ${body.key} LIMIT 1`;
-  const [flag] = await sql`
-    INSERT INTO feature_flags (tenant_id, key, enabled)
-    VALUES (${tenant?.id}, ${body.key}, ${body.enabled})
-    ON CONFLICT (tenant_id, key) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = NOW()
-    RETURNING *
-  `;
+  // Use explicit update/insert instead of ON CONFLICT (tenant_id,key) — that
+  // pair has no unique constraint in some environments and would throw 42P10.
+  let flag;
+  if (before) {
+    [flag] = await sql`
+      UPDATE feature_flags SET enabled = ${body.enabled}, updated_at = NOW()
+      WHERE tenant_id = ${tenant?.id} AND key = ${body.key}
+      RETURNING *
+    `;
+  } else {
+    [flag] = await sql`
+      INSERT INTO feature_flags (tenant_id, key, enabled)
+      VALUES (${tenant?.id}, ${body.key}, ${body.enabled})
+      RETURNING *
+    `;
+  }
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_feature_flag", resource: "feature_flag", resourceId: body.key, before: { enabled: before?.enabled }, after: { enabled: body.enabled } });
   return ok({ flag });
 }
