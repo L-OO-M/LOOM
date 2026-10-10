@@ -23,6 +23,39 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, "migrations", "000_base_schema.sql");
 const ONLY_PUBLIC = true;
 
+// Tables that migration 012_drop_dead_tables.sql removes. They are absent from
+// a live database, so a straight replay of 001..N would fail when an earlier
+// migration references them:
+//   001 -> ALTER/INDEX on public.users
+//   006 -> CREATE INDEX on public.leaderboard_snapshots(scope, period)
+//   012 -> DROP TABLE IF EXISTS (all four)
+// We therefore recreate minimal stubs so the original lifecycle replays
+// faithfully; 012 drops them again, leaving the same final state.
+// `roadmaps` and `tenant_database_routes` are only ever named in a DROP IF
+// EXISTS, so they need no stub at all.
+const LIFECYCLE_STUBS = [
+  {
+    name: "users",
+    cols: [
+      { col: "id", typ: "uuid", notnull: true, def: "gen_random_uuid()" },
+      { col: "user_id", typ: "text", notnull: true, def: null },
+      { col: "tenant_id", typ: "uuid", notnull: false, def: null },
+      { col: "created_at", typ: "timestamp with time zone", notnull: true, def: "now()" },
+    ],
+    pk: "users_pkey",
+  },
+  {
+    name: "leaderboard_snapshots",
+    cols: [
+      { col: "id", typ: "uuid", notnull: true, def: "gen_random_uuid()" },
+      { col: "scope", typ: "text", notnull: true, def: null },
+      { col: "period", typ: "text", notnull: true, def: null },
+      { col: "created_at", typ: "timestamp with time zone", notnull: true, def: "now()" },
+    ],
+    pk: "leaderboard_snapshots_pkey",
+  },
+];
+
 const sql = postgres(databaseUrl(), { max: 1 });
 
 const q = (s) => sql.unsafe(s);
@@ -128,6 +161,29 @@ try {
   L.push("");
   L.push("SET statement_timeout = 0;");
   L.push("SET lock_timeout = 0;");
+  L.push("");
+  L.push("-- ===========================================================");
+  L.push("-- REPLAY STUBS FOR TABLES THAT 012_drop_dead_tables.sql REMOVES");
+  L.push("-- ===========================================================");
+  L.push("--");
+  L.push("-- These tables are gone from the live database, but migrations 001 and 006");
+  L.push("-- reference them before 012 drops them. These minimal stubs let the original");
+  L.push("-- migration sequence replay cleanly; 012 removes them again, so the final");
+  L.push("-- schema is identical to the source. They carry no real data.");
+  L.push("");
+  for (const stub of LIFECYCLE_STUBS) {
+    L.push(`CREATE TABLE IF NOT EXISTS public.${stub.name} (`);
+    L.push(stub.cols.map((c) => {
+      let s = "  " + c.col + " " + c.typ;
+      if (c.notnull) s += " NOT NULL";
+      if (c.def) s += " DEFAULT " + c.def;
+      return s;
+    }).join(",\n"));
+    L.push(");");
+    L.push(guard(`public.${stub.name}`, stub.pk,
+      `ALTER TABLE public.${stub.name} ADD CONSTRAINT ${stub.pk} PRIMARY KEY (id);`));
+    L.push("");
+  }
   L.push("");
   L.push("-- ===========================================================");
   L.push("-- TABLES");

@@ -1,17 +1,24 @@
 // Tracked migration runner. Applies SQL files in load/migrations/ in order.
-// Usage: node load/migrate.js
-// Uses DATABASE_URL from process.env (same pooler string as .env.local).
+// Usage: node load/migrate.js            (uses DATABASE_URL)
+//        node load/migrate.js --target   (uses DATABASE_URL_TARGET / DATABASE_URL_MUMBAI)
+// Requires the target URL in process.env (same pooler string as .env.local).
 const fs = require("fs");
 const path = require("path");
 
 async function main() {
   const { default: postgres } = await import("postgres");
-  const url = process.env.DATABASE_URL;
+  const useTarget = process.argv.includes("--target");
+  const url = useTarget
+    ? (process.env.DATABASE_URL_TARGET || process.env.DATABASE_URL_MUMBAI)
+    : process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_URL is not set. Refusing to run migrations.");
+    console.error(useTarget
+      ? "DATABASE_URL_TARGET / DATABASE_URL_MUMBAI is not set. Refusing to run migrations."
+      : "DATABASE_URL is not set. Refusing to run migrations.");
     process.exit(1);
   }
-  const sql = postgres(url, { max: 1 });
+  console.log(`target: ${useTarget ? "MUMBAI (ap-south-1)" : "DATABASE_URL"}`);
+  const sql = postgres(url, { max: 1, connect_timeout: 20 });
   try {
     await sql`CREATE TABLE IF NOT EXISTS public.schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
     const dir = path.join(__dirname, "migrations");

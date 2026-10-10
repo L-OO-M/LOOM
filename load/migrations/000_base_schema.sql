@@ -20,6 +20,48 @@ SET statement_timeout = 0;
 SET lock_timeout = 0;
 
 -- ===========================================================
+-- REPLAY STUBS FOR TABLES THAT 012_drop_dead_tables.sql REMOVES
+-- ===========================================================
+--
+-- These tables are gone from the live database, but migrations 001 and 006
+-- reference them before 012 drops them. These minimal stubs let the original
+-- migration sequence replay cleanly; 012 removes them again, so the final
+-- schema is identical to the source. They carry no real data.
+
+CREATE TABLE IF NOT EXISTS public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  tenant_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'users_pkey' AND conrelid = 'public.users'::regclass
+  ) THEN
+    ALTER TABLE public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.leaderboard_snapshots (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  scope text NOT NULL,
+  period text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now()
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'leaderboard_snapshots_pkey' AND conrelid = 'public.leaderboard_snapshots'::regclass
+  ) THEN
+    ALTER TABLE public.leaderboard_snapshots ADD CONSTRAINT leaderboard_snapshots_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+
+
+-- ===========================================================
 -- TABLES
 -- ===========================================================
 
