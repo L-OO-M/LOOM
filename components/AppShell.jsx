@@ -8,7 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { BrandMark } from "./BrandMark";
 import { Drawer } from "./loom/Drawer";
 import {
-  Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut,
+  Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb
 } from "lucide-react";
 import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
@@ -19,7 +19,7 @@ const icons = {
   branch: GitBranch, pull: GitPullRequest, trophy: Trophy, calendar: CalendarDays, chart: ChartNoAxesCombined,
   handshake: Handshake, chat: MessagesSquare, network: Network, compass: Compass, award: Award,
   users: Users, stamp: Stamp, chartbar: BarChart3, settings: Settings, flag: Flag, scroll: ScrollText,
-  bell: Bell, shield: ShieldCheck, lightbulb: Lightbulb
+  bell: Bell, shield: ShieldCheck, lightbulb: Lightbulb, profile: UserCircle
 };
 
 const TabContext = createContext({ activeTab: "dashboard", setActiveTab: () => {} });
@@ -179,7 +179,9 @@ export function AppShell({ area = "student", tenant, user, children }) {
               >
                 <Settings size={16} />
               </Link>
-              {area === "student" && <MyProfileLink user={user} />}
+              {/* Profile lives in every area, not just student — lead and admin
+                  consoles had no way back to your own identity at all. */}
+              <MyProfileLink user={user} area={area} />
               <form action="/auth/signout" method="post" className="hidden sm:block">
                 <button
                   type="submit"
@@ -200,9 +202,13 @@ export function AppShell({ area = "student", tenant, user, children }) {
           <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Primary mobile">
             <div className="floatbar grid grid-cols-6 rounded-3xl px-1 py-1.5">
               {mobileNav.map((item) => {
+                // The "You" slot renders the real profile control (avatar + menu)
+                // rather than a link, so mobile members get the same identity
+                // surface as desktop instead of a dead Settings hop.
+                if (item.icon === "profile") {
+                  return <MobileProfileSlot key="profile-slot" user={user} />;
+                }
                 const Icon = icons[item.icon] || Home;
-                // Exact destination wins so two items sharing a group (e.g.
-                // Challenges + Proof under "prove") never light up together.
                 const current = pathname || "";
                 const exactHit = mobileNav.some((m) => m.href === current);
                 const isActive = current === item.href || (item.group ? activeGroup?.id === item.group && !exactHit : current === "/student");
@@ -302,7 +308,7 @@ function useRoleSync(enabled) {
   }, [enabled, check]);
 }
 
-function MyProfileLink({ user: propUser }) {
+function MyProfileLink({ user: propUser, area = "student" }) {
   const [card, setCard] = useState(null);
   const [profile, setProfile] = useState(null);
   const [open, setOpen] = useState(false);
@@ -338,12 +344,12 @@ function MyProfileLink({ user: propUser }) {
     ...(canAdmin ? [{ label: "Admin", href: "/admin", desc: "Chapter operations" }] : []),
   ];
   return (
-    <div ref={ref} className="relative hidden sm:block">
+    <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border px-2 py-1.5 pr-3 transition hover:opacity-90"
+        className="flex items-center gap-2 rounded-full border px-2 py-1.5 pr-2 sm:pr-3 transition hover:opacity-90"
         style={{ borderColor: isPublic ? "var(--accent)" : "var(--line)", background: isPublic ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--bg-elevated)" }}
         title={isPublic ? "Your public card — share anywhere" : "Your card is private"}
       >
@@ -352,7 +358,7 @@ function MyProfileLink({ user: propUser }) {
           <span className="block leading-none">@{username}</span>
           <span className="block text-[10px] font-normal leading-none" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{isPublic ? " · public" : " · private"}</span>
         </span>
-        <ChevronDown size={12} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        <ChevronDown size={12} className="hidden sm:block" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
       <AnimatePresence>
         {open && (
@@ -362,7 +368,7 @@ function MyProfileLink({ user: propUser }) {
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
             role="menu"
-            className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border p-2 shadow-xl"
+            className="absolute bottom-full left-1/2 z-50 mb-2 w-72 -translate-x-1/2 overflow-hidden rounded-2xl border p-2 shadow-xl sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:mb-0 sm:translate-x-0"
             style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
           >
             <div className="px-3 py-2">
@@ -383,8 +389,22 @@ function MyProfileLink({ user: propUser }) {
             )}
             <Link href="/student/settings" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
               <Settings size={14} style={{ color: "var(--text-muted)" }} />
-              <span className="text-sm" style={{ color: "var(--text)" }}>Settings & privacy</span>
+              <span className="text-sm" style={{ color: "var(--text)" }}>Settings &amp; privacy</span>
             </Link>
+            {/* Proof and Discover left the 6-slot mobile bar so the profile
+                slot could exist; they live here so nothing is unreachable. */}
+            {area === "student" && (
+              <>
+                <Link href="/student/credentials" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+                  <Award size={14} style={{ color: "var(--text-muted)" }} />
+                  <span className="text-sm" style={{ color: "var(--text)" }}>Proof &amp; credentials</span>
+                </Link>
+                <Link href="/student/discover" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+                  <Compass size={14} style={{ color: "var(--text-muted)" }} />
+                  <span className="text-sm" style={{ color: "var(--text)" }}>Discover people</span>
+                </Link>
+              </>
+            )}
             <div className="my-1 h-px" style={{ background: "var(--line)" }} />
             <p className="px-3 py-1 text-[11px] font-semibold tracking-widest" style={{ color: "var(--text-muted)" }}>SWITCH WORKSPACE</p>
             {workspaces.map((w) => (
@@ -402,6 +422,16 @@ function MyProfileLink({ user: propUser }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* The floating bar's "You" slot: the same avatar + menu as the top bar,
+   sized for the bottom bar and opening upward. */
+function MobileProfileSlot({ user }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <MyProfileLink user={user} />
     </div>
   );
 }

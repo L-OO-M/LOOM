@@ -9,21 +9,13 @@ import { Drawer } from "@/components/loom/Drawer";
 import { OnboardingState } from "@/components/loom/States";
 import { RoadmapHero } from "@/app/(app)/student/roadmap/_components/RoadmapHero";
 import { RoadmapTopicCard } from "@/app/(app)/student/roadmap/_components/RoadmapTopicCard";
+import { domainLabel } from "@/lib/domains";
 
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-const DOMAIN_LABEL = {
-  ai_ml: "AI / ML",
-  web: "Web Development",
-  cybersecurity: "Cybersecurity",
-  dsa: "DSA",
-  blockchain: "Blockchain",
-  backend: "Backend",
-  devops: "DevOps",
-};
-
-/* The roadmap as a full map: a central vertical path with stages stacked
-   down the page and each topic branching off it with real material,
-   real builds, and the real completion control. LOOM theme only. */
+/* The roadmap as a full map: a central path with each topic branching off it
+   with real material, real builds, and the real completion control.
+   Nodes arrive already scoped to one domain (see roadmap/page.jsx), so this no
+   longer groups by stage or numbers them — that was duplicate navigation once
+   the domain rail took over. LOOM theme only. */
 
 export function RoadmapJourney({
   nodes,
@@ -32,6 +24,7 @@ export function RoadmapJourney({
   resourcesByDomain,
   resourceDoneIds = [],
   projectsByNode = {},
+  domain = null,
 }) {
   const done = useMemo(() => new Set(doneIds), [doneIds]);
   const resourceDoneSet = useMemo(() => new Set(resourceDoneIds), [resourceDoneIds]);
@@ -43,20 +36,7 @@ export function RoadmapJourney({
   const selIndex = selected ? nodes.findIndex((n) => n.id === selected.id) : -1;
 
   const percent = nodes.length > 0 ? Math.round((doneIds.length / nodes.length) * 100) : 0;
-
-  const stages = useMemo(() => {
-    const order = [];
-    for (const n of nodes) {
-      if (!order.includes(n.domain)) order.push(n.domain);
-    }
-    return order.map((domain, si) => ({
-      domain,
-      numeral: ROMAN[si] || String(si + 1),
-      items: nodes
-        .map((n, globalIndex) => ({ node: n, globalIndex }))
-        .filter(({ node }) => node.domain === domain),
-    }));
-  }, [nodes]);
+  const trackedDomain = domain || nodes[0]?.domain || null;
 
   if (nodes.length === 0) {
     return (
@@ -72,36 +52,29 @@ export function RoadmapJourney({
 
   return (
     <main className="pb-24">
-      <RoadmapHero nodes={nodes} doneIds={doneIds} nextId={nextId} />
+      <RoadmapHero nodes={nodes} doneIds={doneIds} nextId={nextId} domain={trackedDomain} />
 
       <div className="rm-map mx-auto mt-4 max-w-6xl px-4 sm:px-6">
         <div className="rm-spine" aria-hidden="true">
           <div className="rm-spine-fill" style={{ height: `${percent}%` }} />
         </div>
 
-        {stages.map((stage) => {
-          const stageDone = stage.items.filter(({ node }) => done.has(node.id)).length;
-          const stageMins = (resourcesByDomain[stage.domain] || []).reduce(
+        {(() => {
+          const stageDone = doneIds.length;
+          const stageMins = (resourcesByDomain[trackedDomain] || []).reduce(
             (s, r) => s + (r.minutes || 0),
             0
           );
           return (
-            <section key={stage.domain} id={`rm-stage-${stage.domain}`} aria-label={`${DOMAIN_LABEL[stage.domain] || stage.domain} stage`} className="rm-stage scroll-mt-24">
+            <section id={`rm-stage-${trackedDomain}`} aria-label={`${domainLabel(trackedDomain)} topics`} className="rm-stage scroll-mt-24">
               <Reveal>
-                <div className="mb-2 flex items-baseline gap-4">
-                  <span className="index-num">{stage.numeral}</span>
-                  <h2 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>
-                    {DOMAIN_LABEL[stage.domain] || stage.domain}
-                  </h2>
-                  <span className="rule-fade flex-1" aria-hidden="true" />
-                </div>
                 <p className="meta mb-8">
-                  Stage {stage.numeral} · {stageDone} of {stage.items.length} in place
+                  {stageDone} of {nodes.length} complete · {percent}%
                   {stageMins ? ` · ≈ ${stageMins} min of linked material` : ""}
                 </p>
               </Reveal>
 
-              {stage.items.map(({ node, globalIndex }) => {
+              {nodes.map((node, globalIndex) => {
                 const isDone = done.has(node.id);
                 const isNext = node.id === nextId;
                 const isSel = selected && node.id === selected.id;
@@ -174,7 +147,7 @@ export function RoadmapJourney({
               })}
             </section>
           );
-        })}
+        })()}
 
         <Reveal>
           <section

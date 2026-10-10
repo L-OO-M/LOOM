@@ -1,46 +1,91 @@
 "use client";
 
 import { useState } from "react";
+import { domainLabel } from "@/lib/domains";
 import RoadmapGraph from "./RoadmapGraph";
 import { RoadmapJourney } from "./RoadmapJourney";
+import { RoadmapDomainRail } from "./RoadmapDomainRail";
 
-export default function RoadmapTabs({ nodes, edges, doneIds, nextId, resourcesByDomain, resourceDoneIds, projectsByNode }) {
+export default function RoadmapTabs({
+  domain,
+  domains,
+  nodes,
+  edges,
+  doneIds,
+  nextId,
+  resourcesByDomain,
+  resourceDoneIds,
+  projectsByNode,
+}) {
   const [view, setView] = useState("graph");
-  // Only graph nodes participate in canvas — old linear nodes stay in list only to avoid disconnected clutter
-  const graphNodes = nodes.filter((n) => n.id.startsWith("rm_"));
-  const graphEdges = edges.filter((e) => graphNodes.some((n) => n.id === e.from_id) && graphNodes.some((n) => n.id === e.to_id));
-  const useGraphNodes = graphNodes.length > 0 ? graphNodes : nodes;
-  const useGraphEdges = graphNodes.length > 0 ? graphEdges : edges;
+  const total = nodes.length;
+  const doneCount = nodes.filter((n) => doneIds.includes(n.id)).length;
+  const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2">
-        <div className="seg">
-          <button onClick={() => setView("graph")} aria-pressed={view === "graph"} className={view === "graph" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"} style={view !== "graph" ? { color: "var(--text-muted)" } : undefined}>
-            Graph
-          </button>
-          <button onClick={() => setView("list")} aria-pressed={view === "list"} className={view === "list" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"} style={view !== "list" ? { color: "var(--text-muted)" } : undefined}>
-            List
-          </button>
-        </div>
-        <span className="meta hidden sm:inline">Graph is the map · List is the detail</span>
-        <span className="ml-auto hidden items-center gap-3 sm:flex">
-          <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef08a", borderColor: "#eab308" }} /> recommended</span>
-          <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}><span className="size-3 rounded border" style={{ background: "#fef9c3", borderColor: "#fde68a" }} /> topic</span>
-        </span>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="pt-2">
+        <p className="meta">
+          Roadmap · {domainLabel(domain)} · {doneCount} of {total} complete
+        </p>
       </div>
 
-      {view === "graph" ? (
-        <div className="rounded-none border-y" style={{ borderColor: "var(--line)", background: "var(--bg)", marginInline: "-1rem" }}>
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-2">
-            <p className="meta text-center">Drag to pan · scroll to zoom · click node to open detail</p>
-          </div>
-          <RoadmapGraph nodes={useGraphNodes} edges={useGraphEdges} doneIds={doneIds} nextId={nextId} />
-        </div>
+      <RoadmapDomainRail domains={domains} active={domain} />
+
+      {nodes.length === 0 ? (
+        <p className="narrative mt-6">No topics published for {domainLabel(domain)} yet.</p>
       ) : (
-        <div className="mx-auto max-w-6xl px-0 sm:px-0">
-          <RoadmapJourney nodes={nodes} doneIds={doneIds} nextId={nextId} resourcesByDomain={resourcesByDomain} resourceDoneIds={resourceDoneIds} projectsByNode={projectsByNode} />
-        </div>
+        <>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="seg">
+              <button
+                onClick={() => setView("graph")}
+                aria-pressed={view === "graph"}
+                className={view === "graph" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
+                style={view !== "graph" ? { color: "var(--text-muted)" } : undefined}
+              >
+                Map
+              </button>
+              <button
+                onClick={() => setView("list")}
+                aria-pressed={view === "list"}
+                className={view === "list" ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
+                style={view !== "list" ? { color: "var(--text-muted)" } : undefined}
+              >
+                Path
+              </button>
+            </div>
+            <span className="meta hidden sm:inline">{percent}% of this track</span>
+            <span className="ml-auto hidden items-center gap-3 sm:flex">
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span className="size-3 rounded border" style={{ background: "var(--accent)", borderColor: "var(--accent)" }} />
+                recommended
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span className="size-3 rounded border" style={{ background: "var(--bg-elevated)", borderColor: "var(--line)" }} />
+                topic
+              </span>
+            </span>
+          </div>
+
+          {view === "graph" ? (
+            <div className="rounded-none border-y" style={{ borderColor: "var(--line)", background: "var(--bg)", marginInline: "-1rem" }}>
+              <RoadmapGraph nodes={nodes} edges={edges} doneIds={doneIds} nextId={nextId} />
+            </div>
+          ) : (
+            <div className="mx-auto max-w-6xl px-0 sm:px-0">
+              <RoadmapJourney
+                nodes={nodes}
+                doneIds={doneIds}
+                nextId={nextId}
+                domain={domain}
+                resourcesByDomain={resourcesByDomain}
+                resourceDoneIds={resourceDoneIds}
+                projectsByNode={projectsByNode}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

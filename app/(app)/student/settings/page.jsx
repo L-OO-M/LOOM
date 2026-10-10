@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import SettingsClient from "./SettingsClient";
+import { AppearancePanel } from "./AppearancePanel";
 
 export default async function SettingsPage() {
   const ctx = await getRequestContext();
@@ -92,6 +93,8 @@ export default async function SettingsPage() {
           </div>
           <p className="narrative mt-5">Sessions are Supabase Auth cookies. Signing out ends the session on this device.</p>
         </section>
+
+        <AppearancePanel />
       </main>
     </AppShell>
   );

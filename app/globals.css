@@ -38,6 +38,115 @@
   --nav-bg: rgba(250, 246, 238, 0.82);
 }
 
+/* ------------------------------------------------------------------
+   PALETTES
+   Palette is a separate axis from light/dark. Every component reads only
+   --bg / --bg-elevated / --bg-muted / --text / --text-muted / --line /
+   --accent / --gold / --danger / --success / --warn / --info / --nav-bg,
+   so switching palette never requires touching a component.
+
+   data-palette values: loom (default) | latte | blunt
+   Applied on <html> by lib/theme.js and persisted in localStorage.
+   ------------------------------------------------------------------ */
+
+/* Deep burgundy on mocha cream. */
+[data-palette="latte"] {
+  --burgundy: #6d1f35;
+  --mocha: #f3ece1;
+  --cream-1: #fbf7f0;
+  --cream-2: #e9dfd0;
+  --cream-line: #ddcfbc;
+  --cream-ink: #241a1c;
+  --cream-ink-muted: #7a6a63;
+}
+
+[data-palette="latte"][data-theme="light"] {
+  --bg: var(--mocha);
+  --bg-elevated: var(--cream-1);
+  --bg-muted: var(--cream-2);
+  --text: var(--cream-ink);
+  --text-muted: var(--cream-ink-muted);
+  --line: var(--cream-line);
+  --accent: var(--burgundy);
+  --accent-dark: #55182a;
+  --accent-glow: rgba(109, 31, 53, 0.1);
+  --wash: rgba(109, 31, 53, 0.06);
+  --gold: var(--burgundy);
+  --danger: #9f2d20;
+  --success: #0f7a5f;
+  --warn: #a8691a;
+  --info: #5a6b8c;
+  --nav-bg: rgba(243, 236, 225, 0.85);
+}
+
+[data-palette="latte"][data-theme="dark"] {
+  --bg: #1a1013;
+  --bg-elevated: #241519;
+  --bg-muted: #302026;
+  --text: #f6ece6;
+  --text-muted: #b7a19c;
+  --line: #3d2a31;
+  --accent: #d9738c;
+  --accent-dark: #b85570;
+  --accent-glow: rgba(217, 115, 140, 0.12);
+  --wash: rgba(217, 115, 140, 0.07);
+  --gold: #d9738c;
+  --danger: #e06a5c;
+  --success: #35b391;
+  --warn: #d99b4a;
+  --info: #8fa4c7;
+  --nav-bg: rgba(26, 16, 19, 0.78);
+}
+
+/* Blunt orange on warm ivory, with soft black as the dark counterpart. */
+[data-palette="blunt"] {
+  --orange: #c2571a;
+  --ivory: #f7f1e6;
+  --ivory-1: #fffdf7;
+  --ivory-2: #ece2cf;
+  --ivory-line: #dccfb6;
+  --ivory-ink: #17140f;
+  --ivory-ink-muted: #6f6a5e;
+}
+
+[data-palette="blunt"][data-theme="light"] {
+  --bg: var(--ivory);
+  --bg-elevated: var(--ivory-1);
+  --bg-muted: var(--ivory-2);
+  --text: var(--ivory-ink);
+  --text-muted: var(--ivory-ink-muted);
+  --line: var(--ivory-line);
+  --accent: var(--orange);
+  --accent-dark: #9c4314;
+  --accent-glow: rgba(194, 87, 26, 0.1);
+  --wash: rgba(194, 87, 26, 0.06);
+  --gold: var(--orange);
+  --danger: #a3341a;
+  --success: #14795c;
+  --warn: #9a6414;
+  --info: #566b86;
+  --nav-bg: rgba(247, 241, 230, 0.85);
+}
+
+[data-palette="blunt"][data-theme="dark"] {
+  --bg: #131211;
+  --bg-elevated: #1c1a18;
+  --bg-muted: #26231f;
+  --text: #f4efe6;
+  --text-muted: #a9a293;
+  --line: #36312a;
+  --accent: #e5813f;
+  --accent-dark: #c1652a;
+  --accent-glow: rgba(229, 129, 63, 0.12);
+  --wash: rgba(229, 129, 63, 0.07);
+  --gold: #e5813f;
+  --danger: #e0685a;
+  --success: #2fae89;
+  --warn: #d2953f;
+  --info: #8496b0;
+  --nav-bg: rgba(19, 18, 17, 0.78);
+}
+
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
