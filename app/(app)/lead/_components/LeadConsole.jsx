@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "motion/react";
@@ -17,7 +17,7 @@ import {
  * AppShell top nav (lib/nav.js `leadNav`), which points at real routes
  * (/lead, /lead/roster, /lead/workshops, /lead/reports, /lead/succession).
  * The previous version rendered a second, on-page pill bar over the same five
- * sections while the top nav also pointed at #roster / #workshops anchors —
+ * sections while the top nav also pointed at #roster / #workshops anchors â€”
  * two navigation systems for one page. Now there is one, and refreshing,
  * sharing a link, and browser back all work.
  */
@@ -59,25 +59,25 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
     <div className="mt-4 flex flex-wrap items-center gap-2">
       <span className="mono-tag">Live</span>
       <span className="size-2 rounded-full animate-pulse" style={{ background: loading ? "var(--warn)" : "var(--success)" }} />
-      <span className="mono-tag">{loading ? "syncing…" : `synced ${new Date(liveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} · poll 15s`}</span>
+      <span className="mono-tag">{loading ? "syncingâ€¦" : `synced ${new Date(liveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} Â· poll 15s`}</span>
       <button onClick={fetchLive} className="ml-auto btn-ghost !py-1.5 !text-xs">Refresh</button>
     </div>
   );
 
   const Capability = (
     <section className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--accent) 5%, var(--bg-elevated))" }}>
-      <Meta>What you can do — {isVertical ? "Vertical Lead" : "Dept Lead"} · scoped, audited, no self-escalation</Meta>
+      <Meta>What you can do â€” {isVertical ? "Vertical Lead" : "Dept Lead"} Â· scoped, audited, no self-escalation</Meta>
       <ul className="mt-2 flex flex-wrap gap-2">
         {cap.map((c) => <li key={c} className="mono-tag rounded-full border px-2.5 py-1" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>{c}</li>)}
       </ul>
-      <p className="mono-tag mt-2">All writes are tenant-scoped, audit-logged, and upward-only — see <span style={{ color: "var(--text)" }}>/admin/audit</span>.</p>
+      <p className="mono-tag mt-2">All writes are tenant-scoped, audit-logged, and upward-only â€” see <span style={{ color: "var(--text)" }}>/admin/audit</span>.</p>
     </section>
   );
 
   function Overview() {
     return (
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }} className="space-y-6">
-        <Capability />
+        {Capability}
         <TileGrid cols={4}>
           <motion.div whileHover={{ y: -1 }} transition={{ type: "spring", stiffness: 380 }}>
             <StatTile value={data.roster.length} unit="members" label={isVertical ? "members across your vertical" : "members across your departments"} />
@@ -89,7 +89,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
             <StatTile value={data.workshops.length} unit="soon" label="events on the horizon" />
           </motion.div>
           <motion.div whileHover={{ y: -1 }}>
-            <StatTile value={charts.turnoutPct ?? "—"} unit={charts.turnoutPct == null ? "" : "%"} label="turnout on past events" />
+            <StatTile value={charts.turnoutPct ?? "â€”"} unit={charts.turnoutPct == null ? "" : "%"} label="turnout on past events" />
           </motion.div>
         </TileGrid>
 
@@ -125,7 +125,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
                 <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-[var(--wash)] transition">
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{e.title}</span>
-                    <span className="mono-tag">by {e.author_name || "a dept lead"} · {e.starts_at ? new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "unscheduled"}</span>
+                    <span className="mono-tag">by {e.author_name || "a dept lead"} Â· {e.starts_at ? new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "unscheduled"}</span>
                   </span>
                   <span className="flex gap-2">
                     <ApproveEventButton id={e.id} approve label="Approve" />
@@ -149,7 +149,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 items-center">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search roster by name, year, github…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search roster by name, year, githubâ€¦"
             className="min-w-[220px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm"
             style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} aria-label="Search roster" />
           {q && <button onClick={() => setQ("")} className="btn-ghost !py-1.5 !text-xs">Clear</button>}
@@ -171,7 +171,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
                 </div>
                 {d.requests.length > 0 && (
                   <p className="mono-tag mt-2" style={{ color: "var(--accent)" }}>
-                    {d.requests.length} Core request{d.requests.length === 1 ? "" : "s"} open — audited, tenant-scoped
+                    {d.requests.length} Core request{d.requests.length === 1 ? "" : "s"} open â€” audited, tenant-scoped
                   </p>
                 )}
                 <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
@@ -181,7 +181,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
                       <span className="min-w-0 text-sm" style={{ color: "var(--text)" }}>
                         <span className="font-medium">{m.name}</span>{" "}
                         <span className="mono-tag">
-                          {m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""} · yr {m.year || "—"} · @{m.github_username || "—"}
+                          {m.level}{m.core_requested && m.level === "general" ? " Â· requested Core" : ""}{m.succession_ready ? " Â· succession-ready" : ""} Â· yr {m.year || "â€”"} Â· @{m.github_username || "â€”"}
                         </span>
                       </span>
                       <span className="flex gap-2">
@@ -212,7 +212,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
           <WorkshopForm departments={data.departments} />
           <div>
             {data.workshops.length === 0 ? (
-              <p className="narrative">No workshops on the horizon. Schedule the first one — your department learns by gathering.</p>
+              <p className="narrative">No workshops on the horizon. Schedule the first one â€” your department learns by gathering.</p>
             ) : (
               <ul className="divide-y rounded-2xl border" style={{ borderColor: "var(--line)" }}>
                 {data.workshops.map((w) => (
@@ -243,7 +243,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
           {data.conflicts.length > 0 && (
             <p className="mt-3 rounded-xl border px-4 py-3 text-sm font-medium" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>
               {data.conflicts.length} conflict{data.conflicts.length === 1 ? "" : "s"}:{" "}
-              {data.conflicts.slice(0, 3).map((c) => `${c.a.title} × ${c.b.title}`).join(" · ")}
+              {data.conflicts.slice(0, 3).map((c) => `${c.a.title} Ã— ${c.b.title}`).join(" Â· ")}
             </p>
           )}
           {data.calendar.length === 0 ? (
@@ -279,7 +279,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
           <div className="mt-3 grid gap-6 lg:grid-cols-2">
             <ReportCard departments={data.departments} />
             <div className="space-y-3">
-              <p className="narrative">Compiling pulls live counts — contributions by kind, events held, new members, upcoming workshops.</p>
+              <p className="narrative">Compiling pulls live counts â€” contributions by kind, events held, new members, upcoming workshops.</p>
               <ContributionMix data={charts.contributionKinds} />
             </div>
           </div>
@@ -303,7 +303,7 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
             {ready.map((m) => (
               <li key={`${m.department_id}-${m.user_id}`} className="flex items-baseline justify-between gap-3 p-4 hover:bg-[var(--wash)] transition">
                 <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{m.name}</span>
-                <span className="mono-tag">{m.dept} · {m.level}</span>
+                <span className="mono-tag">{m.dept} Â· {m.level}</span>
               </li>
             ))}
           </ul>

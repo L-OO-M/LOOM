@@ -17,7 +17,10 @@ const publicPaths = [
   "/api/public/departments",
   "/api/admin/check-setup",
   "/api/admin/claim-first",
-  "/api/github/webhook"
+  "/api/github/webhook",
+  // Alias of /api/github/webhook (see app/api/webhook/route.js). GitHub hooks
+  // configured with /api/webhook were being auth-gated here and 401'd.
+  "/api/webhook"
 ];
 
 export async function middleware(request) {
