@@ -28,13 +28,14 @@ export function databaseUrl() {
   return url;
 }
 
-// Used by the region-migration tooling (load/db-transfer.js). Selects the
-// Mumbai (ap-south-1) target without disturbing DATABASE_URL, so the app keeps
-// talking to Singapore until the cut-over is explicitly performed.
+// Used by the region-migration tooling (load/db-transfer.js, load/migrate.js).
+// --target selects an explicit target when one is configured; once the cut-over
+// is done DATABASE_URL is itself the target, so falling back to it keeps
+// `import --target` working instead of erroring out.
 export function targetDatabaseUrl() {
-  const url = process.env.DATABASE_URL_TARGET || process.env.DATABASE_URL_MUMBAI;
+  const url = process.env.DATABASE_URL_TARGET || process.env.DATABASE_URL_MUMBAI || process.env.DATABASE_URL;
   if (!url) {
-    console.error("DATABASE_URL_TARGET / DATABASE_URL_MUMBAI is not set (checked env + .env.local).");
+    console.error("DATABASE_URL_TARGET / DATABASE_URL_MUMBAI / DATABASE_URL is not set (checked env + .env.local).");
     process.exit(1);
   }
   return url;

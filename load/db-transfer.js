@@ -53,11 +53,59 @@ const AUTH_IDENTITY_COLS = [
   "last_sign_in_at", "created_at", "updated_at",
 ];
 
+// GoTrue treats these as plain strings, not NULLs. A migrated row that carries
+// NULL makes every password grant fail with
+//   500 {"code":"unexpected_failure","message":"Database error querying schema"}
+// (while an unknown email still returns 400, so it looks like a per-user fault).
+// Native rows always store empty strings here, so normalise on import.
+const NULLABLE_AS_EMPTY = [
+  "confirmation_token", "recovery_token", "email_change_token_new",
+  "email_change", "email_change_token_current", "phone_change_token",
+  "phone_change", "reauthentication_token", "invited_at",
+];
+
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > -1 ? process.argv[i + 1] : undefined;
 };
 const mode = process.argv[2];
+
+// One-off repair for databases already imported by an earlier version of this
+// script. See repair-auth-instances and repair-auth-tokens below.
+// Usage: node --import ./load/env-local.js load/db-transfer.js repair-auth
+async function doRepairAuth() {
+  const sql = connect();
+  try {
+    await doRepairAuthInstancesWith(sql);
+    await doRepairAuthTokensWith(sql);
+  } finally { await sql.end(); }
+}
+
+async function doRepairAuthInstancesWith(sql) {
+  const [inst] = await sql.unsafe("SELECT id FROM auth.instances LIMIT 1");
+  const target = inst ? inst.id : "00000000-0000-0000-0000-000000000000";
+  const rows = await sql.unsafe(
+    "UPDATE auth.users SET instance_id = $1::uuid WHERE instance_id IS NULL RETURNING id", [target]);
+  console.log(`instance_id: repaired ${(rows || []).length || 0} auth.users rows -> ${target}`);
+}
+
+async function doRepairAuthTokensWith(sql) {
+  const sets = NULLABLE_AS_EMPTY.filter((c) => c !== "invited_at")
+    .map((c) => `${c} = ''`).join(", ");
+  const rows = await sql.unsafe(
+    `UPDATE auth.users SET ${sets} WHERE ${NULLABLE_AS_EMPTY.filter((c) => c !== "invited_at")
+      .map((c) => `${c} IS NULL`).join(" OR ")} RETURNING id`);
+  console.log(`tokens: NULL -> '' on ${(rows || []).length || 0} auth.users rows`);
+  // Ensure every migrated user is marked email-verified, matching native rows.
+  const r2 = await sql.unsafe(`
+    UPDATE auth.users
+    SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"email_verified":true}'::jsonb
+    WHERE NOT (COALESCE(raw_user_meta_data, '{}'::jsonb) ? 'email_verified') RETURNING id`);
+  console.log(`metadata: email_verified set on ${(r2 || []).length || 0} rows`);
+  const [left] = await sql.unsafe(
+    `SELECT count(*)::int n FROM auth.users WHERE confirmation_token IS NULL OR recovery_token IS NULL OR instance_id IS NULL`);
+  console.log(left.n === 0 ? "OK - no auth.users rows need repair" : `STILL ${left.n} rows need repair`);
+}
 
 function connect() {
   // --target routes to the migration target (Mumbai) instead of DATABASE_URL.
@@ -168,8 +216,14 @@ async function doImport() {
         await sql.unsafe("TRUNCATE TABLE auth.identities, auth.users CASCADE");
         console.log(`truncated ${tables.length} public tables + auth users/identities`);
       }
+      // GoTrue scopes users by auth.instances.id. On current Supabase projects
+      // auth.instances is EMPTY and the default instance is the zero UUID, so
+      // "no instance row" must become the zero UUID -- leaving instance_id NULL
+      // makes every user invisible to the auth API (login and /admin/users both
+      // return nothing) even though the rows are present in the table.
       const [inst] = await sql.unsafe("SELECT id FROM auth.instances LIMIT 1");
-      const instanceId = inst ? inst.id : null;
+      const instanceId = inst ? inst.id : "00000000-0000-0000-0000-000000000000";
+      if (!inst) console.log("  auth.instances is empty -> using the default zero-UUID instance id");
 
       for (const [table, rows] of Object.entries(payload.tables)) {
         if (!rows.length) { skipped++; continue; }
@@ -212,6 +266,7 @@ async function doImport() {
         if (dry) { authU++; continue; }
         const pick = {};
         for (const c of userCols) if (c in u) pick[c] = u[c];
+        for (const c of NULLABLE_AS_EMPTY) if (c in pick && pick[c] === null) pick[c] = "";
         if (instanceId) pick.instance_id = instanceId;
         const names = Object.keys(pick);
         await sql.unsafe(
@@ -307,8 +362,9 @@ try {
   else if (mode === "import") await doImport();
   else if (mode === "verify") await doVerify();
   else if (mode === "diff") await doDiff();
+  else if (mode === "repair-auth") await doRepairAuth();
   else {
-    console.error("usage: db-transfer.js export|import|verify|diff [--target] [--out|--in|--a|--b] [file]");
+    console.error("usage: db-transfer.js export|import|verify|diff|repair-auth [--target] [--out|--in|--a|--b] [file]");
     process.exitCode = 1;
   }
 } catch (e) {
