@@ -46,7 +46,10 @@ test.describe("L.O.O.M. public site", () => {
   test("events page loads with heading", async ({ page }) => {
     const res = await page.goto("/events");
     expect(res?.status()).toBe(200);
-    await expect(page.locator("h1")).toContainText("Upcoming events");
+await expect(page.locator("h1")).toContainText("Events we actually run");
+    // The registration process must be stated on the page itself, not just
+    // behind a login — this is the page a prospective member judges us by.
+    await expect(page.getByText("How to get into an event")).toBeVisible();
   });
 
   test("domains index lists every department", async ({ page }) => {
@@ -125,6 +128,32 @@ test.describe("L.O.O.M. SEO surfaces", () => {
       expect(await desc.count()).toBe(1);
       expect((await desc.getAttribute("content"))?.length ?? 0).toBeGreaterThan(40);
     }
+  });
+
+  test("event detail pages are indexable and self-contained", async ({ page, request }) => {
+    // /events/[id] must exist for at least one published event, carry exactly
+    // one h1 + a canonical + a real description, and state the join process.
+    const list = await request.get("/api/public/events");
+    expect(list.ok()).toBeTruthy();
+    const body = await list.json();
+    const events = body?.data?.events ?? body?.events ?? [];
+    if (!Array.isArray(events) || events.length === 0) {
+      // Empty calendar is an honest state, not a failure — nothing to assert.
+      await page.goto("/events");
+      await expect(page.getByText("No upcoming events right now.")).toBeVisible();
+      return;
+    }
+    const first = events[0];
+    await page.goto(`/events/${first.id}`);
+    expect(await page.locator("h1").count()).toBe(1);
+    const canonical = page.locator('link[rel="canonical"]');
+    expect(await canonical.count()).toBe(1);
+    expect(await canonical.getAttribute("href")).toContain(`/events/${first.id}`);
+    const desc = page.locator('meta[name="description"]');
+    expect(await desc.count()).toBe(1);
+    // The registration process must be explained on the page itself.
+    await expect(page.getByText("The registration process")).toBeVisible();
+    await expect(page.getByText("How to get into an event")).toBeVisible();
   });
 
   test("private app marks noindex", async ({ page }) => {

@@ -28,6 +28,23 @@ async function publicUsernames() {
   }
 }
 
+// Public event detail pages are indexable — each one is a real dated page with
+// its own description. Only published/upcoming events, never drafts.
+async function publicEventIds() {
+  try {
+    const sql = getSql();
+    const rows = await sql`
+      SELECT id, starts_at FROM events
+      WHERE status IN ('upcoming', 'live')
+      ORDER BY starts_at ASC
+      LIMIT 200
+    `;
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
 export default async function sitemap() {
   const now = new Date();
   const pages = [
@@ -57,6 +74,14 @@ export default async function sitemap() {
       lastModified: u.updated_at || now,
       changeFrequency: "weekly",
       priority: 0.6
+    });
+  }
+  for (const ev of await publicEventIds()) {
+    entries.push({
+      url: absoluteUrl(`/events/${ev.id}`),
+      lastModified: ev.starts_at || now,
+      changeFrequency: "daily",
+      priority: 0.7
     });
   }
   return entries;
