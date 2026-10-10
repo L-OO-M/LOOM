@@ -43,7 +43,12 @@ const protectedPages = [
   "/admin/reports",
   "/admin/handover",
   "/admin/departments",
-  "/lead"
+  "/lead",
+  "/lead/overview",
+  "/lead/roster",
+  "/lead/workshops",
+  "/lead/reports",
+  "/lead/succession"
 ];
 
 test.describe("route protection", () => {
