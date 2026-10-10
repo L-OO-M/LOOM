@@ -14,14 +14,18 @@ export async function PATCH(request, { params }) {
   const id = params.id;
   let body;
   try { body = patchSchema.parse(await request.json()); } catch (e) { return validationError(e); }
-  const [m] = await sql`SELECT * FROM help_matches WHERE id=${id}::uuid LIMIT 1`;
+  // help_matches and help_signals both carry a NOT NULL tenant_id: scope every
+  // read AND write by the caller's own tenant so a guessed match UUID from
+  // another chapter cannot be read or mutated.
+  const tid = tenant?.id ?? null;
+  const [m] = await sql`SELECT * FROM help_matches WHERE id=${id}::uuid AND tenant_id = ${tid}::uuid LIMIT 1`;
   if (!m) return fail("NOT_FOUND", "Match not found", 404);
   // Only signal owner or helper can update
-  const [sig] = await sql`SELECT * FROM help_signals WHERE id=${m.signal_id}::uuid LIMIT 1`;
+  const [sig] = await sql`SELECT * FROM help_signals WHERE id=${m.signal_id}::uuid AND tenant_id = ${tid}::uuid LIMIT 1`;
   if (!sig || (sig.user_id !== user.id && m.helper_id !== user.id)) return fail("FORBIDDEN", "Not participant", 403);
-  const [updated] = await sql`UPDATE help_matches SET status=${body.status}, updated_at=now() WHERE id=${id}::uuid RETURNING *`;
+  const [updated] = await sql`UPDATE help_matches SET status=${body.status}, updated_at=now() WHERE id=${id}::uuid AND tenant_id = ${tid}::uuid RETURNING *`;
   if (body.status === "resolved" && sig) {
-    await sql`UPDATE help_signals SET status='resolved', updated_at=now() WHERE id=${sig.id}::uuid`;
+    await sql`UPDATE help_signals SET status='resolved', updated_at=now() WHERE id=${sig.id}::uuid AND tenant_id = ${tid}::uuid`;
   }
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `help_${body.status}`, resource: "help_match", resourceId: id, after: body });
   // Notify other party
@@ -33,8 +37,9 @@ export async function PATCH(request, { params }) {
 export async function GET(_, { params }) {
   let ctx;
   try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
-  const { sql } = ctx;
-  const [m] = await sql`SELECT * FROM help_matches WHERE id=${params.id}::uuid LIMIT 1`;
+  const { sql, tenant } = ctx;
+  // Tenant-scoped: help_matches carries tenant_id NOT NULL.
+  const [m] = await sql`SELECT * FROM help_matches WHERE id=${params.id}::uuid AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`;
   if (!m) return fail("NOT_FOUND", "Not found", 404);
   return ok({ match: m });
 }

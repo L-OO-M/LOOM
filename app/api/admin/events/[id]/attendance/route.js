@@ -32,14 +32,24 @@ export async function POST(request, { params }) {
   if (!reg) return fail("NOT_FOUND", "No registration matches", 404);
 
   await sql`UPDATE event_registrations SET status = 'attended', attended_at = now() WHERE id = ${reg.id}`;
-  const code = `CERT-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+  // One certificate per student per event — enforced by
+  // certificates_event_student_key (migration 029). The conflict target must
+  // be that pair; a random verification_code can never collide, which is why
+  // the previous version minted a duplicate on every re-check-in.
   const [cert] = await sql`
     INSERT INTO certificates (event_id, student_id, tenant_id, title, verification_code)
-    VALUES (${id}, ${reg.student_id}, ${tenant?.id ?? null}, ${`Participation — ${event.title}`}, ${code})
-    ON CONFLICT (verification_code) DO NOTHING RETURNING *
+    VALUES (
+      ${id},
+      ${reg.student_id},
+      ${tenant?.id ?? null},
+      ${`Participation — ${event.title}`},
+      ${`CERT-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`}
+    )
+    ON CONFLICT (event_id, student_id) DO UPDATE SET title = EXCLUDED.title
+    RETURNING *
   `;
-  // One certificate per student per event.
-  const existing = cert || (await sql`SELECT * FROM certificates WHERE event_id = ${id} AND student_id = ${reg.student_id} LIMIT 1`)[0];
+  const existing = cert;
+  if (!existing) return fail("NOT_FOUND", "No registration matches", 404);
   await notify({
     sql, tenantId: tenant?.id, userId: reg.student_id, type: "certificate",
     title: `Certificate issued: ${event.title}`,

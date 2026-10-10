@@ -19,7 +19,15 @@ export async function GET() {
     WHERE m.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL
     ORDER BY m.created_at DESC LIMIT 50
   `;
-  const sessions = await sql`SELECT * FROM mentor_sessions ORDER BY id DESC LIMIT 30`;
+  // mentor_sessions has no tenant_id column (000_base_schema.sql:527) — it is
+  // reached through mentors.user_id. Join through mentors so a tenant admin only
+  // ever sees their own chapter's sessions.
+  const sessions = await sql`
+    SELECT s.* FROM mentor_sessions s
+    JOIN mentors m ON m.user_id = s.mentor_id
+    WHERE m.tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY s.created_at DESC LIMIT 30
+  `;
   return ok({ mentors, sessions });
 }
 
