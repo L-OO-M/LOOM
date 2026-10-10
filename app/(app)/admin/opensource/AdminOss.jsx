@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputStyle, Field } from "@/components/ui";
+import { postJSON, useAction, ActionFeedback } from "@/components/loom/useAction";
 
 export function CurateForm() {
   const router = useRouter();
@@ -54,24 +55,22 @@ export function CurateForm() {
 }
 
 export function ReviewButtons({ id }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-
-  async function review(status) {
-    setBusy(true);
-    await fetch(`/api/opensource/contributions/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status })
-    });
-    setBusy(false);
-    router.refresh();
-  }
+  // Was fire-and-forget: a failed verify/reject left the row in the queue with
+  // no message, so the admin could not tell "rejected" from "rejected by 500".
+  const [decision, setDecision] = useState(null);
+  const { busy, msg, error, run } = useAction((status) =>
+    postJSON(`/api/opensource/contributions/${id}`, "PATCH", { status }));
 
   return (
-    <span className="flex shrink-0 gap-2">
-      <button disabled={busy} onClick={() => review("verified")} className="btn-ink disabled:opacity-50">Verify</button>
-      <button disabled={busy} onClick={() => review("rejected")} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Reject</button>
+    <span className="inline-flex shrink-0 items-center gap-2">
+      <button disabled={busy} onClick={() => { setDecision("verified"); run("verified"); }} className="btn-ink disabled:opacity-50">
+        {busy && decision === "verified" ? "Verifying…" : "Verify"}
+      </button>
+      <button disabled={busy} onClick={() => { setDecision("rejected"); run("rejected"); }}
+        className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+        {busy && decision === "rejected" ? "Rejecting…" : "Reject"}
+      </button>
+      <ActionFeedback msg={busy ? "" : msg} error={busy ? "" : error} />
     </span>
   );
 }

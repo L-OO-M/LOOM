@@ -3,6 +3,11 @@
 // Slugs match the skill-domain taxonomy so roadmaps/resources/OSS catalogs
 // line up with org units. Non-technical departments ship inactive — a Super
 // Admin activates them when the chapter staffs those verticals.
+//
+// Embedded / Backend / DevOps were added because the roadmap graph already
+// carried 153 nodes across those domains (migration 023 + seed-roadmap-graph)
+// while no department existed for them — so students had a path with no org
+// unit to belong to, and the homepage domain grid silently omitted them.
 import postgres from "postgres";
 import { databaseUrl } from "./env-local.js";
 
@@ -14,6 +19,9 @@ const DEPARTMENTS = [
   { name: "Cybersecurity", slug: "cybersecurity", vertical: "technical", description: "Ethical hacking within legal boundaries, CTFs, cryptography, secure coding." },
   { name: "DSA & Problem Solving", slug: "dsa", vertical: "technical", description: "Weekly problem-solving, contests, interview prep, mock assessments." },
   { name: "Blockchain", slug: "blockchain", vertical: "technical", description: "Distributed ledgers, smart contracts, and Web3 mini-projects." },
+  { name: "Embedded & Hardware", slug: "embedded", vertical: "technical", description: "Microcontrollers, Arduino, Raspberry Pi, sensors and firmware — build things you can hold." },
+  { name: "Backend & APIs", slug: "backend", vertical: "technical", description: "Databases, service design, auth, queues and the plumbing behind every web product." },
+  { name: "DevOps & Infra", slug: "devops", vertical: "technical", description: "Linux, containers, CI/CD, observability and shipping reliably." },
   { name: "PR & Outreach", slug: "pr_outreach", vertical: "non_technical", description: "Socials, campus presence, event promotions, external communications.", active: false },
   { name: "Design", slug: "design", vertical: "non_technical", description: "Visual identity, posters, merch, slide systems, media assets.", active: false },
   { name: "Sponsorship & EVM", slug: "sponsorship_evm", vertical: "non_technical", description: "Sponsor pipeline, budget coordination, event logistics and venue management.", active: false }

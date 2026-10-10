@@ -1,14 +1,18 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
 import { ThreadForm } from "./ForumsBits";
+import { DOMAIN_ORDER } from "@/lib/domains";
 
 export const dynamic = "force-dynamic";
 
-const DOMAINS = ["", "general", "ai_ml", "web", "cybersecurity", "dsa", "blockchain"];
+// Derived from the single source of truth (lib/domains.js) — the previous
+// hardcoded list omitted `embedded`, `backend` and `devops`, so members on
+// those tracks could not file a thread under their own domain.
+const DOMAINS = ["", "general", ...DOMAIN_ORDER];
 const STATES = ["all", "unsolved", "unanswered"];
 
 function ageLabel(value) {
@@ -75,13 +79,13 @@ export default async function ForumsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
+        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>â† Community</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <Meta>Room 01 · ask, answer, solve</Meta>
+            <Meta>Room 01 Â· ask, answer, solve</Meta>
             <Display size="lg" className="mt-3">Forums.</Display>
             <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-              Ask something → help someone → solve it. Server-backed search; pinned first.
+              Ask something â†’ help someone â†’ solve it. Server-backed search; pinned first.
             </p>
           </div>
           <ThreadForm />
@@ -109,7 +113,7 @@ export default async function ForumsPage({ searchParams }) {
 
         <form method="get" className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <input type="hidden" name="state" value={state} />
-          <input name="q" defaultValue={sp?.q || ""} placeholder="Search threads…" aria-label="Search threads" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+          <input name="q" defaultValue={sp?.q || ""} placeholder="Search threadsâ€¦" aria-label="Search threads" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
           <div className="flex gap-2">
             <select name="domain" defaultValue={domain} aria-label="Filter by domain" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm sm:flex-none" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
               {DOMAINS.map((d) => <option key={d} value={d}>{d === "" ? "All domains" : d}</option>)}
@@ -123,7 +127,7 @@ export default async function ForumsPage({ searchParams }) {
         </form>
 
         {threads.length === 0 ? (
-          <p className="narrative mt-8">No threads match. Be the first to ask — someone in your chapter knows the answer.</p>
+          <p className="narrative mt-8">No threads match. Be the first to ask â€” someone in your chapter knows the answer.</p>
         ) : (
           <ul className="mt-6 divide-y" style={{ borderColor: "var(--line)" }}>
             {threads.map((t) => (
@@ -135,7 +139,7 @@ export default async function ForumsPage({ searchParams }) {
                   </Link>
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                     {t.pinned ? <StatusPill tone="warn">pinned</StatusPill> : null}
-                    {t.solved ? <StatusPill tone="ok">✓ solved</StatusPill> : <StatusPill>open</StatusPill>}
+                    {t.solved ? <StatusPill tone="ok">âœ“ solved</StatusPill> : <StatusPill>open</StatusPill>}
                     {t.reply_count === 0 ? <StatusPill>needs answer</StatusPill> : null}
                   </p>
                   <p className="meta mt-1.5 block">
@@ -144,7 +148,7 @@ export default async function ForumsPage({ searchParams }) {
                     ) : (
                       <span>{t.author_name || "a student"}</span>
                     )}
-                    {` · ${t.domain} · ▲${t.upvote_count} · ${t.reply_count} ${t.reply_count === 1 ? "reply" : "replies"} · ${t.view_count} views · ${ageLabel(t.updated_at)}`}
+                    {` Â· ${t.domain} Â· â–²${t.upvote_count} Â· ${t.reply_count} ${t.reply_count === 1 ? "reply" : "replies"} Â· ${t.view_count} views Â· ${ageLabel(t.updated_at)}`}
                   </p>
                 </div>
               </li>

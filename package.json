@@ -1,6 +1,10 @@
 {
-  "name": "loom-learning-platform",
-  "version": "0.1.0",
+  "name": "LOOM",
+  "author": "Yash Bansal <heyashdevelops@gmail.com>",
+  "contributors": [
+    "Yash Gupta"
+  ],
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +24,6 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@vercel/og": "^1.0.2",
-    "@xyflow/react": "^12.11.6",
     "dagre": "^0.8.5",
     "gsap": "^3.12.5",
     "lucide-react": "^0.468.0",

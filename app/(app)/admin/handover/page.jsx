@@ -20,6 +20,20 @@ export default async function AdminHandoverPage() {
   `;
 
   const pct = (stats?.total ?? 0) > 0 ? Math.round(((stats?.done ?? 0) / (stats.total)) * 100) : 0;
+
+  // Per-category progress, derived from the checklist rows themselves.
+  // This used to render five hardcoded labels ("Finance/Members/Events/
+  // Mentors/Docs") filled by comparing a single total against the array index
+  // — which printed authoritative-looking committee status derived from nothing,
+  // and used category names the form cannot even create.
+  const byCategory = await sql`
+    SELECT category, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done)::int AS done
+    FROM handover_checklists
+    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    GROUP BY category
+    ORDER BY category
+  `;
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
@@ -33,13 +47,21 @@ export default async function AdminHandoverPage() {
           <div className="mt-4 h-2 overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? "var(--success)" : "var(--accent)" }} />
           </div>
-          <div className="mt-3 grid grid-cols-5 gap-2">
-            {["Finance","Members","Events","Mentors","Docs"].map((k,i) => {
-              const done = (stats?.done ?? 0) > i;
-              return (
-                <span key={k} className="rounded-full border px-2 py-1 text-center text-[10px] font-bold tracking-widest" style={{ borderColor: done ? "var(--accent)" : "var(--line)", background: done ? "var(--accent)" : "transparent", color: done ? "#101314" : "var(--text-muted)" }}>{done ? "✓ " : "○ "}{k.toUpperCase()}</span>
-              );
-            })}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {byCategory.length === 0 ? (
+              <p className="meta">No checklist categories yet — add an item below and its progress will appear here.</p>
+            ) : (
+              byCategory.map((c) => {
+                const complete = c.total > 0 && c.done === c.total;
+                return (
+                  <span key={c.category} title={`${c.done} of ${c.total} transferred`}
+                    className="rounded-full border px-2 py-1 text-[10px] font-bold tracking-widest"
+                    style={{ borderColor: complete ? "var(--accent)" : "var(--line)", background: complete ? "var(--accent)" : "transparent", color: complete ? "var(--bg)" : "var(--text-muted)" }}>
+                    {complete ? "✓ " : "○ "}{c.category.toUpperCase()} {c.done}/{c.total}
+                  </span>
+                );
+              })
+            )}
           </div>
           <p className="meta mt-2">{pct}% complete — process tracker, not task cards</p>
         </div>

@@ -37,12 +37,26 @@ export default async function OpenSourcePage({ searchParams }) {
     ORDER BY c.created_at DESC LIMIT 50
   `;
   const badges = await sql`SELECT * FROM oss_badges WHERE student_id = ${user.id} ORDER BY earned_at DESC`;
+  const credentials = await sql`
+    SELECT id, achievement_id FROM verifiable_credentials
+    WHERE student_id = ${user.id}
+  `;
   const achievements = await sql`
     SELECT id, source_ref FROM student_achievements
     WHERE student_id = ${user.id} AND source_type = 'oss'
   `;
   const earned = new Set(badges.map((b) => b.badge_key));
-  const proofByBadge = Object.fromEntries(achievements.map((a) => [a.source_ref, a.id]));
+  // /verify/credential/[id] reads verifiable_credentials.id (a text code), not
+  // student_achievements.id. This used to pass the achievement UUID, so every
+  // "Open proof →" link was a guaranteed 404. Join through achievement_id.
+  const credentialByAchievement = new Map(
+    credentials.map((c) => [c.achievement_id, c.id])
+  );
+  const proofByBadge = Object.fromEntries(
+    achievements
+      .map((a) => [a.source_ref, credentialByAchievement.get(a.id)])
+      .filter(([, credId]) => Boolean(credId))
+  );
 
   const domains = [...new Set(projects.map((p) => p.primary_domain).filter(Boolean))].sort();
   const languages = [...new Set(projects.map((p) => p.language).filter(Boolean))].sort();

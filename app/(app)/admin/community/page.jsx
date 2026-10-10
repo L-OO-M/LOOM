@@ -44,6 +44,28 @@ export default async function AdminCommunityPage() {
     ORDER BY e.created_at DESC LIMIT 20
   `;
 
+  // Hidden content is listed too, so a moderation decision is reversible from
+  // the UI. Previously every query filtered status='visible', which meant a hide
+  // was permanent: the API accepted `visible` but nothing rendered the control.
+  const hiddenThreads = await sql`
+    SELECT t.id, t.title, t.status, t.pinned, t.created_at, p.name AS author_name FROM forum_threads t
+    LEFT JOIN profiles p ON p.user_id = t.author_id
+    WHERE t.tenant_id = ${tid}::uuid AND t.status = 'hidden'
+    ORDER BY t.created_at DESC LIMIT 20
+  `;
+  const hiddenReplies = await sql`
+    SELECT r.id, r.body, r.thread_id, p.name AS author_name FROM forum_replies r
+    JOIN forum_threads t ON t.id = r.thread_id
+    LEFT JOIN profiles p ON p.user_id = r.author_id
+    WHERE t.tenant_id = ${tid}::uuid AND r.status = 'hidden'
+    ORDER BY r.created_at DESC LIMIT 20
+  `;
+  const hiddenSnippets = await sql`
+    SELECT s.id, s.title, s.language FROM code_snippets s
+    WHERE s.status = 'hidden' AND (s.tenant_id IS NULL OR s.tenant_id = ${tid}::uuid)
+    ORDER BY s.created_at DESC LIMIT 20
+  `;
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
@@ -130,6 +152,50 @@ export default async function AdminCommunityPage() {
             )}
           </section>
         </div>
+
+        <section className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+          <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}>
+            <EyeOff size={14} /> Hidden content · {hiddenThreads.length + hiddenReplies.length + hiddenSnippets.length}
+          </h2>
+          <p className="narrative mt-1">
+            Everything you have hidden, with the control to bring it back. Moderation is reversible — nothing is deleted.
+          </p>
+          {hiddenThreads.length + hiddenReplies.length + hiddenSnippets.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <p className="narrative">Nothing is currently hidden.</p>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {hiddenThreads.map((t) => (
+                <li key={`t-${t.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" style={{ color: "var(--text-muted)" }}>{t.title}</p>
+                    <p className="meta mt-1">Hidden thread · {t.author_name || "a student"}</p>
+                  </div>
+                  <HideButton targetType="thread" targetId={t.id} status="visible" />
+                </li>
+              ))}
+              {hiddenReplies.map((r) => (
+                <li key={`r-${r.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm" style={{ color: "var(--text-muted)" }}>{r.body}</p>
+                    <p className="meta mt-1">Hidden reply · {r.author_name || "a student"} · <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false} style={{ color: "var(--accent)" }} className="hover:underline">thread →</Link></p>
+                  </div>
+                  <HideButton targetType="reply" targetId={r.id} status="visible" />
+                </li>
+              ))}
+              {hiddenSnippets.map((s) => (
+                <li key={`s-${s.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm" style={{ color: "var(--text-muted)" }}>{s.title || "Untitled snippet"}</p>
+                    <p className="meta mt-1">Hidden snippet · {s.language || "text"}</p>
+                  </div>
+                  <HideButton targetType="snippet" targetId={s.id} status="visible" />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </AppShell>
   );

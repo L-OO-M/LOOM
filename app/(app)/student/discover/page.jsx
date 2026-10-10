@@ -79,6 +79,12 @@ function BuilderRow({ b }) {
   );
 }
 
+// Link to the mentor's public username, never their raw UUID — /student/[username]
+// resolves user_profiles.username, so a UUID here was a guaranteed 404.
+function mentorHref(m) {
+  return m.public_username ? `/student/${encodeURIComponent(m.public_username)}` : "/student/mentorship";
+}
+
 export default async function DiscoverPage() {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/discover");
@@ -94,12 +100,14 @@ export default async function DiscoverPage() {
   `;
   const mentors = await sql`
     SELECT m.user_id, m.expertise, p.name, COUNT(r.id)::int AS reviews,
-      COALESCE(AVG(r.rating),0)::numeric AS avg_rating
+      COALESCE(AVG(r.rating),0)::numeric AS avg_rating,
+      up.username AS public_username
     FROM mentors m
     LEFT JOIN profiles p ON p.user_id = m.user_id
+    LEFT JOIN user_profiles up ON up.user_id = m.user_id
     LEFT JOIN mentor_reviews r ON r.mentor_id = m.user_id
     WHERE m.tenant_id = ${tid}::uuid AND m.available = true
-    GROUP BY m.user_id, m.expertise, p.name ORDER BY avg_rating DESC, reviews DESC LIMIT 3
+    GROUP BY m.user_id, m.expertise, p.name, up.username ORDER BY avg_rating DESC, reviews DESC LIMIT 3
   `;
   // Deterministic candidate set: public cards in this chapter, newest first.
   // updated_at is bumped on every card save, so the order is stable.
@@ -273,11 +281,10 @@ export default async function DiscoverPage() {
                 <ul className="mt-6 space-y-4">
                   {mentors.map((m) => (
                     <li key={m.user_id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-[var(--wash)]">
-                      <Link href={m.user_id ? `/student/${encodeURIComponent(m.user_id)}` : "/student/mentorship"} prefetch={false} className="min-w-0">
+                      <Link href={mentorHref(m)} prefetch={false} className="min-w-0">
                         <p className="truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{m.name || "Mentor"} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {m.expertise || "general"}</span></p>
                         <p className="mono-tag mt-0.5">{Number(m.reviews) > 0 ? `★ ${Number(m.avg_rating).toFixed(1)} · ${m.reviews} review${Number(m.reviews) === 1 ? "" : "s"}` : "new guide · no reviews yet"}</p>
-                      </Link>
-                      <ActionLink href="/student/mentorship">View →</ActionLink>
+</Link>
                     </li>
                   ))}
                 </ul>

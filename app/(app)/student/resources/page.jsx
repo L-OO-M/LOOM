@@ -15,12 +15,16 @@ import {
   levelLabel,
 } from "./_components/resources-ui";
 
+// Tracks are the enrolable departments. Previously hardcoded to 5 — the
+// `embedded` shelf (189 resources across 8 domains in the catalogue) had a real
+// shelf but no filter here, so it showed a permanent 0 against a missing entry.
 const TRACKS = [
   { id: "ai_ml", label: "AI / ML", focus: "ML fundamentals, paper-reading sessions, dataset-based contests, applied AI projects" },
   { id: "web", label: "Web Development", focus: "HTML/CSS/JavaScript bootcamps, framework workshops, society website, Git & deployment" },
   { id: "cybersecurity", label: "Cybersecurity", focus: "Ethical hacking within legal boundaries, CTF practice, cryptography basics, secure coding" },
   { id: "dsa", label: "DSA", focus: "Weekly problem-solving, contest practice, interview preparation, mock tests" },
-  { id: "blockchain", label: "Blockchain", focus: "Distributed-ledger fundamentals, smart contracts, Web3 mini-projects" }
+  { id: "blockchain", label: "Blockchain", focus: "Distributed-ledger fundamentals, smart contracts, Web3 mini-projects" },
+  { id: "embedded", label: "Embedded & Hardware", focus: "Microcontrollers, Arduino, Raspberry Pi, sensors and firmware — things you can hold" }
 ];
 
 const KINDS = [

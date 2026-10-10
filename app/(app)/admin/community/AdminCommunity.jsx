@@ -1,58 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { postJSON, useAction, ActionFeedback } from "@/components/loom/useAction";
 
-async function patch(url, body) {
-  const res = await fetch(url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  return res.json();
-}
-
-export function HideButton({ targetType, targetId }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+export function HideButton({ targetType, targetId, status = "hidden" }) {
+  const { busy, msg, error, run } = useAction(() =>
+    postJSON("/api/admin/community", "PATCH", { targetType, targetId, status }));
   return (
-    <button disabled={busy} onClick={async () => {
-      setBusy(true);
-      await patch("/api/admin/community", { targetType, targetId, status: "hidden" });
-      setBusy(false);
-      router.refresh();
-    }} className="shrink-0 text-xs disabled:opacity-50" style={{ color: "var(--danger)" }}>
-      {busy ? "Hiding…" : "Hide"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={busy} onClick={() => run()} className="shrink-0 text-xs disabled:opacity-50" style={{ color: "var(--danger)" }}>
+        {busy ? "Saving…" : status === "hidden" ? "Unhide" : "Hide"}
+      </button>
+      <ActionFeedback msg={busy ? "" : msg} error={busy ? "" : error} />
+    </span>
   );
 }
 
 export function PinButton({ threadId, pinned }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const { busy, msg, error, run } = useAction(() =>
+    postJSON(`/api/community/threads/${threadId}`, "PATCH", { action: "pin", pinned: !pinned }));
   return (
-    <button disabled={busy} onClick={async () => {
-      setBusy(true);
-      await patch(`/api/community/threads/${threadId}`, { action: "pin", pinned: !pinned });
-      setBusy(false);
-      router.refresh();
-    }} className="shrink-0 text-xs disabled:opacity-50" style={{ color: "var(--accent)" }}>
-      {busy ? "…" : pinned ? "Unpin" : "Pin"}
-    </button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={busy} onClick={() => run()} className="shrink-0 text-xs disabled:opacity-50" style={{ color: "var(--accent)" }}>
+        {busy ? "…" : pinned ? "Unpin" : "Pin"}
+      </button>
+      <ActionFeedback msg={busy ? "" : msg} error={busy ? "" : error} />
+    </span>
   );
 }
 
 export function WikiReviewButtons({ slug, editId }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-
-  async function decide(decision) {
-    setBusy(true);
-    await patch(`/api/community/wiki/${slug}`, { action: "review", editId, decision });
-    setBusy(false);
-    router.refresh();
-  }
+  const [decision, setDecision] = useState(null);
+  const { busy, msg, error, run } = useAction((d) =>
+    postJSON(`/api/community/wiki/${slug}`, "PATCH", { action: "review", editId, decision: d }));
 
   return (
-    <span className="flex gap-2">
-      <button disabled={busy} onClick={() => decide("approved")} className="btn-ink disabled:opacity-50">Approve</button>
-      <button disabled={busy} onClick={() => decide("rejected")} className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Reject</button>
+    <span className="inline-flex items-center gap-2">
+      <button disabled={busy} onClick={() => { setDecision("approved"); run("approved"); }} className="btn-ink disabled:opacity-50">
+        {busy && decision === "approved" ? "Approving…" : "Approve"}
+      </button>
+      <button disabled={busy} onClick={() => { setDecision("rejected"); run("rejected"); }}
+        className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+        {busy && decision === "rejected" ? "Rejecting…" : "Reject"}
+      </button>
+      <ActionFeedback msg={busy ? "" : msg} error={busy ? "" : error} />
     </span>
   );
 }

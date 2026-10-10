@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { postJSON, useAction } from "@/components/loom/useAction";
 
 const input = { width: "100%", borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 };
 
@@ -157,18 +158,19 @@ export function MentorForm() {
 }
 
 export function FlagToggle({ flagKey, enabled }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  async function toggle() {
-    setBusy(true);
-    await fetch("/api/admin/flags", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: flagKey, enabled: !enabled }) });
-    setBusy(false);
-    router.refresh();
-  }
+  // Previously this fired the PATCH and discarded the result: a 403 or a 500
+  // looked identical to success, so an admin could believe a kill-switch had
+  // flipped when nothing was written.
+  const { busy, error, run } = useAction(() =>
+    postJSON("/api/admin/flags", "PATCH", { key: flagKey, enabled: !enabled }));
   return (
-    <button onClick={toggle} disabled={busy} className="rounded-md px-2.5 py-0.5 text-xs font-semibold disabled:opacity-50"
-      style={{ background: enabled ? "var(--text)" : "transparent", color: enabled ? "var(--bg)" : "var(--text-muted)", border: enabled ? "none" : "1px solid var(--line)" }}>
-      {busy ? "…" : enabled ? "On" : "Off"}
-    </button>
+    <span className="inline-flex items-center gap-1.5">
+      <button onClick={() => run()} disabled={busy} aria-pressed={enabled}
+        title={flagKey} className="rounded-md px-2.5 py-0.5 text-xs font-semibold disabled:opacity-50"
+        style={{ background: enabled ? "var(--text)" : "transparent", color: enabled ? "var(--bg)" : "var(--text-muted)", border: enabled ? "none" : "1px solid var(--line)" }}>
+        {busy ? "…" : enabled ? "On" : "Off"}
+      </button>
+      {error && <span role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{error}</span>}
+    </span>
   );
 }

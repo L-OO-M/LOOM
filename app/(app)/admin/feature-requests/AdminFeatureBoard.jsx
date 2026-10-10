@@ -2,34 +2,52 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { postJSON } from "@/components/loom/useAction";
 
 const STATUSES = ["pending", "needs_info", "approved", "rejected", "in_progress", "built"];
 
 export default function AdminFeatureBoard({ initial }) {
   const [items, setItems] = useState(initial);
   const [note, setNote] = useState({});
+  const [pending, setPending] = useState({});
+  const [errors, setErrors] = useState({});
   const router = useRouter();
 
+  // Every control reports failure now. Previously a failed status change was a
+  // silent no-op, and the counter-question used a blocking browser alert().
   async function act(id, patch) {
-    const res = await fetch(`/api/feature-requests/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
-    const data = await res.json();
-    if (data.ok) {
+    setPending((p) => ({ ...p, [id]: true }));
+    setErrors((e) => ({ ...e, [id]: "" }));
+    const data = await postJSON(`/api/feature-requests/${id}`, "PATCH", patch);
+    setPending((p) => ({ ...p, [id]: false }));
+    if (data?.ok) {
       setItems((prev) => prev.map((r) => (r.id === id ? data.data.request : r)));
       router.refresh();
+    } else {
+      setErrors((e) => ({ ...e, [id]: data?.error?.message || "Nothing was saved — try again" }));
     }
   }
 
   async function comment(id) {
     const body = note[id]?.trim();
     if (!body) return;
-    const res = await fetch(`/api/feature-requests/${id}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body }) });
-    if ((await res.json()).ok) { setNote({ ...note, [id]: "" }); alert("Question posted — requester notified"); }
+    setPending((p) => ({ ...p, [id]: true }));
+    setErrors((e) => ({ ...e, [id]: "" }));
+    const data = await postJSON(`/api/feature-requests/${id}/comments`, "POST", { body });
+    setPending((p) => ({ ...p, [id]: false }));
+    if (data?.ok) {
+      setNote({ ...note, [id]: "" });
+      setErrors((e) => ({ ...e, [id]: "" }));
+      router.refresh();
+    } else {
+      setErrors((e) => ({ ...e, [id]: data?.error?.message || "Question not posted" }));
+    }
   }
 
   return (
     <ul className="space-y-3">
       {items.map((r) => (
-        <li key={r.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <li key={r.id} className="rounded-2xl border p-5" style={{ borderColor: errors[r.id] ? "color-mix(in srgb, var(--danger) 40%, var(--line))" : "var(--line)", background: "var(--bg-elevated)" }}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{r.title} <span className="meta ml-2">{r.category}</span></p>
@@ -46,15 +64,16 @@ export default function AdminFeatureBoard({ initial }) {
               {r.implementation && <p><strong style={{ color: "var(--text)" }}>Implementation:</strong> {r.implementation}</p>}
             </div>
           </details>
+          {errors[r.id] && <p role="alert" className="mt-2 text-xs" style={{ color: "var(--danger)" }}>{errors[r.id]}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {STATUSES.map((s) => (
-              <button key={s} onClick={() => act(r.id, { status: s })} className="rounded-full border px-3 py-1 text-xs font-semibold capitalize" style={{ borderColor: r.status === s ? "var(--accent)" : "var(--line)", background: r.status === s ? "var(--accent)" : "transparent", color: r.status === s ? "#101314" : "var(--text-muted)" }}>{s.replace("_", " ")}</button>
+              <button key={s} disabled={!!pending[r.id]} onClick={() => act(r.id, { status: s })} className="rounded-full border px-3 py-1 text-xs font-semibold capitalize disabled:opacity-50" style={{ borderColor: r.status === s ? "var(--accent)" : "var(--line)", background: r.status === s ? "var(--accent)" : "transparent", color: r.status === s ? "var(--bg)" : "var(--text-muted)" }}>{s.replace("_", " ")}</button>
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <input value={note[r.id] || ""} onChange={(e) => setNote({ ...note, [r.id]: e.target.value })} placeholder="Counter-question or decision note" className="flex-1 min-w-[200px] rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)" }} />
-            <button onClick={() => comment(r.id)} className="rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)" }}>Ask</button>
-            <button onClick={() => act(r.id, { assigned_to: r.requester_id, status: "in_progress", decision_note: note[r.id] || "Assigned to you — start building" })} className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold" style={{ color: "#101314" }}>Let them build →</button>
+            <button disabled={!!pending[r.id]} onClick={() => comment(r.id)} className="rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ borderColor: "var(--line)" }}>Ask</button>
+            <button disabled={!!pending[r.id]} onClick={() => act(r.id, { assigned_to: r.requester_id, status: "in_progress", decision_note: note[r.id] || "Assigned to you — start building" })} className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ color: "var(--bg)" }}>Let them build →</button>
           </div>
         </li>
       ))}
