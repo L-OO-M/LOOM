@@ -363,7 +363,7 @@ export default function LandingPage() {
       </section>
 
       {/* NETWORK — LOOM is already moving. */}
-      <section id="network" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
+      {/* <section id="network" className="mx-auto max-w-7xl scroll-mt-20 px-5 py-20 sm:px-6 lg:px-8 lg:py-28">
         <p className="kicker scroll-reveal">Thread 04 — LOOM is already moving</p>
         <h2 className="font-display scroll-reveal mt-5 max-w-3xl text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>
           The network, live.
@@ -375,7 +375,7 @@ export default function LandingPage() {
         <div className="scroll-reveal">
           <LivingNetwork />
         </div>
-      </section>
+      </section> */}
 
       {/* CADENCE — the vision, on a timeline. */}
       <section id="cadence" className="relative scroll-mt-20 px-5 py-20 lg:px-8 lg:py-28" style={{ background: "#101314", color: "#f2f3f1" }}>
