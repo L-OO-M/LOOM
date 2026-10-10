@@ -1,0 +1,474 @@
+{
+  "source": "Hardware_Development_Roadmap.pdf + Arduino-For-Beginners-REV2.pdf + Raspberry_Pi_Handbook.pdf",
+  "domain": "embedded",
+  "label": "Embedded & Hardware",
+  "groups": [
+    {
+      "title": "1. Electronics Fundamentals",
+      "nodes": [
+        { "id": "em_voltage_current_resistance_power", "title": "Voltage, Current, Resistance & Power", "description": "Core electrical quantities and their relationships.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ohms_law_kirchhoffs_laws", "title": "Ohm’s Law & Kirchhoff’s Laws", "description": "V=IR, KCL and KVL — the laws every circuit analysis rests on.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_resistors_capacitors_inductors", "title": "Resistors, Capacitors & Inductors", "description": "The three passive building blocks and their behaviour in DC and AC.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_diodes_leds_transistors", "title": "Diodes, LEDs & Transistors", "description": "Semiconductor devices for switching, rectification and light output.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_mosfets_opamps", "title": "MOSFETs & Op-Amps", "description": "Switching transistors and operational amplifiers for amplification.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_voltage_regulators", "title": "Voltage Regulators", "description": "Supply regulation and protection on the board.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_analog_vs_digital_signals", "title": "Analog vs Digital Signals", "description": "Continuous vs discrete signals and how they are interfaced.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_basic_circuit_analysis", "title": "Basic Circuit Analysis", "description": "Series/parallel analysis and reading simple schematics.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_breadboard_multimeter_techniques", "title": "Breadboard & Multimeter Techniques", "description": "Prototyping without solder and measuring what you built.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_voltage_current_resistance_power", "to_id": "em_ohms_law_kirchhoffs_laws", "kind": "required" },
+        { "from_id": "em_ohms_law_kirchhoffs_laws", "to_id": "em_resistors_capacitors_inductors", "kind": "required" },
+        { "from_id": "em_resistors_capacitors_inductors", "to_id": "em_diodes_leds_transistors", "kind": "required" },
+        { "from_id": "em_diodes_leds_transistors", "to_id": "em_mosfets_opamps", "kind": "required" },
+        { "from_id": "em_mosfets_opamps", "to_id": "em_voltage_regulators", "kind": "required" },
+        { "from_id": "em_voltage_regulators", "to_id": "em_analog_vs_digital_signals", "kind": "required" },
+        { "from_id": "em_analog_vs_digital_signals", "to_id": "em_basic_circuit_analysis", "kind": "required" },
+        { "from_id": "em_basic_circuit_analysis", "to_id": "em_breadboard_multimeter_techniques", "kind": "required" }
+      ]
+    },
+    {
+      "title": "2. Digital Electronics",
+      "nodes": [
+        { "id": "em_binary_hexadecimal_systems", "title": "Binary & Hexadecimal Systems", "description": "Number bases that hardware actually speaks.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_logic_gates_boolean_algebra", "title": "Logic Gates & Boolean Algebra", "description": "AND/OR/NOT/XOR and simplifying boolean expressions.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_combinational_circuits", "title": "Combinational Circuits", "description": "Adders, subtractors, multiplexers built from gates.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_flipflops_latches", "title": "Flip-Flops & Latches", "description": "Storing one bit of state and clocked sequential logic.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_registers_counters", "title": "Registers & Counters", "description": "Multi-bit storage and sequential counters built from flip-flops.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_mux_demux", "title": "Multiplexers / Demultiplexers", "description": "Routing data across shared lines.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_adc_dac_architectures", "title": "ADC & DAC Architectures", "description": "Converting between analog and digital domains.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_timers_memory_basics", "title": "Timers & Memory Basics", "description": "Timing elements and memory hierarchy on a microcontroller.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_binary_hexadecimal_systems", "to_id": "em_logic_gates_boolean_algebra", "kind": "required" },
+        { "from_id": "em_logic_gates_boolean_algebra", "to_id": "em_combinational_circuits", "kind": "required" },
+        { "from_id": "em_combinational_circuits", "to_id": "em_flipflops_latches", "kind": "required" },
+        { "from_id": "em_flipflops_latches", "to_id": "em_registers_counters", "kind": "required" },
+        { "from_id": "em_registers_counters", "to_id": "em_mux_demux", "kind": "required" },
+        { "from_id": "em_mux_demux", "to_id": "em_adc_dac_architectures", "kind": "required" },
+        { "from_id": "em_adc_dac_architectures", "to_id": "em_timers_memory_basics", "kind": "required" }
+      ]
+    },
+    {
+      "title": "3. Programming & Microcontrollers",
+      "nodes": [
+        { "id": "em_c_cpp_fundamentals", "title": "C/C++ Fundamentals", "description": "The languages embedded toolchains are built around.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_pointers_arrays_structures", "title": "Pointers, Arrays & Structures", "description": "Memory addressing — the core of embedded C.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_gpio_analog_digital_io", "title": "GPIO, Analog & Digital I/O", "description": "Reading pins and driving outputs.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_pwm_hardware_timers", "title": "PWM & Hardware Timers", "description": "Pulse-width modulation for analogue-like control from digital pins.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_hardware_software_interrupts", "title": "Hardware & Software Interrupts", "description": "Event-driven execution on the MCU.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_serial_communication_uart", "title": "Serial Communication (UART)", "description": "Wiring two microcontrollers together.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ecosystem_arduino_esp8266_esp32_stm32", "title": "Ecosystem: Arduino → ESP8266/ESP32 → STM32", "description": "The board progression from hobby to industry.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_c_cpp_fundamentals", "to_id": "em_pointers_arrays_structures", "kind": "required" },
+        { "from_id": "em_c_cpp_fundamentals", "to_id": "em_gpio_analog_digital_io", "kind": "required" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_pwm_hardware_timers", "kind": "required" },
+        { "from_id": "em_pwm_hardware_timers", "to_id": "em_hardware_software_interrupts", "kind": "required" },
+        { "from_id": "em_hardware_software_interrupts", "to_id": "em_serial_communication_uart", "kind": "required" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_ecosystem_arduino_esp8266_esp32_stm32", "kind": "required" },
+        { "from_id": "em_pointers_arrays_structures", "to_id": "em_ecosystem_arduino_esp8266_esp32_stm32", "kind": "required" }
+      ]
+    },
+    {
+      "title": "4. Sensors, Actuators & Hardware Integration",
+      "nodes": [
+        { "id": "em_temperature_humidity_sensors", "title": "Temperature & Humidity Sensors", "description": "Reading the physical world.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ultrasonic_pir_motion_sensors", "title": "Ultrasonic / PIR Motion Sensors", "description": "Distance and motion detection.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_imu_mpu6050_accelerometers", "title": "IMU / MPU6050 Accelerometers", "description": "Orientation and motion sensing.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_relays_mosfet_switches", "title": "Relays & MOSFET Switches", "description": "Driving loads beyond the MCU pin limit.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_motors_motor_drivers_hbridge", "title": "Motors & Motor Drivers (H-Bridge)", "description": "H-bridge control for DC motors.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_servo_motors_encoders", "title": "Servo Motors & Encoders", "description": "Positioned actuation and feedback.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_displays_oled_tft_lcd", "title": "Displays (OLED, TFT, LCD)", "description": "Showing state back to the user.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_sd_cards_storage", "title": "SD Cards & Storage", "description": "Logging and persistent storage.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_batteries_charging_power_management", "title": "Batteries, Charging & Power Management", "description": "Powering the board and keeping it safe.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_temperature_humidity_sensors", "kind": "required" },
+        { "from_id": "em_temperature_humidity_sensors", "to_id": "em_ultrasonic_pir_motion_sensors", "kind": "alternative" },
+        { "from_id": "em_ultrasonic_pir_motion_sensors", "to_id": "em_imu_mpu6050_accelerometers", "kind": "optional" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_relays_mosfet_switches", "kind": "required" },
+        { "from_id": "em_pwm_hardware_timers", "to_id": "em_motors_motor_drivers_hbridge", "kind": "required" },
+        { "from_id": "em_pwm_hardware_timers", "to_id": "em_servo_motors_encoders", "kind": "alternative" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_displays_oled_tft_lcd", "kind": "required" },
+        { "from_id": "em_displays_oled_tft_lcd", "to_id": "em_sd_cards_storage", "kind": "optional" },
+        { "from_id": "em_voltage_regulators", "to_id": "em_batteries_charging_power_management", "kind": "required" }
+      ]
+    },
+    {
+      "title": "5. Communication Protocols",
+      "nodes": [
+        { "id": "em_uart", "title": "UART (Universal Asynchronous Receiver/Transmitter)", "description": "The simplest serial link.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_i2c", "title": "I²C (Inter-Integrated Circuit)", "description": "Two-wire bus with addressing.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_spi", "title": "SPI (Serial Peripheral Interface)", "description": "Fast full-duplex peripheral bus.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_can_bus", "title": "CAN Bus (Automotive / Industrial)", "description": "Deterministic multi-node bus.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_pwm_signal_control", "title": "PWM Signal Control", "description": "Pulse-width signalling for control.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_usb_protocol_basics", "title": "USB Protocol Basics", "description": "Universal serial link to a host.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_wifi_bluetooth_ble", "title": "Wi-Fi & Bluetooth / BLE", "description": "Wireless connectivity on the SoC.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_mqtt_messaging", "title": "MQTT Messaging", "description": "Publish/subscribe for connected devices.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_serial_communication_uart", "to_id": "em_uart", "kind": "required" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_i2c", "kind": "required" },
+        { "from_id": "em_gpio_analog_digital_io", "to_id": "em_spi", "kind": "required" },
+        { "from_id": "em_spi", "to_id": "em_can_bus", "kind": "optional" },
+        { "from_id": "em_pwm_hardware_timers", "to_id": "em_pwm_signal_control", "kind": "required" },
+        { "from_id": "em_serial_communication_uart", "to_id": "em_usb_protocol_basics", "kind": "optional" },
+        { "from_id": "em_ecosystem_arduino_esp8266_esp32_stm32", "to_id": "em_wifi_bluetooth_ble", "kind": "required" },
+        { "from_id": "em_uart", "to_id": "em_mqtt_messaging", "kind": "alternative" },
+        { "from_id": "em_wifi_bluetooth_ble", "to_id": "em_mqtt_messaging", "kind": "required" }
+      ]
+    },
+    {
+      "title": "6. IoT & Connected Hardware",
+      "nodes": [
+        { "id": "em_esp32_networking_frameworks", "title": "ESP32 Networking Frameworks", "description": "The stack that connects a microcontroller to the internet.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_wifi_ble_connectivity", "title": "Wi-Fi & BLE Connectivity", "description": "Joining networks and pairing peripherals.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_mqtt_http_rest_apis", "title": "MQTT & HTTP / REST APIs", "description": "Talking to brokers and REST endpoints.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_embedded_web_servers", "title": "Embedded Web Servers", "description": "Serving a UI straight from the device.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_firebase_cloud_platform_integration", "title": "Firebase / Cloud Platform Integration", "description": "Hosted backends for device fleets.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ota_firmware_updates", "title": "Over-The-Air (OTA) Firmware Updates", "description": "Shipping fixes without physical access.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_iot_device_security_fundamentals", "title": "IoT Device Security Fundamentals", "description": "Securing connected devices.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_low_power_optimization_sleep_modes", "title": "Low-Power Optimization & Sleep Modes", "description": "Battery life as a design constraint.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_ecosystem_arduino_esp8266_esp32_stm32", "to_id": "em_esp32_networking_frameworks", "kind": "required" },
+        { "from_id": "em_esp32_networking_frameworks", "to_id": "em_wifi_ble_connectivity", "kind": "required" },
+        { "from_id": "em_wifi_ble_connectivity", "to_id": "em_mqtt_http_rest_apis", "kind": "required" },
+        { "from_id": "em_mqtt_http_rest_apis", "to_id": "em_embedded_web_servers", "kind": "alternative" },
+        { "from_id": "em_mqtt_http_rest_apis", "to_id": "em_firebase_cloud_platform_integration", "kind": "optional" },
+        { "from_id": "em_esp32_networking_frameworks", "to_id": "em_ota_firmware_updates", "kind": "required" },
+        { "from_id": "em_ota_firmware_updates", "to_id": "em_iot_device_security_fundamentals", "kind": "required" },
+        { "from_id": "em_batteries_charging_power_management", "to_id": "em_low_power_optimization_sleep_modes", "kind": "required" }
+      ]
+    },
+    {
+      "title": "7. PCB Design",
+      "nodes": [
+        { "id": "em_circuit_schematics_netlists", "title": "Circuit Schematics & Netlists", "description": "Drawing the design before the board.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_component_selection_datasheet_review", "title": "Component Selection & Datasheet Review", "description": "Picking parts that actually meet the spec.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_footprint_symbol_creation", "title": "Footprint & Symbol Creation", "description": "Library entries for real components.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_multi_layer_pcb_stacks", "title": "Multi-layer PCB Stacks", "description": "Stackup and layer assignment.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_high_speed_power_routing", "title": "High-Speed & Power Routing", "description": "Routing for signal integrity and current capacity.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ground_planes_return_paths", "title": "Ground Planes & Return Paths", "description": "Why return current matters as much as the trace.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_erc_drc_design_rule_verification", "title": "ERC / DRC Design Rule Verification", "description": "Catching errors before fabrication.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_gerber_drill_file_generation", "title": "Gerber & Drill File Generation", "description": "Production outputs for the fab house.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "em_pcba_dfm", "title": "PCBA & DFM (Design for Manufacturing)", "description": "Designing boards that can actually be assembled.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_eda_software_kicad_altium", "title": "EDA Software: KiCad & Altium Designer", "description": "The toolchains used for board design.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_circuit_schematics_netlists", "to_id": "em_component_selection_datasheet_review", "kind": "required" },
+        { "from_id": "em_component_selection_datasheet_review", "to_id": "em_footprint_symbol_creation", "kind": "required" },
+        { "from_id": "em_footprint_symbol_creation", "to_id": "em_multi_layer_pcb_stacks", "kind": "required" },
+        { "from_id": "em_multi_layer_pcb_stacks", "to_id": "em_high_speed_power_routing", "kind": "required" },
+        { "from_id": "em_high_speed_power_routing", "to_id": "em_ground_planes_return_paths", "kind": "required" },
+        { "from_id": "em_ground_planes_return_paths", "to_id": "em_erc_drc_design_rule_verification", "kind": "required" },
+        { "from_id": "em_erc_drc_design_rule_verification", "to_id": "em_gerber_drill_file_generation", "kind": "required" },
+        { "from_id": "em_gerber_drill_file_generation", "to_id": "em_pcba_dfm", "kind": "required" },
+        { "from_id": "em_circuit_schematics_netlists", "to_id": "em_eda_software_kicad_altium", "kind": "optional" },
+        { "from_id": "em_eda_software_kicad_altium", "to_id": "em_multi_layer_pcb_stacks", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "8. Embedded Systems",
+      "nodes": [
+        { "id": "em_bare_metal_embedded_c", "title": "Bare-Metal Embedded C", "description": "Running without an OS.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_arm_cortex_m_architecture", "title": "ARM Cortex-M Architecture", "description": "The architecture behind STM32 and most modern MCUs.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_stm32_hardware_peripherals", "title": "STM32 Hardware Peripherals", "description": "GPIO, timers, SPI, I2C, ADC on real silicon.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_direct_register_access", "title": "Direct Register Access & Manipulation", "description": "Driving peripherals from the reference manual.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_advanced_interrupts_timers_dma", "title": "Advanced Interrupts, Timers & DMA", "description": "Offloading transfers and precise timing.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_custom_peripheral_driver_development", "title": "Custom Peripheral Driver Development", "description": "Writing drivers for devices with no library.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_custom_bootloaders", "title": "Custom Bootloaders", "description": "Owning the boot chain.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "em_hardware_debugging_swd_jtag", "title": "Hardware Debugging (SWD / JTAG)", "description": "Debug probes, breakpoints and watchpoints.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_memory_management_linker_scripts", "title": "Memory Management & Linker Scripts", "description": "Placing code and data in memory.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_low_power_operational_modes", "title": "Low-Power Operational Modes", "description": "Sleep modes in production firmware.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_pointers_arrays_structures", "to_id": "em_bare_metal_embedded_c", "kind": "required" },
+        { "from_id": "em_bare_metal_embedded_c", "to_id": "em_arm_cortex_m_architecture", "kind": "required" },
+        { "from_id": "em_arm_cortex_m_architecture", "to_id": "em_stm32_hardware_peripherals", "kind": "required" },
+        { "from_id": "em_stm32_hardware_peripherals", "to_id": "em_direct_register_access", "kind": "required" },
+        { "from_id": "em_direct_register_access", "to_id": "em_advanced_interrupts_timers_dma", "kind": "required" },
+        { "from_id": "em_advanced_interrupts_timers_dma", "to_id": "em_custom_peripheral_driver_development", "kind": "required" },
+        { "from_id": "em_custom_peripheral_driver_development", "to_id": "em_custom_bootloaders", "kind": "optional" },
+        { "from_id": "em_direct_register_access", "to_id": "em_hardware_debugging_swd_jtag", "kind": "required" },
+        { "from_id": "em_bare_metal_embedded_c", "to_id": "em_memory_management_linker_scripts", "kind": "required" },
+        { "from_id": "em_low_power_optimization_sleep_modes", "to_id": "em_low_power_operational_modes", "kind": "required" }
+      ]
+    },
+    {
+      "title": "9. RTOS & Advanced Embedded",
+      "nodes": [
+        { "id": "em_freertos_kernel_fundamentals", "title": "FreeRTOS Kernel Fundamentals", "description": "Tasks, queues and the scheduler.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_task_creation_states_prioritization", "title": "Task Creation, States & Prioritization", "description": "Task lifecycle and priorities.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_preemptive_vs_cooperative_scheduling", "title": "Preemptive vs Cooperative Scheduling", "description": "When the CPU switches tasks.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_queues_mailboxes", "title": "Queues & Mailboxes", "description": "Passing data between tasks safely.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_semaphores_mutexes", "title": "Binary, Counting Semaphores & Mutexes", "description": "Synchronising shared resources.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_inter_task_communication_isr_safe_apis", "title": "Inter-Task Communication & ISR Safe APIs", "description": "What you may call from an interrupt.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_real_time_constraints_deadlock_avoidance", "title": "Real-Time Constraints & Deadlock Avoidance", "description": "Meeting deadlines and avoiding priority inversion.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_bare_metal_embedded_c", "to_id": "em_freertos_kernel_fundamentals", "kind": "required" },
+        { "from_id": "em_freertos_kernel_fundamentals", "to_id": "em_task_creation_states_prioritization", "kind": "required" },
+        { "from_id": "em_task_creation_states_prioritization", "to_id": "em_preemptive_vs_cooperative_scheduling", "kind": "required" },
+        { "from_id": "em_preemptive_vs_cooperative_scheduling", "to_id": "em_queues_mailboxes", "kind": "required" },
+        { "from_id": "em_queues_mailboxes", "to_id": "em_semaphores_mutexes", "kind": "alternative" },
+        { "from_id": "em_queues_mailboxes", "to_id": "em_inter_task_communication_isr_safe_apis", "kind": "required" },
+        { "from_id": "em_semaphores_mutexes", "to_id": "em_real_time_constraints_deadlock_avoidance", "kind": "required" },
+        { "from_id": "em_inter_task_communication_isr_safe_apis", "to_id": "em_real_time_constraints_deadlock_avoidance", "kind": "required" }
+      ]
+    },
+    {
+      "title": "10. Hardware Debugging & Product Development",
+      "nodes": [
+        { "id": "em_oscilloscope_logic_analyzer_mastery", "title": "Oscilloscope & Logic Analyzer Mastery", "description": "Seeing what the circuit actually does.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_deep_datasheet_errata_analysis", "title": "Deep Datasheet & Errata Analysis", "description": "Reading errata before they read you.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_signal_power_integrity_debugging", "title": "Signal & Power Integrity Debugging", "description": "Chasing the cause of unstable behaviour.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "em_emi_emc_compliance_basics", "title": "EMI / EMC Compliance Basics", "description": "Emissions and immunity requirements.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_thermal_management_dissipation", "title": "Thermal Management & Dissipation", "description": "Heat is a design constraint.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_hardware_qualification_validation", "title": "Hardware Qualification & Validation", "description": "Proving the design before launch.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "em_prototyping_testing_iteration_production", "title": "Prototyping → Testing → Iteration → Production", "description": "The path from breadboard to product.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "em_breadboard_multimeter_techniques", "to_id": "em_oscilloscope_logic_analyzer_mastery", "kind": "required" },
+        { "from_id": "em_component_selection_datasheet_review", "to_id": "em_deep_datasheet_errata_analysis", "kind": "required" },
+        { "from_id": "em_oscilloscope_logic_analyzer_mastery", "to_id": "em_signal_power_integrity_debugging", "kind": "required" },
+        { "from_id": "em_signal_power_integrity_debugging", "to_id": "em_emi_emc_compliance_basics", "kind": "required" },
+        { "from_id": "em_signal_power_integrity_debugging", "to_id": "em_thermal_management_dissipation", "kind": "required" },
+        { "from_id": "em_emi_emc_compliance_basics", "to_id": "em_hardware_qualification_validation", "kind": "required" },
+        { "from_id": "em_pcba_dfm", "to_id": "em_prototyping_testing_iteration_production", "kind": "required" },
+        { "from_id": "em_hardware_qualification_validation", "to_id": "em_prototyping_testing_iteration_production", "kind": "required" }
+      ]
+    },
+    {
+      "title": "11. Arduino — What Is Arduino?",
+      "nodes": [
+        { "id": "em_ar_what_is_arduino", "title": "What Is Arduino?", "description": "Arduino is an open source programmable circuit board that can be integrated into a wide variety of makerspace projects both simple and complex.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false, "kind": "group" }
+      ],
+      "edges": [
+        { "from_id": "em_ecosystem_arduino_esp8266_esp32_stm32", "to_id": "em_ar_what_is_arduino", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "12. Types of Arduino Boards",
+      "nodes": [
+        { "id": "em_ar_types_of_arduino_boards", "title": "Types of Arduino Boards", "description": "There are many variations of the official Arduino boards and then there are hundreds more from competitors who offer clones.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_arduino_uno", "title": "Arduino Uno", "description": "One of the most popular Arduino boards out there is the Arduino Uno.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_board_breakdown", "title": "Board Breakdown", "description": "Here are the components that make up an Arduino board and what each of their functions are.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_power_supply", "title": "Arduino Power Supply", "description": "The Arduino Uno needs a power source in order for it to operate and can be powered in a variety of ways.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_breadboard", "title": "Arduino Breadboard", "description": "A solderless breadboard allows you to prototype your Arduino project without having to permanently solder the circuit together.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_how_to_program", "title": "How To Program Arduino", "description": "Once the circuit has been created on the breadboard, you’ll need to upload the program (known as a sketch) to the Arduino.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_how_everything_works_together", "title": "How Everything Works Together", "description": "See how a breadboard, Arduino, jumper wires and the sketch work together to perform a function.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_arduino_projects", "title": "Arduino Projects", "description": "Example projects which help to showcase how truly amazing this board is and the capabilities of it.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": true },
+        { "id": "em_ar_tools_needed", "title": "Tools Needed", "description": "Some of the most common tools you will need when working with Arduino projects.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ar_arduino_shields", "title": "Arduino Shields", "description": "Arduino shields plug into the top of the Arduino board and can add capabilities such as WiFi, Bluetooth, GPS and much more.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ar_arduino_sensors", "title": "Arduino Sensors", "description": "If you want your Arduino to sense the world around it, you will need to add a sensor.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_electronics_retailers", "title": "Electronics Retailers", "description": "Some of our favorite places we tend to go when we need makerspace materials or electronic components.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "em_ar_what_is_arduino", "to_id": "em_ar_types_of_arduino_boards", "kind": "required" },
+        { "from_id": "em_ar_types_of_arduino_boards", "to_id": "em_ar_arduino_uno", "kind": "required" },
+        { "from_id": "em_ar_arduino_uno", "to_id": "em_ar_board_breakdown", "kind": "required" },
+        { "from_id": "em_ar_board_breakdown", "to_id": "em_ar_power_supply", "kind": "required" },
+        { "from_id": "em_ar_board_breakdown", "to_id": "em_ar_breadboard", "kind": "required" },
+        { "from_id": "em_ar_breadboard", "to_id": "em_ar_how_to_program", "kind": "required" },
+        { "from_id": "em_ar_how_to_program", "to_id": "em_ar_how_everything_works_together", "kind": "required" },
+        { "from_id": "em_ar_how_everything_works_together", "to_id": "em_ar_arduino_projects", "kind": "optional" },
+        { "from_id": "em_ar_board_breakdown", "to_id": "em_ar_tools_needed", "kind": "optional" },
+        { "from_id": "em_ar_arduino_uno", "to_id": "em_ar_arduino_shields", "kind": "optional" },
+        { "from_id": "em_ar_board_breakdown", "to_id": "em_ar_arduino_sensors", "kind": "required" },
+        { "from_id": "em_ar_arduino_sensors", "to_id": "em_ar_electronics_retailers", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "13. Simple Arduino Projects For Beginners",
+      "nodes": [
+        { "id": "em_ar_tools_and_parts_needed", "title": "Tools and Parts Needed", "description": "In order to complete the projects in this tutorial, you’ll need to make sure you have the following items.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_download_the_software", "title": "Download The Software", "description": "The Arduino IDE is the interface where you will write the sketches that tell the board what to do.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_arduino_ide", "title": "Arduino IDE", "description": "Once the software has been installed on your computer, go ahead and open it up.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_connect_your_arduino_uno", "title": "Connect Your Arduino Uno", "description": "At this point you are ready to connect your Arduino to your computer.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_project_1_blink_an_led", "title": "Arduino Project 1: Blink an LED", "description": "In this example, we are going to make your Arduino board blink an LED.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_change_the_code", "title": "Change The Code", "description": "Lets change some of the code in the “Blink” sketch to make it do something different.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ar_project_2_led_w_switch", "title": "Arduino Project 2: LED w/ Switch", "description": "In this project, we will be using a small pushbutton switch to control an LED.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "em_ar_troubleshooting", "title": "Troubleshooting", "description": "If you are having any problems with the projects we did, make sure the following has been checked.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "em_ar_resources", "title": "Resources", "description": "Where to go next after the beginner projects.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "em_ar_how_to_program", "to_id": "em_ar_tools_and_parts_needed", "kind": "required" },
+        { "from_id": "em_ar_tools_and_parts_needed", "to_id": "em_ar_download_the_software", "kind": "required" },
+        { "from_id": "em_ar_download_the_software", "to_id": "em_ar_arduino_ide", "kind": "required" },
+        { "from_id": "em_ar_arduino_ide", "to_id": "em_ar_connect_your_arduino_uno", "kind": "required" },
+        { "from_id": "em_ar_connect_your_arduino_uno", "to_id": "em_ar_project_1_blink_an_led", "kind": "required" },
+        { "from_id": "em_ar_project_1_blink_an_led", "to_id": "em_ar_change_the_code", "kind": "required" },
+        { "from_id": "em_ar_change_the_code", "to_id": "em_ar_project_2_led_w_switch", "kind": "required" },
+        { "from_id": "em_ar_project_2_led_w_switch", "to_id": "em_ar_troubleshooting", "kind": "optional" },
+        { "from_id": "em_ar_troubleshooting", "to_id": "em_ar_resources", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "14. Raspberry Pi 4",
+      "nodes": [
+        { "id": "rpi_introducing_raspberry_pi_4", "title": "Introducing Raspberry Pi 4", "description": "Get to know the new, more powerful Raspberry Pi 4, its BCM2711B0 system-on-chip, dual 4K displays, USB 3.0 and specifications.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_quickstart_guide", "title": "QuickStart Guide", "description": "Step-by-step instructions to set up your Raspberry Pi, from formatting a microSD card and installing NOOBS/Raspbian to first boot.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_raspberry_pi_4_starter_guide", "title": "Raspberry Pi 4 Starter Guide", "description": "Learn all about the Raspbian operating system and applications, including desktop, Bluetooth, Sense HAT, camera and remote access.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_your_next_desktop_pc", "title": "Your next Desktop PC", "description": "Using Raspberry Pi 4 as a full desktop replacement, with office suite, email, web and WebDAV file access.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_4k_digital_media_hub", "title": "4K digital media hub", "description": "Build the ultimate 4K home theatre PC with a Raspberry Pi 4, using Kodi and a Raspberry Pi TV HAT.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "rpi_introducing_raspberry_pi_4", "to_id": "rpi_quickstart_guide", "kind": "required" },
+        { "from_id": "rpi_quickstart_guide", "to_id": "rpi_raspberry_pi_4_starter_guide", "kind": "required" },
+        { "from_id": "rpi_raspberry_pi_4_starter_guide", "to_id": "rpi_your_next_desktop_pc", "kind": "alternative" },
+        { "from_id": "rpi_raspberry_pi_4_starter_guide", "to_id": "rpi_4k_digital_media_hub", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "15. Raspberry Pi — Get Started with Electronics",
+      "nodes": [
+        { "id": "rpi_make_with_code", "title": "Make with Code", "description": "Learn how to code and start controlling electronic components with Python 3 and GPIO Zero on a breadboard.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_electronics_with_gpio_zero", "title": "Electronics with GPIO Zero 1.5", "description": "Build a smart, camera-equipped doorbell programmed with Python.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_teenage_dinner_klaxon", "title": "Teenage dinner klaxon", "description": "Create a dinnertime alert with a tower light you can control from your phone.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_gpio_music_box", "title": "GPIO music box", "description": "Make a customisable music machine that you control at the touch of a button.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_laundry_saving_rain_detector", "title": "Laundry-saving rain detector", "description": "This easy-to-build, wire-free detector alerts you to sudden downpours.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_smart_door", "title": "Smart door", "description": "Find out who's at the door and know when the post has arrived.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_neopixel_display_cabinet_lights", "title": "NeoPixel display cabinet lights", "description": "Light up a cabinet with some NeoPixels, a Raspberry Pi, and Python code.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_build_a_secret_radio_chat_device", "title": "Build a secret radio chat device", "description": "Add a cheap 433MHz radio to Raspberry Pi to send wireless messages.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "rpi_quickstart_guide", "to_id": "rpi_make_with_code", "kind": "required" },
+        { "from_id": "rpi_make_with_code", "to_id": "rpi_electronics_with_gpio_zero", "kind": "required" },
+        { "from_id": "rpi_make_with_code", "to_id": "rpi_gpio_music_box", "kind": "alternative" },
+        { "from_id": "rpi_make_with_code", "to_id": "rpi_teenage_dinner_klaxon", "kind": "alternative" },
+        { "from_id": "rpi_make_with_code", "to_id": "rpi_laundry_saving_rain_detector", "kind": "alternative" },
+        { "from_id": "rpi_electronics_with_gpio_zero", "to_id": "rpi_smart_door", "kind": "alternative" },
+        { "from_id": "rpi_electronics_with_gpio_zero", "to_id": "rpi_build_a_secret_radio_chat_device", "kind": "optional" },
+        { "from_id": "rpi_gpio_music_box", "to_id": "rpi_neopixel_display_cabinet_lights", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "16. Raspberry Pi — Advanced Projects",
+      "nodes": [
+        { "id": "rpi_powerful_raspberry_pi_projects", "title": "Powerful Raspberry Pi projects", "description": "Meet the makers taking Raspberry Pi projects to the next level.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_low_cost_wheeled_robot_1", "title": "Build a low-cost wheeled robot – part 1", "description": "Discover components for building a robot without breaking the bank.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_low_cost_wheeled_robot_2", "title": "Build a low-cost wheeled robot – part 2", "description": "Assemble your robot, including motors, controller board, and battery box.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "rpi_low_cost_wheeled_robot_3", "title": "Build a low-cost wheeled robot – part 3", "description": "Using Python and GPIO Zero, program your robot to get it moving.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "rpi_low_cost_wheeled_robot_4", "title": "Build a low-cost wheeled robot – part 4", "description": "Add sensors to your robot to stop it bumping into walls.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "rpi_marauders_map", "title": "Make a Marauder’s Map", "description": "Track your family, pets, and friends on a map using Bluetooth beacons.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_ai_plant_monitor", "title": "Use AI to build a plant monitor", "description": "Measure the growth of plants with a Raspberry Pi Camera Module and OpenCV.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_comics_from_tv_recordings", "title": "Make comics from TV recordings", "description": "Convert a recording from the Raspberry Pi TV HAT into a comic book.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_car_spy_pi", "title": "Car Spy Pi", "description": "Check which vehicle is parked in your driveway using ANPR.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "rpi_electronics_with_gpio_zero", "to_id": "rpi_low_cost_wheeled_robot_1", "kind": "required" },
+        { "from_id": "rpi_low_cost_wheeled_robot_1", "to_id": "rpi_low_cost_wheeled_robot_2", "kind": "required" },
+        { "from_id": "rpi_low_cost_wheeled_robot_2", "to_id": "rpi_low_cost_wheeled_robot_3", "kind": "required" },
+        { "from_id": "rpi_low_cost_wheeled_robot_3", "to_id": "rpi_low_cost_wheeled_robot_4", "kind": "required" },
+        { "from_id": "rpi_4k_digital_media_hub", "to_id": "rpi_comics_from_tv_recordings", "kind": "optional" },
+        { "from_id": "rpi_low_cost_wheeled_robot_4", "to_id": "rpi_car_spy_pi", "kind": "alternative" },
+        { "from_id": "rpi_low_cost_wheeled_robot_4", "to_id": "rpi_ai_plant_monitor", "kind": "alternative" },
+        { "from_id": "rpi_raspberry_pi_4_starter_guide", "to_id": "rpi_powerful_raspberry_pi_projects", "kind": "optional" },
+        { "from_id": "rpi_neopixel_display_cabinet_lights", "to_id": "rpi_marauders_map", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "17. Raspberry Pi — Project Showcases",
+      "nodes": [
+        { "id": "rpi_as_we_are", "title": "As We Are", "description": "See your face lit up in LEDs on this 3D sculpture.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_yuri_3_mars_rover", "title": "Yuri 3 Mars rover", "description": "Just like a real interplanetary rover, but in miniature.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_sofi", "title": "SoFi", "description": "This soft robotic fish swims alongside real ones in the ocean.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_teslonda", "title": "Teslonda", "description": "Custom electric car with Raspberry Pi dashboard and engine feedback.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_pi_fighter", "title": "Pi Fighter", "description": "Gamifying boxing with a special punchbag that lets you fight AI foes.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_squirrel_cafe", "title": "The Squirrel Cafe", "description": "This animal feeding station can even help to predict the weather.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_tide_clock_weather_thing", "title": "Tide Clock Weather Thing", "description": "Fascinating device that shows a detailed weather forecast and low tide times.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_a_whisper_of_moths", "title": "A Whisper of Moths", "description": "An art installation filled with hand-crafted moths that move.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_underwater_drone", "title": "Underwater Drone", "description": "Explore the watery depths with this Raspberry Pi-powered submersible.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_chord_assist", "title": "Chord Assist", "description": "With a built-in AI voice assistant, this smart guitar can help almost anyone learn to play.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_tv_wall", "title": "TV Wall", "description": "Visually arresting Raspberry Pi-controlled display upcycling old CRT televisions.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_telepresence_hand", "title": "Telepresence Hand for Hazardous Areas", "description": "Manipulate objects at a distance with this remote-controlled robotic arm.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_pi_vizuwall", "title": "Pi VizuWall", "description": "This Raspberry Pi cluster with moving parts can help to train programmers.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_smart_home_herb_garden", "title": "Smart Home Herb Garden", "description": "Automated system looks after your herbs using Google's Smart Home API.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": true },
+        { "id": "rpi_marvin_go_kart", "title": "Marvin Go-Kart", "description": "Remote-controlled go-kart using Raspberry Pi and an old golf trolley.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_tortoise_fridge", "title": "Tortoise Fridge", "description": "Automating perfect hibernation conditions for your reptilian pets.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "rpi_immersive_bar", "title": "Immersive Bar", "description": "Mix virtual cocktails in this fascinating blend of the physical and digital worlds.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "rpi_raspberry_pi_4_starter_guide", "to_id": "rpi_smart_home_herb_garden", "kind": "optional" },
+        { "from_id": "rpi_raspberry_pi_4_starter_guide", "to_id": "rpi_pi_fighter", "kind": "optional" },
+        { "from_id": "rpi_smart_home_herb_garden", "to_id": "rpi_tide_clock_weather_thing", "kind": "optional" },
+        { "from_id": "rpi_tide_clock_weather_thing", "to_id": "rpi_squirrel_cafe", "kind": "optional" },
+        { "from_id": "rpi_powerful_raspberry_pi_projects", "to_id": "rpi_yuri_3_mars_rover", "kind": "optional" },
+        { "from_id": "rpi_yuri_3_mars_rover", "to_id": "rpi_as_we_are", "kind": "optional" },
+        { "from_id": "rpi_low_cost_wheeled_robot_4", "to_id": "rpi_telepresence_hand", "kind": "optional" },
+        { "from_id": "rpi_low_cost_wheeled_robot_4", "to_id": "rpi_underwater_drone", "kind": "optional" }
+      ]
+    }
+  ],
+  "resources": [
+    { "id": "res_em_all_about_circuits", "title": "All About Circuits", "kind": "article", "level": "foundation", "url": "https://www.allaboutcircuits.com/" },
+    { "id": "res_em_arduino_official_docs", "title": "Arduino Official Documentation", "kind": "doc", "level": "foundation", "url": "https://docs.arduino.cc/" },
+    { "id": "res_em_arduino_tutorials", "title": "Arduino Tutorials", "kind": "course", "level": "foundation", "url": "https://docs.arduino.cc/tutorials/" },
+    { "id": "res_em_arduino_ide_software", "title": "How To Program Arduino", "kind": "doc", "level": "foundation", "url": "https://www.arduino.cc/en/Main/Software" },
+    { "id": "res_em_adafruit_learning_system", "title": "Adafruit Learning System", "kind": "course", "level": "foundation", "url": "https://learn.adafruit.com/" },
+    { "id": "res_em_sparkfun_tutorials", "title": "SparkFun Tutorials", "kind": "course", "level": "foundation", "url": "https://learn.sparkfun.com/tutorials" },
+    { "id": "res_em_espressif_docs", "title": "Espressif Official Documentation", "kind": "doc", "level": "foundation_plus", "url": "https://docs.espressif.com/" },
+    { "id": "res_em_esp32_arduino_docs", "title": "ESP32 Arduino Documentation", "kind": "doc", "level": "foundation_plus", "url": "https://docs.espressif.com/projects/arduino-esp32/en/latest/" },
+    { "id": "res_em_random_nerd_tutorials", "title": "Random Nerd Tutorials", "kind": "course", "level": "foundation", "url": "https://randomnerdtutorials.com/" },
+    { "id": "res_em_kicad_docs", "title": "KiCad Documentation", "kind": "doc", "level": "foundation", "url": "https://docs.kicad.org/" },
+    { "id": "res_em_altium_education", "title": "Altium Education", "kind": "course", "level": "foundation", "url": "https://education.altium.com/" },
+    { "id": "res_em_altium_designer", "title": "Altium Designer", "kind": "course", "level": "foundation_plus", "url": "https://www.altium.com/altium-designer" },
+    { "id": "res_em_phils_lab", "title": "Phil's Lab", "kind": "video", "level": "foundation_plus", "url": "https://www.youtube.com/@PhilsLab" },
+    { "id": "res_em_ben_eater", "title": "Ben Eater", "kind": "video", "level": "foundation_plus", "url": "https://www.youtube.com/@BenEater" },
+    { "id": "res_em_neso_academy", "title": "Neso Academy", "kind": "video", "level": "foundation", "url": "https://www.youtube.com/@nesoacademy" },
+    { "id": "res_em_greatscott", "title": "GreatScott!", "kind": "video", "level": "foundation", "url": "https://www.youtube.com/@greatscottlab" },
+    { "id": "res_em_eevblog", "title": "EEVblog", "kind": "video", "level": "foundation_plus", "url": "https://www.youtube.com/@EEVblog" },
+    { "id": "res_em_freertos_docs", "title": "FreeRTOS Documentation", "kind": "doc", "level": "foundation_plus", "url": "https://www.freertos.org/Documentation/" },
+    { "id": "res_em_udemy", "title": "Udemy", "kind": "course", "level": "foundation", "url": "https://www.udemy.com/" },
+    { "id": "res_em_coursera", "title": "Coursera", "kind": "course", "level": "foundation", "url": "https://www.coursera.org/" },
+    { "id": "res_em_linkedin_learning", "title": "LinkedIn Learning", "kind": "course", "level": "foundation", "url": "https://www.linkedin.com/learning/" },
+    { "id": "res_rpi_quickstart", "title": "QuickStart Guide", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/quickstart" },
+    { "id": "res_rpi_noobs", "title": "NOOBS", "kind": "doc", "level": "foundation", "url": "https://rpf.io/downloads" },
+    { "id": "res_rpi_sdcard", "title": "microSD card", "kind": "doc", "level": "foundation", "url": "https://rpf.io/sdcard" },
+    { "id": "res_rpi_etcher", "title": "Etcher", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/etcher" },
+    { "id": "res_rpi_official_docs", "title": "Official Raspberry Pi Documentation", "kind": "doc", "level": "foundation", "url": "https://rpf.io/docs" },
+    { "id": "res_rpi_gpio_zero_docs", "title": "GPIO Zero Documentation", "kind": "doc", "level": "foundation", "url": "https://rpf.io/gpiozero" },
+    { "id": "res_rpi_beginners_guide", "title": "The Official Raspberry Pi Beginner’s Guide", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/BGbook" },
+    { "id": "res_rpi_hacking_minecraft", "title": "Hacking and Making in Minecraft", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/MCbook" },
+    { "id": "res_rpi_conquer_command_line", "title": "Conquer the Command Line", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/CLIbook" },
+    { "id": "res_rpi_python_games", "title": "Python Games", "kind": "doc", "level": "foundation_plus", "url": "https://magpi.cc/RTfkvD" },
+    { "id": "res_rpi_electronics_guide", "title": "Electronics guide", "kind": "doc", "level": "foundation_plus", "url": "https://magpi.cc/64" },
+    { "id": "res_rpi_magpi_issues", "title": "past issues of The MagPi", "kind": "article", "level": "foundation", "url": "https://magpi.cc/issues" },
+    { "id": "res_rpi_magpi_store", "title": "The MagPi store", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/store" },
+    { "id": "res_rpi_retail_store", "title": "Raspberry Pi Store", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/retail-store" },
+    { "id": "res_rpi_places_to_buy", "title": "Places to Buy", "kind": "doc", "level": "foundation", "url": "https://raspberrypi.org/products" },
+    { "id": "res_rpi_pimoroni", "title": "Pimoroni", "kind": "doc", "level": "foundation", "url": "https://pimoroni.com" },
+    { "id": "res_rpi_get_pimoroni", "title": "get.pimoroni.com", "kind": "doc", "level": "foundation_plus", "url": "https://get.pimoroni.com/" },
+    { "id": "res_rpi_adafruit", "title": "Adafruit", "kind": "doc", "level": "foundation", "url": "https://adafruit.com" },
+    { "id": "res_rpi_okdo", "title": "OKdo", "kind": "doc", "level": "foundation", "url": "https://okdo.com" },
+    { "id": "res_rpi_the_pihut", "title": "The Pi Hut", "kind": "doc", "level": "foundation", "url": "https://thepihut.com" },
+    { "id": "res_rpi_cpc", "title": "CPC", "kind": "doc", "level": "foundation", "url": "https://cpc.farnell.com" },
+    { "id": "res_rpi_micro_center", "title": "Micro Center", "kind": "doc", "level": "foundation", "url": "https://microcenter.com" },
+    { "id": "res_rpi_pishop", "title": "PiShop", "kind": "doc", "level": "foundation", "url": "https://pishop.us" },
+    { "id": "res_rpi_newark", "title": "Newark", "kind": "doc", "level": "foundation", "url": "https://newark.com" },
+    { "id": "res_rpi_canakit", "title": "Canakit", "kind": "doc", "level": "foundation", "url": "https://canakit.com" },
+    { "id": "res_rpi_pinout_xyz", "title": "pinout.xyz", "kind": "doc", "level": "foundation_plus", "url": "https://pinout.xyz" },
+    { "id": "res_rpi_thonny", "title": "Thonny", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_rpi_scratch_3", "title": "Scratch 3", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_rpi_sonic_pi", "title": "Sonic Pi", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_rpi_node_red", "title": "Node-RED", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_geany", "title": "Geany", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_rpi_pygame", "title": "Pygame", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_pygame_zero", "title": "Pygame Zero", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_sense_hat_emulator", "title": "Sense HAT Emulator", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_rpi_sense_hat", "title": "Sense HAT", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/sense-hat" },
+    { "id": "res_rpi_camera_module_v2", "title": "Raspberry Pi Camera Module V2", "kind": "doc", "level": "foundation_plus", "url": "https://magpi.cc/camera" },
+    { "id": "res_rpi_picamera", "title": "picamera", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_mcp3008", "title": "MCP3008", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_opencv", "title": "OpenCV", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_tv_hat", "title": "Raspberry Pi TV HAT", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_vnc_viewer", "title": "VNC Viewer", "kind": "doc", "level": "foundation_plus", "url": "https://magpi.cc/FuGnye" },
+    { "id": "res_rpi_benchmarks", "title": "all the benchmark tests", "kind": "article", "level": "foundation_plus", "url": "https://magpi.cc/benchmarks" },
+    { "id": "res_rpi_retro_gaming", "title": "Retro Gaming with Raspberry Pi", "kind": "course", "level": "foundation_plus", "url": null },
+    { "id": "res_rpi_pibow_coupe_4", "title": "PIBOW COUPÉ 4", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/enLWLt" },
+    { "id": "res_rpi_fan_shim", "title": "FAN SHIM", "kind": "doc", "level": "foundation", "url": "https://magpi.cc/qZYBWd" },
+    { "id": "res_rpi_gpio_zero_code", "title": "Language: Python 3", "kind": "doc", "level": "foundation_plus", "url": "https://magpi.cc/github81" }
+  ]
+}

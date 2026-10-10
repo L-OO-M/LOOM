@@ -1,0 +1,181 @@
+{
+  "source": "Cybersecurity_Roadmap_Curated_Resources.pdf + chapter-supplied text",
+  "domain": "cybersecurity",
+  "label": "Cybersecurity",
+  "groups": [
+    {
+      "title": "1. The Cybersecurity Learning Roadmap",
+      "nodes": [
+        { "id": "cy_linux_cli", "title": "Linux & CLI", "description": "Linux playlist + basic shell, files, permissions, processes, networking commands.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "cy_networking", "title": "Networking", "description": "TCP/IP, DNS, HTTP/S, ports, routing, sockets, common network tools.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_programming", "title": "Programming", "description": "Python fundamentals, scripting, files, sockets, HTTP requests, automation.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_web_security", "title": "Web Security", "description": "HTTP, authentication, access control, injection, XSS, request manipulation.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_ctf_practice", "title": "CTF Practice", "description": "Beginner → intermediate challenges; learn enumeration, exploitation and analysis.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_binary_systems", "title": "Binary / Systems", "description": "Linux internals, memory, binaries, debugging and exploitation concepts.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_cryptography", "title": "Cryptography", "description": "Cryptographic foundations, protocols, common primitives and practical attacks.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_continuous_learning", "title": "Continuous Learning", "description": "Latest-tech channels, write-ups, labs, projects and focused specialization.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "cy_linux_cli", "to_id": "cy_networking", "kind": "required" },
+        { "from_id": "cy_networking", "to_id": "cy_programming", "kind": "alternative" },
+        { "from_id": "cy_networking", "to_id": "cy_web_security", "kind": "required" },
+        { "from_id": "cy_programming", "to_id": "cy_web_security", "kind": "alternative" },
+        { "from_id": "cy_web_security", "to_id": "cy_ctf_practice", "kind": "alternative" },
+        { "from_id": "cy_networking", "to_id": "cy_ctf_practice", "kind": "alternative" },
+        { "from_id": "cy_ctf_practice", "to_id": "cy_binary_systems", "kind": "optional" },
+        { "from_id": "cy_ctf_practice", "to_id": "cy_cryptography", "kind": "optional" },
+        { "from_id": "cy_binary_systems", "to_id": "cy_continuous_learning", "kind": "optional" },
+        { "from_id": "cy_cryptography", "to_id": "cy_continuous_learning", "kind": "optional" },
+        { "from_id": "cy_ctf_practice", "to_id": "cy_continuous_learning", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "2. Foundations",
+      "nodes": [
+        { "id": "cy_foundations_linux", "title": "Linux", "description": "Command-line navigation, files, permissions, processes and basic administration.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_foundations_networking", "title": "Networking", "description": "The TCP/IP model and the role of IP addresses, ports and protocols; DNS, HTTP/HTTPS, TCP vs. UDP, routing, NAT and basic packet flow.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_foundations_programming", "title": "Programming", "description": "Python for automation, parsing, HTTP interaction, small security tools and challenge solving.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_foundation_checkpoint", "title": "Foundation checkpoint", "description": "Before moving deeply into exploitation you should be comfortable using a terminal, navigating a Linux filesystem, changing permissions, inspecting processes, using basic network commands, reading HTTP traffic, and writing small Python scripts.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_foundations_linux", "to_id": "cy_foundations_networking", "kind": "required" },
+        { "from_id": "cy_foundations_networking", "to_id": "cy_foundations_programming", "kind": "alternative" },
+        { "from_id": "cy_foundations_programming", "to_id": "cy_foundation_checkpoint", "kind": "required" }
+      ]
+    },
+    {
+      "title": "3. Hands-On Cybersecurity Platforms",
+      "nodes": [
+        { "id": "cy_platform_tryhackme", "title": "TryHackMe", "description": "Guided, beginner-friendly learning paths and practical rooms. Good for building a structured foundation.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_platform_overthewire", "title": "OverTheWire Wargames", "description": "Game-style exercises that build command-line, Linux and security problem-solving skills.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_platform_pwn_college", "title": "pwn.college", "description": "Hands-on security education with a strong focus on low-level systems and exploitation concepts.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_platform_portswigger", "title": "PortSwigger Web Security Academy", "description": "Free interactive web-security labs covering major web vulnerabilities and techniques.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_platform_ctflearn", "title": "CTFlearn", "description": "Capture-the-flag challenges across categories; useful for practicing problem solving.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_platform_cylab_academy", "title": "CyLab Academy", "description": "Formerly known as picoCTF.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_platform_cryptohack", "title": "CryptoHack", "description": "Interactive cryptography challenges, useful once basic programming and mathematical foundations are in place.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "cy_platform_tryhackme", "to_id": "cy_platform_overthewire", "kind": "alternative" },
+        { "from_id": "cy_platform_overthewire", "to_id": "cy_platform_ctflearn", "kind": "optional" },
+        { "from_id": "cy_platform_tryhackme", "to_id": "cy_platform_portswigger", "kind": "optional" },
+        { "from_id": "cy_platform_portswigger", "to_id": "cy_platform_pwn_college", "kind": "optional" },
+        { "from_id": "cy_platform_pwn_college", "to_id": "cy_platform_cryptohack", "kind": "alternative" },
+        { "from_id": "cy_platform_cylab_academy", "to_id": "cy_platform_ctflearn", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "4. CTF Learning Track",
+      "nodes": [
+        { "id": "cy_ctf_linux_enumeration", "title": "Linux / Enumeration", "description": "Files, permissions, processes, services, basic network enumeration.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_web", "title": "Web", "description": "HTTP, sessions, authentication, access control, input handling, common web vulnerabilities.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_crypto", "title": "Crypto", "description": "Encoding vs encryption, modular arithmetic, hashes, classical and modern primitives.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_reverse_engineering", "title": "Reverse Engineering", "description": "Program behavior, assembly basics, debugging, static/dynamic analysis.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_binary_pwn", "title": "Binary / Pwn", "description": "Memory layout, stack/heap concepts, debugging and exploitation in controlled labs.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_forensics", "title": "Forensics", "description": "Files, metadata, logs, packet captures and artifact analysis.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_ctf_focused_channels", "title": "CTF-focused channels", "description": "CTF-focused explanations, walkthrough-style learning and exposure to challenge-solving approaches.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_ctf_linux_enumeration", "to_id": "cy_ctf_web", "kind": "alternative" },
+        { "from_id": "cy_ctf_linux_enumeration", "to_id": "cy_ctf_forensics", "kind": "alternative" },
+        { "from_id": "cy_ctf_web", "to_id": "cy_ctf_crypto", "kind": "optional" },
+        { "from_id": "cy_ctf_web", "to_id": "cy_ctf_reverse_engineering", "kind": "optional" },
+        { "from_id": "cy_ctf_reverse_engineering", "to_id": "cy_ctf_binary_pwn", "kind": "required" },
+        { "from_id": "cy_ctf_crypto", "to_id": "cy_ctf_binary_pwn", "kind": "optional" },
+        { "from_id": "cy_ctf_linux_enumeration", "to_id": "cy_ctf_focused_channels", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "5. Web Security Track",
+      "nodes": [
+        { "id": "cy_web_track_portswigger", "title": "PortSwigger Web Security Academy", "description": "Use the labs systematically. Suggested sequence: HTTP basics → authentication/access control → injection → client-side issues → advanced topics.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_web_core_concepts", "title": "Core concepts to understand", "description": "Requests, responses, headers, cookies, sessions, authentication vs. authorization, access control, input validation, injection, and client-side vs. server-side behavior.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_web_track_portswigger", "to_id": "cy_web_core_concepts", "kind": "required" }
+      ]
+    },
+    {
+      "title": "6. Cryptography Track",
+      "nodes": [
+        { "id": "cy_crypto_nptel_foundations", "title": "Foundations of Cryptography — NPTEL / IIIT Bangalore", "description": "Course by Prof. Ashish Choudhury.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "cy_crypto_nptel_network_security", "title": "Network Security — NPTEL", "description": "Course by Prof. Gaurav S. Kasbekar. Useful for connecting cryptographic ideas with network-security applications.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_crypto_cryptohack", "title": "CryptoHack", "description": "Pair coursework with interactive challenges to reinforce concepts.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_crypto_nptel_foundations", "to_id": "cy_crypto_cryptohack", "kind": "required" },
+        { "from_id": "cy_crypto_nptel_foundations", "to_id": "cy_crypto_nptel_network_security", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "7. Staying Current & Self-Study",
+      "nodes": [
+        { "id": "cy_current_networkchuck", "title": "NetworkChuck", "description": "Use as an accessible source for networking, infrastructure and current technology topics.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_current_nfsu_material", "title": "NFSU CyberSecurity Study Material", "description": "A supplementary self-study repository. Treat it as a reference library rather than a linear curriculum.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_current_keep_learning", "title": "How to keep learning", "description": "Follow one structured curriculum at a time; learn the concept, reproduce it in a lab, solve a challenge, write a short summary, and build small projects.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true }
+      ],
+      "edges": [
+        { "from_id": "cy_current_networkchuck", "to_id": "cy_current_keep_learning", "kind": "alternative" },
+        { "from_id": "cy_current_nfsu_material", "to_id": "cy_current_keep_learning", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "8. Suggested 12-Week Starter Plan",
+      "nodes": [
+        { "id": "cy_weeks_1_2", "title": "Weeks 1–2", "description": "CLI, filesystem, permissions, processes, text processing, basic shell scripting.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_weeks_3_4", "title": "Weeks 3–4", "description": "TCP/IP, DNS, HTTP/S, ports, routing, packet flow; basic troubleshooting.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_weeks_5_6", "title": "Weeks 5–6", "description": "Syntax, files, modules, requests, sockets, parsing and automation.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_weeks_7_8", "title": "Weeks 7–8", "description": "PortSwigger Academy labs; HTTP, authentication, access control and injection concepts.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_weeks_9_10", "title": "Weeks 9–10", "description": "OverTheWire + TryHackMe; solve beginner challenges without walkthroughs first.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_weeks_11_12", "title": "Weeks 11–12", "description": "Choose one: pwn.college, cryptography/CryptoHack, web security or CTF specialization.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_weeks_1_2", "to_id": "cy_weeks_3_4", "kind": "required" },
+        { "from_id": "cy_weeks_3_4", "to_id": "cy_weeks_5_6", "kind": "required" },
+        { "from_id": "cy_weeks_5_6", "to_id": "cy_weeks_7_8", "kind": "required" },
+        { "from_id": "cy_weeks_7_8", "to_id": "cy_weeks_9_10", "kind": "required" },
+        { "from_id": "cy_weeks_9_10", "to_id": "cy_weeks_11_12", "kind": "required" }
+      ]
+    },
+    {
+      "title": "9. Completion Checklist",
+      "nodes": [
+        { "id": "cy_check_linux_terminal", "title": "I can use Linux comfortably from the terminal.", "description": "Foundation checkpoint — terminal, filesystem, permissions, processes.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_networking_protocols", "title": "I understand basic networking and can explain common protocols.", "description": "TCP/IP, DNS, HTTP/S, ports.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_python_scripts", "title": "I can write small Python scripts for automation.", "description": "Scripts for parsing, requests and sockets.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_http_requests", "title": "I can inspect and manipulate HTTP requests in a legal lab.", "description": "Burp / PortSwigger style request inspection.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_ctf_challenges", "title": "I have solved beginner CTF challenges across more than one category.", "description": "Multiple CTF categories attempted.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_encoding_hashing_encryption", "title": "I understand the difference between encoding, hashing and encryption.", "description": "Crypto foundations.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_hands_on_labs", "title": "I have completed hands-on labs without relying on step-by-step walkthroughs.", "description": "Independent lab work.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "cy_check_specialization", "title": "I have chosen a specialization to explore next.", "description": "Pick a track: pwn, crypto, web or forensics.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "cy_weeks_11_12", "to_id": "cy_check_linux_terminal", "kind": "optional" },
+        { "from_id": "cy_check_linux_terminal", "to_id": "cy_check_networking_protocols", "kind": "required" },
+        { "from_id": "cy_check_networking_protocols", "to_id": "cy_check_python_scripts", "kind": "required" },
+        { "from_id": "cy_check_python_scripts", "to_id": "cy_check_http_requests", "kind": "required" },
+        { "from_id": "cy_check_http_requests", "to_id": "cy_check_ctf_challenges", "kind": "required" },
+        { "from_id": "cy_check_ctf_challenges", "to_id": "cy_check_encoding_hashing_encryption", "kind": "optional" },
+        { "from_id": "cy_check_ctf_challenges", "to_id": "cy_check_hands_on_labs", "kind": "required" },
+        { "from_id": "cy_check_hands_on_labs", "to_id": "cy_check_specialization", "kind": "required" }
+      ]
+    }
+  ],
+  "resources": [
+    { "id": "res_cy_awesome_cyber_security", "title": "Awesome Cyber Security — Full List of curated resources", "kind": "doc", "level": "foundation", "url": "https://github.com/okhosting/awesome-cyber-security" },
+    { "id": "res_cy_linux_playlist", "title": "To start with Linux", "kind": "video", "level": "foundation", "url": "https://youtube.com/playlist?list=PLIhvC56v63IJIujb5cyE13oLuyORZpdkL&si=POWXCNjWwxKb039r" },
+    { "id": "res_cy_tryhackme", "title": "TryHackMe", "kind": "course", "level": "foundation", "url": "https://tryhackme.com/" },
+    { "id": "res_cy_overthewire", "title": "OverTheWire wargames", "kind": "course", "level": "foundation", "url": "https://overthewire.org/wargames/" },
+    { "id": "res_cy_pwn_college", "title": "pwn.college", "kind": "course", "level": "foundation_plus", "url": "https://pwn.college/" },
+    { "id": "res_cy_portswigger", "title": "PortSwigger Web Security", "kind": "course", "level": "foundation_plus", "url": "https://portswigger.net/web-security" },
+    { "id": "res_cy_ctflearn", "title": "CTFlearn", "kind": "course", "level": "foundation", "url": "https://ctflearn.com/" },
+    { "id": "res_cy_cylab_academy", "title": "CYLAB Academy — formerly known as picoCTF", "kind": "course", "level": "foundation", "url": "https://cylabacademy.org/" },
+    { "id": "res_cy_cryptohack", "title": "CryptoHack — learning cryptography", "kind": "course", "level": "foundation_plus", "url": "https://cryptohack.org/" },
+    { "id": "res_cy_nptel_foundations_crypto", "title": "Foundations of Cryptography — IIIT Bangalore, Prof. Ashish Choudhury", "kind": "course", "level": "foundation_plus", "url": "https://onlinecourses.nptel.ac.in/e-learning/course/noc26_cs18" },
+    { "id": "res_cy_nptel_network_security", "title": "Network Security — Prof. Gaurav S. Kasbekar", "kind": "course", "level": "foundation_plus", "url": "https://onlinecourses.nptel.ac.in/e-learning/preview/noc26_ee20" },
+    { "id": "res_cy_networkchuck", "title": "NetworkChuck — to learn about latest tech", "kind": "video", "level": "foundation", "url": "https://www.youtube.com/@NetworkChuck" },
+    { "id": "res_cy_bitten_tech", "title": "Bitten Tech — to learn about CTFs", "kind": "video", "level": "foundation", "url": "https://www.youtube.com/@BittenTech" },
+    { "id": "res_cy_john_hammond", "title": "John Hammond — to learn about CTFs", "kind": "video", "level": "foundation", "url": "https://www.youtube.com/@_JohnHammond" },
+    { "id": "res_cy_nfsu_study_material", "title": "NFSU CyberSecurity Study Material — self study", "kind": "doc", "level": "foundation_plus", "url": "https://github.com/Rasenkai/NFSU_CyberSecurity_StudyMaterial" },
+    { "id": "res_cy_python_security_books", "title": "Python for Penetration Testing & Cybersecurity — books", "kind": "doc", "level": "foundation_plus", "url": "https://github.com/ManhNho/Python-Books-for-Security/tree/master" }
+  ]
+}

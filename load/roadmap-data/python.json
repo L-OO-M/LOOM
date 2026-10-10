@@ -1,0 +1,141 @@
+{
+  "source": "Fluent Python (Luciano Ramalho, O'Reilly 2022)",
+  "domain": "backend",
+  "label": "Python Engineering",
+  "groups": [
+    {
+      "title": "Part I. Data Structures",
+      "nodes": [
+        { "id": "py_the_python_data_model", "title": "The Python Data Model", "description": "How special methods and the built-in types define Python's consistent object API, building a card-deck example and emulating numeric types, string representations, and collection behavior.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "py_an_array_of_sequences", "title": "An Array of Sequences", "description": "Built-in sequence types, list comprehensions and generator expressions, tuple unpacking, sequence pattern matching, slicing, and when a list is not the right answer (arrays, memory views, NumPy, deques).", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "py_dictionaries_and_sets", "title": "Dictionaries and Sets", "description": "Modern dict syntax and comprehensions, mapping pattern matching, the standard mapping API with missing-key handling, variants of dict, and set theory operations on sets and dict views.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "py_unicode_text_versus_bytes", "title": "Unicode Text Versus Bytes", "description": "Bytes, encoders and decoders, encoding errors, handling text files, Unicode normalization for reliable comparisons and sorting, and the dual-mode str and bytes APIs.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "py_data_class_builders", "title": "Data Class Builders", "description": "The standard library's class builders — classic and typed named tuples, type hints 101, and the @dataclass decorator with field options, post-init processing, and pattern matching on class instances.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "py_object_references_mutability", "title": "Object References, Mutability, and Recycling", "description": "Variables as references, identity versus equality, shallow and deep copies, mutable arguments and defensive copying, and how del triggers garbage collection.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "py_the_python_data_model", "to_id": "py_an_array_of_sequences", "kind": "required" },
+        { "from_id": "py_the_python_data_model", "to_id": "py_dictionaries_and_sets", "kind": "required" },
+        { "from_id": "py_the_python_data_model", "to_id": "py_unicode_text_versus_bytes", "kind": "required" },
+        { "from_id": "py_an_array_of_sequences", "to_id": "py_dictionaries_and_sets", "kind": "optional" },
+        { "from_id": "py_dictionaries_and_sets", "to_id": "py_data_class_builders", "kind": "optional" },
+        { "from_id": "py_dictionaries_and_sets", "to_id": "py_object_references_mutability", "kind": "required" },
+        { "from_id": "py_data_class_builders", "to_id": "py_object_references_mutability", "kind": "optional" },
+        { "from_id": "py_an_array_of_sequences", "to_id": "py_data_class_builders", "kind": "alternative" },
+        { "from_id": "py_unicode_text_versus_bytes", "to_id": "py_data_class_builders", "kind": "alternative" }
+      ]
+    },
+    {
+      "title": "Part II. Functions as Objects",
+      "nodes": [
+        { "id": "py_functions_as_first_class_objects", "title": "Functions as First-Class Objects", "description": "Higher-order functions, modern replacements for map/filter/reduce, the nine flavors of callable objects, parameter kinds, the operator module, and functools.partial.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "py_type_hints_in_functions", "title": "Type Hints in Functions", "description": "Gradual typing with Mypy: supported operations, usable annotation types, Optional/Union, generic collections and mappings, ABCs, parameterized generics with TypeVar, and static protocols.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "py_decorators_and_closures", "title": "Decorators and Closures", "description": "Decorator mechanics and execution timing, registration decorators, variable scope rules, closures with the nonlocal declaration, memoization with functools.cache/lru_cache, and single-dispatch generic functions.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_design_patterns_with_first_class_functions", "title": "Design Patterns with First-Class Functions", "description": "Refactors a Strategy pattern case study from classes to function-oriented strategies, adds decorator enhancement and module introspection, and implements the Command pattern with callables.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "py_functions_as_first_class_objects", "to_id": "py_decorators_and_closures", "kind": "required" },
+        { "from_id": "py_functions_as_first_class_objects", "to_id": "py_design_patterns_with_first_class_functions", "kind": "required" },
+        { "from_id": "py_functions_as_first_class_objects", "to_id": "py_type_hints_in_functions", "kind": "required" },
+        { "from_id": "py_decorators_and_closures", "to_id": "py_design_patterns_with_first_class_functions", "kind": "optional" },
+        { "from_id": "py_type_hints_in_functions", "to_id": "py_decorators_and_closures", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "Part III. Classes and Protocols",
+      "nodes": [
+        { "id": "py_a_pythonic_object", "title": "A Pythonic Object", "description": "Builds a Pythonic Vector class supporting representations, alternative constructors, classmethod versus staticmethod, formatted displays, hashing, positional pattern matching, and __slots__.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "py_special_methods_for_sequences", "title": "Special Methods for Sequences", "description": "Evolves a user-defined sequence type across five versions covering duck typing, slice-aware __getitem__, dynamic attribute access, hashing and fast equality, and formatting.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "py_interfaces_protocols_and_abcs", "title": "Interfaces, Protocols, and ABCs", "description": "Contrasts duck typing, monkey patching, and structural typing: programming ducks, subclassing and defining ABCs, virtual subclasses, static and runtime-checkable protocols, and the numbers ABCs.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_inheritance_for_better_or_for_worse", "title": "Inheritance: For Better or for Worse", "description": "Covers super(), subclassing built-in types, multiple inheritance and method resolution order, real-world mixins (ThreadingMixIn, Django, Tkinter), and coping strategies that favor composition.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "py_more_about_type_hints", "title": "More About Type Hints", "description": "Deepens typing with @overload, TypedDict, type casting, reading hints at runtime and their problems, implementing generic classes with variance, and generic static protocols.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_operator_overloading", "title": "Operator Overloading", "description": "When operator overloading makes sense: unary operators, adding and multiplying, the @ infix operator, rich comparison operators, and augmented assignment.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "py_a_pythonic_object", "to_id": "py_special_methods_for_sequences", "kind": "required" },
+        { "from_id": "py_special_methods_for_sequences", "to_id": "py_interfaces_protocols_and_abcs", "kind": "required" },
+        { "from_id": "py_interfaces_protocols_and_abcs", "to_id": "py_inheritance_for_better_or_for_worse", "kind": "required" },
+        { "from_id": "py_type_hints_in_functions", "to_id": "py_interfaces_protocols_and_abcs", "kind": "optional" },
+        { "from_id": "py_interfaces_protocols_and_abcs", "to_id": "py_more_about_type_hints", "kind": "required" },
+        { "from_id": "py_more_about_type_hints", "to_id": "py_type_hints_in_functions", "kind": "alternative" },
+        { "from_id": "py_a_pythonic_object", "to_id": "py_operator_overloading", "kind": "optional" },
+        { "from_id": "py_special_methods_for_sequences", "to_id": "py_operator_overloading", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "Part IV. Control Flow",
+      "nodes": [
+        { "id": "py_iterators_generators_and_classic_coroutines", "title": "Iterators, Generators, and Classic Coroutines", "description": "The iteration protocol, iterables versus iterators, generator functions and expressions, itertools, lazy evaluation, subgenerators with yield from, and classic (generator-based) coroutines.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "py_with_match_and_else_blocks", "title": "with, match, and else Blocks", "description": "Context managers and with blocks with contextlib utilities and @contextmanager, a pattern matching case study building a Scheme interpreter, and else blocks beyond if.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_concurrency_models_in_python", "title": "Concurrency Models in Python", "description": "Surveys processes, threads, coroutines and the GIL, building spinner and prime-checker experiments and reviewing what concurrency means for system administration, data science, and server-side web development.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_concurrent_executors", "title": "Concurrent Executors", "description": "Uses concurrent.futures for concurrent web downloads and multicore work: Executor.map, process pools, progress display, error handling, and futures.as_completed.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "py_asynchronous_programming", "title": "Asynchronous Programming", "description": "Covers asyncio end to end: awaitables, native coroutines as humble generators, the all-or-nothing problem, async context managers, semaphores, executors, async servers with FastAPI, async iteration, and avoiding blocking or CPU-bound traps.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "py_iterators_generators_and_classic_coroutines", "to_id": "py_with_match_and_else_blocks", "kind": "required" },
+        { "from_id": "py_iterators_generators_and_classic_coroutines", "to_id": "py_asynchronous_programming", "kind": "required" },
+        { "from_id": "py_iterators_generators_and_classic_coroutines", "to_id": "py_concurrency_models_in_python", "kind": "required" },
+        { "from_id": "py_with_match_and_else_blocks", "to_id": "py_concurrency_models_in_python", "kind": "optional" },
+        { "from_id": "py_concurrency_models_in_python", "to_id": "py_concurrent_executors", "kind": "required" },
+        { "from_id": "py_concurrency_models_in_python", "to_id": "py_asynchronous_programming", "kind": "required" },
+        { "from_id": "py_concurrent_executors", "to_id": "py_asynchronous_programming", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "Part V. Metaprogramming",
+      "nodes": [
+        { "id": "py_dynamic_attributes_and_properties", "title": "Dynamic Attributes and Properties", "description": "Wrangles semi-structured data with __getattr__ and computed @property values, including data-driven attribute creation, linked-record properties, caching, validation, property factories, and attribute deletion.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "py_attribute_descriptors", "title": "Attribute Descriptors", "description": "Builds attribute-validation descriptors step by step, covering overriding versus nonoverriding descriptors, overwriting descriptors in a class, and why methods are themselves descriptors.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "py_class_metaprogramming", "title": "Class Metaprogramming", "description": "Covers type as a class factory, __init_subclass__, class decorators, import time versus runtime, and metaclasses — including how modern features simplify or replace them and when to avoid them.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "py_dynamic_attributes_and_properties", "to_id": "py_attribute_descriptors", "kind": "required" },
+        { "from_id": "py_attribute_descriptors", "to_id": "py_class_metaprogramming", "kind": "required" },
+        { "from_id": "py_dynamic_attributes_and_properties", "to_id": "py_class_metaprogramming", "kind": "optional" }
+      ]
+    }
+  ],
+  "resources": [
+    { "id": "res_py_example_code_2e", "title": "Fluent Python code repository", "kind": "doc", "level": "foundation", "url": "https://github.com/fluentpython/example-code-2e" },
+    { "id": "res_py_example_code_short_link", "title": "Fluent Python example code (fpy.li/code)", "kind": "doc", "level": "foundation", "url": "https://fpy.li/code" },
+    { "id": "res_py_errata_page", "title": "Fluent Python, 2nd ed. — web page with errata and examples", "kind": "article", "level": "foundation", "url": "https://fpy.li/p-4" },
+    { "id": "res_py_flags_dataset", "title": "Fluent Python flags dataset", "kind": "doc", "level": "foundation", "url": "http://fluentpython.com/data/flags" },
+    { "id": "res_py_language_creators_repo", "title": "Language Creators (fluentpython/language-creators)", "kind": "doc", "level": "foundation_plus", "url": "https://github.com/fluentpython/language-creators" },
+    { "id": "res_py_pep_263", "title": "PEP 263 — Defining Python Source Encoding", "kind": "doc", "level": "foundation_plus", "url": "https://python.org/dev/peps/pep-0263/" },
+    { "id": "res_py_dataclasses", "title": "dataclasses (@dataclass)", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_namedtuple", "title": "collections.namedtuple / typing.NamedTuple", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_collections_deque", "title": "collections.deque", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_collections_counter", "title": "collections.Counter", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_collections_defaultdict", "title": "collections.defaultdict", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_collections_chainmap", "title": "collections.ChainMap", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_shelve", "title": "shelve.Shelf", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_array_module", "title": "array", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_memoryview", "title": "memoryview", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_numpy", "title": "NumPy", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_unicodedata", "title": "unicodedata", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_re_pattern_matching", "title": "re (str versus bytes in regular expressions)", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_typing", "title": "typing", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_mypy", "title": "mypy", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_typevar", "title": "TypeVar", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_protocol", "title": "Protocol (static and runtime_checkable)", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_collections_abc", "title": "collections.abc (Iterable, Sequence, Mapping, numbers ABCs)", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_abc", "title": "abc (ABCMeta, abstractmethod, register)", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_typeddict", "title": "TypedDict", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_functools_partial", "title": "functools.partial", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_functools_cache", "title": "functools.cache", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_functools_lru_cache", "title": "functools.lru_cache", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_functools_singledispatch", "title": "functools.singledispatch", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_operator", "title": "The operator Module", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_contextlib", "title": "contextlib (@contextmanager)", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_itertools", "title": "itertools", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_asyncio", "title": "asyncio", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_concurrent_futures", "title": "concurrent.futures (Executor.map, as_completed)", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_multiprocessing", "title": "multiprocessing", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_threading", "title": "threading (ThreadingMixIn, ForkingMixIn)", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_httpx", "title": "HTTPX", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_fastapi", "title": "FastAPI", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_curio", "title": "Curio", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_doctest", "title": "doctest", "kind": "doc", "level": "foundation", "url": null },
+    { "id": "res_py_pytest", "title": "pytest", "kind": "doc", "level": "foundation", "url": null }
+  ]
+}

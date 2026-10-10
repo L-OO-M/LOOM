@@ -1,0 +1,80 @@
+{
+  "source": "chapter-supplied text (DSA Resources + Blockchain and web3)",
+  "domains": ["dsa", "blockchain"],
+  "tracks": [
+    {
+      "domain": "dsa",
+      "label": "DSA & Problem Solving",
+      "groups": [
+        {
+          "title": "Free",
+          "nodes": [
+            { "id": "dsa_striver", "title": "Striver's A2Z sheet", "description": "Learn DSA A to Z.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+            { "id": "dsa_neetcode_150", "title": "Neetcode 150", "description": "For practice.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+            { "id": "dsa_leetcode_codeforces", "title": "LeetCode and Codeforces editorial", "description": "Study editorials after attempting.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false }
+          ],
+          "edges": [
+            { "from_id": "dsa_striver", "to_id": "dsa_leetcode_codeforces", "kind": "required" },
+            { "from_id": "dsa_neetcode_150", "to_id": "dsa_leetcode_codeforces", "kind": "required" },
+            { "from_id": "dsa_striver", "to_id": "dsa_neetcode_150", "kind": "alternative" }
+          ]
+        },
+        {
+          "title": "Paid",
+          "nodes": [
+            { "id": "dsa_karumahchi", "title": "Data Structures and Algorithms made easy", "description": "By Narsimha Karumahchi.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true }
+          ],
+          "edges": [
+            { "from_id": "dsa_leetcode_codeforces", "to_id": "dsa_karumahchi", "kind": "optional" }
+          ]
+        }
+      ],
+      "resources": [
+        { "id": "res_dsa_striver_a2z", "title": "Striver's A2Z sheet — DSA A to Z", "kind": "course", "level": "foundation", "url": "https://takeuforward.org/dsa/strivers-a2z-sheet-learn-dsa-a-to-z" },
+        { "id": "res_dsa_neetcode_150", "title": "Neetcode 150 — for practice", "kind": "course", "level": "foundation", "url": "https://neetcode.io/practice/practice/neetcode150" },
+        { "id": "res_dsa_leetcode_codeforces", "title": "LeetCode and Codeforces editorial", "kind": "article", "level": "foundation_plus", "url": null },
+        { "id": "res_dsa_karumahchi", "title": "Data Structures and Algorithms made easy — Narsimha Karumahchi", "kind": "doc", "level": "foundation_plus", "url": null }
+      ]
+    },
+    {
+      "domain": "blockchain",
+      "label": "Blockchain & Web3",
+      "groups": [
+        {
+          "title": "Free",
+          "nodes": [
+            { "id": "bc_patrick_collins", "title": "Patrick Collins", "description": "Free channel on web3 and smart contracts.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+            { "id": "bc_daulat_hussain", "title": "Daulat Hussain", "description": "Free channel on web3 and smart contracts.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+            { "id": "bc_hackquest", "title": "Web3 programming for everyone", "description": "HackQuest.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+            { "id": "bc_mit_ocw", "title": "MIT OpenCourseWare", "description": "MIT OpenCourseWare.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false }
+          ],
+          "edges": [
+            { "from_id": "bc_patrick_collins", "to_id": "bc_hackquest", "kind": "required" },
+            { "from_id": "bc_daulat_hussain", "to_id": "bc_hackquest", "kind": "required" },
+            { "from_id": "bc_patrick_collins", "to_id": "bc_daulat_hussain", "kind": "alternative" },
+            { "from_id": "bc_hackquest", "to_id": "bc_mit_ocw", "kind": "required" }
+          ]
+        },
+        {
+          "title": "Paid",
+          "nodes": [
+            { "id": "bc_harkirat_cohort", "title": "Harkirat web3 cohort — 100xDevs", "description": "Harkirat web3 cohort.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+            { "id": "bc_udemy_solidity", "title": "Master Solidity", "description": "By TOON Macharis. On Udemy.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true }
+          ],
+          "edges": [
+            { "from_id": "bc_mit_ocw", "to_id": "bc_harkirat_cohort", "kind": "optional" },
+            { "from_id": "bc_harkirat_cohort", "to_id": "bc_udemy_solidity", "kind": "optional" }
+          ]
+        }
+      ],
+      "resources": [
+        { "id": "res_bc_patrick_collins", "title": "Patrick Collins", "kind": "video", "level": "foundation", "url": "https://youtube.com/@patrickalphac" },
+        { "id": "res_bc_daulat_hussain", "title": "Daulat Hussain", "kind": "video", "level": "foundation", "url": "https://youtube.com/@daulathussain" },
+        { "id": "res_bc_hackquest", "title": "Web3 programming for everyone — HackQuest", "kind": "course", "level": "foundation", "url": "https://share.google/VmJAaKIAPNldZhs4g" },
+        { "id": "res_bc_mit_ocw", "title": "MIT OpenCourseWare", "kind": "doc", "level": "foundation_plus", "url": null },
+        { "id": "res_bc_harkirat_100xdevs", "title": "Harkirat web3 cohort — 100xDevs", "kind": "course", "level": "foundation_plus", "url": "https://share.google/LGUpFbf56il9AL3Dv" },
+        { "id": "res_bc_udemy_solidity", "title": "Master Solidity — TOON Macharis (Udemy)", "kind": "course", "level": "foundation_plus", "url": "https://www.udemy.com/share/10bwLp/" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "source": "AI_ML_Roadmap_CampusX_Topic_Wise.pdf",
+  "domain": "ai_ml",
+  "label": "AI / ML",
+  "groups": [
+    {
+      "title": "PHASE 1 • FOUNDATIONS",
+      "nodes": [
+        { "id": "ai_ml_foundations_data_workflow", "title": "Machine Learning Foundations & Data Workflow", "description": "ML fundamentals, data acquisition and EDA, and feature engineering and preprocessing.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_ml_fundamentals", "title": "ML fundamentals", "description": "AI vs ML vs Deep Learning; supervised vs unsupervised vs reinforcement learning, batch/offline vs online learning, common ML challenges and the ML development life cycle.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_data_acquisition_eda", "title": "Data acquisition & EDA", "description": "CSV, JSON, SQL, APIs and web-scraped data, feature types and data quality, univariate, bivariate and multivariate analysis.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_feature_engineering_preprocessing", "title": "Feature engineering & preprocessing", "description": "Scaling, encoding, ColumnTransformer and sklearn Pipelines, transforms, binning, mixed variables, missing values and outliers.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_ml_foundations_data_workflow", "to_id": "ai_ml_fundamentals", "kind": "required" },
+        { "from_id": "ai_ml_fundamentals", "to_id": "ai_data_acquisition_eda", "kind": "required" },
+        { "from_id": "ai_data_acquisition_eda", "to_id": "ai_feature_engineering_preprocessing", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 2 • SUPERVISED LEARNING",
+      "nodes": [
+        { "id": "ai_supervised_learning_regression", "title": "Supervised Learning - Regression", "description": "Predict a continuous target, learning not only how to fit a model but why its objective function and assumptions matter.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_simple_linear_regression", "title": "Simple Linear Regression", "description": "Line equation y = mx + b, geometric intuition of fitting a best line, residuals and the squared-error objective.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_multiple_linear_regression", "title": "Multiple Linear Regression", "description": "Hyperplane intuition and matrix-form thinking, coefficient interpretation, and the effect of correlated predictors.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_gradient_descent_for_regression", "title": "Gradient Descent for Regression", "description": "Cost surface and direction of steepest descent, learning rate, and batch, stochastic and mini-batch gradient descent.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_polynomial_regression", "title": "Polynomial Regression", "description": "Creating nonlinear decision curves using polynomial features while the model remains linear in parameters.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_regression_metrics", "title": "Regression Metrics", "description": "MAE, MSE, RMSE, R² score and Adjusted R², choosing metrics based on business cost rather than convenience.", "difficulty_level": "beginner", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_bias_variance_regularized_regression", "title": "Bias-Variance & Regularized Regression", "description": "The bias-variance trade-off and L1/L2 regularized linear models.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_bias_variance_tradeoff", "title": "Bias-Variance Trade-off", "description": "Underfitting vs overfitting, high bias vs high variance, and how model complexity changes generalization.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_ridge_regression_l2", "title": "Ridge Regression (L2)", "description": "Penalty on squared coefficients, geometric intuition of shrinking coefficients, and the effect of lambda on bias and variance.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_lasso_regression_l1", "title": "Lasso Regression (L1)", "description": "Penalty on absolute coefficients, sparsity, and Lasso as embedded feature selection.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_elastic_net", "title": "Elastic Net", "description": "Combines L1 and L2 regularization using alpha and L1-ratio for sparsity with correlated predictors.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_supervised_learning_regression", "to_id": "ai_simple_linear_regression", "kind": "required" },
+        { "from_id": "ai_simple_linear_regression", "to_id": "ai_multiple_linear_regression", "kind": "required" },
+        { "from_id": "ai_multiple_linear_regression", "to_id": "ai_gradient_descent_for_regression", "kind": "required" },
+        { "from_id": "ai_gradient_descent_for_regression", "to_id": "ai_polynomial_regression", "kind": "required" },
+        { "from_id": "ai_polynomial_regression", "to_id": "ai_regression_metrics", "kind": "required" },
+        { "from_id": "ai_supervised_learning_regression", "to_id": "ai_bias_variance_regularized_regression", "kind": "required" },
+        { "from_id": "ai_bias_variance_regularized_regression", "to_id": "ai_bias_variance_tradeoff", "kind": "required" },
+        { "from_id": "ai_bias_variance_tradeoff", "to_id": "ai_ridge_regression_l2", "kind": "required" },
+        { "from_id": "ai_ridge_regression_l2", "to_id": "ai_lasso_regression_l1", "kind": "required" },
+        { "from_id": "ai_lasso_regression_l1", "to_id": "ai_elastic_net", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 3 • ENSEMBLES",
+      "nodes": [
+        { "id": "ai_ensemble_learning", "title": "Ensemble Learning", "description": "Voting, bagging, random forests, boosting and stacking.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_voting_ensembles", "title": "Voting Ensembles", "description": "Why combining diverse models can improve generalization; hard voting vs soft voting.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_bagging", "title": "Bagging", "description": "Bootstrap sampling and parallel learners for variance reduction.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_random_forest", "title": "Random Forest", "description": "Bagged trees + random feature subsampling, out-of-bag score, GridSearchCV / RandomizedSearchCV and feature importance.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_adaboost", "title": "AdaBoost", "description": "Sequential weak learners increasing focus on misclassified examples.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_gradient_boosting", "title": "Gradient Boosting", "description": "Stage-wise additive modeling with residual / negative-gradient correction.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_xgboost", "title": "XGBoost", "description": "Boosted-tree objective and regularization intuition with second-order optimization.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_stacking_blending", "title": "Stacking & Blending", "description": "Base learners and meta-learner using out-of-fold predictions to avoid leakage.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_ensemble_learning", "to_id": "ai_voting_ensembles", "kind": "required" },
+        { "from_id": "ai_voting_ensembles", "to_id": "ai_bagging", "kind": "required" },
+        { "from_id": "ai_bagging", "to_id": "ai_random_forest", "kind": "required" },
+        { "from_id": "ai_bagging", "to_id": "ai_adaboost", "kind": "alternative" },
+        { "from_id": "ai_adaboost", "to_id": "ai_gradient_boosting", "kind": "required" },
+        { "from_id": "ai_gradient_boosting", "to_id": "ai_xgboost", "kind": "required" },
+        { "from_id": "ai_random_forest", "to_id": "ai_stacking_blending", "kind": "optional" }
+      ]
+    },
+    {
+      "title": "PHASE 4 • UNSUPERVISED LEARNING",
+      "nodes": [
+        { "id": "ai_clustering_dimensionality_reduction", "title": "Clustering & Dimensionality Reduction", "description": "Centroid, hierarchical and density-based clustering plus the curse of dimensionality and PCA.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_k_means_clustering", "title": "K-Means Clustering", "description": "Centroid-based clustering objective, assignment and centroid-update steps, and choosing the number of clusters.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_agglomerative_hierarchical_clustering", "title": "Agglomerative Hierarchical Clustering", "description": "Bottom-up merging process, linkage concept and dendrogram interpretation.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_dbscan", "title": "DBSCAN", "description": "Density-based clustering with core, border and noise points, eps and min_samples.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_curse_of_dimensionality", "title": "Curse of Dimensionality", "description": "Distance concentration and sparse high-dimensional spaces, and motivation for feature selection and dimensionality reduction.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_pca", "title": "Principal Component Analysis (PCA)", "description": "Rotate to directions of maximum variance using covariance matrix, eigenvectors and explained variance.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_clustering_dimensionality_reduction", "to_id": "ai_k_means_clustering", "kind": "required" },
+        { "from_id": "ai_k_means_clustering", "to_id": "ai_agglomerative_hierarchical_clustering", "kind": "alternative" },
+        { "from_id": "ai_k_means_clustering", "to_id": "ai_dbscan", "kind": "alternative" },
+        { "from_id": "ai_dbscan", "to_id": "ai_curse_of_dimensionality", "kind": "required" },
+        { "from_id": "ai_curse_of_dimensionality", "to_id": "ai_pca", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 5 • TUNING & VALIDATION",
+      "nodes": [
+        { "id": "ai_hyperparameter_tuning_reliable_experiments", "title": "Hyperparameter Tuning & Reliable Experiments", "description": "Search strategies and experiment hygiene for reproducible, leakage-free experiments.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_search_strategies", "title": "Search strategies", "description": "Train/validation/test split discipline, cross-validation, GridSearchCV, RandomizedSearchCV, Optuna and Bayesian optimization.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_experiment_hygiene", "title": "Experiment hygiene", "description": "Put preprocessing inside pipelines, set random seeds, record dataset version and parameters, and use a simple baseline.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_hyperparameter_tuning_reliable_experiments", "to_id": "ai_search_strategies", "kind": "required" },
+        { "from_id": "ai_search_strategies", "to_id": "ai_experiment_hygiene", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 6 • DEEP LEARNING",
+      "nodes": [
+        { "id": "ai_neural_network_fundamentals", "title": "Neural Network Fundamentals", "description": "The perceptron, multi-layer perceptrons, loss functions and backpropagation.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_perceptron", "title": "Perceptron", "description": "Artificial neuron vs perceptron, geometric decision-boundary intuition and the perceptron update rule.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_multi_layer_perceptron", "title": "Multi-Layer Perceptron (MLP / ANN)", "description": "Layer notation, forward propagation, and TensorFlow/Keras workflow for classification and regression networks.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_loss_functions", "title": "Loss Functions", "description": "Regression losses vs classification losses and loss as the scalar objective optimized by gradient descent.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_backpropagation", "title": "Backpropagation", "description": "Chain-rule flow from loss to each parameter, forward cache, and why gradients vanish or explode.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_optimization_activations_regularization", "title": "Optimization, Activations & Regularization", "description": "Training deep networks: gradient descent, activations, initialization, regularization and optimizers.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_gradient_descent_in_neural_networks", "title": "Gradient Descent in Neural Networks", "description": "Batch, stochastic and mini-batch training, learning rate, batch size and vanishing/exploding gradients.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_activation_functions", "title": "Activation Functions", "description": "Sigmoid and saturation, Tanh, ReLU and dead-neuron issue, and Leaky ReLU, PReLU, ELU and SELU.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_initialization", "title": "Initialization", "description": "Xavier / Glorot initialization, He initialization for ReLU-family activations, and gradient stability.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_regularization_generalization", "title": "Regularization & Generalization", "description": "Early stopping, dropout, L1 / L2 regularization and weight decay, and batch normalization.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_optimizers", "title": "Optimizers", "description": "Momentum, Nesterov Accelerated Gradient, AdaGrad, RMSProp and Adam trade-offs.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_nn_hyperparameter_tuning", "title": "Neural Network Hyperparameter Tuning", "description": "Learning rate, units, layers, batch size, dropout and optimizer with the Keras Tuner workflow.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_neural_network_fundamentals", "to_id": "ai_perceptron", "kind": "required" },
+        { "from_id": "ai_perceptron", "to_id": "ai_multi_layer_perceptron", "kind": "required" },
+        { "from_id": "ai_multi_layer_perceptron", "to_id": "ai_loss_functions", "kind": "required" },
+        { "from_id": "ai_loss_functions", "to_id": "ai_backpropagation", "kind": "required" },
+        { "from_id": "ai_backpropagation", "to_id": "ai_optimization_activations_regularization", "kind": "required" },
+        { "from_id": "ai_optimization_activations_regularization", "to_id": "ai_gradient_descent_in_neural_networks", "kind": "required" },
+        { "from_id": "ai_gradient_descent_in_neural_networks", "to_id": "ai_activation_functions", "kind": "required" },
+        { "from_id": "ai_activation_functions", "to_id": "ai_initialization", "kind": "required" },
+        { "from_id": "ai_initialization", "to_id": "ai_regularization_generalization", "kind": "required" },
+        { "from_id": "ai_activation_functions", "to_id": "ai_optimizers", "kind": "required" },
+        { "from_id": "ai_optimizers", "to_id": "ai_nn_hyperparameter_tuning", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 7 • COMPUTER VISION",
+      "nodes": [
+        { "id": "ai_convolutional_neural_networks", "title": "Convolutional Neural Networks (CNN)", "description": "CNN intuition, the convolution operation, pooling, CNN architecture and backpropagation, augmentation and transfer learning.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_cnn_intuition", "title": "CNN Intuition", "description": "Why dense ANNs are inefficient for images: local connectivity, receptive fields and parameter sharing.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_convolution_operation", "title": "Convolution Operation", "description": "Filters / kernels sliding over input, feature maps and channels, stride and padding, and output-shape calculation.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_pooling", "title": "Pooling", "description": "Max pooling and downsampling, effect on spatial resolution and robustness.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_cnn_architecture_backprop", "title": "CNN Architecture & Backpropagation", "description": "LeNet-5 as a canonical architecture and backpropagation through convolution, max-pooling and flatten layers.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_data_augmentation_transfer_learning", "title": "Data Augmentation & Transfer Learning", "description": "Geometric / photometric augmentation, ImageNet / ILSVRC pretrained models, feature extraction vs fine-tuning.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_convolutional_neural_networks", "to_id": "ai_cnn_intuition", "kind": "required" },
+        { "from_id": "ai_cnn_intuition", "to_id": "ai_convolution_operation", "kind": "required" },
+        { "from_id": "ai_convolution_operation", "to_id": "ai_pooling", "kind": "required" },
+        { "from_id": "ai_pooling", "to_id": "ai_cnn_architecture_backprop", "kind": "required" },
+        { "from_id": "ai_cnn_architecture_backprop", "to_id": "ai_data_augmentation_transfer_learning", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 8 • SEQUENCES",
+      "nodes": [
+        { "id": "ai_rnn_lstm_gru", "title": "RNN, LSTM & GRU", "description": "Recurrent networks for sequence data, including LSTM, GRU and bidirectional variants.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_recurrent_neural_networks", "title": "Recurrent Neural Networks (RNN)", "description": "Hidden-state recurrence and forward propagation, sequence-to-label patterns and Backpropagation Through Time (BPTT).", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_lstm", "title": "LSTM", "description": "Cell state and hidden state, forget, input and output gates, and next-word prediction.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_gru", "title": "GRU", "description": "Reset and update gates, simpler state structure than LSTM, and trade-offs between GRU and LSTM.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_deep_bidirectional_rnns", "title": "Deep & Bidirectional Recurrent Networks", "description": "Stacked / deep RNNs, LSTMs and GRUs, and bidirectional RNN, BiLSTM and BiGRU.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_rnn_lstm_gru", "to_id": "ai_recurrent_neural_networks", "kind": "required" },
+        { "from_id": "ai_recurrent_neural_networks", "to_id": "ai_lstm", "kind": "required" },
+        { "from_id": "ai_lstm", "to_id": "ai_gru", "kind": "alternative" },
+        { "from_id": "ai_gru", "to_id": "ai_deep_bidirectional_rnns", "kind": "required" }
+      ]
+    },
+    {
+      "title": "PHASE 9 • ATTENTION & TRANSFORMERS",
+      "nodes": [
+        { "id": "ai_seq2seq_attention_transformers", "title": "Seq2Seq, Attention & Transformers", "description": "Encoder-decoder sequence-to-sequence, the attention mechanism, and the full transformer architecture.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
+        { "id": "ai_encoder_decoder_seq2seq", "title": "Encoder-Decoder / Sequence-to-Sequence", "description": "Encoder compresses the input sequence into a representation, decoder generates the output, and the bottleneck problem of fixed-size context vectors.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_attention_mechanism", "title": "Attention Mechanism", "description": "Attention scores, weights and context vector; Bahdanau (additive) vs Luong (multiplicative) attention.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_transformer_foundations", "title": "Transformer Foundations", "description": "Self-attention with Query, Key and Value, scaled dot-product attention, and multi-head attention.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_positional_encoding_layer_norm", "title": "Positional Encoding & Layer Normalization", "description": "Sinusoidal positional encodings and layer normalization versus batch normalization.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_transformer_encoder", "title": "Transformer Encoder", "description": "Token embedding + positional information, multi-head self-attention, residual connections + layer normalization, feed-forward network, stacking encoder blocks.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
+        { "id": "ai_transformer_decoder_inference", "title": "Transformer Decoder & Inference", "description": "Masked self-attention / causal attention, cross-attention to encoder output, and autoregressive token-by-token inference.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+      ],
+      "edges": [
+        { "from_id": "ai_seq2seq_attention_transformers", "to_id": "ai_encoder_decoder_seq2seq", "kind": "required" },
+        { "from_id": "ai_encoder_decoder_seq2seq", "to_id": "ai_attention_mechanism", "kind": "required" },
+        { "from_id": "ai_attention_mechanism", "to_id": "ai_transformer_foundations", "kind": "required" },
+        { "from_id": "ai_transformer_foundations", "to_id": "ai_positional_encoding_layer_norm", "kind": "required" },
+        { "from_id": "ai_positional_encoding_layer_norm", "to_id": "ai_transformer_encoder", "kind": "required" },
+        { "from_id": "ai_transformer_encoder", "to_id": "ai_transformer_decoder_inference", "kind": "required" }
+      ]
+    }
+  ],
+  "resources": [
+    { "id": "res_ai_100_days_machine_learning", "title": "100 Days of Machine Learning", "kind": "course", "level": "foundation", "url": "https://learnwith.campusx.in/courses/100-Days-of-Machine-Learning-YouTube-1763210027804-6918732bee601b12112865e6" },
+    { "id": "res_ai_100_days_deep_learning", "title": "100 Days of Deep Learning", "kind": "course", "level": "foundation", "url": "https://learnwith.campusx.in/courses/100-Days-of-Deep-Learning-YouTube-6818549cc1a70a79d992169f" }
+  ]
+}
