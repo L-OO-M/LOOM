@@ -10,6 +10,7 @@ import { OnboardingState } from "@/components/loom/States";
 import { RoadmapHero } from "@/app/(app)/student/roadmap/_components/RoadmapHero";
 import { RoadmapTopicCard } from "@/app/(app)/student/roadmap/_components/RoadmapTopicCard";
 import { domainLabel } from "@/lib/domains";
+import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 
 /* The roadmap as a full map: a central path with each topic branching off it
    with real material, real builds, and the real completion control.
@@ -322,14 +323,30 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
           <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--line)" }}>
             <Meta>Linked resources · {linked.length}</Meta>
             <ul className="mt-3 space-y-1">
-              {linked.map((r) => (
+              {linked.map((r) => {
+                const direct = getResourceHref(r);
+                const external = direct ? isExternalUrl(direct) : false;
+                return (
                 <li key={r.id}>
-                  <Link href={`/student/resources/${r.id}`} prefetch={false} className="row-link flex items-baseline justify-between gap-3 px-2 py-2">
+                  {direct ? (
+                  <a
+                    href={direct}
+                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="row-link flex items-baseline justify-between gap-3 px-2 py-2"
+                    aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}
+                  >
                     <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
-                    <span className="meta shrink-0">{r.minutes} min</span>
-                  </Link>
+                    <span className="meta shrink-0">{r.minutes} min{external ? " ↗" : ""}</span>
+                  </a>
+                  ) : (
+                  <span className="flex items-baseline justify-between gap-3 px-2 py-2 opacity-60" role="note" title="Mentors haven't attached a destination to this piece yet">
+                    <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
+                    <span className="meta shrink-0">unavailable</span>
+                  </span>
+                  )}
                 </li>
-              ))}
+                );
+              })}
               {linked.length === 0 && <p className="text-sm" style={{ color: "var(--text-muted)" }}>No linked resources yet.</p>}
             </ul>
           </div>

@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
+import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 import { AppShell } from "@/components/AppShell";
 import { MarkCompleteButton } from "@/components/actions";
 
@@ -41,13 +42,21 @@ export default async function RoadmapNodePage({ params }) {
             <section className="mt-10" aria-label="Study material">
               <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>Study this</h2>
               <ol className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
-                {resources.map((r, i) => (
+                {resources.map((r, i) => {
+                  const direct = getResourceHref(r);
+                  const external = direct ? isExternalUrl(direct) : false;
+                  return (
                   <li key={r.id} className="flex items-baseline gap-4 py-4">
                     <span className="index-num w-6 shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                    <Link href={`/student/resources/${r.id}`} prefetch={false} className="min-w-0 flex-1 truncate text-[0.95rem] font-medium hover:underline" style={{ color: "var(--text)" }}>{r.title}</Link>
+                    {direct ? (
+                    <a href={direct} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="min-w-0 flex-1 truncate text-[0.95rem] font-medium hover:underline" style={{ color: "var(--text)" }} aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}>{r.title}{external ? " ↗" : ""}</a>
+                    ) : (
+                    <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium opacity-60" style={{ color: "var(--text)" }} role="note" title="Mentors haven't attached a destination to this piece yet">{r.title} · unavailable</span>
+                    )}
                     <span className="meta shrink-0">{r.minutes} min</span>
                   </li>
-                ))}
+                  );
+                })}
                 {resources.length === 0 && <li className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>No linked material yet — mentors add it as the track matures.</li>}
               </ol>
             </section>
