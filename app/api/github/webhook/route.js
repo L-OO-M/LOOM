@@ -66,7 +66,6 @@ export async function POST(request) {
   // claimed contribution (or records it) and awards badges. Best-effort â€”
   // must never break webhook acknowledgement.
   let verified = null;
-  let auditError = null;
   try {
     verified = await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
   } catch {
@@ -90,7 +89,7 @@ export async function POST(request) {
         ${normalized.actorLogin || "github-webhook"},
         ${tenant.id},
         ${verified ? "github_oss_auto_verified" : "github_event_received"},
-        "github_event",
+        'github_event',
         ${`${deliveryId}-${eventName}`},
         ${sql.json({
           event: eventName,
@@ -104,15 +103,13 @@ export async function POST(request) {
     `;
   } catch (e) {
     console.error("[github/webhook] audit insert failed", e?.message || e);
-    auditError = String(e?.message || e).slice(0, 200);
   }
 
   return ok({
     accepted: true,
     tenantId: tenant.id,
     event: normalized,
-    ossVerified: !!verified,
-    ...(auditError ? { auditError } : {})
+    ossVerified: !!verified
   });
 }
 
