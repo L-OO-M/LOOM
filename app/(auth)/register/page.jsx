@@ -27,6 +27,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(true);
 
   function toggleDomain(slug) {
     setDomains((d) => (d.includes(slug) ? d.filter((x) => x !== slug) : [...d, slug]));
@@ -38,7 +39,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     const yearNum = year === "" ? null : Number(year);
-    const { error: signUpError } = await signUp(email, password, {
+    const { data, error: signUpError } = await signUp(email, password, {
       name,
       roll_number: rollNumber || null,
       branch: branch || null,
@@ -51,6 +52,12 @@ export default function RegisterPage() {
       return;
     }
 
+    // Self-detect instead of hardcoding "check your email". With Supabase's
+    // "Confirm Email" ON, signUp returns no session until the link is clicked.
+    // With it OFF (which is how the chapter runs, to avoid the built-in SMTP
+    // rate limit) the session is returned immediately — so telling the user to
+    // go read their inbox would be a lie.
+    setNeedsConfirm(!data?.session);
     setSent(true);
     setLoading(false);
   }
@@ -63,15 +70,30 @@ export default function RegisterPage() {
         <BrandMark size={34} />
         <div className="rule-gold mt-5 w-16" />
         {sent ? (
-          <>
-            <h1 className="mt-4 text-2xl font-semibold tracking-tight">Check your email</h1>
-            <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-              We sent a confirmation link to <strong style={{ color: "var(--text)" }}>{email}</strong>. Click it to activate your account, then sign in.
-            </p>
-            <Link href="/login" className="btn-ink mt-6">
-              Back to sign in
-            </Link>
-          </>
+          needsConfirm ? (
+            <>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight">Check your email</h1>
+              <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                We sent a confirmation link to <strong style={{ color: "var(--text)" }}>{email}</strong>. Click it to activate your account, then sign in.
+              </p>
+              <Link href="/login" className="btn-ink mt-6">
+                Back to sign in
+              </Link>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight">You&rsquo;re in</h1>
+              <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                Account created for <strong style={{ color: "var(--text)" }}>{email}</strong> and you&rsquo;re signed in. Pick your first domain to get a roadmap.
+              </p>
+              <Link href="/student/onboarding" className="btn-ink mt-6">
+                Start onboarding
+              </Link>
+              <Link href="/login" className="btn-ghost mt-3 w-full justify-center">
+                Back to sign in
+              </Link>
+            </>
+          )
         ) : (
           <>
             <h1 className="mt-4 text-2xl font-semibold tracking-tight">Create account</h1>
