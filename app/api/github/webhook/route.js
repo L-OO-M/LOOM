@@ -2,10 +2,44 @@
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isGithubEnabled, normalizeGitHubEvent, verifyGitHubSignature } from "@/lib/github";
+import { isGithubEnabled, normalizeGitHubEvent, resolveStudentIdByLogin, verifyGitHubSignature } from "@/lib/github";
 import { awardOssBadges } from "@/lib/oss";
 import { notify } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
+
+// Weights for the daily activity row. commit/pullRequest MUST match
+// STANDINGS_WEIGHTS in lib/standings.js, because the leaderboard computes
+// score = commits x5 + prs x20 from these columns. The `reviews` weight is
+// only used for the stored score here; the leaderboard does not count reviews
+// yet (see the note at the top of lib/standings.js).
+const ACTIVITY_WEIGHTS = { commit: 5, pullRequest: 20, review: 2 };
+
+/**
+ * Turn one delivery into a countable activity delta.
+ *
+ * Counted: pushes (by commit count) and pull_request / pull_request_review
+ * deliveries by the opening actor. Deliberately NOT counted: `ping`, `*`
+ * repository traffic with no commits, and pull_request actions other than
+ * `opened`/`reopened` -- otherwise a PR that receives fifty comments would
+ * inflate a student's proof fifty times over.
+ *
+ * Pure, so the counting rules are testable without a database.
+ */
+export function summarizeDelivery(eventName, payload) {
+  const zero = { commits: 0, pullRequests: 0, reviews: 0 };
+  if (eventName === "push") {
+    return { ...zero, commits: Array.isArray(payload?.commits) ? payload.commits.length : 0 };
+  }
+  if (eventName === "pull_request") {
+    const action = payload?.action;
+    return { ...zero, pullRequests: action === "opened" || action === "reopened" ? 1 : 0 };
+  }
+  if (eventName === "pull_request_review") {
+    const action = payload?.action;
+    return { ...zero, reviews: action === "submitted" ? 1 : 0 };
+  }
+  return zero;
+}
 
 export async function POST(request) {
   assertProductionSecrets();
@@ -63,7 +97,7 @@ export async function POST(request) {
   `;
 
   // OSS auto-verify: a merged PR in a tracked repo verifies the student's
-  // claimed contribution (or records it) and awards badges. Best-effort â€”
+  // claimed contribution (or records it) and awards badges. Best-effort —
   // must never break webhook acknowledgement.
   let verified = null;
   try {
@@ -71,6 +105,56 @@ export async function POST(request) {
   } catch {
     /* ignore */
   }
+
+  // Aggregate into student_daily_activity.
+  //
+  // This is the table every "your proof of building" number is read from:
+  // the heatmap and commit/PR/streak tiles on /student/github, the dashboard's
+  // weekly strip, and commits x5 + prs x20 in the leaderboard score (55% of
+  // the advertised formula). The webhook previously wrote ONLY github_events,
+  // so all of those stayed at zero forever regardless of real activity -- the
+  // standalone /api/jobs/github/process worker that used to do this had no
+  // callers, no cron and no vercel.json.
+  //
+  // Attributed to the student who LINKED the GitHub username, tenant-scoped so
+  // a login belonging to another chapter cannot inflate this one's numbers.
+  // Idempotent on (student_id, day) via additive upsert, and GitHub delivery
+  // ids are unique so replays are the only duplication risk -- handled by the
+  // same additive upsert, which is intentional.
+  let activity = { applied: false, reason: "NO_DELTA" };
+  try {
+    const delta = summarizeDelivery(eventName, raw);
+    const studentId = normalized.actorLogin
+      ? await resolveStudentIdByLogin(sql, normalized.actorLogin, tenant.id)
+      : null;
+    if (!studentId) {
+      activity = { applied: false, reason: "UNKNOWN_LOGIN" };
+    } else if (delta.commits + delta.pullRequests + delta.reviews === 0) {
+      activity = { applied: false, reason: "NO_DELTA" };
+    } else {
+      const day = new Date().toISOString().slice(0, 10);
+      const points =
+        delta.commits * ACTIVITY_WEIGHTS.commit +
+        delta.pullRequests * ACTIVITY_WEIGHTS.pullRequest +
+        delta.reviews * ACTIVITY_WEIGHTS.review;
+      await sql`
+        INSERT INTO public.student_daily_activity
+          (student_id, day, tenant_id, commits, pull_requests, reviews, score)
+        VALUES (${studentId}, ${day}, ${tenant.id}, ${delta.commits}, ${delta.pullRequests}, ${delta.reviews}, ${points})
+        ON CONFLICT (student_id, day) DO UPDATE SET
+          commits       = public.student_daily_activity.commits + EXCLUDED.commits,
+          pull_requests = public.student_daily_activity.pull_requests + EXCLUDED.pull_requests,
+          reviews       = public.student_daily_activity.reviews + EXCLUDED.reviews,
+          score         = public.student_daily_activity.score + EXCLUDED.score,
+          tenant_id     = EXCLUDED.tenant_id
+      `;
+      activity = { applied: true, studentId, day, ...delta };
+    }
+  } catch (e) {
+    console.error("[github/webhook] activity aggregate failed", e?.message || e);
+    activity = { applied: false, reason: "WRITE_FAILED" };
+  }
+
 
   // Audit the ingestion itself. This path is reachable by anything that knows
   // the webhook secret, and it promotes a claim to `verified` and grants badges
@@ -97,7 +181,10 @@ export async function POST(request) {
           actor: normalized.actorLogin,
           delivery: deliveryId,
           student: verified?.userId ?? null,
-          pr_url: verified?.prUrl ?? null
+          pr_url: verified?.prUrl ?? null,
+          activity_applied: activity.applied === true,
+          activity_reason: activity.reason ?? null,
+          activity_student: activity.studentId ?? null
         })}
       )
     `;
@@ -109,7 +196,8 @@ export async function POST(request) {
     accepted: true,
     tenantId: tenant.id,
     event: normalized,
-    ossVerified: !!verified
+    ossVerified: !!verified,
+    activity
   });
 }
 
