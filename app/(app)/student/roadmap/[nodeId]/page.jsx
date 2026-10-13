@@ -16,8 +16,8 @@ export default async function RoadmapNodePage({ params }) {
   if (!node) notFound();
   const [progress] = await sql`SELECT * FROM student_roadmap_progress WHERE student_id = ${user.id} AND node_id = ${nodeId} LIMIT 1`;
   const resources = await sql`SELECT * FROM resources WHERE domain = ${node.domain} ORDER BY minutes ASC LIMIT 6`;
-  const [next] = await sql`SELECT * FROM roadmap_nodes WHERE sort_order > ${node.sort_order} ORDER BY sort_order ASC LIMIT 1`;
-  const [prev] = await sql`SELECT * FROM roadmap_nodes WHERE sort_order < ${node.sort_order} ORDER BY sort_order DESC LIMIT 1`;
+  const [next] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order > ${node.sort_order} ORDER BY sort_order ASC LIMIT 1`;
+  const [prev] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order < ${node.sort_order} ORDER BY sort_order DESC LIMIT 1`;
   const [position] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE sort_order <= ${node.sort_order}`;
   const [total] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes`;
   const totalMins = resources.reduce((s, r) => s + (r.minutes || 0), 0);
