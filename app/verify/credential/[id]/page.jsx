@@ -2,9 +2,39 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSql } from "@/lib/db";
 import { verifyCredentialSignature } from "@/lib/credentials";
+import { absoluteUrl } from "@/lib/seo";
 import { BrandMark } from "@/components/BrandMark";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  // Route-derived, never query-derived: a transient DB error must not cost the
+  // page its canonical. Without this export the page inherited the root
+  // layout's canonical "/", telling Google every credential URL was the
+  // homepage.
+  const alternates = { canonical: absoluteUrl(`/verify/credential/${id}`) };
+  try {
+    const sql = getSql();
+    const [cred] = await sql`
+      SELECT v.title, v.credential_type, v.issued_at, p.name AS holder_name, t.name AS tenant_name
+      FROM verifiable_credentials v
+      LEFT JOIN profiles p ON p.user_id = v.student_id
+      LEFT JOIN tenants t ON t.id = v.tenant_id
+      WHERE v.id = ${id} LIMIT 1`;
+    if (!cred) return { title: "Credential not found | L.O.O.M.", alternates };
+    const holder = cred.holder_name || "a L.O.O.M. member";
+    return {
+      title: `${cred.title} — ${holder}`,
+      description: `Verifiable credential issued by ${cred.tenant_name || "L.O.O.M."} to ${holder} on ${new Date(cred.issued_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Signature checked on this page.`,
+      alternates,
+      openGraph: { title: `${cred.title} — ${holder}`, description: `Verifiable credential from ${cred.tenant_name || "L.O.O.M."}.`, url: absoluteUrl(`/verify/credential/${id}`) },
+      robots: { index: true, follow: true }
+    };
+  } catch {
+    return { title: "Verifiable credential | L.O.O.M.", alternates };
+  }
+}
 
 function Row({ label, children }) {
   return (
@@ -18,10 +48,14 @@ function Row({ label, children }) {
 export default async function VerifyCredentialPage({ params }) {
   const { id } = await params;
   const sql = getSql();
+  // No tenant filter here meant any chapter could read any other chapter's
+  // credential page. A verification link is the one thing that must stay
+  // shareable, so scope on the credential's OWN tenant rather than the
+  // request host -- the link has to work when forwarded off-site.
   const rows = await sql`
     SELECT v.*, p.name AS holder_name, t.name AS tenant_name
     FROM verifiable_credentials v
-    LEFT JOIN profiles p ON p.user_id = v.student_id
+    LEFT JOIN profiles p ON p.user_id = v.student_id AND p.tenant_id = v.tenant_id
     LEFT JOIN tenants t ON t.id = v.tenant_id
     WHERE v.id = ${id}
     LIMIT 1

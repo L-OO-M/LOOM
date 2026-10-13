@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Domains",
-  description: "Five technical tracks, zero assumed knowledge: AI/ML, web development, cybersecurity, DSA, and blockchain — each with a roadmap, seniors, and real proof.",
+  // No hardcoded count. This said "Five technical tracks" while eight are
+  // active, which an answer engine reads as a direct contradiction against the
+  // ItemList schema below. The per-page copy derives the real count from the
+  // departments query; this one simply does not assert a number.
+  description: "Technical tracks with zero assumed knowledge — each department runs a real roadmap with seniors, workshops, and verifiable proof. Compare every track and pick one, or several.",
   ...canonicalFor("/domains"),
   openGraph: {
     title: "Domains | L.O.O.M.",
@@ -64,7 +68,7 @@ export default async function DomainsPage() {
       <PublicNav />
       <div className="pt-16">
         <PageHero
-          kicker="Five tracks, one loop"
+          kicker={`${departments.length} tracks, one loop`}
           title="Choose your domain."
           lede="Every department is a door with the same handle: zero assumed knowledge, a real roadmap, seniors who remember the first step. Open one — or several."
         />
@@ -109,7 +113,7 @@ export default async function DomainsPage() {
         <div className="mt-12 rounded-2xl border p-6 text-center sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
           <p className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>Joining is instant — no approval, no interview.</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-            Pick one domain or all five. Membership starts the moment you sign up.
+            Pick one domain or all {departments.length}. Membership starts the moment you sign up.
           </p>
           <Link href="/register" prefetch={false} className="btn-ink mt-5">Create an account</Link>
         </div>
