@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ResourceCompleteButton } from "@/components/actions";
+import { detailHrefFor, getResourceHref, isExternalUrl } from "@/lib/resource-link";
 
 /* Resources-only presentational pieces. Server components — the only
    client leaf is ResourceCompleteButton. All links are real filters or
@@ -66,6 +67,10 @@ export function levelLabel(level) {
 }
 
 export function ResourceCard({ r, completed, recommended, trackLabel }) {
+  // Primary flow: open the actual destination directly. The detail page stays
+  // reachable via the secondary "Details" link (bookmarks, metadata, record).
+  const direct = getResourceHref(r);
+  const external = direct ? isExternalUrl(direct) : false;
   return (
     <article
       className="res-card rounded-2xl border p-5 transition"
@@ -99,42 +104,61 @@ export function ResourceCard({ r, completed, recommended, trackLabel }) {
         )}
       </div>
 
-      <Link
-        href={`/student/resources/${r.id}`}
-        prefetch={false}
-        className="mt-3 block text-[1.02rem] font-semibold leading-7 hover:underline"
-        style={{ color: "var(--text)" }}
-      >
-        {r.title}
-      </Link>
+      {direct ? (
+        <a
+          href={direct}
+          {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          className="mt-3 block text-[1.02rem] font-semibold leading-7 hover:underline"
+          style={{ color: "var(--text)" }}
+          aria-label={`${completed ? "Review" : "Open"} ${r.title}${external ? " (opens in a new tab)" : ""}`}
+        >
+          {r.title}
+        </a>
+      ) : (
+        <span
+          className="mt-3 block text-[1.02rem] font-semibold leading-7"
+          style={{ color: "var(--text)" }}
+        >
+          {r.title}
+        </span>
+      )}
 
       <p className="meta mt-2">
         {formatMinutes(r.minutes)}{r.level ? ` · ${levelLabel(r.level)}` : ""}{trackLabel ? ` · ${trackLabel}` : ""}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={`/student/resources/${r.id}`}
-          prefetch={false}
-          className="rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97]"
-          style={{ background: "var(--text)", color: "var(--bg)" }}
-          aria-label={`${completed ? "Review" : "Open"} ${r.title}`}
-        >
-          {completed ? "Review" : "Open"}
-        </Link>
-        <ResourceCompleteButton resourceId={r.id} completed={completed} />
-        {r.url && (
+        {direct ? (
           <a
-            href={r.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-xs font-semibold hover:underline"
-            style={{ color: "var(--accent)" }}
-            aria-label={`Open ${r.title} source in a new tab`}
+            href={direct}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold transition active:scale-[0.97]"
+            style={{ background: "var(--text)", color: "var(--bg)" }}
+            aria-label={`${completed ? "Review" : "Open"} ${r.title}${external ? " in a new tab" : ""}`}
           >
-            Source ↗
+            {completed ? "Review" : "Open resource"}{external ? " ↗" : ""}
           </a>
+        ) : (
+          <span
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold opacity-50"
+            style={{ background: "var(--text)", color: "var(--bg)" }}
+            role="note"
+            aria-label={`${r.title} has no destination yet`}
+            title="Mentors haven't attached a destination to this piece yet"
+          >
+            Unavailable
+          </span>
         )}
+        <ResourceCompleteButton resourceId={r.id} completed={completed} />
+        <Link
+          href={detailHrefFor(r)}
+          prefetch={false}
+          className="text-xs font-medium hover:underline"
+          style={{ color: "var(--text-muted)" }}
+          aria-label={`Details and progress for ${r.title}`}
+        >
+          Details
+        </Link>
       </div>
     </article>
   );
@@ -170,32 +194,49 @@ export function TrackCard({ t, count, done, href, active }) {
 }
 
 export function ContinueCard({ r, trackLabel }) {
+  const direct = getResourceHref(r);
+  const external = direct ? isExternalUrl(direct) : false;
   return (
     <article
       className="res-card rounded-2xl border p-5 transition"
       style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}
     >
       <p className="meta" style={{ color: "var(--accent)" }}>Up next · {trackLabel}</p>
-      <Link
-        href={`/student/resources/${r.id}`}
-        prefetch={false}
-        className="mt-2 block text-[1.02rem] font-semibold leading-7 hover:underline"
-        style={{ color: "var(--text)" }}
-      >
-        {r.title}
-      </Link>
+      {direct ? (
+        <a
+          href={direct}
+          {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          className="mt-2 block text-[1.02rem] font-semibold leading-7 hover:underline"
+          style={{ color: "var(--text)" }}
+        >
+          {r.title}
+        </a>
+      ) : (
+        <span
+          className="mt-2 block text-[1.02rem] font-semibold leading-7"
+          style={{ color: "var(--text)" }}
+        >
+          {r.title}
+        </span>
+      )}
       <p className="meta mt-2">
         {kindLabel(r.kind)} · {formatMinutes(r.minutes)}{r.level ? ` · ${levelLabel(r.level)}` : ""}
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={`/student/resources/${r.id}`}
-          prefetch={false}
-          className="btn-ink !py-2 text-sm"
-          aria-label={`Continue with ${r.title}`}
-        >
-          Continue →
-        </Link>
+        {direct ? (
+          <a
+            href={direct}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className="btn-ink !py-2 text-sm"
+            aria-label={`Continue with ${r.title}${external ? " in a new tab" : ""}`}
+          >
+            Continue →
+          </a>
+        ) : (
+          <span className="btn-ink !py-2 text-sm opacity-50" role="note" title="Mentors haven't attached a destination to this piece yet">
+            Unavailable
+          </span>
+        )}
         <ResourceCompleteButton resourceId={r.id} completed={false} />
       </div>
     </article>

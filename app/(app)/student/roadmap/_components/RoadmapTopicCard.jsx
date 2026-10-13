@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MarkCompleteButton } from "@/components/actions";
+import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 
 /* One map stop expanded: description, real linked resources,
    real linked builds, and the honest completion control.
@@ -59,12 +60,16 @@ export function RoadmapTopicCard({
         <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
           {(resources || []).slice(0, 6).map((r) => {
             const rDone = resourceDoneSet?.has(r.id);
+            const direct = getResourceHref(r);
+            const external = direct ? isExternalUrl(direct) : false;
             return (
               <li key={r.id}>
-                <Link
-                  href={`/student/resources/${r.id}`}
-                  prefetch={false}
+                {direct ? (
+                <a
+                  href={direct}
+                  {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   className="row-link flex items-baseline justify-between gap-3 px-2 py-2"
+                  aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}
                 >
                   <span
                     className="min-w-0 truncate text-sm font-medium"
@@ -76,8 +81,21 @@ export function RoadmapTopicCard({
                   <span className="meta shrink-0">
                     {r.kind ? `${r.kind} · ` : ""}
                     {r.minutes ? `${r.minutes} min` : ""}
+                    {external ? " ↗" : ""}
                   </span>
-                </Link>
+                </a>
+                ) : (
+                <span
+                  className="flex items-baseline justify-between gap-3 px-2 py-2 opacity-60"
+                  role="note"
+                  title="Mentors haven't attached a destination to this piece yet"
+                >
+                  <span className="min-w-0 truncate text-sm font-medium" style={{ color: "var(--text)" }}>
+                    {r.title}
+                  </span>
+                  <span className="meta shrink-0">unavailable</span>
+                </span>
+                )}
               </li>
             );
           })}

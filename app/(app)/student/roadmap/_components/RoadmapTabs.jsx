@@ -58,12 +58,16 @@ export default function RoadmapTabs({
             <span className="meta hidden sm:inline">{percent}% of this track</span>
             <span className="ml-auto hidden items-center gap-3 sm:flex">
               <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                <span className="size-3 rounded border" style={{ background: "var(--accent)", borderColor: "var(--accent)" }} />
-                recommended
+                <span aria-hidden="true" className="grid size-3 place-items-center rounded-full text-[8px] font-bold" style={{ background: "#7c3aed", color: "#fff" }}>●</span>
+                you are here
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                <span className="size-3 rounded border" style={{ background: "var(--bg-elevated)", borderColor: "var(--line)" }} />
-                topic
+                <span aria-hidden="true" className="grid size-3 place-items-center rounded-full text-[8px] font-bold" style={{ background: "#16a34a", color: "#fff" }}>✓</span>
+                completed
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span aria-hidden="true" className="grid size-3 place-items-center rounded-full text-[8px] font-bold" style={{ background: "#9ca3af", color: "#fff" }}>○</span>
+                upcoming
               </span>
             </span>
           </div>

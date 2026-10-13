@@ -18,13 +18,13 @@ export default async function ResourceDetailPage({ params }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Link href="/student/resources" className="meta hover:underline" style={{ color: "var(--accent)" }}>← Library</Link>
+        <Link href="/student/resources" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Library</Link>
         <Meta className="mt-4">{kindLabel} · {r.domain} · {r.level?.replace("_", " ")} · {r.minutes} minutes</Meta>
         <Display size="lg" className="mt-3">{r.title}</Display>
 
         <div className="mt-8 border-y py-6" style={{ borderColor: "var(--line)" }}>
           {r.url ? (
-            <a href={r.url} target="_blank" rel="noreferrer" className="btn-ink">
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="btn-ink">
               Open {kindLabel.toLowerCase()} ↗
             </a>
           ) : (
@@ -37,7 +37,7 @@ export default async function ResourceDetailPage({ params }) {
         </div>
 
         <p className="narrative mt-8">
-          Reading compounds. <Link href="/student/roadmap" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Return to your path →</Link>
+          Reading compounds. <Link href="/student/roadmap" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Return to your path →</Link>
         </p>
       </main>
     </AppShell>

@@ -21,7 +21,7 @@ export function RoadmapDomainRail({ domains, active }) {
           return (
             <li key={domain}>
               <Link
-                href={`/student/roadmap?domain=${domain}`}
+                href={`/student/roadmap?domain=${encodeURIComponent(domain)}`}
                 prefetch={false}
                 aria-current={isActive ? "page" : undefined}
                 className="group flex min-w-[9.5rem] flex-col gap-1.5 rounded-xl border px-3.5 py-2.5 transition"

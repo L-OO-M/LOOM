@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { cached } from "@/lib/cache";
 import { getCachedResourceCounts, getCachedResourceLevels, getCachedResourceTotal } from "@/lib/server-cache";
+import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
@@ -204,18 +205,40 @@ export default async function ResourcesPage({ searchParams }) {
           </section>
         )}
 
-        {/* EDITOR'S PICK — large editorial preview */}
-        {visible.length > 0 && !hasAnyFilter && (
+        {/* EDITOR'S PICK — large editorial preview. Opens the actual destination directly. */}
+        {visible.length > 0 && !hasAnyFilter && (() => {
+          const pick = visible[0];
+          const direct = getResourceHref(pick);
+          const external = direct ? isExternalUrl(direct) : false;
+          const TitleTag = direct ? "a" : "span";
+          return (
           <section className="mt-10 hero-field rounded-2xl border px-6 py-8 sm:px-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Editor's pick">
             <Meta>Editor&apos;s pick</Meta>
-            <Link href={`/student/resources/${visible[0].id}`} prefetch={false} className="display display-md mt-3 block max-w-2xl hover:underline" style={{ color: "var(--text)" }}>
-              {visible[0].title}
-            </Link>
-            <p className="meta mt-2">{trackLabelFor(visible[0].domain)} · {visible[0].kind} · {visible[0].minutes} min</p>
+            <TitleTag
+              {...(direct ? { href: direct, ...(external ? { target: "_blank", rel: "noopener noreferrer" } : {}) } : {})}
+              className="display display-md mt-3 block max-w-2xl hover:underline"
+              style={{ color: "var(--text)" }}
+            >
+              {pick.title}
+            </TitleTag>
+            <p className="meta mt-2">{trackLabelFor(pick.domain)} · {pick.kind} · {pick.minutes} min</p>
             <p className="narrative mt-3 max-w-xl">A curated starting point from the shelf — open it, then continue along your track.</p>
-            <Link href={`/student/resources/${visible[0].id}`} prefetch={false} className="btn-ink mt-5 inline-block">Open resource →</Link>
+            {direct ? (
+              <a
+                href={direct}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="btn-ink mt-5 inline-block"
+              >
+                Open resource →
+              </a>
+            ) : (
+              <span className="btn-ink mt-5 inline-block opacity-50" role="note" title="Mentors haven't attached a destination to this piece yet">
+                Unavailable
+              </span>
+            )}
           </section>
-        )}
+          );
+        })()}
 
         {/* BROWSE BY TRACK — typographic navigator */}
         <section className="mt-10" aria-label="Learning tracks">
