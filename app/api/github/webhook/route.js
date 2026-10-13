@@ -1,4 +1,4 @@
-import { env, assertProductionSecrets } from "@/lib/env";
+﻿import { env, assertProductionSecrets } from "@/lib/env";
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -63,28 +63,55 @@ export async function POST(request) {
   `;
 
   // OSS auto-verify: a merged PR in a tracked repo verifies the student's
-  // claimed contribution (or records it) and awards badges. Best-effort —
+  // claimed contribution (or records it) and awards badges. Best-effort â€”
   // must never break webhook acknowledgement.
+  let verified = null;
   try {
-    await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
+    verified = await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
   } catch {
     /* ignore */
   }
 
+  // Audit the ingestion itself. This path is reachable by anything that knows
+  // the webhook secret, and it promotes a claim to `verified` and grants badges
+  // -- so it must leave a trace. Before this, /admin/audit showed nothing at all
+  // for webhook activity, which made a bad or forged merge indistinguishable
+  // from no merge. Best-effort: never break acknowledgement.
+  try {
+    await sql`
+      INSERT INTO audit_logs (tenant_id, action, resource, resource_id, metadata)
+      VALUES (
+        ${tenant.id},
+        ${verified ? "github_oss_auto_verified" : "github_event_received"},
+        "github_event",
+        ${`${deliveryId}-${eventName}`},
+        ${sql.json({
+          event: eventName,
+          repository: normalized.repositoryName,
+          actor: normalized.actorLogin,
+          delivery: deliveryId,
+          student: verified?.userId ?? null,
+          pr_url: verified?.prUrl ?? null
+        })}
+      )
+    `;
+  } catch { /* audit must never break the request */ }
+
   return ok({
     accepted: true,
     tenantId: tenant.id,
-    event: normalized
+    event: normalized,
+    ossVerified: !!verified
   });
 }
 
 async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
-  if (eventName !== "pull_request") return;
+  if (eventName !== "pull_request") return null;
   const pr = raw?.pull_request;
-  if (!pr?.merged || raw?.action !== "closed") return;
+  if (!pr?.merged || raw?.action !== "closed") return null;
   const fullName = raw?.repository?.full_name;
   const author = pr?.user?.login;
-  if (!fullName || !author) return;
+  if (!fullName || !author) return null;
   const [owner, repo] = fullName.split("/");
   const [project] = await sql`
     SELECT * FROM open_source_projects
@@ -92,7 +119,7 @@ async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
       AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
     LIMIT 1
   `;
-  if (!project) return;
+  if (!project) return null;
   const [profile] = await sql`
     SELECT p.user_id FROM profiles p
     LEFT JOIN github_connections g ON g.user_id = p.user_id
@@ -100,7 +127,7 @@ async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
       AND (p.tenant_id IS NULL OR p.tenant_id = ${tenantId}::uuid)
     LIMIT 1
   `;
-  if (!profile) return;
+  if (!profile) return null;
   const prUrl = pr.html_url || `https://github.com/${fullName}/pull/${pr.number}`;
   await sql`
     INSERT INTO student_oss_contributions
@@ -114,8 +141,9 @@ async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
   const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId, projectUrl: project.github_repo_url });
   await notify({
     sql, tenantId, userId: profile.user_id,
-    type: "oss_verified", title: "PR merged — OSS verified",
-    body: `Your PR in ${fullName} was merged${granted.length ? ` — badge earned: ${granted.join(", ")}` : ""}.`,
+    type: "oss_verified", title: "PR merged â€” OSS verified",
+    body: `Your PR in ${fullName} was merged${granted.length ? ` â€” badge earned: ${granted.join(", ")}` : ""}.`,
     link: "/student/opensource"
   });
+  return { userId: profile.user_id, prUrl, granted };
 }
