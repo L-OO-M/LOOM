@@ -9,6 +9,7 @@ import { Evidence } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { eventUrlFromPayload, isGithubEnabled, nextMoveState, repoFullNameFromPayload } from "@/lib/github";
 import { GithubTabs, ConnectionControls } from "./GithubBits";
+import { GithubDiagnostics } from "./GithubDiagnostics";
 
 export default async function GithubPage() {
   const ctx = await getRequestContext();
@@ -16,10 +17,47 @@ export default async function GithubPage() {
   const { user, tenant, sql } = ctx;
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
   const paused = tenant?.id ? !(await isGithubEnabled(sql, tenant.id)) : true;
+
   const activity = await sql`SELECT day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
   const total = activity.reduce((s, a) => s + (a.commits || 0), 0);
   const prs = activity.reduce((s, a) => s + (a.pull_requests || 0), 0);
   const streak = currentStreak(activity);
+
+  // Ingestion diagnostics.
+  //
+  // "My numbers are zero" is ambiguous on its own: it could mean the member
+  // genuinely has no activity, or that deliveries are not arriving at all, or
+  // that ingestion is switched off. Those need completely different fixes, and
+  // guessing between them wastes hours. So the page states which one it is,
+  // from real aggregates, instead of leaving the member to infer it.
+  const [diag] = await sql`
+    SELECT
+      (SELECT COUNT(*)::int FROM github_events) AS total_events,
+      (SELECT COUNT(*)::int FROM github_events WHERE received_at > NOW() - INTERVAL '24 hours') AS events_24h,
+      (SELECT MAX(received_at) FROM github_events) AS last_event_at
+  `;
+  const distinctRepos = await sql`
+    SELECT payload->'repository'->>'full_name' AS repo, COUNT(*)::int AS n, MAX(received_at) AS last_at
+    FROM github_events WHERE payload->'repository'->>'full_name' IS NOT NULL
+    GROUP BY 1 ORDER BY last_at DESC LIMIT 6`;
+  const unlinked = await sql`
+    SELECT COUNT(*)::int AS n FROM github_events e
+    WHERE e.actor_login IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM github_connections c WHERE lower(c.github_username) = lower(e.actor_login)
+      )`;
+  const diagnostics = {
+    paused,
+    totalEvents: diag?.total_events ?? 0,
+    events24h: diag?.events_24h ?? 0,
+    lastEventAt: diag?.last_event_at ? new Date(diag.last_event_at).toISOString() : null,
+    myActivityRows: activity.length,
+    myCommits: total,
+    myPrs: prs,
+    repos: distinctRepos.map((r) => ({ repo: r.repo, n: r.n, lastAt: new Date(r.last_at).toISOString() })),
+    unlinkedActors: unlinked?.[0]?.n ?? 0,
+    username: conn?.github_username || null
+  };
 
   const recentEvents = conn ? await sql`
     SELECT event_name, repository_id, actor_login, received_at, payload FROM github_events
@@ -155,6 +193,9 @@ export default async function GithubPage() {
           </div>
           <div className="mt-4">
             <GithubTabs items={items} repos={repoGroups} />
+          </div>
+          <div className="mt-4">
+            <GithubDiagnostics diagnostics={diagnostics} />
           </div>
         </section>
 
