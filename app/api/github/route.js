@@ -54,6 +54,24 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
+  // A GitHub handle belongs to exactly one account: handles are globally
+  // unique on GitHub. Without this check two members can claim the same handle,
+  // and attribution then picks arbitrarily -- which once wrote a real push onto
+  // the wrong member's ledger while both dashboards looked healthy.
+  const [claimant] = await sql`
+    SELECT user_id FROM github_connections
+    WHERE lower(github_username) = lower(${body.githubUsername})
+      AND user_id <> ${user.id}
+    LIMIT 1
+  `;
+  if (claimant) {
+    return fail(
+      "GITHUB_HANDLE_TAKEN",
+      "That GitHub username is already linked to another account in this chapter. Each handle belongs to one person -- ask them to disconnect it first.",
+      409
+    );
+  }
+
   await sql`
     INSERT INTO github_connections (user_id, github_username)
     VALUES (${user.id}, ${body.githubUsername})

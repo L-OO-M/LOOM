@@ -11,6 +11,17 @@ import { eventUrlFromPayload, isGithubEnabled, nextMoveState, repoFullNameFromPa
 import { GithubTabs, ConnectionControls } from "./GithubBits";
 import { GithubDiagnostics } from "./GithubDiagnostics";
 
+// Events that represent work a member actually did.
+//
+// A single push to a repo with CI generates ~10 deliveries: check_run,
+// check_suite, workflow_run, workflow_job, plus deployment, deployment_status
+// and status from the hosting bot. All of them are stored -- they are real
+// deliveries and belong in the audit trail -- but rendering them as "your
+// building activity" buries the one event that mattered under a wall of CI rows.
+const MEANINGFUL_EVENTS = [
+  "push", "pull_request", "pull_request_review", "issues", "issue_comment", "create", "release"
+];
+
 export default async function GithubPage() {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/github");
@@ -62,6 +73,7 @@ export default async function GithubPage() {
   const recentEvents = conn ? await sql`
     SELECT event_name, repository_id, actor_login, received_at, payload FROM github_events
     WHERE lower(actor_login) = lower(${conn.github_username})
+      AND event_name = ANY(${MEANINGFUL_EVENTS})
     ORDER BY received_at DESC LIMIT 20
   ` : [];
   const repoIds = [...new Set(recentEvents.map((e) => e.repository_id).filter(Boolean))];
