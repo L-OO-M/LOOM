@@ -5,7 +5,6 @@ import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
 import { canonicalFor } from "@/lib/seo";
 import { PublicNav } from "@/components/landing/PublicNav";
-import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
 import { JoinSteps, TypePill, seatsLeft, whenLabel } from "../_components/EventBits";
@@ -27,6 +26,18 @@ async function resolvePublicTenant() {
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
+
+  // The canonical is derived from the ROUTE, never from a database query. If it
+  // were, any transient DB error in the catch below would drop `alternates`,
+  // and the page would inherit the root layout's `canonical: "/"` -- silently
+  // telling search engines every event page is the homepage. A URL is a fact
+  // about the route; it must not depend on whether Postgres answered.
+  // canonicalFor() returns { alternates: { canonical } }; take the inner value
+  // so it can be assigned to the `alternates` key directly. Assigning the whole
+  // helper result nests it one level too deep and Next emits no link tag at all.
+  const { alternates } = canonicalFor(`/events/${id}`);
+  const notFound = { title: "Event not found | L.O.O.M.", alternates };
+
   try {
     const tenant = await resolvePublicTenant();
     const sql = getSql();
@@ -36,15 +47,16 @@ export async function generateMetadata({ params }) {
         AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
       LIMIT 1
     `;
-    if (!ev) return { title: "Event not found | L.O.O.M." };
+    if (!ev) return notFound;
     return {
       title: `${ev.title} | L.O.O.M. Events`,
       description: (ev.description || "Event details, seats, and registration.").slice(0, 160),
-      ...canonicalFor(`/events/${id}`),
+      alternates,
       openGraph: { title: `${ev.title} | L.O.O.M.`, description: (ev.description || "").slice(0, 160) }
     };
   } catch {
-    return { title: "Event | L.O.O.M." };
+    // Never swallow the path: a broken query must not cost the page its identity.
+    return { title: "Event | L.O.O.M.", alternates };
   }
 }
 
@@ -210,17 +222,24 @@ export default async function EventDetailPage({ params }) {
         </div>
       </section>
 
-      <PageHero
-        kicker="Never miss one"
-        title="The calendar runs all year"
-        lede="Workshops, hackathons, talks and contests — posted by department leads as they happen."
-        actions={(
-          <>
+      {/* Closing CTA. Deliberately NOT <PageHero>: that component renders an
+          <h1>, and this page already has one for the event title. Two h1s on a
+          public page breaks the SEO contract (AGENTS.md §1 rule 9). */}
+      <section className="border-t" style={{ borderColor: "var(--line)" }} aria-label="More events">
+        <div className="mx-auto max-w-4xl px-5 py-14 text-center sm:px-6 lg:px-8">
+          <p className="kicker">Never miss one</p>
+          <h2 className="font-display mt-2 text-3xl font-medium" style={{ color: "var(--text)" }}>
+            The calendar runs all year
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7" style={{ color: "var(--text-muted)" }}>
+            Workshops, hackathons, talks and contests — posted by department leads as they happen.
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/events" prefetch={false} className="btn-ink justify-center">See all events</Link>
             <Link href="/register" prefetch={false} className="btn-ghost justify-center">Join the chapter</Link>
-          </>
-        )}
-      />
+          </div>
+        </div>
+      </section>
       <PublicFooter />
     </main>
   );

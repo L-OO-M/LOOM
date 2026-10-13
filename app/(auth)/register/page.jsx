@@ -5,16 +5,14 @@ import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signUp } from "@/lib/auth-client";
 import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
+import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 
 const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 
-const DOMAINS = [
-  ["ai_ml", "AI / ML"],
-  ["web", "Web Dev"],
-  ["cybersecurity", "Cybersecurity"],
-  ["dsa", "DSA"],
-  ["blockchain", "Blockchain"]
-];
+// Derived from the single source of truth instead of a second hardcoded copy.
+// This list had drifted: it was missing `embedded`, so a student on the biggest
+// roadmap in the catalogue (144 nodes) could not pick their own track at signup.
+const DOMAINS = PRIMARY_DOMAINS.map((slug) => [slug, domainLabel(slug)]);
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");

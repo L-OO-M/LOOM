@@ -153,7 +153,10 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     expect(await desc.count()).toBe(1);
     // The registration process must be explained on the page itself.
     await expect(page.getByText("The registration process")).toBeVisible();
-    await expect(page.getByText("How to get into an event")).toBeVisible();
+    // The detail page's situation-aware join CTA (one of these three states).
+    await expect(
+      page.getByText(/Claim your seat|This event is full|This event has concluded/).first()
+    ).toBeVisible();
   });
 
   test("private app marks noindex", async ({ page }) => {

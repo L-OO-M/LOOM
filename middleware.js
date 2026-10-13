@@ -51,6 +51,14 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // Public event detail pages: /events/<id>. The exact "/events" entry above
+  // does NOT cover these -- middleware matches by exact string, so without this
+  // branch every event detail page auth-gated logged-out visitors to /login.
+  // That is backwards: the page exists to recruit people who have no account.
+  if (pathname.startsWith("/events/")) {
+    return NextResponse.next();
+  }
+
   // Cookie-local session read — no network round-trip. This is a coarse gate
   // (redirect logged-out navigations); pages and API routes still verify
   // identity with getUser(), which revalidates the JWT against Auth.

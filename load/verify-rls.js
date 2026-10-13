@@ -57,7 +57,47 @@ try {
 
   await owner`DROP TABLE public._rls_probe CASCADE`;
 
-  console.log("\n3. Safety rail");
+  console.log("\n3. Fail-closed tenant isolation (live probe)");
+  // Prove the property that matters: a tenant cannot read another tenant's rows,
+  // and an unset app.tenant_id denies rather than allows.
+  const probeTenant = await owner`
+    INSERT INTO tenants (slug, name) VALUES ('rls-verify-probe', 'RLS Verify Probe')
+    ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id`;
+  const probeId = probeTenant[0].id;
+  const realTenant = (await owner`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`)[0]?.id;
+  try {
+    if (!realTenant) {
+      console.log("  SKIP  no demo-college tenant to compare against");
+    } else {
+      await owner`
+        INSERT INTO profiles (user_id, name, role, tenant_id)
+        VALUES ('rls-verify-user', 'Probe Student', 'student', ${probeId})
+        ON CONFLICT (user_id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id`;
+
+      const unset = await app`SELECT count(*)::int AS n FROM profiles`;
+      ok(unset[0].n === 0, `unset app.tenant_id denies (read ${unset[0].n} rows, expected 0)`);
+
+      const crossTenant = await app.begin(async (tx) => {
+        await tx`SELECT set_config('app.tenant_id', ${realTenant}, true)`;
+        return tx`SELECT count(*)::int AS n FROM profiles WHERE user_id = 'rls-verify-user'`;
+      });
+      ok(crossTenant[0].n === 0, `tenant A cannot read tenant B's row (read ${crossTenant[0].n}, expected 0)`);
+
+      const ownerSees = await owner`SELECT count(*)::int AS n FROM profiles WHERE user_id = 'rls-verify-user'`;
+      ok(ownerSees[0].n === 1, `owner connection still sees it (${ownerSees[0].n} row) — confirms the row exists`);
+
+      const ownScope = await app.begin(async (tx) => {
+        await tx`SELECT set_config('app.tenant_id', ${realTenant}, true)`;
+        return tx`SELECT count(*)::int AS n FROM profiles`;
+      });
+      ok(ownScope[0].n > 0, `tenant A reads its own profiles (${ownScope[0].n} rows)`);
+    }
+  } finally {
+    await owner`DELETE FROM profiles WHERE user_id = 'rls-verify-user'`;
+    await owner`DELETE FROM tenants WHERE id = ${probeId}`;
+  }
+
+  console.log("\n4. Safety rail");
   const rail = await owner`
     SELECT t.slug, f.enabled
     FROM feature_flags f JOIN tenants t ON t.id = f.tenant_id
@@ -74,7 +114,7 @@ try {
     }
   }
 
-  console.log("\n4. Coverage");
+  console.log("\n5. Coverage");
   const cov = await owner`
     SELECT
       (SELECT count(*)::int FROM information_schema.columns
