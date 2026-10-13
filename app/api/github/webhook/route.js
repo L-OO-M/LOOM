@@ -76,11 +76,17 @@ export async function POST(request) {
   // the webhook secret, and it promotes a claim to `verified` and grants badges
   // -- so it must leave a trace. Before this, /admin/audit showed nothing at all
   // for webhook activity, which made a bad or forged merge indistinguishable
-  // from no merge. Best-effort: never break acknowledgement.
+  // from no merge.
+  //
+  // actor_id is NOT NULL: attribute the row to the GitHub login that caused it,
+  // falling back to a literal marker rather than inventing a user. If this ever
+  // fails we log it instead of swallowing it -- a silent audit insert is exactly
+  // the hole this change exists to close.
   try {
     await sql`
-      INSERT INTO audit_logs (tenant_id, action, resource, resource_id, metadata)
+      INSERT INTO audit_logs (actor_id, tenant_id, action, resource, resource_id, metadata)
       VALUES (
+        ${normalized.actorLogin || "github-webhook"},
         ${tenant.id},
         ${verified ? "github_oss_auto_verified" : "github_event_received"},
         "github_event",
@@ -95,7 +101,9 @@ export async function POST(request) {
         })}
       )
     `;
-  } catch { /* audit must never break the request */ }
+  } catch (e) {
+    console.error("[github/webhook] audit insert failed", e?.message || e);
+  }
 
   return ok({
     accepted: true,
