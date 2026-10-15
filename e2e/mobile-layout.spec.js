@@ -29,6 +29,9 @@ const ROUTES = [
   "/events",
   "/domains",
   "/faq",
+  "/privacy",
+  "/terms",
+  "/contact",
   "/login",
   "/register"
 ];

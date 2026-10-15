@@ -507,8 +507,8 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
               <FooterGroup title="Product" links={[["Roadmaps", "/student/roadmap"], ["Projects", "/student/projects"], ["Mentorship", "/student/mentorship"]]} />
               <FooterGroup title="Resources" links={[["Learning paths", "/student/resources"], ["Contests", "/student/contests"], ["Open source", "/student/opensource"]]} />
-              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
-              <FooterGroup title="Legal" links={[["Privacy", "/student/privacy"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
+              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"], ["Domains", "/domains"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
+              <FooterGroup title="Legal" links={[["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
             </div>
           </div>
           <p className="mt-14 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.4)" }} aria-hidden="true">

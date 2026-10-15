@@ -58,6 +58,35 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
     await expect(page.locator("h1")).toContainText("Choose your domain.");
   });
 
+  test("legal pages load with headings", async ({ page }) => {
+    for (const [path, heading] of [
+      ["/privacy", "Privacy notice."],
+      ["/terms", "Terms of use."],
+      ["/contact", "Contact the chapter."]
+    ]) {
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("h1")).toContainText(heading);
+    }
+  });
+
+  test("legal footer links point to public policies", async ({ page }) => {
+    await page.goto("/about");
+    for (const [label, url] of [["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"]]) {
+      const link = page.getByRole("link", { name: label, exact: true }).filter({ visible: true }).first();
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", url);
+    }
+  });
+
+  test("registration discloses privacy and terms before signup", async ({ page }) => {
+    await page.goto("/register");
+    const consent = page.getByText("I have read the");
+    await expect(consent).toBeVisible();
+    await expect(page.getByRole("link", { name: "Privacy notice", exact: true })).toHaveAttribute("href", "/privacy");
+    await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");
+  });
+
   test("unknown routes redirect logged-out visitors to login, never a blank screen", async ({ page }) => {
     await page.goto("/this-thread-was-never-woven");
     // Logged-out: the auth gate redirects (signed-in users get the 404 page).
@@ -103,7 +132,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     const res = await request.get("/sitemap.xml");
     expect(res.ok()).toBeTruthy();
     const xml = await res.text();
-    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       expect(xml).toContain(path);
     }
   });
@@ -118,7 +147,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   });
 
   test("public pages carry canonical + description + single h1", async ({ page }) => {
-    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       await page.goto(path);
       expect(await page.locator("h1").count()).toBe(1);
       const canonical = page.locator('link[rel="canonical"]');

@@ -20,6 +20,9 @@ export function PublicFooter() {
           <Link prefetch={false} href="/events" className="tap-target transition hover:opacity-100 hover:underline">Events</Link>
           <Link prefetch={false} href="/faq" className="tap-target transition hover:opacity-100 hover:underline">FAQ</Link>
           <Link prefetch={false} href="/domains" className="tap-target transition hover:opacity-100 hover:underline">Domains</Link>
+          <Link prefetch={false} href="/privacy" className="tap-target transition hover:opacity-100 hover:underline">Privacy</Link>
+          <Link prefetch={false} href="/terms" className="tap-target transition hover:opacity-100 hover:underline">Terms</Link>
+          <Link prefetch={false} href="/contact" className="tap-target transition hover:opacity-100 hover:underline">Contact</Link>
           <Link prefetch={false} href="/login" className="tap-target transition hover:opacity-100 hover:underline">Sign in</Link>
         </div>
         <p className="mt-8 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.4)" }} aria-hidden="true">

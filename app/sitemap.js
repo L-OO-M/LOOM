@@ -88,7 +88,10 @@ export default async function sitemap() {
     { path: "/about", priority: 0.8, changeFrequency: "monthly" },
     { path: "/events", priority: 0.9, changeFrequency: "daily" },
     { path: "/domains", priority: 0.8, changeFrequency: "weekly" },
-    { path: "/faq", priority: 0.7, changeFrequency: "monthly" }
+    { path: "/faq", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/privacy", priority: 0.4, changeFrequency: "yearly" },
+    { path: "/terms", priority: 0.4, changeFrequency: "yearly" },
+    { path: "/contact", priority: 0.4, changeFrequency: "yearly" }
   ];
   const entries = pages.map((p) => ({
     url: absoluteUrl(p.path),

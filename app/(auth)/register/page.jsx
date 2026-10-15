@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("");
   const [domains, setDomains] = useState([]);
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -34,6 +35,10 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (!accepted) {
+      setError("Please read and accept the Privacy notice and Terms before creating an account.");
+      return;
+    }
     setLoading(true);
 
     const yearNum = year === "" ? null : Number(year);
@@ -42,7 +47,8 @@ export default function RegisterPage() {
       roll_number: rollNumber || null,
       branch: branch || null,
       year: Number.isInteger(yearNum) && yearNum >= 1 && yearNum <= 6 ? yearNum : null,
-      domains
+      domains,
+      terms_accepted_at: new Date().toISOString()
     });
     if (signUpError) {
       setError(signUpError.message);
@@ -144,6 +150,38 @@ export default function RegisterPage() {
                   ))}
                 </div>
               </fieldset>
+              <label className="flex min-h-[44px] cursor-pointer items-start gap-3 text-sm leading-6 text-[var(--text-muted)]">
+                {/* The visible box stays 20px, but the input itself spans the full
+                    44px tap target. An opacity-0 input keeps native checkbox
+                    semantics, keyboard focus, and screen-reader behavior. */}
+                <span className="relative inline-flex size-11 shrink-0 items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(e) => setAccepted(e.target.checked)}
+                    className="peer absolute inset-0 size-11 cursor-pointer opacity-0"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="grid size-5 place-items-center rounded-md border transition peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--accent)]"
+                    style={
+                      accepted
+                        ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
+                        : { borderColor: "var(--line)", background: "transparent", color: "transparent" }
+                    }
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M2 6.5 4.8 9 10 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </span>
+                <span>
+                  I have read the{" "}
+                  <Link href="/privacy" className="font-medium text-[var(--accent)] hover:underline">Privacy notice</Link>{" "}
+                  and{" "}
+                  <Link href="/terms" className="font-medium text-[var(--accent)] hover:underline">Terms</Link>.
+                </span>
+              </label>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
