@@ -9,6 +9,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { initials, domainLabel } from "@/lib/builderCard";
+import { JsonLd, breadcrumbSchema, profilePageSchema } from "@/components/seo/JsonLd";
 import ShareButtons from "./ShareButtons";
 
 export const revalidate = 300;
@@ -123,10 +124,12 @@ function CardBody({ card, profile, displayName, url, rep, followers, skills, ach
           <h2 id="building-heading" className="meta">Building</h2>
           <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
             Latest:{" "}
-            <Link href={`/student/projects/${latestProject[0].id}`} prefetch={false}
-              className="font-semibold hover:underline" style={{ color: "var(--text)" }}>
+            {/* This CardBody renders for signed-out and non-owner viewers, so the
+                latest project is named but not linked. The project detail route is
+                authenticated; linking it here sent crawlers and visitors to login. */}
+            <span className="font-semibold" style={{ color: "var(--text)" }}>
               {latestProject[0].title}
-            </Link>
+            </span>
           </p>
         </section>
       )}
@@ -214,14 +217,33 @@ export default async function PublicProfilePage({ params }) {
     rep.wikiPages > 0 ? `${rep.wikiPages} wiki` : null,
     rep.eventsAttended > 0 ? `${rep.eventsAttended} events` : null
   ].filter(Boolean);
+  const skillNames = skills.map((s) => s.skill).filter(Boolean);
+  const cardImage = absoluteUrl(`/u/${clean}/opengraph-image`);
 
   const body = (
-    <CardBody
+    <>
+      <JsonLd
+        data={profilePageSchema({
+          username: clean,
+          name: displayName,
+          description: card.bio || null,
+          imageUrl: cardImage,
+          skills: skillNames
+        })}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: displayName, url }
+        ])}
+      />
+      <CardBody
       card={card} profile={profile} displayName={displayName} url={url}
       rep={rep} followers={followers} skills={skills} achievements={achievements}
       proofCounts={proofCounts} latestProject={latestProject} isGuide={!!isGuide}
       isOwn={false}
-    />
+      />
+    </>
   );
 
   // The member viewing their own card keeps the app chrome so they can move
@@ -271,7 +293,7 @@ export default async function PublicProfilePage({ params }) {
         )}
       </header>
 
-      <main>{body}</main>
+      <div>{body}</div>
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="flex flex-wrap gap-3 border-t pt-6" style={{ borderColor: "var(--line)" }}>

@@ -137,6 +137,16 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     }
   });
 
+  test("llms.txt exposes the public crawl contract", async ({ request }) => {
+    const res = await request.get("/llms.txt");
+    expect(res.ok()).toBeTruthy();
+    expect(res.headers()["content-type"]).toContain("text/plain");
+    const txt = await res.text();
+    for (const path of ["/about", "/api/public/events", "/sitemap.xml", "/privacy", "/terms", "/contact"]) {
+      expect(txt).toContain(path);
+    }
+  });
+
   test("robots allows public pages, blocks app + api", async ({ request }) => {
     const res = await request.get("/robots.txt");
     expect(res.ok()).toBeTruthy();
@@ -149,7 +159,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   test("public pages carry canonical + description + single h1", async ({ page }) => {
     for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       await page.goto(path);
-      expect(await page.locator("h1").count()).toBe(1);
+      await expect(page.locator("h1")).toHaveCount(1);
       const canonical = page.locator('link[rel="canonical"]');
       expect(await canonical.count()).toBe(1);
       expect(await canonical.getAttribute("href")).toContain(path);
@@ -174,12 +184,19 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     }
     const first = events[0];
     await page.goto(`/events/${first.id}`);
-    expect(await page.locator("h1").count()).toBe(1);
+    // toHaveCount() polls: a bare count() can run mid-stream while the route's
+    // loading skeleton ("One moment." h1) is still mounted, flaking to 2.
+    await expect(page.locator("h1")).toHaveCount(1);
     const canonical = page.locator('link[rel="canonical"]');
     expect(await canonical.count()).toBe(1);
     expect(await canonical.getAttribute("href")).toContain(`/events/${first.id}`);
     const desc = page.locator('meta[name="description"]');
     expect(await desc.count()).toBe(1);
+    const ld = page.locator('script[type="application/ld+json"]');
+    await expect(ld.first()).toBeAttached();
+    const structured = (await ld.allTextContents()).join("\n");
+    expect(structured).toContain("Event");
+    expect(structured).toContain("BreadcrumbList");
     // The registration process must be explained on the page itself.
     await expect(page.getByText("The registration process")).toBeVisible();
     // The detail page's situation-aware join CTA (one of these three states).
@@ -193,6 +210,13 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     const robots = page.locator('meta[name="robots"]');
     expect(await robots.count()).toBe(1);
     expect(await robots.getAttribute("content")).toContain("noindex");
+  });
+
+  test("about ships AboutPage structured data", async ({ page }) => {
+    await page.goto("/about");
+    const ld = page.locator('script[type="application/ld+json"]');
+    await expect(ld.first()).toBeAttached();
+    expect(await ld.first().textContent()).toContain("AboutPage");
   });
 
   test("faq ships FAQPage structured data", async ({ page }) => {

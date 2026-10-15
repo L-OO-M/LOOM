@@ -5,6 +5,7 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, aboutPageSchema } from "@/components/seo/JsonLd";
 import { SITE_DESCRIPTION, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export default async function AboutPage() {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd data={aboutPageSchema()} />
       <PublicNav />
       <div className="pt-16">
         <PageHero

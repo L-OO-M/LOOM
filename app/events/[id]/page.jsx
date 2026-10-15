@@ -8,7 +8,7 @@ import { PublicNav } from "@/components/landing/PublicNav";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
 import { JoinSteps, TypePill, seatsLeft, whenLabel } from "../_components/EventBits";
-import { JsonLd, organizationSchema } from "@/components/seo/JsonLd";
+import { JsonLd, breadcrumbSchema, organizationSchema } from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
 
@@ -147,6 +147,13 @@ export default async function EventDetailPage({ params }) {
               }
             : {})
         }}
+      />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: "Events", url: absoluteUrl("/events") },
+          { name: event.title, url: absoluteUrl(`/events/${event.id}`) }
+        ])}
       />
       <PublicNav />
 

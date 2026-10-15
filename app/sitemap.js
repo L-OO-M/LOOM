@@ -5,7 +5,7 @@ export const revalidate = 3600;
 
 // Real last-edit time for the hand-written pages. Emitting `new Date()` on
 // every regeneration told crawlers static copy changed daily; it never does.
-const STATIC_PAGES_MODIFIED = new Date("2026-10-13T00:00:00Z");
+const STATIC_PAGES_MODIFIED = new Date("2026-10-15T00:00:00Z");
 
 async function activeDepartmentSlugs() {
   try {
@@ -46,7 +46,7 @@ async function publicCredentialIds(tenantId) {
   try {
     const sql = getSql();
     const rows = await sql`
-      SELECT id FROM verifiable_credentials
+      SELECT id, issued_at FROM verifiable_credentials
       WHERE (tenant_id = ${tenantId}::uuid OR ${tenantId}::uuid IS NULL)
       ORDER BY issued_at DESC LIMIT 500`;
     return rows;
@@ -128,7 +128,7 @@ export default async function sitemap() {
   for (const c of await publicCredentialIds(tenantId)) {
     entries.push({
       url: absoluteUrl(`/verify/credential/${c.id}`),
-      lastModified: now,
+      lastModified: c.issued_at || now,
       changeFrequency: "monthly",
       priority: 0.4
     });

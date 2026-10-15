@@ -4,8 +4,9 @@ import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { BrandMark } from "@/components/BrandMark";
+import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { JoinButtonClient } from "./_components/JoinButtonClient";
-import { canonicalFor } from "@/lib/seo";
+import { absoluteUrl, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +150,13 @@ export default async function DomainPage({ params }) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6" style={{ background: "var(--bg)", minHeight: "100dvh" }}>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: "Domains", url: absoluteUrl("/domains") },
+          { name: dept.name, url: absoluteUrl(`/domains/${slug}`) }
+        ])}
+      />
       <BrandMark size={28} />
       <p className="kicker mt-8">{dept.vertical === "non_technical" ? "Non-technical" : "Technical"} department · {dept.members} member{dept.members === 1 ? "" : "s"}</p>
       <h1 className="font-display mt-2 text-4xl font-medium sm:text-5xl" style={{ color: "var(--text)" }}>

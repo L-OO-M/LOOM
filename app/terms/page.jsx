@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,13 @@ const PLACEHOLDERS = {
 export default function TermsPage() {
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd
+        data={webPageSchema({
+          name: "Terms",
+          path: "/terms",
+          description: "Account rules, acceptable use, submitted work, moderation, credentials, and service changes."
+        })}
+      />
       <PublicNav />
       <div className="pt-16">
         <PageHero

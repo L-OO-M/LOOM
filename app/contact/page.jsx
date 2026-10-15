@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,13 @@ const PLACEHOLDERS = {
 export default function ContactPage() {
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd
+        data={webPageSchema({
+          name: "Contact",
+          path: "/contact",
+          description: "Contact the responsible L.O.O.M. chapter about accounts, privacy, credentials, or safety."
+        })}
+      />
       <PublicNav />
       <div className="pt-16">
         <PageHero

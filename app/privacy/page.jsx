@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,14 @@ const PLACEHOLDERS = {
 export default function PrivacyPage() {
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd
+        data={webPageSchema({
+          name: "Privacy",
+          path: "/privacy",
+          description:
+            "What L.O.O.M. collects, why it is collected, who can see it, and how to request deletion."
+        })}
+      />
       <PublicNav />
       <div className="pt-16">
         <PageHero
