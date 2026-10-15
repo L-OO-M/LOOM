@@ -45,7 +45,7 @@ function LoginForm() {
     router.refresh();
   }
 
-  const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
+  const input = "mt-1 block min-h-[44px] w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -92,7 +92,7 @@ export default function LoginPage() {
   return (
     <main id="main" className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
       <div className="ambient-wash" aria-hidden="true" />
-      <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[9rem]" aria-hidden="true">LOOM</span>
+      <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[4.5rem] sm:text-[6rem] lg:text-[9rem]" aria-hidden="true">LOOM</span>
       <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
         <BrandMark size={34} />
         <div className="rule-gold mt-5 w-16" />

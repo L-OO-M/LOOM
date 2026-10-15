@@ -226,6 +226,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-size: 0.875rem;
   font-weight: 600;
   padding: 0.65rem 1.25rem;
+  /* 0.65rem padding + 0.875rem text rendered these at 42px -- 2px under the
+     44px minimum comfortable touch target. min-height survives the per-call-site
+     `!py-*` overrides, so it holds even where padding is overridden. */
+  min-height: 44px;
   transition: opacity 0.18s var(--ease-out), transform 0.18s var(--ease-out);
 }
 
@@ -244,11 +248,25 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-size: 0.875rem;
   font-weight: 600;
   padding: 0.65rem 1.25rem;
+  min-height: 44px;
   transition: background 0.18s var(--ease-out), transform 0.18s var(--ease-out);
 }
 
 .btn-ghost:hover { background: var(--bg-muted); }
 .btn-ghost:active { transform: scale(0.97); }
+
+/* Minimum comfortable touch target (WCAG 2.5.5 / platform HIG).
+   Applied to text links that previously had no vertical padding and rendered
+   at 20px tall -- the primary footer navigation was a row of sub-44px targets
+   on the most touch-driven screen. Width floor covers short labels like "FAQ". */
+.tap-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding-inline: 0.25rem;
+}
 
 .kicker {
   font-size: 0.72rem;
@@ -789,6 +807,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   position: absolute;
   width: 340px;
   height: 340px;
+  /* Fixed 340px overflowed a 320px viewport. It is centred with
+     translate(-50%, -50%), so capping at the parent's width keeps it centred
+     and fully inside the screen instead of bleeding off both edges. */
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 9999px;
   pointer-events: none;
   background: radial-gradient(circle, rgba(232, 194, 106, 0.14), transparent 65%);

@@ -89,22 +89,26 @@ export default async function EventsPage({ searchParams }) {
 
       <section className="mx-auto max-w-6xl px-5 py-14 sm:px-6 lg:px-8" aria-label="Filters">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/events" prefetch={false} className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+          <Link href="/events" prefetch={false} className="inline-flex min-h-[44px] items-center rounded-full border px-3.5 py-2 text-xs font-semibold"
             style={{ borderColor: params?.type || params?.domain ? "var(--line)" : "var(--accent)", background: params?.type || params?.domain ? "transparent" : "var(--accent)", color: params?.type || params?.domain ? "var(--text-muted)" : "var(--bg)" }}>
             Everything
           </Link>
           {["workshop", "hackathon", "talk", "mentoring", "contest"].map((t) => (
             <Link key={t} href={`/events?type=${t}`} prefetch={false}
-              className="rounded-full border px-3 py-1.5 text-xs font-semibold capitalize"
+              className="inline-flex min-h-[44px] items-center rounded-full border px-3.5 py-2 text-xs font-semibold capitalize"
               style={{ borderColor: params?.type === t ? "var(--accent)" : "var(--line)", background: params?.type === t ? "var(--accent)" : "transparent", color: params?.type === t ? "var(--bg)" : "var(--text-muted)" }}>
               {t}
             </Link>
           ))}
+          {/* collectDomains() returns plain strings (lib/events.js, asserted in
+              tests/events.test.js). This mapped d.value/d.label, which are
+              undefined on a string -- so every chip rendered blank and linked
+              to /events?domain=undefined, and the active filter never matched. */}
           {domains.slice(0, 6).map((d) => (
-            <Link key={d.value} href={`/events?domain=${encodeURIComponent(d.value)}`} prefetch={false}
-              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
-              style={{ borderColor: params?.domain === d.value ? "var(--accent)" : "var(--line)", background: params?.domain === d.value ? "var(--accent)" : "transparent", color: params?.domain === d.value ? "var(--bg)" : "var(--text-muted)" }}>
-              {d.label}
+            <Link key={d} href={`/events?domain=${encodeURIComponent(d)}`} prefetch={false}
+              className="inline-flex min-h-[44px] items-center rounded-full border px-3.5 py-2 text-xs font-semibold"
+              style={{ borderColor: params?.domain === d ? "var(--accent)" : "var(--line)", background: params?.domain === d ? "var(--accent)" : "transparent", color: params?.domain === d ? "var(--bg)" : "var(--text-muted)" }}>
+              {d.replace(/_/g, " ")}
             </Link>
           ))}
         </div>

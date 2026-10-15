@@ -169,7 +169,11 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   test("faq ships FAQPage structured data", async ({ page }) => {
     await page.goto("/faq");
     const ld = page.locator('script[type="application/ld+json"]');
-    expect(await ld.count()).toBeGreaterThan(0);
+    // toBeAttached() polls for the node without requiring visibility -- the
+    // right assertion for a <script>, which is never "visible".
+    // It must then be read with textContent(): toContainText() resolves to ""
+    // for <script> because that assertion reads rendered text.
+    await expect(ld.first()).toBeAttached();
     expect(await ld.first().textContent()).toContain("FAQPage");
   });
 });

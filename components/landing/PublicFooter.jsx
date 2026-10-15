@@ -15,12 +15,12 @@ export function PublicFooter() {
             Back home
           </Link>
         </div>
-        <div className="mt-12 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm" style={{ color: "rgba(242,243,241,0.6)" }}>
-          <Link prefetch={false} href="/about" className="transition hover:opacity-100 hover:underline">About</Link>
-          <Link prefetch={false} href="/events" className="transition hover:opacity-100 hover:underline">Events</Link>
-          <Link prefetch={false} href="/faq" className="transition hover:opacity-100 hover:underline">FAQ</Link>
-          <Link prefetch={false} href="/domains" className="transition hover:opacity-100 hover:underline">Domains</Link>
-          <Link prefetch={false} href="/login" className="transition hover:opacity-100 hover:underline">Sign in</Link>
+        <div className="mt-12 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm sm:gap-x-8 sm:gap-y-3" style={{ color: "rgba(242,243,241,0.6)" }}>
+          <Link prefetch={false} href="/about" className="tap-target transition hover:opacity-100 hover:underline">About</Link>
+          <Link prefetch={false} href="/events" className="tap-target transition hover:opacity-100 hover:underline">Events</Link>
+          <Link prefetch={false} href="/faq" className="tap-target transition hover:opacity-100 hover:underline">FAQ</Link>
+          <Link prefetch={false} href="/domains" className="tap-target transition hover:opacity-100 hover:underline">Domains</Link>
+          <Link prefetch={false} href="/login" className="tap-target transition hover:opacity-100 hover:underline">Sign in</Link>
         </div>
         <p className="mt-8 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.4)" }} aria-hidden="true">
           ─── the thread continues ───

@@ -7,7 +7,7 @@ import { signUp } from "@/lib/auth-client";
 import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
 import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 
-const input = "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
+const input = "mt-1 block min-h-[44px] w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
 
 // Derived from the single source of truth instead of a second hardcoded copy.
 // This list had drifted: it was missing `embedded`, so a student on the biggest
@@ -63,7 +63,7 @@ export default function RegisterPage() {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
       <div className="ambient-wash" aria-hidden="true" />
-      <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[9rem]" aria-hidden="true">LOOM</span>
+      <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[4.5rem] sm:text-[6rem] lg:text-[9rem]" aria-hidden="true">LOOM</span>
       <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
         <BrandMark size={34} />
         <div className="rule-gold mt-5 w-16" />
@@ -134,7 +134,7 @@ export default function RegisterPage() {
                       type="button"
                       onClick={() => toggleDomain(slug)}
                       aria-pressed={domains.includes(slug)}
-                      className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                      className="inline-flex min-h-[44px] items-center rounded-full border px-3.5 py-2 text-xs font-semibold transition"
                       style={domains.includes(slug)
                         ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
                         : { borderColor: "var(--line)", color: "var(--text-muted)" }}

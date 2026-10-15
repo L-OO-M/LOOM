@@ -46,7 +46,10 @@ export function LevelGuide({ compact = false }) {
       <ol className="mt-5 space-y-3">
         {LEVELS.map((l, i) => (
           <li key={l.name} className="rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <div className="flex items-baseline gap-3">
+            {/* flex-wrap so the right-aligned tag drops to its own line instead
+                of forcing the row past the viewport at 320px. `shrink-0` on the
+                tag plus a non-shrinking h3 made this row overflow. */}
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="font-mono text-xs font-bold" style={{ color: "var(--accent)" }} aria-hidden="true">
                 {String(i + 1).padStart(2, "0")}
               </span>
