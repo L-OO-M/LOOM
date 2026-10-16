@@ -29,9 +29,13 @@ export async function POST(request) {
   if (!node) return fail("ROADMAP_NODE_NOT_FOUND", "Roadmap node was not found", 404);
 
   const completedAt = body.status === "completed" ? new Date().toISOString() : null;
+  // tenant_id is set explicitly because this table is a strict-RLS table
+  // (migration 031): WITH CHECK requires tenant_id = app.tenant_id, and an
+  // omitted column is NULL, which fails the check with a 500. Passing the GUC
+  // alone is not enough -- the value must be in the row.
   const [row] = await sql`
-    INSERT INTO student_roadmap_progress (student_id, node_id, status, completed_at)
-    VALUES (${user.id}, ${body.nodeId}, ${body.status}, ${completedAt})
+    INSERT INTO student_roadmap_progress (student_id, node_id, status, completed_at, tenant_id)
+    VALUES (${user.id}, ${body.nodeId}, ${body.status}, ${completedAt}, ${tenant?.id ?? null}::uuid)
     ON CONFLICT (student_id, node_id) DO UPDATE SET status = EXCLUDED.status, completed_at = EXCLUDED.completed_at, updated_at = NOW()
     RETURNING *
   `;

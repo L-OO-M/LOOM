@@ -42,9 +42,13 @@ export async function POST(request) {
   }
   const [resource] = await sql`SELECT id, title FROM resources WHERE id = ${body.resourceId} LIMIT 1`;
   if (!resource) return fail("NOT_FOUND", "Resource not found", 404);
+  // tenant_id is explicit: resource_progress is a strict-RLS table (migration
+  // 031) whose WITH CHECK requires tenant_id = app.tenant_id. Omitting it left
+  // the column NULL and every resource completion would fail once enforcement
+  // is switched on.
   const [row] = await sql`
-    INSERT INTO resource_progress (student_id, resource_id, status, completed_at)
-    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW())
+    INSERT INTO resource_progress (student_id, resource_id, status, completed_at, tenant_id)
+    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW(), ${tenant?.id ?? null}::uuid)
     ON CONFLICT (student_id, resource_id) DO UPDATE SET status = 'completed', completed_at = NOW(), updated_at = NOW()
     RETURNING *
   `;
