@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 How LOOM fits together: request path, roles, data, pages, workflows, and how to contribute. Ground truth is the code and the live schema (`C:\Users\asus\AppData\Local\Temp\opencode\schema.txt`, 62 tables); companion references are `docs/13-api-reference.md` (endpoints) and `docs/14-database-reference.md` (tables by migration).
 
@@ -10,7 +10,7 @@ Next.js 15 (React 19) monolith â€” there is no custom backend. Route handle
 - **Data**: `postgres` package via `lib/db.js` â€” `postgres(env.DATABASE_URL, { max: 10, idle_timeout: 10, prepare: false })`. `prepare: false` is mandatory: the pooler runs in transaction mode, where named prepared statements vanish between checkouts. Drizzle (`db/tenant-schema.js`, `db/control-plane-schema.js`) is a type/query mirror; most handlers use raw `sql` template literals.
 - **Tenancy**: single-DB row-level tenancy. `profiles.tenant_id â†’ tenants.id` is the root; every tenant query filters on it. Hostâ†’tenant resolution lives in `lib/tenant.js` (`getTenantFromRequest`, 60s memoized `queryTenant` in `lib/db.js`).
 - **Async work**: the GitHub webhook aggregates inline into `student_daily_activity` on delivery (no queue, no cron); `load/rollup-analytics.js` / `load/rollup-federation.js` compile nightly snapshots. Rate limits are in-memory per instance (see `docs/13-api-reference.md`).
-- **Config surface**: `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DATABASE_URL`, `DEV_TENANT_SLUG`, `GITHUB_WEBHOOK_SECRET`, QStash/Upstash, R2, Sentry). See `.env.example`.
+- **Config surface**: `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DATABASE_APP_URL`, `NEXT_PUBLIC_APP_URL`, `DEV_TENANT_SLUG`, `DEFAULT_TENANT_SLUG`, `DEV_TENANT_DOMAIN`, `GITHUB_WEBHOOK_SECRET`, `CREDENTIAL_SECRET`, QStash/Upstash, R2, Sentry). See `.env.example` and `docs/15-deploy-and-operations.md`.
 
 ## 2. Request lifecycle
 
@@ -18,7 +18,7 @@ Next.js 15 (React 19) monolith â€” there is no custom backend. Route handle
 middleware.js â†’ getRequestContext() â†’ can() â†’ handler â†’ writeAudit()
 ```
 
-1. **middleware.js** â€” cookie-local `getSession()` only (no network round-trip; previously `getUser()` here cost a round-trip per navigation). Exact-match public allowlist (`/`, `/about`, `/faq`, `/events`, `/login`, `/register`, `/setup`, `/auth/callback`, `/api/health`, `/api/chapters`, `/api/public/*`, `/api/admin/check-setup`, `/api/admin/claim-first`, `/api/github/webhook`) plus prefix rules for `/verify/*` and `/domains/*`. Everything else: APIs get machine-readable `401 UNAUTHORIZED`, pages redirect to `/login?redirect=â€¦`. Static assets and `_next/*` are never gated.
+1. **middleware.js** â€” `getUser()` revalidates the JWT with Auth and refreshes the token when near expiry; refreshed cookies are written onto the response so the session survives the browser closing. (It used to call `getSession()`, a cookie-local read with no refresh, which is why signing in did not persist across a tab close.). Exact-match public allowlist (`/`, `/about`, `/faq`, `/events`, `/login`, `/register`, `/setup`, `/auth/callback`, `/api/health`, `/api/chapters`, `/api/public/*`, `/api/admin/check-setup`, `/api/admin/claim-first`, `/api/github/webhook`) plus prefix rules for `/verify/*` and `/domains/*`. Everything else: APIs get machine-readable `401 UNAUTHORIZED`, pages redirect to `/login?redirect=â€¦`. Static assets and `_next/*` are never gated.
 2. **getRequestContext** (`lib/auth-server.js`) â€” the single source of truth for authN/authZ. `getUser()` revalidates the JWT; loads `profiles` by `user_id` (auto-creates a `student` row on first login from signup metadata, plus instant `general` department memberships â€” best-effort, never breaks login); resolves/backfills `tenants`; attaches `department_memberships` to the profile (shape matches `lib/permissions.js`); maps `platform_admins` rows to effective role `admin`. `adminOnly: true` returns `FORBIDDEN` for non-admins. **Tenant is always derived server-side from the profile â€” never trusted from the client.**
 3. **can()** (`lib/permissions.js`) â€” the 20-action matrix (Section 3 of the Website Plan) as a pure function: `can(user, action, scope) â†’ { ok, note }`. `note` carries the conditional cells: `needs_approval` (dept-lead society posts), `needs_signoff` (suspend), `recommend_only` (VL on budget), `suggest_only` (VL on FAQ), `view_only` (VL on advisor), `limited` (dept-lead directory = name+dept), `own_feed` (dept announcements), `own_only` (roster/exports). Admins and `platform_admin` bypass (`isAdmin`). Legacy `role === "admin"` boundaries keep working via `isAdmin`; new code uses `can()`.
 4. **Handler** â€” zod validation â†’ tenant-scoped SQL â†’ response envelope `{ ok: true, data }` / `{ ok: false, error: { code, message } }` (`lib/api.js`).
@@ -172,7 +172,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 1. **Signup â†’ member.** Register (metadata: name, roll_number, branch, year, department slugs) â†’ Supabase user â†’ first `getRequestContext` creates `profiles(student)` + `general` memberships â†’ lands on `/student/onboarding` â†’ roadmap. No approval anywhere.
 2. **Core request â†’ grant.** Member `POST â€¦/[id]/request-core` (creates `general` membership with `core_requested=true` if none) â†’ Head/Co-Head sees request in `/lead` roster â†’ `PATCH â€¦/members/[userId]` `{level: core}` â†’ profile role syncs upward to `core` â†’ `notifications` row + `audit_logs` entry.
 3. **Workshop propose â†’ approve.** Dept lead `POST /api/events` with `scope: department` + own `departmentId` â†’ live (`upcoming`, attached). Same lead with `scope: society` â†’ `proposed` â†’ VL/admin sees it in `/lead` proposed queue or `/admin/events` â†’ `POST /api/events/[id]/approve` `{approve}` â†’ `upcoming` (or `cancelled`) + author notified.
-4. **OSS claim â†’ webhook verify.** Student links GitHub (`/api/github`) â†’ claims PR URL in a tracked repo (`claimed`, 20/min) â†’ webhook delivery (HMAC-checked, 120/min/tenant) stored idempotently in `github_events` â†’ merged-PR in tracked repo auto-verifies the claim + awards `oss_badges`/achievements + notifies â†’ queued aggregation via QStash worker. Admins can also verify/reject manually (same side effects, idempotent).
+4. **OSS claim â†’ webhook verify.** Student links GitHub (`/api/github`) â†’ claims PR URL in a tracked repo (`claimed`, 20/min) â†’ webhook delivery (HMAC-checked, 120/min/tenant) stored idempotently in `github_events` â†’ merged-PR in tracked repo auto-verifies the claim + awards `oss_badges`/achievements + notifies â†’ aggregation happens inline in the same webhook request. Admins can also verify/reject manually (same side effects, idempotent).
 5. **Monthly report â†’ export.** Dept lead opens `/lead` â†’ draft auto-compiles from live counts (contributions by kind, events held, new members, upcoming) â†’ `POST /api/reports` (one row per dept+month) â†’ edits â†’ `PATCH â€¦/[id]` `{status: submitted}` (terminal; only admin reopens) â†’ VL/admin reads at `/admin/reports` â†’ `GET /api/reports/export?scope=semester|annual` downloads JSON.
 6. **Expense propose â†’ approve.** Dept/VL/admin `POST /api/finance/expenses` (`proposed`, head + optional department) â†’ admin-only `PATCH` `{approved|rejected}` + `decided_by` â†’ society/VL-visible spend updates in `GET /api/finance`. VLs are `recommend_only` â€” they cannot decide.
 7. **Webhook ingestion + kill-switch.** GitHub `POST /api/github/webhook` (tenant from host header, HMAC `x-hub-signature-256`, ping acked without storage) â†’ if `github_integration` flag off for the tenant: ack `{accepted: false, reason: GITHUB_INGESTION_PAUSED}`, store nothing (opt-in since migration 020; toggled at `/admin/flags`) â†’ else store idempotently â†’ best-effort OSS auto-verify â†’ 200. Failures after signature check never fail the ack.
@@ -205,4 +205,31 @@ otify() where a human waits)./api/* returns machine 401 {ok:false}; pages redire
 - GitHub webhook verifies x-hub-signature-256, rejects unsigned/mismatched with 401, dedupes on GitHub delivery id, and honors the per-chapter pause gate (GITHUB_INGESTION_PAUSED) before storing anything.
 - Audit rows carry actor, tenant, action, resource type/id, before/after, request metadata, timestamp; append-only in app flows.
 - Secrets live only in env / .env.local (untracked). load/*.js scripts share load/env-local.js and refuse to run without DATABASE_URL; hardcoded connection strings were purged.
+- Tenant isolation is **layered**, and only one layer is guaranteed. The
+  application layer (`WHERE tenant_id = ...` in every query) is always on.
+  The database layer (Row Level Security on ~44 tables, migrations 025/030/031/033)
+  is opt-in via the `tenant_rls_enforced` flag **and** requires
+  `DATABASE_APP_URL` to point at the `loom_app` role. `postgres`/the owner
+  connection has `rolbypassrls = true`, which overrides `FORCE ROW LEVEL
+  SECURITY` -- so anything running on `DATABASE_URL` is invisible to RLS.
+  `GET /api/health` reports `isolation.effective` as the single source of
+  truth. Full procedure: `docs/rls-rollout-runbook.md`.
+- The RLS flag is **operator-only**. `PATCH /api/admin/flags` rejects
+  `tenant_rls_enforced` with `OPERATOR_ONLY` and `/admin/flags` renders it
+  read-only, because it is global (not chapter-scoped) and one misclick would
+  change production security posture.
+- The federation directory (`/student/network`, `/api/network`) deliberately
+  reads **across** tenants via `getFederationSql()` -- anonymised counts and
+  public chapter names only, never member identities.
+- Security headers (CSP, H-Frame, HSTS, Referrer, Permissions) are defined once
+  in `next.config.mjs` so they cover static assets and SEO files the
+  middleware matcher excludes.
+- `assertProductionSecrets()` rejects placeholder signing secrets by **value**
+  (`dev-secret`, `hello`, ...) as well as by presence, and additionally
+  requires `DATABASE_APP_URL` and `NEXT_PUBLIC_APP_URL` in production.
+- Raw error text is never rendered to the browser. `app/(app)/error.jsx` logs
+  to the console and shows a generic message, because Postgres errors leak the
+  pooler host, constraint names, and RLS denial wording.
+- Helper enrollment requires explicit opt-in. `lib/auth-server.js` no longer
+  lists every authenticated member as an available helper on every request.
 

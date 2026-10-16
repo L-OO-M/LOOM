@@ -1,4 +1,4 @@
-﻿# API Reference
+# API Reference
 
 Base: same origin. Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message } }`.
 Auth: Supabase session cookie. Pages redirect to `/login`; `/api/*` returns `401 UNAUTHORIZED`.
@@ -114,3 +114,56 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |
 | GET/POST/PATCH | `/api/admin/faq` | admin | FAQ manager backing store (create / edit incl. publish flag) |
 | GET/PATCH | `/api/admin/flags` | admin | feature-flag list / toggle (incl. `github_integration` ingestion kill-switch) |
+
+## Peer help (migration 028)
+
+Rate-limited, permission-checked via `help:request` (any authenticated member).
+Drives the `/student/help` page. Helper enrollment is opt-in: a member must
+explicitly set `available: true` via `PATCH /api/help/profile` before they
+can be nominated.
+
+| Method | Route | Rate limit | Notes |
+|--------|-------|-----------|-------|
+| POST | `/api/help/signals` | 10/min | Raise a struggle signal `{kind, ref_id}`. `kind` ∈ `roadmap_node\|resource\|contest\|topic`. Idempotent per `(tenant, user, kind, ref)` — repeat calls increment `failures_count`. Increments automatically after a repeated `active` roadmap-node POST |
+| GET | `/api/help/signals` | — | My signals, newest first |
+| POST | `/api/help/match` | 5/min | Nominate helpers for **my own** signal `{signal_id}` (or `{kind, ref_id}`). Notifies each match and flips the signal to `matched`. Returns `helpers: []` with a message when nobody is available — not an error |
+| PATCH | `/api/help/profile` | — | My helper profile `{available, topics?}`. This is the opt-in/opt-out switch |
+| GET | `/api/help/matches/[id]` | — | One match, tenant-scoped |
+| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party |
+
+Matching is deterministic and reads stored aggregates only
+(`lib/recommend.js`) — no AI calls on the request path. Candidates are drawn
+from `helper_profiles WHERE available` within the same tenant, excluding the
+requester.
+
+## Ideas / feature requests
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET/POST | `/api/feature-requests` | user | list (status filter) / create. Backs the `Ideas` tab on both student and admin sides |
+| PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status |
+| POST | `/api/feature-requests/[id]/comments` | user | comment on a request |
+
+## Health
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/health` | public | Real DB probe. `200` when reachable, `503` when not. Reports `checks.database`, `checks.configuration` (placeholder/missing secrets **by name only**), and `isolation.{flag,connection,effective}` — the authoritative answer to "is Row Level Security actually in force?". Exposes no tenant id, host, port, or error strings |
+
+## Admin boards (backing stores for the admin UI)
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/admin/audit` | admin | audit trail, filterable |
+| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager |
+| GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
+| GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
+| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager |
+| GET/POST/PATCH | `/api/admin/roadmaps` | admin | roadmap authoring (nodes + edges) |
+
+### `/api/admin/flags` is partially operator-only
+
+`PATCH` returns `403 OPERATOR_ONLY` for `tenant_rls_enforced`. That flag is
+global, not chapter-scoped, and flipping it changes production security posture,
+so it is changed deliberately in SQL after `npm run rls:verify` — not from the
+UI. See `docs/rls-rollout-runbook.md`.

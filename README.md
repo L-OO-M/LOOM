@@ -17,7 +17,7 @@ This repository contains:
 - Tracked SQL migrations in `load/migrations/` applied via `node load/migrate.js`
 - Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (20 actions, 6 levels)
 - Tenant resolution, API envelopes, raw-SQL data access (`lib/db.js`, pooler-safe), and HMAC-verified GitHub webhook processing (opt-in, paused by default)
-- Vitest (10 files, 46 cases) and Playwright (75 specs × chromium + mobile) coverage
+- Vitest (24 files, 172 cases) and Playwright (80 specs x chromium + mobile) coverage
 
 ## Prerequisites
 

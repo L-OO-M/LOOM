@@ -27,6 +27,38 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 019 | `019_operations.sql` | `volunteer_slots`, `volunteer_signups`, `dept_reports`, `handover_checklists`, `budget_heads`, `expenses`, `sponsorships` |
 | 020 | `020_github_pause.sql` | data only: `github_integration` flag off (opt-in ingestion) |
 | 021 | `021_head_retention_cleanup.sql` | idempotent repair: clears stale `profiles.vertical` + downgrades orphan `dept_lead` memberships to `core` |
+### Migrations 022-035 (RLS rollout, help engine, roadmap graph)
+
+| # | File | Effect |
+|---|------|--------|
+| 022 | `022_feature_flags_unique.sql` | unique `(tenant_id, key)` on `feature_flags` |
+| 023 | `023_roadmap_graph.sql` | `roadmap_edges`; `roadmap_nodes.kind/group_id/is_highlighted/is_optional/x/y` |
+| 024 | `024_feature_requests.sql` | `feature_requests`, `feature_request_comments` |
+| 025 | `025_rls_tenant_isolation.sql` | adds `tenant_id` to `student_roadmap_progress`, `resource_progress`, `student_daily_activity`, `audit_logs`; first `tenant_isolation_policy` (fail-OPEN — superseded by 031) |
+| 026 | `026_db_role_hardening.sql` | revokes all table grants from `PUBLIC`/`anon`/`authenticated`; revokes `CREATE` on schema `public` from them |
+| 027 | `027_ranking_evidence.sql` | `ranking_events`, `ranking_scores` + RLS |
+| 028 | `028_help_recommendations.sql` | `help_signals`, `helper_profiles`, `help_matches` + RLS (peer-help engine) |
+| 029 | `029_certificates_event_student_unique.sql` | unique `(event_id, student_id)` on `certificates` |
+| **030** | `030_app_role.sql` | **creates the `loom_app` role** (NOSUPERUSER/NOBYPASSRLS/not owner, `NOLOGIN`) and seeds the `tenant_rls_enforced` flag at `false` |
+| **031** | `031_rls_scope.sql` | **the live policy set** — fail-CLOSED `tenant_id::text = current_setting('app.tenant_id', true)` across ~44 tables. Deliberately exempt: `tenants`, `tenant_domains`, `feature_flags`, `platform_admins`, `schema_migrations` (read before any tenant is known) |
+| 032 | `032_repair_primary_domain.sql` | data repair |
+| **033** | `033_rls_self_read.sql` | `profiles` self-read branch (`user_id = current_setting('app.user_id', true)`) so step 1 of tenant resolution is not denied to everyone |
+| 034 | `034_audit_backfill_resweep.sql` | `audit_logs.tenant_id` backfill (data only) |
+| 035 | `035_github_handle_uniqueness.sql` | `profiles.github_username` uniqueness |
+
+**Read migrations 030/031/033 together with `docs/rls-rollout-runbook.md` before
+changing anything about roles or policies.** Three facts that are easy to get
+wrong:
+
+1. The **owner** connection (`DATABASE_URL`, role `postgres`) has
+   `rolbypassrls = true`, which overrides `FORCE ROW LEVEL SECURITY` entirely.
+   Queries running on it are **never** filtered by any policy.
+2. `tenant_isolation_policy` denies when `app.tenant_id` is unset. A scoped
+   statement must therefore run through `scopedSql()` (`lib/db.js`), which wraps
+   it in a transaction with `set_config(..., true)`.
+3. `feature_flags` has no RLS on purpose, so `tenant_rls_enforced` is readable
+   before a tenant is known — and so any chapter admin can read every chapter's
+   flags. It holds configuration, not member data.
 
 Tracked migrations are the single source of truth for schema — there is no ORM mirror. All server queries are parameterized `postgres` template strings via `getSql()` in `lib/db.js` (`{max:10,idle_timeout:10,prepare:false}` for the PgBouncer pooler); tenant config is memoized 60s in `queryTenant()`.
 
