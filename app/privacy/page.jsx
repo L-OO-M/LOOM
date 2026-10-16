@@ -5,7 +5,13 @@ import { PublicFooter } from "@/components/landing/PublicFooter";
 import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Pure static legal/contact copy: no database, no tenant, no request input.
+// Safe to serve from the CDN cache. The tenant-scoped public pages (/events,
+// /domains, /faq, /about) MUST stay dynamic -- they resolve their chapter from
+// the Host header, and a shared cache keyed by path would serve one chapter's
+// content to another.
+export const dynamic = "force-static";
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Privacy",
