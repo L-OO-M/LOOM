@@ -1,0 +1,97 @@
+name: CI
+
+# Mirrors the mandatory pre-commit gates in AGENTS.md §5. They were previously
+# manual-only: nothing in the repo ran them on push, so a regression could merge
+# and sit undetected until the next human session.
+#
+# The unit and lint jobs need no secrets. The E2E job DOES need Supabase env
+# vars because pages and APIs read real rows (there is no mock data layer), so it
+# is gated behind repository secrets. If they are absent the E2E job is skipped
+# rather than failing the whole pipeline on a fork.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # 2 pre-existing warnings are the ceiling; -max-warnings=0 on errors only
+      # means this fails on NEW errors, which is what the gate is for.
+      - run: npm run lint
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  e2e:
+    name: E2E (chromium + mobile)
+    runs-on: ubuntu-latest
+    # Skipped, not failed, when the database secrets are unavailable — so a fork
+    # or a new contributor still gets lint/test/build signal.
+    if: ${{ github.event_name == 'push' || secrets.DATABASE_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Write env from secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_APP_URL: ${{ secrets.DATABASE_APP_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'http://127.0.0.1:3000' }}
+          DEV_TENANT_SLUG: ${{ vars.DEV_TENANT_SLUG || 'demo-college' }}
+        run: |
+          {
+            echo "DATABASE_URL=$DATABASE_URL"
+            echo "DATABASE_APP_URL=$DATABASE_APP_URL"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY"
+            echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL"
+            echo "DEV_TENANT_SLUG=$DEV_TENANT_SLUG"
+          } > .env.local
+      - run: npx playwright test --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
