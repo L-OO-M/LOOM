@@ -133,6 +133,10 @@ export const config = {
     // Never auth-gate framework internals, SEO files, or any static asset in public/
     // (logo, icons, og image, fonts). Without the extension branch, requests like
     // /logo.png fall through to the login redirect and return HTML instead of the file.
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:png|jpe?g|gif|webp|svg|ico|css|js|map|txt|woff2?)$).*)"
+    //
+    // `html` is excluded for the Search Console verification file
+    // (public/google<token>.html). Google fetches it as an anonymous crawler;
+    // auth-gating it returned a login redirect, so verification silently failed.
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:png|jpe?g|gif|webp|svg|ico|css|js|map|txt|html|woff2?)$).*)"
   ]
 };

@@ -19,6 +19,28 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC; also fallback signing secret. **Production rejects placeholder values** (`dev-secret`, `hello`, …) and anything under 16 chars |
 | `CREDENTIAL_SECRET` | no | Credential HMAC (falls back to webhook secret) |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Search Console ownership meta tag, emitted once in `app/layout.jsx` |
+
+### Search Console verification
+
+Two independent methods are wired. Either one is sufficient — use both if unsure.
+
+1. **HTML file (active).** `public/google98eae5c43ea32d19.html` is served at
+   `https://<domain>/google98eae5c43ea32d19.html`. The middleware matcher excludes
+   `.html` so an anonymous crawler is never redirected to `/login`, and
+   `robots.txt` allows it via `Allow: /`. **Do not delete this file as unused** —
+   `tests/search-console-verification.test.js` guards its presence, its exact
+   token, and the matcher exclusion.
+2. **Meta tag.** Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` and redeploy. The tag
+   is emitted once in `app/layout.jsx`, not per page.
+
+Verify what the internet would actually see:
+
+```bash
+curl -sI https://<your-domain>/google98eae5c43ea32d19.html   # expect 200
+curl -s  https://<your-domain>/google98eae5c43ea32d19.html   # expect the token
+```
+
+A `307` to `/login` means the middleware matcher regressed.
 | `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | reserved (unused) | No queue/cache integration in use — webhook processes inline, rate limits are in-memory |
 | `R2_*` | reserved (unused) | No object-storage integration in use |
 | `SENTRY_DSN` | reserved (unused) | SDK not installed; errors surface via logs + `app/error.jsx` |
