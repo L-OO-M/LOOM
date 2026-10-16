@@ -22,12 +22,20 @@ export default async function ProjectDetailPage({ params }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=/student/projects/${id}`);
   const { user, profile, tenant, sql } = ctx;
-  const [p] = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
+  // Tenant predicate in SQL, not in JavaScript after the read.
+  //
+  // This fetched the row by id and then decided tenant membership in JavaScript,
+  // treating an absent tenant on EITHER side as "same tenant". So any project
+  // that ever landed without a tenant became readable by any admin. Filtering
+  // in the query means a foreign project is never read at all, which also
+  // matches the API route.
+  const [p] = await sql`
+    SELECT * FROM projects
+    WHERE id = ${id}
+      AND (tenant_id = ${tenant?.id ?? null}::uuid
+           OR (tenant_id IS NULL AND owner_id = ${user.id}))
+    LIMIT 1`;
   if (!p) notFound();
-  // Tenant isolation: a project from another tenant must not be visible,
-  // even to an admin who guesses the UUID. Same-tenant admins keep review access.
-  const sameTenant = !p.tenant_id || !tenant?.id || p.tenant_id === tenant.id;
-  if (!sameTenant) notFound();
   const isOwner = p.owner_id === user.id;
   const isAdmin = profile.role === "admin";
   if (!isOwner && !isAdmin) redirect("/student/projects");
