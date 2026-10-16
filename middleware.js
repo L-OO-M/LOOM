@@ -15,6 +15,12 @@ const publicPaths = [
   "/auth/callback",
   "/api/health",
   "/api/chapters",
+  // Credential endpoints. These MUST be reachable without a session -- that is
+  // the whole point -- and they are rate limited inside their own handlers.
+  // Leaving them out made every login attempt return the middleware's generic
+  // 401 before the route could run.
+  "/api/auth/login",
+  "/api/auth/register",
   "/api/public/events",
   "/api/public/projects",
   "/api/public/departments",

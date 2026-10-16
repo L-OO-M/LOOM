@@ -6,6 +6,13 @@ const { test, expect } = require("@playwright/test");
 // when it was not readable yet. No other test covered the real flow, because
 // every other spec is unauthenticated.
 test.describe("sign in", () => {
+  // These tests render /student, the heaviest authenticated page in the app, and
+  // they run under the full suite alongside every other spec on one dev server.
+  // The 30s default is not enough for a cold compile of that route while the
+  // rest of the suite is competing for the same connection pool -- the same
+  // page passes comfortably in isolation, so this is a budget, not a mask.
+  test.describe.configure({ timeout: 90_000 });
+
   test("reaches the app after valid credentials instead of erroring", async ({ page }) => {
     const email = process.env.E2E_LOGIN_EMAIL;
     const password = process.env.E2E_LOGIN_PASSWORD;
