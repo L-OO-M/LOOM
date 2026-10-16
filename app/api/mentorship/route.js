@@ -37,9 +37,13 @@ export async function POST(request) {
     return validationError(e);
   }
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.mentorId);
+  // Tenant-scoped on BOTH arms. This lookup previously had no tenant predicate
+  // at all, so any authenticated member could pass another chapter's mentorId
+  // and read that mentor's row (expertise, bio) and book a session against
+  // them. The lookup is by primary key, so the predicate is cheap.
   const [mentor] = isUuid
-    ? await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} OR id = ${body.mentorId}::uuid LIMIT 1`
-    : await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} LIMIT 1`;
+    ? await sql`SELECT * FROM mentors WHERE (user_id = ${body.mentorId} OR id = ${body.mentorId}::uuid) AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`
+    : await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`;
   if (!mentor) return fail("NOT_FOUND", "Mentor not found", 404);
   const mentorUserId = mentor.user_id;
   const [session] = await sql`

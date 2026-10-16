@@ -8,12 +8,20 @@ export async function GET(request, { params }) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   const { id } = await params;
-  const [project] = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
+  // Tenant predicate in SQL, not in JavaScript after the read.
+  //
+  // This used to load the row first and then reject it with a guard that tested
+  // both sides for null before comparing them -- so it was skipped whenever the
+  // project or the caller had no tenant. A foreign project was therefore
+  // fetched into process memory on every request. Filtering in the query means
+  // a foreign project is never read at all.
+  const [project] = await sql`
+    SELECT * FROM projects
+    WHERE id = ${id}
+      AND (tenant_id = ${tenant?.id ?? null}::uuid
+           OR (tenant_id IS NULL AND owner_id = ${user.id}))
+    LIMIT 1`;
   if (!project) return fail("NOT_FOUND", "Project not found", 404);
-  // Tenant isolation: never leak a project from another tenant via UUID guessing.
-  if (project.tenant_id && tenant?.id && project.tenant_id !== tenant.id) {
-    return fail("NOT_FOUND", "Project not found", 404);
-  }
   if (profile.role !== "admin" && project.owner_id !== user.id) return fail("FORBIDDEN", "Not your project", 403);
   return ok({ project });
 }
@@ -33,13 +41,15 @@ export async function PATCH(request, { params }) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   const { id } = await params;
-  const [project] = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
+  // Same reasoning as the GET above: filter in SQL so a foreign project is never
+  // read, rather than loading it and rejecting afterwards.
+  const [project] = await sql`
+    SELECT * FROM projects
+    WHERE id = ${id}
+      AND (tenant_id = ${tenant?.id ?? null}::uuid
+           OR (tenant_id IS NULL AND owner_id = ${user.id}))
+    LIMIT 1`;
   if (!project) return fail("NOT_FOUND", "Project not found", 404);
-  // Tenant isolation: an admin from another tenant must not read or mutate
-  // this project merely by knowing its UUID.
-  if (project.tenant_id && tenant?.id && project.tenant_id !== tenant.id) {
-    return fail("NOT_FOUND", "Project not found", 404);
-  }
   if (profile.role !== "admin" && project.owner_id !== user.id) return fail("FORBIDDEN", "Not your project", 403);
   let body;
   try {
