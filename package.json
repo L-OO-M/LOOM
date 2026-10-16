@@ -18,7 +18,10 @@
     "db:seed": "node load/seed-control-plane.js && node load/seed-content.js",
     "db:seed:dev": "node load/seed-dev.js",
     "db:wipe": "node load/wipe-dev.js --confirm",
-    "db:wipe:full": "node load/wipe-dev.js --confirm --full"
+    "db:wipe:full": "node load/wipe-dev.js --confirm --full",
+    "rls:role": "node load/create-app-role.js",
+    "rls:verify": "node load/verify-rls.js",
+    "flag:verify": "node load/verify-gate.js status"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

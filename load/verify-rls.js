@@ -67,7 +67,12 @@ try {
   const realTenant = (await owner`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`)[0]?.id;
   try {
     if (!realTenant) {
-      console.log("  SKIP  no demo-college tenant to compare against");
+      // Hard fail, not a skip. This block is the only proof that an unset claim
+      // DENIES and that one tenant cannot read another's rows. Skipping it and
+      // printing RESULT: PASS is the most dangerous outcome this script can
+      // produce: an operator would read it as clearance to flip the flag.
+      console.log("  FAIL  no demo-college tenant to compare against, so isolation was NOT verified");
+      failed = true;
     } else {
       await owner`
         INSERT INTO profiles (user_id, name, role, tenant_id)
