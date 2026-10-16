@@ -62,11 +62,20 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  // Cookie-local session read — no network round-trip. This is a coarse gate
-  // (redirect logged-out navigations); pages and API routes still verify
-  // identity with getUser(), which revalidates the JWT against Auth.
-  // Previously this called getUser() here too, costing one Singapore
-  // round-trip on EVERY navigation for logged-in users.
+  // Session read + REFRESH.
+  //
+  // The refresh half used to be missing entirely: getSession() is a purely
+  // cookie-local read, so nothing ever renewed the access token, and setAll
+  // wrote only to `request.cookies` -- a mutation that dies with the request
+  // and is never sent to the browser. So even when Supabase handed back fresh
+  // tokens, they were discarded. The browser kept the original, eventually
+  // expired pair, and the next visit looked logged out.
+  //
+  // The response object is created up front so refreshed cookies can be
+  // attached to it, and the mutated request is threaded through so downstream
+  // handlers see the new values in the same pass.
+  let supabaseResponse = NextResponse.next({ request });
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -77,14 +86,23 @@ export async function middleware(request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
         }
       }
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  // getUser() (not getSession) is what validates the JWT with Auth and triggers
+  // the token refresh when the access token is near expiry. getSession() alone
+  // would keep returning the stale cookie forever.
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     // API routes get machine-readable 401; pages get a login redirect.
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
@@ -94,13 +112,20 @@ export async function middleware(request) {
     }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    // Carry any refreshed cookies onto the redirect, otherwise a user whose
+    // token was refreshed on this request loses it at the hop.
+    supabaseResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    return redirectResponse;
   }
 
   // Security headers (CSP, X-Frame-Options, HSTS, ...) are defined once in
   // next.config.mjs `headers()`. That covers static assets and SEO files too,
   // which this middleware's matcher deliberately excludes.
-  return NextResponse.next();
+  //
+  // Returns the response carrying the refreshed session cookies -- not a fresh
+  // NextResponse.next(), which is what silently dropped them before.
+  return supabaseResponse;
 }
 
 export const config = {
