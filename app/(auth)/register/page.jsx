@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signUp } from "@/lib/auth-client";
+import { PASSWORD_REQUIREMENTS, validatePassword } from "@/lib/password";
 import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
 import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 
@@ -34,6 +35,11 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.ok) {
+      setError(pwCheck.message);
+      return;
+    }
     setLoading(true);
 
     const yearNum = year === "" ? null : Number(year);
@@ -109,7 +115,8 @@ export default function RegisterPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium" htmlFor="password">Password</label>
-                <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+                <input id="password" type="password" required minLength={6} pattern="(?=.*[0-9])(?=.*[^A-Za-z0-9]).{6,}" title={PASSWORD_REQUIREMENTS} aria-describedby="password-hint" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+                <p id="password-hint" className="mt-1 text-xs text-[var(--text-muted)]">{PASSWORD_REQUIREMENTS}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
