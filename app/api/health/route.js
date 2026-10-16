@@ -1,7 +1,7 @@
 import { ok } from "@/lib/api";
 import { getSql, getAppSql } from "@/lib/db";
 import { getTenantFromRequest } from "@/lib/tenant";
-import { env } from "@/lib/env";
+import { env, secretProblems } from "@/lib/env";
 
 // Liveness/readiness probe.
 //
@@ -63,10 +63,18 @@ export async function GET(request) {
   // is degraded even though it is otherwise serving traffic.
   const rlsEffective = rlsEnforced && connection === "loom_app";
 
-  const healthy = databaseOk;
+  // Configuration problems (placeholder secrets, unset DATABASE_APP_URL) are
+  // reported, never thrown, so a monitor can see them. The names are safe to
+  // publish; the values are not included.
+  const configProblems = secretProblems();
+
+  const healthy = databaseOk && configProblems.length === 0;
   const body = {
     status: healthy ? "ready" : "degraded",
-    checks,
+    checks: {
+      ...checks,
+      ...(configProblems.length ? { configuration: configProblems } : {})
+    },
     // Deliberately no tenant id/name and no host/port/error strings: this route
     // is unauthenticated and sits in the middleware public allowlist.
     tenant: tenant ? { slug: tenant.slug } : null,
