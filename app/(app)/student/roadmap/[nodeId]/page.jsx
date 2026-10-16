@@ -57,7 +57,11 @@ export default async function RoadmapNodePage({ params }) {
                   </li>
                   );
                 })}
-                {resources.length === 0 && <li className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>No linked material yet — mentors add it as the track matures.</li>}
+                {resources.length === 0 && <li className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>No linked material yet — mentors add it as the track matures. Stuck in the meantime?{" "}
+                  <Link href="/student/help" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                    Ask the chapter
+                  </Link>
+                  .</li>}
               </ol>
             </section>
             <nav className="mt-10 flex justify-between gap-3 border-t pt-6" style={{ borderColor: "var(--line)" }}>

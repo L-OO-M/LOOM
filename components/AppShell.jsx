@@ -9,7 +9,7 @@ import { BrandMark } from "./BrandMark";
 import { Drawer } from "./loom/Drawer";
 import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
-  MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb
+  MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
 import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
@@ -19,7 +19,7 @@ const icons = {
   branch: GitBranch, pull: GitPullRequest, trophy: Trophy, calendar: CalendarDays, chart: ChartNoAxesCombined,
   handshake: Handshake, chat: MessagesSquare, network: Network, compass: Compass, award: Award,
   users: Users, stamp: Stamp, chartbar: BarChart3, settings: Settings, flag: Flag, scroll: ScrollText,
-  bell: Bell, shield: ShieldCheck, lightbulb: Lightbulb, profile: UserCircle
+  bell: Bell, shield: ShieldCheck, lightbulb: Lightbulb, profile: UserCircle, "life-buoy": LifeBuoy
 };
 
 const TabContext = createContext({ activeTab: "dashboard", setActiveTab: () => {} });
