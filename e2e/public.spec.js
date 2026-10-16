@@ -147,6 +147,18 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     }
   });
 
+  test("public and unauthenticated responses carry security headers", async ({ request }) => {
+    for (const path of ["/about", "/sitemap.xml", "/api/roadmap"]) {
+      const res = await request.get(path);
+      const headers = res.headers();
+      expect(headers["content-security-policy"]).toContain("default-src 'self'");
+      expect(headers["x-frame-options"]).toBe("DENY");
+      expect(headers["x-content-type-options"]).toBe("nosniff");
+      expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+      expect(headers["permissions-policy"]).toContain("camera=()");
+    }
+  });
+
   test("robots allows public pages, blocks app + api", async ({ request }) => {
     const res = await request.get("/robots.txt");
     expect(res.ok()).toBeTruthy();
