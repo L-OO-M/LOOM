@@ -2,8 +2,13 @@ import { WeaveField } from "@/components/WeaveField";
 
 /* Landing-language hero for the public pages: navy weave, gold kicker,
    serif display, honest lede. Compact by design — these pages answer
-   questions, the landing tells the story. */
-export function PageHero({ kicker, title, lede, actions = null }) {
+   questions, the landing tells the story.
+
+   headingLevel exists because loading.jsx boundaries render this while the real
+   page streams in. They must NOT emit an <h1>: public pages carry exactly one,
+   and a loading skeleton that also claims it briefly breaks the one-h1 SEO
+   contract (and the accessibility outline) on four routes. */
+export function PageHero({ kicker, title, lede, actions = null, headingLevel: Heading = "h1" }) {
   return (
     <section className="relative overflow-hidden" style={{ background: "#0a1628" }} aria-label="Introduction">
       <div className="pointer-events-none absolute inset-0" aria-hidden="true" style={{
@@ -19,9 +24,9 @@ export function PageHero({ kicker, title, lede, actions = null }) {
           <span className="inline-block h-px w-8" style={{ background: "#e8c26a" }} />
           {kicker}
         </p>
-        <h1 className="font-display mt-5 max-w-4xl text-5xl font-medium leading-[1.02] sm:text-6xl" style={{ color: "#f4f1e8" }}>
+        <Heading className="font-display mt-5 max-w-4xl text-5xl font-medium leading-[1.02] sm:text-6xl" style={{ color: "#f4f1e8" }}>
           {title}
-        </h1>
+        </Heading>
         {lede && (
           <p className="mt-6 max-w-2xl text-base leading-8" style={{ color: "rgba(244,241,232,0.72)" }}>
             {lede}
