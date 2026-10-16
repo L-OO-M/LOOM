@@ -12,8 +12,23 @@ export async function GET(request, { params }) {
   const ctx = await getRequestContext();
   if (ctx.error) return fail(ctx.error, "Auth required", 401);
   const { id } = await params;
-  const { tenant, sql } = ctx;
-  const [row] = await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE fr.id = ${id}::uuid AND (fr.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+  const { user, profile, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  const isAdmin = profile?.role === "admin";
+
+  // Visibility must match the LIST route, otherwise the list hides an idea but
+  // its detail page still serves it to anyone who learns the UUID. This route
+  // previously applied no ownership or status filter at all, so any
+  // authenticated member could read another member's PENDING or REJECTED idea
+  // and its comment thread. Those are unreleased by definition.
+  const [row] = await sql`
+    SELECT fr.*, p.name AS requester_name
+    FROM feature_requests fr
+    LEFT JOIN profiles p ON p.user_id = fr.requester_id
+    WHERE fr.id = ${id}::uuid
+      AND fr.tenant_id = ${tid}::uuid
+      AND (${isAdmin} OR fr.requester_id = ${user.id} OR fr.status IN ('approved','built'))
+    LIMIT 1`;
   if (!row) return fail("NOT_FOUND", "Not found", 404);
   const comments = await sql`SELECT c.*, p.name AS author_name FROM feature_request_comments c LEFT JOIN profiles p ON p.user_id = c.author_id WHERE c.request_id = ${id}::uuid ORDER BY c.created_at ASC`;
   return ok({ request: row, comments });

@@ -56,6 +56,12 @@ const FILES = [...walk("app"), ...walk("lib"), ...walk("load")]
   // Migration SQL and one-off operator tooling are reviewed by hand.
   .filter((f) => !f.includes("migrations"));
 
+// Only the request path. The batch/diagnostic scripts in load/ run on the owner
+// connection by design -- rollup-federation aggregates across the whole
+// federation on purpose, and verify-webhook is an operator console -- so a
+// missing tenant predicate there is not a request-path leak.
+const REQUEST_PATH_FILES = [...walk("app"), ...walk("lib")];
+
 describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
   it("leaves no OR tenant_id IS NULL arm on a strict table", () => {
     const offenders = [];
@@ -95,6 +101,93 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     // No table may be in both lists.
     const overlap = STRICT_TABLES.filter((t) => UNSCOPED_BY_DESIGN.includes(t));
     expect(overlap).toEqual([]);
+  });
+
+  // The gate above only caught the `OR tenant_id IS NULL` arm. It did NOT catch
+  // a query with no tenant predicate at all -- which is how two real bugs
+  // survived it: the student project detail page, and the GitHub handle
+  // fallback in lib/github.js. Both are now fixed, and this closes the gap.
+  //
+  // Scope, deliberately narrow. This flags a tenant table appearing in the
+  // PRIMARY FROM of a SELECT with neither a tenant predicate nor a self-scoping
+  // key. It does NOT flag:
+  //   - `LEFT JOIN profiles ... ON p.user_id = x` -- a display-name lookup on an
+  //     already-pinned parent. Flagging these produced ~20 false positives and
+  //     would train people to ignore the gate.
+  //   - a table reached only through a subquery whose parent is pinned, which
+  //     is not statically decidable; those are listed below with a reason.
+  const PARENT_PINNED_ALLOWLIST = [
+    ["app/(app)/admin/analytics/page.jsx", "contests row is the tenant-pinned outer query"],
+    ["app/(app)/student/contests/[id]/page.jsx", "contest row is the tenant-pinned outer query"],
+    ["app/(app)/student/community/wiki/[slug]/page.jsx", "wiki page is tenant-pinned; rest is name lookup"],
+    ["app/api/admin/students/route.js", "membership EXISTS over the tenant-pinned departments set"],
+    ["app/api/community/wiki/[slug]/route.js", "wiki page is tenant-pinned; rest is name lookup"],
+    ["app/api/feature-requests/[id]/route.js", "request row is tenant-pinned + ownership filtered; rest is name lookup"],
+    ["app/(app)/student/[username]/page.jsx", "username is globally unique; public profile by design"],
+    ["app/u/[username]/page.jsx", "username is globally unique; this IS the public profile surface"],
+    ["app/u/[username]/cardData.js", "username is globally unique; public card by design"],
+    ["app/api/social/profile/route.js", "username-uniqueness probe; returns a boolean, no profile data"],
+    // Shared helpers whose inputs are always tenant-filtered by the CALLER, which
+    // is not statically visible from inside the helper. Each is called only from
+    // a handler that has already pinned the tenant (see the audit in
+    // docs/17-architecture.md). If any of these ever gains a caller that has not,
+    // this allowlist is the thing that should be revisited.
+    ["lib/lead.js", "departmentIds come from the tenant-filtered departments query in the same function"],
+    ["lib/recommend.js", "helper candidates come from findHelpers(), which filters available helpers by tenant"],
+    ["lib/standings.js", "joined to the tenant-filtered profile set; the CTEs are per-student aggregates"]
+  ];
+
+  it("never reads a tenant table directly with no tenant or self-scoping predicate", () => {
+    // A caller-scoped predicate: either `col = ${...}` or `col = ANY(${...})`,
+    // the second being how this codebase passes id lists derived from an
+    // already tenant-filtered query (lib/tiers.js, lib/reputation.js, lib/lead.js).
+    const SELF_KEY =
+      /(user_id|owner_id|author_id|student_id|requester_id|follower_id|mentor_id|endorssee_id|created_by|actor_id)\s*(=\s*ANY\(\s*\$\{|=\s*\$\{)/i;
+
+    const offenders = [];
+    for (const file of REQUEST_PATH_FILES) {
+      if (PARENT_PINNED_ALLOWLIST.some(([f]) => file.includes(f))) continue;
+      const src = readFileSync(file, "utf8");
+      for (const m of src.matchAll(/sql`([^`]{10,1200}?)`/g)) {
+        const q = m[1];
+        if (!/\bSELECT\b/i.test(q)) continue;
+        if (/\btenant_id\b/i.test(q)) continue;      // tenant-scoped
+        if (SELF_KEY.test(q)) continue;               // caller-scoped
+        if (UNSCOPED_BY_DESIGN.some((t) => q.includes(t))) continue;
+        for (const t of STRICT_TABLES) {
+          // Only the primary FROM, never a JOIN used to fetch a display name.
+          if (new RegExp(`\\bFROM\\s+${t}\\b`, "i").test(q)) {
+            offenders.push(`${file}: ${t} -> ${q.replace(/\s+/g, " ").trim().slice(0, 90)}`);
+          }
+        }
+      }
+    }
+    expect(
+      offenders,
+      `These read a tenant-owned table directly with no tenant_id and no self key.\n` +
+      `Add the predicate, or record the reason in PARENT_PINNED_ALLOWLIST.\n\n` +
+      offenders.join("\n")
+    ).toEqual([]);
+  });
+
+  it("keeps the project detail page tenant-scoped in SQL, not in JS", () => {
+    // Regression: this read the row by id and then decided with
+    // `!p.tenant_id || !tenant?.id || ...`, which treats NULL as same-tenant.
+    const page = readFileSync("app/(app)/student/projects/[id]/page.jsx", "utf8");
+    expect(page).not.toMatch(/SELECT \* FROM projects WHERE id = \$\{id\} LIMIT 1/);
+    expect(page).not.toMatch(/!p\.tenant_id \|\| !tenant\?\.id/);
+    expect(page).toMatch(/tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/);
+  });
+
+  it("never falls back to an unscoped GitHub handle lookup", () => {
+    // Regression: with no tenant context this used to resolve ANY chapter's
+    // student by handle and credit their activity ledger from the webhook.
+    const gh = readFileSync("lib/github.js", "utf8");
+    expect(gh).toMatch(/if \(!tenantId\)[\s\S]{0,400}return null/);
+    const ternaries = gh.match(/\?\s*await sql`[\s\S]*?`\s*:\s*await sql`[\s\S]*?`/g) || [];
+    for (const t of ternaries) {
+      expect(t, "no tenant-conditional unscoped fallback").not.toMatch(/github_username/);
+    }
   });
 });
 
