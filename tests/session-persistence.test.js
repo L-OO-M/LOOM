@@ -44,10 +44,21 @@ describe("session persistence", () => {
     expect(serverClient).toMatch(/\.\.\.options,[\s\S]*sameSite/);
   });
 
-  it("waits for the browser session before the caller redirects", () => {
-    const authClient = readFileSync("lib/auth-client.js", "utf8");
-    expect(authClient).toContain("supabase.auth.getSession()");
-  });
+  // Regression guard. A `getSession()` assertion was added after sign-in to
+// "wait for the cookie write". It returned null on a fully successful login and
+// turned it into "Sign in did not produce a session", locking every user out.
+// Persistence is middleware's job, not the client helper's.
+it("does not assert on getSession() after a successful sign-in", () => {
+  const authClient = readFileSync("lib/auth-client.js", "utf8");
+  expect(authClient).not.toContain("Sign in did not produce a session");
+  const signInBody = authClient.slice(
+    authClient.indexOf("export async function signIn"),
+    authClient.indexOf("export async function signUp")
+  );
+  // The function must return signInWithPassword's result verbatim.
+  expect(signInBody).toContain("supabase.auth.signInWithPassword");
+  expect(signInBody).not.toMatch(/supabase\.auth\.getSession\(\)/);
+});
 });
 
 // Found while fixing the above: these boundaries shipped a second <h1>, so any
