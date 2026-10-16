@@ -220,7 +220,7 @@ async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
     SELECT p.user_id FROM profiles p
     LEFT JOIN github_connections g ON g.user_id = p.user_id
     WHERE (lower(p.github_username) = lower(${author}) OR lower(g.github_username) = lower(${author}))
-      AND (p.tenant_id IS NULL OR p.tenant_id = ${tenantId}::uuid)
+      AND p.tenant_id = ${tenantId}::uuid
     LIMIT 1
   `;
   if (!profile) return null;

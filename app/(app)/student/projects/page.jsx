@@ -34,7 +34,7 @@ export default async function ProjectsPage({ searchParams }) {
   const rows = await sql`
     SELECT * FROM projects
     WHERE owner_id = ${user.id}
-      AND (${tid}::uuid IS NULL OR tenant_id IS NULL OR tenant_id = ${tid}::uuid)
+      AND tenant_id = ${tid}::uuid
     ORDER BY created_at DESC LIMIT 100
   `;
 

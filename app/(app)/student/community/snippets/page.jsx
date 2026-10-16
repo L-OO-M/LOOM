@@ -24,14 +24,14 @@ export default async function SnippetsPage({ searchParams }) {
 
   const languages = await sql`
     SELECT DISTINCT s.language FROM code_snippets s
-    WHERE (s.tenant_id IS NULL OR s.tenant_id = ${tid}::uuid) AND s.status = 'visible'
+    WHERE s.tenant_id = ${tid}::uuid AND s.status = 'visible'
     ORDER BY s.language ASC LIMIT 30
   `;
   const langOptions = languages.map((r) => r.language).filter(Boolean);
   const snippets = await sql`
     SELECT s.*, p.name AS author_name FROM code_snippets s
     LEFT JOIN profiles p ON p.user_id = s.author_id
-    WHERE (s.tenant_id IS NULL OR s.tenant_id = ${tid}::uuid) AND s.status = 'visible'
+    WHERE s.tenant_id = ${tid}::uuid AND s.status = 'visible'
       AND (${language} = '' OR s.language = ${language})
       AND (${domain} = '' OR s.domain = ${domain})
       AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.code ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`}))

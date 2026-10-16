@@ -69,3 +69,50 @@ describe("request context fails closed without a tenant", () => {
     expect(src).toMatch(/\[auth\] refusing to build a request context/);
   });
 });
+
+describe("no tenant-escape hatch on tenant-strict tables", () => {
+  // The single legitimate exception is open_source_projects: a curated global
+  // catalogue whose rows are tenant-less by design, with an RLS policy of
+  // literally `tenant_id IS NULL OR tenant_id = ...`. Everything else must be
+  // plain equality.
+  const GLOBAL_TABLE = "open_source_projects";
+
+  function walk(dir) {
+    const out = [];
+    for (const entry of require("node:fs").readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+      const p = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) out.push(...walk(p));
+      else if (/\.(js|jsx)$/.test(entry.name)) out.push(p);
+    }
+    return out;
+  }
+
+  it("leaves no OR tenant_id IS NULL arm on a strict table", () => {
+    const offenders = [];
+    for (const file of [...walk("app"), ...walk("lib")]) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (!/tenant_id\s+IS\s+NULL\s+OR\s+\w*\.?tenant_id\s*=/.test(line)) return;
+        // Look back for the table this predicate belongs to.
+        const ctx = lines.slice(Math.max(0, i - 3), i + 1).join(" ");
+        if (ctx.includes(GLOBAL_TABLE)) return; // legitimate
+        offenders.push(`${file}:${i + 1}`);
+      });
+    }
+    expect(offenders, `strict tables must use plain tenant equality:\n${offenders.join("\n")}`)
+      .toEqual([]);
+  });
+
+  it("still scopes open_source_profiles to the global catalogue", () => {
+    // Guards against "fixing" the one legitimate exception by accident.
+    const projects = readFileSync("app/api/opensource/projects/route.js", "utf8");
+    expect(projects).toMatch(/tenant_id IS NULL OR tenant_id =/);
+  });
+
+  it("documents the rule where queries are written", () => {
+    const db = readFileSync("lib/db.js", "utf8");
+    expect(db).toContain("TENANT SCOPING");
+    expect(db).toContain("open_source_projects");
+  });
+});

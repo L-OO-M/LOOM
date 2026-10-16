@@ -18,7 +18,7 @@ export async function GET() {
   const badges = await sql`
     SELECT b.*, (SELECT COUNT(*)::int FROM student_achievements a WHERE a.badge_id = b.id) AS earned
     FROM skill_badges b
-    WHERE b.tenant_id IS NULL OR b.tenant_id = ${tenant?.id ?? null}::uuid
+    WHERE b.tenant_id = ${tenant?.id ?? null}::uuid
     ORDER BY b.tier DESC, b.created_at DESC LIMIT 100
   `;
   return ok({ badges });

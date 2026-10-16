@@ -29,8 +29,8 @@ export default async function AdminOpenSourcePage({ searchParams }) {
   const [stats] = await sql`
     SELECT
       (SELECT COUNT(*)::int FROM open_source_projects WHERE tenant_id IS NULL OR tenant_id = ${tid}::uuid) AS repos,
-      (SELECT COUNT(*)::int FROM student_oss_contributions WHERE status = 'claimed' AND (tenant_id IS NULL OR tenant_id = ${tid}::uuid)) AS pending,
-      (SELECT COUNT(*)::int FROM student_oss_contributions WHERE status = 'verified' AND (tenant_id IS NULL OR tenant_id = ${tid}::uuid)) AS verified
+      (SELECT COUNT(*)::int FROM student_oss_contributions WHERE status = 'claimed' AND tenant_id = ${tid}::uuid) AS pending,
+      (SELECT COUNT(*)::int FROM student_oss_contributions WHERE status = 'verified' AND tenant_id = ${tid}::uuid) AS verified
   `;
 
   const projects = await sql`
@@ -42,7 +42,7 @@ export default async function AdminOpenSourcePage({ searchParams }) {
   const pending = await sql`
     SELECT c.*, p.name AS student_name FROM student_oss_contributions c
     LEFT JOIN profiles p ON p.user_id = c.student_id
-    WHERE c.status = 'claimed' AND (c.tenant_id IS NULL OR c.tenant_id = ${tid}::uuid)
+    WHERE c.status = 'claimed' AND c.tenant_id = ${tid}::uuid
     ORDER BY c.created_at DESC LIMIT 50
   `;
 

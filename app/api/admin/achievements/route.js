@@ -26,14 +26,14 @@ export async function POST(request) {
   }
   const [student] = await sql`
     SELECT user_id FROM profiles WHERE user_id = ${body.studentId}
-      AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)
+      AND tenant_id = ${tenant?.id ?? null}::uuid
     LIMIT 1
   `;
   if (!student) return fail("STUDENT_NOT_FOUND", "Student not found in your chapter", 404);
   if (body.badgeId) {
     const [badge] = await sql`
       SELECT id FROM skill_badges WHERE id = ${body.badgeId}
-        AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)
+        AND tenant_id = ${tenant?.id ?? null}::uuid
       LIMIT 1
     `;
     if (!badge) return fail("BADGE_NOT_FOUND", "Badge not found", 404);

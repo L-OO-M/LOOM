@@ -18,7 +18,7 @@ export async function GET() {
   const tid = tenant?.id ?? null;
   const rows = profile.role === "admin"
     ? await sql`SELECT * FROM projects WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY created_at DESC LIMIT 100`
-    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} AND (${tid}::uuid IS NULL OR tenant_id IS NULL OR tenant_id = ${tid}::uuid) ORDER BY created_at DESC LIMIT 100`;
+    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} AND tenant_id = ${tid}::uuid ORDER BY created_at DESC LIMIT 100`;
   return ok({ projects: rows });
 }
 
