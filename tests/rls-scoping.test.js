@@ -13,6 +13,12 @@ function fakeClient() {
   };
   const makeTx = () => {
     const tx = (strings, ...values) => record(strings, values);
+    // scopedSql folds every GUC into one unsafe() call, so the fake must
+    // support the same surface postgres.js does: unsafe(query, paramsArray).
+    tx.unsafe = (query, params = []) => {
+      calls.push({ type: "query", sql: query, values: params });
+      return Promise.resolve([{ ok: true }]);
+    };
     tx.begin = async (fn) => {
       calls.push({ type: "begin" });
       return fn(makeTx());
@@ -20,6 +26,10 @@ function fakeClient() {
     return tx;
   };
   const client = (strings, ...values) => record(strings, values);
+  client.unsafe = (query, params = []) => {
+    calls.push({ type: "query", sql: query, values: params });
+    return Promise.resolve([{ ok: true }]);
+  };
   client.begin = async (fn) => {
     calls.push({ type: "begin" });
     return fn(makeTx());
@@ -28,7 +38,7 @@ function fakeClient() {
 }
 
 describe("scopedSql", () => {
-  it("applies every GUC with SET LOCAL before the statement", async () => {
+  it("applies every GUC with SET LOCAL, in one round-trip, before the statement", async () => {
     const { client, calls } = fakeClient();
     const { scopedSql } = await import("@/lib/db");
     const sql = scopedSql(client, { "app.user_id": "u1", "app.tenant_id": "t1" });
@@ -37,10 +47,13 @@ describe("scopedSql", () => {
 
     expect(calls[0].type).toBe("begin");
     const settings = calls.filter((c) => c.sql?.includes("set_config"));
-    expect(settings.map((c) => c.values[0])).toEqual(["app.user_id", "app.tenant_id"]);
+    // Round trips, not query execution, dominate the wrapper's cost, so all
+    // settings must be folded into ONE statement rather than one each.
+    expect(settings).toHaveLength(1);
+    expect(settings[0].sql).toBe("SELECT set_config($1, $2, true), set_config($3, $4, true)");
+    expect(settings[0].values).toEqual(["app.user_id", "u1", "app.tenant_id", "t1"]);
     // Every setting must be local, so it cannot leak onto a pooled connection.
-    // The `true` third argument is a literal in the template, not a binding.
-    for (const call of settings) expect(call.sql).toMatch(/set_config\(\?,\s*\?,\s*true\)/);
+    expect(settings[0].sql).toMatch(/set_config\(\$\d, \$\d, true\)/);
     expect(calls.at(-1).sql).toBe("SELECT 1");
   });
 
@@ -53,7 +66,7 @@ describe("scopedSql", () => {
 
     const settings = calls.filter((c) => c.sql?.includes("set_config"));
     expect(settings).toHaveLength(1);
-    expect(settings[0].values[0]).toBe("app.user_id");
+    expect(settings[0].values).toEqual(["app.user_id", "u1"]);
   });
 
   it("returns the client untouched when there is nothing to scope", async () => {
@@ -77,7 +90,7 @@ describe("scopedSql", () => {
     expect(settings).toHaveLength(1);
     // The settings must precede the caller's statement, inside the same txn.
     expect(settings[0].values[0]).toBe("app.tenant_id");
-    expect(settings[0].sql).toMatch(/set_config\(\?,\s*\?,\s*true\)/);
+    expect(settings[0].sql).toMatch(/set_config\(\$\d, \$\d, true\)/);
     expect(calls.at(-1).sql).toBe("UPDATE profiles SET role = 'core'");
   });
 
