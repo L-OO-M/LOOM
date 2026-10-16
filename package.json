@@ -21,7 +21,10 @@
     "db:wipe:full": "node load/wipe-dev.js --confirm --full",
     "rls:role": "node load/create-app-role.js",
     "rls:verify": "node load/verify-rls.js",
-    "flag:verify": "node load/verify-gate.js status"
+    "flag:verify": "node load/verify-gate.js status",
+    "prune:retention": "node load/prune-retention.js",
+    "rollup:analytics": "node load/rollup-analytics.js",
+    "rollup:federation": "node load/rollup-federation.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
