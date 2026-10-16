@@ -19,6 +19,46 @@ if (!appUrl) {
   process.exit(1);
 }
 
+// Pre-flight the OWNER connection before opening either pool. Both mistakes
+// below produced a raw Postgres error that pointed nowhere useful:
+//
+//   1. DATABASE_URL pointing at loom_app instead of postgres. Then this script
+//      cannot CREATE the probe table and reports "permission denied for schema
+//      public" -- which reads like a grants problem, not a misconfiguration.
+//   2. DATABASE_APP_URL holding a password from an earlier create-app-role run,
+//      which rotates on every invocation. Reported as a bare "password
+//      authentication failed for user loom_app".
+//
+// Both are cheap to detect here and expensive to diagnose from the raw error.
+function roleOf(url) {
+  try {
+    return new URL(url).username.split(".")[0];
+  } catch {
+    return "(unparseable)";
+  }
+}
+
+if (roleOf(databaseUrl()) !== "postgres") {
+  console.error(
+    `DATABASE_URL must be the OWNER connection (postgresql://postgres.<project-ref>:...).\n` +
+    `It currently authenticates as "${roleOf(databaseUrl())}".\n` +
+    `  - If it is loom_app, request handling and migrations are sharing one role.\n` +
+    `  - Owner credentials: Supabase dashboard -> Project Settings -> Database -> Connection string.\n` +
+    `RLS verification needs an owner connection to create its probe table.`
+  );
+  process.exit(1);
+}
+
+if (roleOf(appUrl) !== "loom_app") {
+  console.error(
+    `DATABASE_APP_URL must authenticate as loom_app, got "${roleOf(appUrl)}".\n` +
+    `  - Run: node load/create-app-role.js  (it rotates the password every time)\n` +
+    `  - Then paste the printed URL into .env.local and Vercel.\n` +
+    `Using the owner connection here would make this check meaningless.`
+  );
+  process.exit(1);
+}
+
 const owner = postgres(databaseUrl(), { max: 1, prepare: false });
 const app = postgres(appUrl, { max: 1, prepare: false });
 
@@ -27,6 +67,14 @@ const ok = (c, m) => { console.log(`  ${c ? "PASS" : "FAIL"}  ${m}`); if (!c) fa
 
 try {
   console.log("\n1. Role attributes");
+  // Confirm the owner connection really is the owner. Cheap, and it stops a
+  // half-migrated database from being reported as verified.
+  const [me] = await owner`
+    SELECT current_user AS u,
+           (SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user) AS byp`;
+  ok(me?.u === "postgres", `owner connection is postgres (got ${me?.u})`);
+  ok(me?.byp === true, `owner has BYPASSRLS (got ${me?.byp}) — confirms why DATABASE_URL must not serve requests`);
+
   const [role] = await owner`SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = 'loom_app'`;
   if (!role) {
     console.log("  FAIL  loom_app does not exist. Run: node load/migrate.js");
@@ -36,7 +84,27 @@ try {
   ok(role.rolbypassrls === false, `rolbypassrls = false (got ${role.rolbypassrls})`);
   ok(role.rolcanlogin === true, `rolcanlogin = true (got ${role.rolcanlogin})`);
 
-  const [live] = await app`SELECT current_user AS u`;
+  // Turn an auth failure into the instruction that actually fixes it. The raw
+  // "password authentication failed for user loom_app" is the single most
+  // confusing message this script can emit, because the cause is almost always
+  // a rotated password that never made it into .env.local.
+  let [live] = [{ u: undefined }];
+  try {
+    [live] = await app`SELECT current_user AS u`;
+  } catch (e) {
+    if (/password authentication failed/i.test(e.message)) {
+      console.error(
+        "\nDATABASE_APP_URL is rejected by Postgres.\n" +
+        "  The most likely cause: node load/create-app-role.js was run again and\n" +
+        "  ROTATED the loom_app password, so the URL in .env.local is now stale.\n" +
+        "\n  Fix: re-run `npm run rls:role`, then replace the DATABASE_APP_URL line\n" +
+        "  in .env.local (and Vercel) with the URL it prints.\n" +
+        "  Note it prints ONCE and must not be shared."
+      );
+      process.exit(1);
+    }
+    throw e;
+  }
   ok(live?.u === "loom_app", `app connection is loom_app (got ${live?.u})`);
 
   console.log("\n2. RLS is enforced for the app role");

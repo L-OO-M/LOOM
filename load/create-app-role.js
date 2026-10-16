@@ -8,13 +8,37 @@
 //
 // Requires: migration 030 applied, and DATABASE_URL in env or .env.local.
 import crypto from "node:crypto";
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { databaseUrl } from "./env-local.js";
 
 const ROLE = "loom_app";
 const printOnly = process.argv.includes("--print");
 
-const sql = postgres(databaseUrl(), { max: 1 });
+// This script SETS a password on loom_app. It must run on the OWNER connection.
+// When DATABASE_URL was itself misconfigured to the loom_app URL, the old code
+// failed much later with a bare "permission denied for schema public" that read
+// like a grants problem. Fail here, with the actual cause named.
+function roleOf(url) {
+  try {
+    return new URL(url).username.split(".")[0];
+  } catch {
+    return "(unparseable)";
+  }
+}
+
+const baseUrl = databaseUrl();
+const baseRole = roleOf(baseUrl);
+if (baseRole !== "postgres") {
+  console.error(
+    `DATABASE_URL must be the OWNER connection; it authenticates as "${baseRole}".\n` +
+    `  loom_app cannot ALTER ROLE, so this script cannot do its job on it.\n` +
+    `  Owner credentials: Supabase dashboard -> Project Settings -> Database -> Connection string.`
+  );
+  process.exit(1);
+}
+
+const sql = postgres(baseUrl, { max: 1, prepare: false });
 
 try {
   const [role] = await sql`SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = ${ROLE}`;
@@ -53,7 +77,7 @@ try {
   }
   await sql.unsafe(`ALTER ROLE "${ROLE}" LOGIN PASSWORD '${password}'`);
 
-  const base = process.env.DATABASE_URL || databaseUrl();
+  const base = baseUrl;
   const u = new URL(base);
 
   // Supabase's pooler requires the `user.<project-ref>` form. The owner URL's
@@ -79,11 +103,36 @@ try {
   console.log("");
   console.log("  Store it. It is printed once and is not written to any tracked file.");
   console.log("");
+
+  // Running this script ROTATES the password, which silently invalidates any
+  // DATABASE_APP_URL already saved. That stale value then fails much later with
+  // "password authentication failed for user loom_app" and no hint as to why.
+  // Name it at the moment it happens.
+  const stale = existingEnvLocalAppUrl();
+  if (stale && stale !== appUrl) {
+    console.log("  !! .env.local already holds a DIFFERENT DATABASE_APP_URL.");
+    console.log("     That value is now STALE and will fail authentication.");
+    console.log("     Replace that line in .env.local with the one printed above.");
+    console.log("     Do the same for DATABASE_APP_URL in Vercel, or the deploy");
+    console.log("     will keep using a credential that no longer exists.");
+    console.log("");
+  }
 } catch (e) {
   console.error("Failed:", e.message);
   process.exit(1);
 } finally {
   await sql.end();
+}
+
+/** Current DATABASE_APP_URL in .env.local, or null. Never logs the value. */
+function existingEnvLocalAppUrl() {
+  try {
+    const raw = readFileSync(".env.local", "utf8");
+    const m = raw.match(/^\s*DATABASE_APP_URL\s*=\s*(.*)$/m);
+    return m ? m[1].trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 function redact(url) {
