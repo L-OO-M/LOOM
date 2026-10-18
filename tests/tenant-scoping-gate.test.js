@@ -26,7 +26,7 @@ const STRICT_TABLES = [
   "cohort_metrics", "code_snippets", "contests", "departments", "dept_reports",
   "events", "expenses", "faqs", "feature_requests", "forum_threads", "handover_checklists",
   "help_matches", "help_signals", "helper_profiles", "media_assets", "member_contributions",
-  "mentor_applications", "mentor_effectiveness", "mentors", "notifications",
+  "mentor_applications", "mentor_effectiveness", "mentors", "mou_documents", "mous", "notifications",
   "oss_badges", "page_views", "profiles", "projects", "ranking_events",
   "ranking_scores", "resource_progress", "roadmap_node_analytics", "skill_badges",
   "sponsorships", "student_achievements", "student_analytics_snapshots",

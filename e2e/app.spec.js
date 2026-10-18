@@ -50,7 +50,9 @@ const protectedPages = [
   "/lead/reports",
   "/lead/succession",
   "/lead/assets",
-  "/admin/assets"
+  "/lead/mous",
+  "/admin/assets",
+  "/admin/mous"
 ];
 
 test.describe("route protection", () => {
@@ -115,6 +117,7 @@ test.describe("api authorization", () => {
     "/api/lead/overview",
     "/api/lead/assets",
     "/api/lead/asset-categories",
+    "/api/lead/mous",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -207,6 +210,20 @@ test.describe("api authorization", () => {
     const version = await request.post(`/api/lead/assets/${id}/versions`, { data: {} });
     expect(version.status()).toBe(401);
     const download = await request.get(`/api/lead/assets/${id}/download`);
+    expect(download.status()).toBe(401);
+  });
+
+  test("MoU writes and document downloads return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/mous", { data: { title: "Cloud credits", partnerName: "Acme" } });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/mous/${id}`, { data: { status: "active" } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/mous/${id}`);
+    expect(del.status()).toBe(401);
+    const doc = await request.post(`/api/lead/mous/${id}/documents`, { data: {} });
+    expect(doc.status()).toBe(401);
+    const download = await request.get(`/api/lead/mous/${id}/documents/${id}/download`);
     expect(download.status()).toBe(401);
   });
 
