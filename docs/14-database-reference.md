@@ -47,6 +47,9 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 035 | `035_github_handle_uniqueness.sql` | `profiles.github_username` uniqueness |
 | 036 | `036_tenant_leading_indexes.sql` | composite indexes led by `tenant_id` |
 | **037** | `037_verified_evidence.sql` | **the ranking trust boundary** — see below |
+| 038 | `038_github_oauth.sql` | `github_connections` repo-proof columns + `github_repo_grants` (see `docs/21`) |
+| 039 | `039_endorsement_controls.sql` | `user_profiles.endorsements_visible` (endorsement opt-out) |
+| **040** | `040_media_assets.sql` | **lead-tool storage** — `asset_categories`, `media_assets`, `asset_versions` + fail-closed RLS (see below) |
 
 ### Migration 037 — verified evidence
 
@@ -139,3 +142,5 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 **Ingestion pause (020, data only)**: no schema change — sets `feature_flags.github_integration = false` per tenant and inserts the row where missing, so webhook deliveries are acked but never stored until enabled at `/admin/flags`.
 
 **Head retention cleanup (021, idempotent repair)**: no new columns — repairs drift from earlier promotion paths: clears `profiles.vertical` where `role <> 'vertical_lead'` and downgrades orphaned `department_memberships.level='dept_lead'` to `core` when the owner no longer holds a leading role (preserves engagement history, capability is revoked).
+
+**Lead-tool storage (040)**: `asset_categories((tenant_id, slug) unique, name, sort_order)` — seeded per tenant (Logos, Signatures, Templates, MoU Templates, Banners, Posters, Presentations, Documents) by `node load/setup-storage.js`; `media_assets(category_id, kind logo|signature|template|document|image|link|other, title, tags[], storage_path, external_url, mime_type, size_bytes, current_version, is_active)` — a row has a file **or** an external link (CHECK), never neither; `asset_versions((asset_id, version) unique, storage_path, file_name, mime_type, size_bytes, uploaded_by)` — full history so a replaced logo/template is recoverable. All three are tenant-scoped with the migration-031 fail-closed RLS policy. The bytes live in the private Supabase Storage bucket `loom-files` (path `scope/tenantId/entityId/vN-fileId-name`); only metadata is in Postgres. Shared by the Media & Creative Asset Library and reused for MoU documents and event files.

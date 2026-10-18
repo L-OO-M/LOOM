@@ -11,7 +11,8 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Auth + client |
 | `DATABASE_URL` | yes | Migrations, seeds, rollups, server queries. Must be the **owner** (`postgres.<project-ref>`) — the app also uses it for unauthenticated public reads |
 | `DATABASE_APP_URL` | yes | Request handling as `loom_app` (NOBYPASSRLS, not the table owner). **Falls back to `DATABASE_URL` if unset**, which silently disables Row Level Security — `npm run rls:verify` will fail loudly. See `rls-rollout-runbook.md` |
-| `SUPABASE_SERVICE_ROLE_KEY` | for admin APIs | Currently empty in dev — admin user management limited until set |
+| `SUPABASE_SERVICE_ROLE_KEY` | for admin APIs + storage | Currently empty in dev — admin user management limited until set. Also required server-side by `lib/storage.js` (lead-tool file uploads) |
+| `SUPABASE_STORAGE_BUCKET` | no (default `loom-files`) | Private bucket for lead-tool documents/assets. Create it and seed categories with `node load/setup-storage.js` |
 | `NEXT_PUBLIC_APP_URL` | yes | metadataBase, share/verify links, calendar links. Unset in production publishes every absolute URL as `localhost` |
 | `DEFAULT_TENANT_SLUG` | no (defaults to `DEV_TENANT_SLUG`) | Chapter that owns a server-to-server delivery (webhook) that carries no chapter identity in its `Host` header |
 | `DEV_TENANT_SLUG` | no (default `demo-college`) | Fallback tenant for first-visit profiles |
@@ -42,7 +43,7 @@ curl -s  https://<your-domain>/google98eae5c43ea32d19.html   # expect the token
 
 A `307` to `/login` means the middleware matcher regressed.
 | `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | reserved (unused) | No queue/cache integration in use — webhook processes inline, rate limits are in-memory |
-| `R2_*` | reserved (unused) | No object-storage integration in use |
+| `R2_*` | reserved (unused) | Object storage runs on **Supabase Storage** instead (`lib/storage.js`), so these R2 keys are not read |
 | `SENTRY_DSN` | reserved (unused) | SDK not installed; errors surface via logs + `app/error.jsx` |
 
 > **Placeholder secrets are rejected at boot.** `lib/env.js` compares by *value*,
@@ -75,6 +76,7 @@ port, or error strings.
 | `npm run lint` / `npm run test` / `npm run test:e2e` | eslint / vitest / playwright |
 | `npm run build` / `npm start` | production build / serve |
 | `npm run db:migrate` | `node load/migrate.js` — tracked, idempotent |
+| `node load/setup-storage.js` | **once per env**: create the private `loom-files` bucket + seed asset categories (idempotent) |
 | `npm run db:seed` | control-plane + roadmap/resources content |
 | `node load/seed-community.js` | curated OSS repos (live GitHub data) + demo chapter card |
 | `npm run rollup:federation` | **nightly**: chapter stats + federation row |
@@ -109,7 +111,7 @@ rollups:
 
 ## 4. Deploy checklist
 
-1. Set env, run `db:migrate`, then `db:seed` (+ `seed-community.js`).
+1. Set env, run `db:migrate`, then `db:seed` (+ `seed-community.js`). Set `SUPABASE_SERVICE_ROLE_KEY` and run `node load/setup-storage.js` (lead-tool file uploads need the bucket).
 2. Open `/setup`, claim first admin.
 3. Configure GitHub webhook → `/api/github/webhook` with the secret.
 4. Schedule the two rollups nightly (cron/Vercel Cron/GitHub Actions).
@@ -132,6 +134,7 @@ rollups:
 - Rate limits are in-memory per instance — use a gateway limiter for multi-instance prod.
 - Reputation, federation totals, and analytics are eventually consistent (nightly).
 - Email sending is not wired — invites/notifications are in-app only until an SMTP provider is added.
+- **Uploads have no antivirus scan.** File type is limited to a PDF/OFFICE/image/text/CSV/ZIP allowlist and capped at 25 MB (`lib/media.js`), and buckets are private with short-lived signed URLs, but a malicious file inside an allowed type is not detected. Add scanning before accepting untrusted public uploads.
 - Never run builds and dev on the same checkout simultaneously (see CSS row above).
 
 - Serve production only over HTTPS with forced SSL/HSTS at the host (Vercel/AWS/Netlify project setting) — the app builds absolute canonical/OG URLs from NEXT_PUBLIC_APP_URL.
