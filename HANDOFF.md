@@ -128,6 +128,10 @@ tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 17. Keep docs honest: the repo deletes superseded docs rather than letting them rot — follow the redirect-map convention in `docs/README.md`.
 18. Shared-DB discipline: real data only. `db:seed:dev`/`db:wipe` are local tools; `wipe-dev --confirm` removes seed rows, `--full` truncates data tables (keeps schema).
 
+### 🔵 E. Deferred security work (from the Cybersec Dept report)
+
+19. **Two vulnerabilities are documented and deliberately not fixed:** V1 (account takeover via unlimited username changes) and V2 (spam accounts via temp-email providers). Exact locations and proposed fixes are in **`docs/22-security-findings-todo.md`** — read it before claiming the app is hardened against them. Everything else from that report was fixed in the 2026-10 pass (see the same file's closing table).
+
 ---
 
 ## 7. Quick reference

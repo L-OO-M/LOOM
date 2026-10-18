@@ -17,6 +17,7 @@ Learning, Opportunity, Open source, Mentorship — one student journey per chapt
 | [Operations](19-operations.md) | Developers | Departments, volunteers, reports, handover, finance |
 | [**Verified ranking**](20-verified-ranking.md) | Developers | What the leaderboard counts, what stops a student faking it, the review queue, the `ranking_verified` flag |
 | [**GitHub OAuth setup**](21-github-oauth-setup.md) | Operators | Production env vars, OAuth App + Supabase config, flag rollout order, verification steps |
+| [**Security findings — deferred**](22-security-findings-todo.md) | Developers | The two security-report items left **unfixed** (username-change takeover, temp-email spam) with exact locations + proposed fixes, and a table of what was fixed |
 | [**RLS rollout runbook**](rls-rollout-runbook.md) | Operators | Enabling database-level tenant isolation, verifying it, rolling it back |
 
 ## Read this before deploying

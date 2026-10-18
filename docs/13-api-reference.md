@@ -64,7 +64,8 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | POST | `/api/community/flags` | flag thread/reply for moderation (reason: spam/abuse/off-topic; repeat flags don&apos;t recount) |
 | GET/POST | `/api/community/wiki` | search / create page |
 | GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) · apply/review (admin) |
-| GET/POST | `/api/community/snippets` | search (q, language, domain) / share |
+| GET/POST | `/api/community/snippets` | search (q matches title/description/language — never code bodies) / share (screened for abuse) |
+| PATCH/DELETE | `/api/community/snippets/[id]` | author/admin | edit or remove your own snippet (delete soft-hides: `status='hidden'`) |
 | GET/PATCH | `/api/admin/community` | admin: flag queues / hide-visible |
 
 ## Events & social
@@ -75,8 +76,8 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
 | POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
-| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved) |
-| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible |
+| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out |
+| GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
 ## Errors & limits
@@ -141,7 +142,7 @@ requester.
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET/POST | `/api/feature-requests` | user | list (status filter) / create. Backs the `Ideas` tab on both student and admin sides |
+| GET/POST | `/api/feature-requests` | user | list (status filter: members see their own + approved/built) / create (abuse-screened, lands `pending`) |
 | PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status |
 | POST | `/api/feature-requests/[id]/comments` | user | comment on a request |
 
