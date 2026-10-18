@@ -51,8 +51,10 @@ const protectedPages = [
   "/lead/succession",
   "/lead/assets",
   "/lead/mous",
+  "/lead/directory",
   "/admin/assets",
-  "/admin/mous"
+  "/admin/mous",
+  "/admin/directory"
 ];
 
 test.describe("route protection", () => {
@@ -118,6 +120,7 @@ test.describe("api authorization", () => {
     "/api/lead/assets",
     "/api/lead/asset-categories",
     "/api/lead/mous",
+    "/api/lead/directory",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -225,6 +228,16 @@ test.describe("api authorization", () => {
     expect(doc.status()).toBe(401);
     const download = await request.get(`/api/lead/mous/${id}/documents/${id}/download`);
     expect(download.status()).toBe(401);
+  });
+
+  test("directory writes return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/directory", { data: { name: "Asha Rao", title: "Department Lead" } });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/directory/${id}`, { data: { isCurrent: false } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/directory/${id}`);
+    expect(del.status()).toBe(401);
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {

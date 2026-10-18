@@ -112,6 +112,11 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | DELETE | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | archive (soft delete; documents kept) |
 | GET/POST | `/api/lead/mous/[id]/documents` | dept_lead+ (`view_lead_tools`/`manage_mou`) | list signed copies / upload a new labelled version (multipart `file`, `label`) |
 | GET | `/api/lead/mous/[id]/documents/[documentId]/download` | dept_lead+ (`view_lead_tools`) | `302` to a short-lived signed URL (raw `<a>`) |
+| GET | `/api/lead/directory` | dept_lead+ (`view_lead_tools`) | leadership directory (`?department=&vertical=&current=1&q=`; current + past holders) |
+| POST | `/api/lead/directory` | dept_lead+ (`manage_leads`) | add a person (optional link to a chapter account via `userId`) |
+| GET | `/api/lead/directory/[id]` | dept_lead+ (`view_lead_tools`) | one directory entry |
+| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields / flip current ↔ past / archive |
+| DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | remove (soft delete) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
