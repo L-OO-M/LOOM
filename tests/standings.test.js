@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTIVITY_CAPS,
+  ACTIVITY_WEIGHTS,
   STANDINGS_BOARD_SIZE,
-  STANDINGS_WEIGHTS,
   assignRanks,
   canLinkProfile,
   normalizeLimit,
@@ -9,18 +10,60 @@ import {
   normalizePeriod,
   normalizeScope,
   scoreStandings,
+  standingBreakdown,
 } from "@/lib/standings";
+import { WEIGHTS } from "@/lib/ranking";
 
 describe("standings scoring", () => {
-  it("scores from documented weights", () => {
+  it("counts attested activity and verified evidence, nothing else", () => {
     expect(scoreStandings({})).toBe(0);
-    expect(scoreStandings({ commits: 1 })).toBe(STANDINGS_WEIGHTS.commit);
-    expect(scoreStandings({ commits: 2, prs: 1, nodesDone: 1, projects: 1 })).toBe(
-      2 * STANDINGS_WEIGHTS.commit +
-        STANDINGS_WEIGHTS.pullRequest +
-        STANDINGS_WEIGHTS.roadmapNode +
-        STANDINGS_WEIGHTS.project
-    );
+    expect(scoreStandings({ commits: 1 })).toBe(ACTIVITY_WEIGHTS.commit);
+    expect(scoreStandings({ prs: 1 })).toBe(ACTIVITY_WEIGHTS.pullRequest);
+    // The verified half arrives pre-computed from recompute_ranking_scores,
+    // which is the single authority for it.
+    expect(scoreStandings({ verifiedScore: 42 })).toBe(42);
+  });
+
+  // The regression that motivated the rewrite. There is no longer any way to
+  // express "I clicked 40 nodes" or "I made 50 project rows" as a score input,
+  // because scoreStandings does not accept them. If someone re-adds a
+  // self-declared parameter to this signature, this test is what should fail.
+  it("has no parameter through which a self-declared claim can score", () => {
+    const args = scoreStandings.toString();
+    expect(args).not.toMatch(/nodesDone|projects(?![A-Za-z])/);
+  });
+
+  it("caps volume so repetition past the threshold is worth nothing", () => {
+    const atCap = scoreStandings({ commits: ACTIVITY_CAPS.commit });
+    const wayPast = scoreStandings({ commits: ACTIVITY_CAPS.commit * 100 });
+    // A hard plateau: 100x the commits buys exactly nothing.
+    expect(wayPast).toBe(atCap);
+  });
+
+  it("is not outranked by raw volume when verified work exists", () => {
+    const spammer = scoreStandings({ commits: 100000 });
+    const builder = scoreStandings({ prs: 1, verifiedScore: WEIGHTS.oss_verified });
+    expect(builder).toBeGreaterThan(spammer);
+  });
+});
+
+describe("standings disclosure", () => {
+  it("discloses weight, cap and source for every counted kind", () => {
+    const rows = standingBreakdown();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.weight).toBeGreaterThan(0);
+      expect(row.cap).toBeGreaterThan(0);
+      // Every line must say where the evidence came from. A weight with no
+      // stated provenance is exactly the thing this redesign exists to remove.
+      expect(row.source.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("never discloses a zero-weight kind as counting", () => {
+    for (const row of standingBreakdown()) {
+      expect(row.weight).toBeGreaterThan(0);
+    }
   });
 });
 
