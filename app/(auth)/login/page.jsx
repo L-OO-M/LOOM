@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { signIn } from "@/lib/auth-client";
 import { homeForRole } from "@/lib/auth";
 import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
+import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
 
 function LoginForm() {
   const router = useRouter();
@@ -102,6 +103,9 @@ export default function LoginPage() {
         </p>
         <Suspense fallback={<div className="mt-8 text-sm text-[var(--text-muted)]">Loading...</div>}>
           <LoginForm />
+        </Suspense>
+        <Suspense fallback={null}>
+          <GitHubSignInButton />
         </Suspense>
         <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
           No account?{" "}

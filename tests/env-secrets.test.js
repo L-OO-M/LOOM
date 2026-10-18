@@ -7,7 +7,10 @@ for (const k of [
   "DATABASE_APP_URL",
   "GITHUB_WEBHOOK_SECRET",
   "CREDENTIAL_SECRET",
-  "NEXT_PUBLIC_APP_URL"
+  "NEXT_PUBLIC_APP_URL",
+  "GITHUB_CLIENT_ID",
+  "GITHUB_CLIENT_SECRET",
+  "GITHUB_TOKEN_ENCRYPTION_KEY"
 ]) {
   ORIGINAL[k] = process.env[k];
 }
@@ -22,13 +25,24 @@ function setEnv(vars) {
   }
 }
 
+// A valid 32-byte base64 key. The length check in assertProductionSecrets is in
+// BYTES, not characters, so a 32-character string would fail -- which is the
+// point, and worth pinning with a real value rather than a shorthand.
+const GOOD_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+
 const GOOD = {
   NODE_ENV: "production",
   DATABASE_URL: "postgresql://postgres.ref:pw@host:6543/postgres",
   DATABASE_APP_URL: "postgresql://loom_app.ref:pw@host:6543/postgres",
   GITHUB_WEBHOOK_SECRET: "a-real-long-webhook-secret-value",
   CREDENTIAL_SECRET: "a-real-long-credential-secret",
-  NEXT_PUBLIC_APP_URL: "https://loom.example"
+  NEXT_PUBLIC_APP_URL: "https://loom.example",
+  // Fixture values, deliberately NOT the real credentials. A test file is
+  // tracked source: putting a live client secret here publishes it to every
+  // clone of the repo, and these fixtures exist only to be well-formed.
+  GITHUB_CLIENT_ID: "Ov23li99TESTfixtureONLY0000",
+  GITHUB_CLIENT_SECRET: "0000000000000000000000000000000000000000",
+  GITHUB_TOKEN_ENCRYPTION_KEY: GOOD_ENCRYPTION_KEY
 };
 
 async function loadEnvModule() {
@@ -145,5 +159,38 @@ describe("secretProblems", () => {
     setEnv(GOOD);
     const { secretProblems } = await loadEnvModule();
     expect(secretProblems()).toEqual([]);
+  });
+
+  // The GitHub OAuth trio was added as REQUIRED-in-production, not optional.
+  // That is a deliberate choice: without a client secret, repository ownership
+  // silently degrades to "asserted", and without the encryption key any token we
+  // already stored becomes unreadable. Both are conditions an operator must see
+  // at boot rather than discover during a support ticket.
+  it("reports a missing GitHub OAuth configuration in production", async () => {
+    setEnv({ ...GOOD, GITHUB_CLIENT_ID: undefined, GITHUB_CLIENT_SECRET: undefined });
+    const { secretProblems } = await loadEnvModule();
+    expect(secretProblems()).toContain("GITHUB_CLIENT_ID is not set");
+    expect(secretProblems()).toContain("GITHUB_CLIENT_SECRET is not set");
+  });
+
+  it("reports a missing token encryption key, which would orphan stored tokens", async () => {
+    setEnv({ ...GOOD, GITHUB_TOKEN_ENCRYPTION_KEY: undefined });
+    const { secretProblems } = await loadEnvModule();
+    expect(secretProblems()).toContain("GITHUB_TOKEN_ENCRYPTION_KEY is not set");
+  });
+
+  it("rejects an encryption key of the wrong BYTE length, not just the wrong character length", async () => {
+    // 32 characters of base64 is only 24 bytes. Silently accepting it would
+    // produce an AES-128 key where AES-256 was assumed, announced by nothing.
+    const tooShort = Buffer.alloc(16, 3).toString("base64");
+    setEnv({ ...GOOD, GITHUB_TOKEN_ENCRYPTION_KEY: tooShort });
+    const { assertProductionSecrets } = await loadEnvModule();
+    expect(() => assertProductionSecrets()).toThrow(/GITHUB_TOKEN_ENCRYPTION_KEY/);
+  });
+
+  it("rejects a known-placeholder encryption key", async () => {
+    setEnv({ ...GOOD, GITHUB_TOKEN_ENCRYPTION_KEY: "changeme" });
+    const { assertProductionSecrets } = await loadEnvModule();
+    expect(() => assertProductionSecrets()).toThrow(/GITHUB_TOKEN_ENCRYPTION_KEY/);
   });
 });

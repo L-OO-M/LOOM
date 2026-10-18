@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { signUp } from "@/lib/auth-client";
 import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
+import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
 import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 
 const input = "mt-1 block min-h-[44px] w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
@@ -191,6 +193,9 @@ export default function RegisterPage() {
                 {loading ? "Creating account..." : "Create account"}
               </button>
             </form>
+            <Suspense fallback={null}>
+              <GitHubSignInButton label="Sign up with GitHub" />
+            </Suspense>
             <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
               Already registered?{" "}
               <Link href="/login" className="font-medium text-[var(--accent)] hover:underline">Sign in</Link>
