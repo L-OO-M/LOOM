@@ -15,6 +15,8 @@ Learning, Opportunity, Open source, Mentorship — one student journey per chapt
 | [Architecture](17-architecture.md) | Developers | Request lifecycle, roles, table map, workflows, security invariants |
 | [Public site](18-public-site.md) | Developers | Public pages, tenant fallback, empty-state policy |
 | [Operations](19-operations.md) | Developers | Departments, volunteers, reports, handover, finance |
+| [**Verified ranking**](20-verified-ranking.md) | Developers | What the leaderboard counts, what stops a student faking it, the review queue, the `ranking_verified` flag |
+| [**GitHub OAuth setup**](21-github-oauth-setup.md) | Operators | Production env vars, OAuth App + Supabase config, flag rollout order, verification steps |
 | [**RLS rollout runbook**](rls-rollout-runbook.md) | Operators | Enabling database-level tenant isolation, verifying it, rolling it back |
 
 ## Read this before deploying

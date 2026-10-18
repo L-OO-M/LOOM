@@ -12,15 +12,16 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 |--------|-------|------|-------|
 | GET/PUT | `/api/profile` | user | own profile |
 | GET | `/api/roadmap` | user | nodes + my progress |
-| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status); awards first-step/halfway/complete achievements idempotently + notifies |
+| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Rate limited. |
 | GET | `/api/resources` | user | curated library |
-| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, repoUrl?, tags[â‰¤8] |
-| GET/PATCH | `/api/projects/[id]` | owner/admin | |
+| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, **repoUrl (required; github.com/owner/repo, must match your linked GitHub handle, one claim per repo)**, tags. Always created `provisional` — **scores nothing** until a signed delivery proves activity in that repo, or a lead confirms it. Rate limited. |
+| GET/PATCH | `/api/projects/[id]` | owner/admin | PATCH cannot set `evidence_state`/`verified_by`/`verified_at`. Changing `repoUrl` returns the claim to provisional. Archiving withdraws the standing. |
+| GET/POST | `/api/admin/ranking` | admin | the evidence review queue: GET lists provisional node/project claims; POST `{kind, id, decision:"verified"\|"rejected"}`, or `clearAllForStudent:true` to reverse every unverified claim for one student. Requires `verify_evidence` (admin/platform_admin). |
 | GET/POST | `/api/contests` | user/admin-create | register + submit flows |
 | GET/POST | `/api/mentorship` | user | request/list sessions |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
-| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (â‰¤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded |
+| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (â‰¤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded. Returns `verifiedOnly` + `breakdown`; rows carry `verified_score` and `pending`. Counts **only** attested GitHub activity and verified evidence — see [`20-verified-ranking.md`](20-verified-ranking.md) |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |

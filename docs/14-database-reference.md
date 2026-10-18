@@ -45,6 +45,43 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | **033** | `033_rls_self_read.sql` | `profiles` self-read branch (`user_id = current_setting('app.user_id', true)`) so step 1 of tenant resolution is not denied to everyone |
 | 034 | `034_audit_backfill_resweep.sql` | `audit_logs.tenant_id` backfill (data only) |
 | 035 | `035_github_handle_uniqueness.sql` | `profiles.github_username` uniqueness |
+| 036 | `036_tenant_leading_indexes.sql` | composite indexes led by `tenant_id` |
+| **037** | `037_verified_evidence.sql` | **the ranking trust boundary** — see below |
+
+### Migration 037 — verified evidence
+
+Changes the ranking ledger from documentation to enforcement:
+
+- **`ranking_events`**: `+ source`, `+ evidence jsonb`, `+ verified_at`; and a
+  **`BEFORE INSERT` trigger `ranking_events_require_verification`** that raises
+  when `verified_by` is NULL or blank — **for every role, including the owner**.
+  No score can be written without a named actor vouching for it.
+- **`ranking_scores`**: primary key corrected from `user_id` to
+  `(tenant_id, user_id)`. It was `user_id` alone, and `recompute_ranking_scores`
+  did `ON CONFLICT (user_id)` without refreshing `tenant_id`, so one row could be
+  overwritten across two chapters.
+- **`projects`**: `+ repo_full_name`, `+ evidence_state`
+  (`provisional|verified|rejected`, default `provisional`), `+ verified_at`,
+  `+ verified_by`, and `CHECK (status IN ('active','completed','archived'))`.
+- **`student_roadmap_progress`**: `+ evidence_state`, `+ evidence_note`,
+  `+ evidence_url`, `+ verified_by`, `+ verified_at`, and
+  `CHECK (status IN ('active','completed'))`. The long-declared, never-written
+  `evidence_source` column is now populated.
+- **`github_events`**: `+ repository_name`, `+ student_id`, `+ tenant_id` with a
+  partial index, backfilled from the existing jsonb payload.
+- **`ranking_decayed_weight`** re-declared `STABLE` (it was `IMMUTABLE` while
+  calling `now()`), with a real multi-step age curve.
+- **`ranking_kind_cap(kind)`** added; `recompute_ranking_scores` now filters on
+  `verified_by IS NOT NULL`, applies caps, fixes the conflict target, and
+  **deletes** scores for users with no verified evidence left — so declining a
+  claim genuinely lowers a standing instead of freezing it.
+- `feature_flags.ranking_verified` seeded **false**.
+
+Full rationale, weight table and known limits: **[`docs/20-verified-ranking.md`](20-verified-ranking.md)**.
+
+**Any code reading `projects` or `student_roadmap_progress` as evidence MUST
+filter on `evidence_state = 'verified'`.** Counted raw, a self-declared row is
+indistinguishable from a confirmed one — that is the bug 037 exists to close.
 
 **Read migrations 030/031/033 together with `docs/rls-rollout-runbook.md` before
 changing anything about roles or policies.** Three facts that are easy to get
