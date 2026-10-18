@@ -48,7 +48,9 @@ const protectedPages = [
   "/lead/roster",
   "/lead/workshops",
   "/lead/reports",
-  "/lead/succession"
+  "/lead/succession",
+  "/lead/assets",
+  "/admin/assets"
 ];
 
 test.describe("route protection", () => {
@@ -111,6 +113,8 @@ test.describe("api authorization", () => {
     "/api/admin/community",
     "/api/admin/overview",
     "/api/lead/overview",
+    "/api/lead/assets",
+    "/api/lead/asset-categories",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -188,6 +192,22 @@ test.describe("api authorization", () => {
     expect(bulk.status()).toBe(401);
     const approve = await request.post("/api/events/00000000-0000-0000-0000-000000000000/approve", { data: { approve: true } });
     expect(approve.status()).toBe(401);
+  });
+
+  test("asset library writes and downloads return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/assets", {
+      data: { title: "Brand kit", externalUrl: "https://example.com/kit.zip" }
+    });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/assets/${id}`, { data: { title: "x" } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/assets/${id}`);
+    expect(del.status()).toBe(401);
+    const version = await request.post(`/api/lead/assets/${id}/versions`, { data: {} });
+    expect(version.status()).toBe(401);
+    const download = await request.get(`/api/lead/assets/${id}/download`);
+    expect(download.status()).toBe(401);
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {

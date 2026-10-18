@@ -97,6 +97,14 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
+| GET | `/api/lead/assets` | dept_lead+ (`view_assets`) | creative asset library list (`?category=&kind=&q=`) |
+| POST | `/api/lead/assets` | dept_lead+ (`manage_assets`) | create an asset: multipart file upload, or JSON link-out with `externalUrl` |
+| GET | `/api/lead/assets/[id]` | dept_lead+ (`view_assets`) | one asset + its version history |
+| PATCH | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | edit title/description/category/tags/kind; set or clear `externalUrl`; `isActive` |
+| DELETE | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | archive (soft delete `is_active = false`; files and versions are kept) |
+| POST | `/api/lead/assets/[id]/versions` | dept_lead+ (`manage_assets`) | upload a new version of a file asset (multipart `file`) |
+| GET | `/api/lead/assets/[id]/download` | dept_lead+ (`view_assets`) | `302` to a 5-minute signed URL (or the external link); raw `<a>`, never `<Link>` |
+| GET | `/api/lead/asset-categories` | dept_lead+ (`view_assets`) | the tenant's categories (seeded logos/signatures/templates/…) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
