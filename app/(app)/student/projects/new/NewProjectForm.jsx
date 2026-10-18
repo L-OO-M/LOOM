@@ -24,8 +24,22 @@ export default function NewProjectForm({ milestones = [] }) {
       setBusy(false);
       return;
     }
-    if (repoUrl.trim() && !/^https?:\/\/.+\..+/.test(repoUrl.trim())) {
-      setMsg("Repository URL must be a full URL starting with http(s):// — or leave it empty.");
+    // The repository is required, and it must be on github.com under your own
+    // handle -- the same handle you linked at /student/github. This is the whole
+    // reason the project counts for anything: an empty row used to be worth 25
+    // points on the public leaderboard, so the registry was worth farming.
+    if (!repoUrl.trim()) {
+      setMsg("Link the GitHub repository for this project — without one there is nothing to verify.");
+      setBusy(false);
+      return;
+    }
+    if (!/^https?:\/\/.+\..+/.test(repoUrl.trim())) {
+      setMsg("Repository URL must be a full URL starting with http(s)://");
+      setBusy(false);
+      return;
+    }
+    if (!/^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+/i.test(repoUrl.trim())) {
+      setMsg("That does not look like a GitHub repository — it should look like https://github.com/you/repo");
       setBusy(false);
       return;
     }
@@ -36,7 +50,7 @@ export default function NewProjectForm({ milestones = [] }) {
         body: JSON.stringify({
           title: trimmedTitle,
           description,
-          repoUrl: repoUrl.trim() || null,
+          repoUrl: repoUrl.trim(),
           tags: tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 8),
           roadmapNodeId: milestone || null
         })
@@ -82,13 +96,17 @@ export default function NewProjectForm({ milestones = [] }) {
           style={inputStyle}
         />
       </Field>
-      <Field label="Repository URL (optional)" hint="Link the code now, or add it later from the project page.">
+      <Field
+        label="GitHub repository"
+        hint="Required, and it must be a repo under your own GitHub handle. Link that handle at /student/github first."
+      >
         <input
           id="new-repo"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           type="url"
           inputMode="url"
+          required
           placeholder="https://github.com/you/repo"
           style={inputStyle}
         />
@@ -123,7 +141,11 @@ export default function NewProjectForm({ milestones = [] }) {
         <button disabled={busy} className="btn-ink disabled:opacity-50">
           {busy ? "Creating…" : "Create project"}
         </button>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>It starts as Active — you&apos;ll mark it Completed when it ships.</p>
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          A new project counts as <strong>pending</strong> — worth nothing on the
+          leaderboard until we see real activity in that repository, or a chapter
+          lead confirms it.
+        </p>
       </div>
     </form>
   );

@@ -57,7 +57,15 @@ export default async function ProjectDetailPage({ params }) {
     }
   })();
 
-  const isVerified = p.status === "completed";
+  // "Verified" must mean somebody checked, not that the owner ticked a box.
+  //
+  // This used to be `p.status === "completed"` — a value the owner sets with
+  // one click on their own project — and the page rendered it as "Verified" and
+  // "Shipped and verifiable". That is the whole forgery in miniature: the
+  // surface asserted a fact the student controlled. Status is still the
+  // student's own organisation of their work and says nothing about proof.
+  const isVerified = p.evidence_state === "verified";
+  const isPending = p.evidence_state !== "verified" && p.status !== "archived";
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -109,8 +117,17 @@ export default async function ProjectDetailPage({ params }) {
             <aside className="min-w-0 space-y-6" aria-label="Proof and actions">
               <div className="rounded-2xl border p-5" style={{ borderColor: isVerified ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }}>
                 <Meta>Proof status</Meta>
-                <p className="mt-2 flex items-center gap-2 text-lg font-semibold" style={{ color: "var(--text)" }}><span className="grid size-6 place-items-center rounded-full text-sm" style={{ background: isVerified ? "var(--accent)" : "var(--line)", color: isVerified ? "#101314" : "var(--text-muted)" }}>{isVerified ? "✓" : "·"}</span>{isVerified ? "Verified" : p.status}</p>
-                <p className="meta mt-2">{isVerified ? "Shipped and verifiable" : "Build → complete → prove"}</p>
+                <p className="mt-2 flex items-center gap-2 text-lg font-semibold" style={{ color: "var(--text)" }}>
+                  <span className="grid size-6 place-items-center rounded-full text-sm" style={{ background: isVerified ? "var(--accent)" : "var(--line)", color: isVerified ? "#101314" : "var(--text-muted)" }}>{isVerified ? "✓" : "·"}</span>
+                  {isVerified ? "Verified" : isPending ? "Awaiting proof" : "Not claimed"}
+                </p>
+                <p className="meta mt-2">
+                  {isVerified
+                    ? `Counted toward your standing${p.verified_at ? ` since ${new Date(p.verified_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}` : ""}.`
+                    : isPending
+                      ? "Worth nothing on the leaderboard until we see activity in the repository, or a chapter lead confirms it."
+                      : "This project was withdrawn, so it does not count."}
+                </p>
               </div>
               <div className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                 <Meta>Repository</Meta>

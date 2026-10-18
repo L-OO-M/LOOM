@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { parseGitHubRepo, recomputeScore, revokeEvidence } from "@/lib/ranking";
 
 export async function GET(request, { params }) {
   const ctx = await getRequestContext();
@@ -26,6 +27,10 @@ export async function GET(request, { params }) {
   return ok({ project });
 }
 
+// `status` is the student's own organization of their work and no longer
+// affects standing. It used to: the board counted every row except 'archived',
+// which meant the score was awarded at creation and archiving was the only
+// de-listing lever — student-controlled, so it protected nothing.
 const patchSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().max(2000).optional(),
@@ -34,6 +39,9 @@ const patchSchema = z.object({
   tags: z.array(z.string().min(1).max(30)).max(8).optional(),
   roadmapNodeId: z.string().nullable().optional()
 });
+
+// evidence_state, verified_by and verified_at are NOT in the patch schema and
+// never were. A student cannot promote their own claim.
 
 export async function PATCH(request, { params }) {
   const ctx = await getRequestContext();
@@ -63,6 +71,18 @@ export async function PATCH(request, { params }) {
   }
   const nextTags = body.tags !== undefined ? body.tags.map((t) => t.toLowerCase()) : project.tags;
   const nextNodeId = body.roadmapNodeId === undefined ? project.roadmap_node_id : body.roadmapNodeId;
+
+  // Changing the repository invalidates the claim. The repo is what the
+  // evidence was about, so a swapped url must drop the verification back to
+  // provisional rather than carry the old standing onto an unrelated repo.
+  const nextRepoFullName =
+    body.repoUrl === undefined ? project.repo_full_name : parseGitHubRepo(body.repoUrl);
+  if (body.repoUrl !== undefined && !nextRepoFullName) {
+    return fail("REPO_URL_INVALID", "Link a GitHub repository (github.com/owner/repo)", 400);
+  }
+  const repoChanged =
+    nextRepoFullName !== null && project.repo_full_name !== null && nextRepoFullName !== project.repo_full_name;
+
   const [updated] = await sql`
     UPDATE projects SET
       title = COALESCE(${body.title ?? null}, title),
@@ -71,10 +91,24 @@ export async function PATCH(request, { params }) {
       repo_url = COALESCE(${body.repoUrl ?? null}, repo_url),
       tags = ${nextTags},
       roadmap_node_id = ${nextNodeId},
+      repo_full_name = COALESCE(${nextRepoFullName}, repo_full_name),
+      evidence_state = CASE WHEN ${repoChanged} THEN 'provisional' ELSE evidence_state END,
+      verified_by = CASE WHEN ${repoChanged} THEN NULL ELSE verified_by END,
+      verified_at = CASE WHEN ${repoChanged} THEN NULL ELSE verified_at END,
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
   `;
+
+  // Archiving withdraws the standing, because a project the student has taken
+  // down is not proof of anything they shipped. Reversal goes through the same
+  // derived recompute as every other change, so the board can never drift.
+  if (body.status === "archived") {
+    await revokeEvidence({
+      sql, tenantId: tenant?.id, userId: user.id, kind: "project_verified", refId: id
+    });
+    await recomputeScore(sql, tenant?.id, user.id);
+  }
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_project", resource: "project", resourceId: id, before: { status: project.status }, after: { status: updated.status } });
   return ok({ project: updated });
 }

@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Status is the student's own organisation of their work and no longer affects
+// standing. The old hint "Shipped & real" is gone deliberately: marking a
+// project completed used to be what a student would do to claim credit for it,
+// and it earned nothing that anybody verified.
 const OPTIONS = [
   { value: "active", label: "Active", hint: "In progress" },
-  { value: "completed", label: "Completed", hint: "Shipped & real" },
-  { value: "archived", label: "Archived", hint: "Shelved" },
+  { value: "completed", label: "Completed", hint: "You consider this finished" },
+  { value: "archived", label: "Archived", hint: "Shelved — this withdraws any standing it had" },
 ];
 
 export default function ProjectStatusControl({ projectId, current }) {
