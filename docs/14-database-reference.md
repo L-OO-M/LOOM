@@ -53,6 +53,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | **041** | `041_mou.sql` | **MoU database** — `mous`, `mou_documents` (versioned, label-grouped) + fail-closed RLS (see below) |
 | **042** | `042_lead_directory.sql` | **leadership directory** — `lead_directory` (current + past tenure, optional account link) + fail-closed RLS (see below) |
 | **043** | `043_event_ops.sql` | **event operations** — `event_ops_tasks` (task deadlines, owner, status) + fail-closed RLS (see below) |
+| **044** | `044_event_ops_reminders.sql` | `event_ops_tasks.reminded_at` — dedupe marker for the deadline reminder job |
 
 ### Migration 037 — verified evidence
 

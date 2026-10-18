@@ -82,6 +82,7 @@ port, or error strings.
 | `npm run rollup:federation` | **nightly**: chapter stats + federation row |
 | `npm run rollup:analytics` | **nightly**: snapshots, cohorts, funnels, mentor stats |
 | `npm run prune:retention` | **daily**: report rows past their retention window. Dry run — add `-- --apply` to delete |
+| `node load/remind-deadlines.js` | **hourly**: in-app nudges for MoUs ending within 30 days and ops tasks due within 48h. Dry run — add `--apply` to send |
 | `npm run flag:verify` | current feature-flag state, including `tenant_rls_enforced` |
 | `npm run rls:role` | generate/rotate the `loom_app` password (prints the URL once) |
 | `npm run rls:verify` | **gate**: proves RLS actually enforces before/after enabling it |
@@ -108,6 +109,20 @@ rollups:
 > The rollups and the prune are still **manual or externally scheduled** — there
 > is no in-repo scheduler and no `vercel.json`. Wire them to whatever your
 > platform provides.
+
+### Deadline reminders
+
+`mous.ends_on` and `event_ops_tasks.due_at` are only useful if someone is
+warned. `node load/remind-deadlines.js` sweeps every tenant (owner connection)
+and writes **in-app** notifications — there is no email provider wired up — to
+the MoU owner (agreement ending within 30 days) and the task owner (due within
+48 hours). It is idempotent: `mous.expiry_notified_at` and
+`event_ops_tasks.reminded_at` mark each row after its one nudge, and both are
+cleared when the date moves. Dry run by default; schedule it hourly:
+
+```
+0 * * * *  cd /app && node load/remind-deadlines.js --apply
+```
 
 ## 4. Deploy checklist
 

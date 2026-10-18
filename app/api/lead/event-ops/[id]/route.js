@@ -99,6 +99,8 @@ export async function PATCH(request, { params }) {
   // Completing a task stamps done_at/done_by; reopening clears them.
   const justDone = next.status === "done" && existing.status !== "done";
   const reopened = next.status !== "done" && existing.status === "done";
+  // A moved deadline resets the reminder so the new date can be announced.
+  const dueChanged = String(next.dueAt || "") !== String(existing.due_at || "");
 
   const [task] = await sql`
     UPDATE event_ops_tasks SET
@@ -107,6 +109,7 @@ export async function PATCH(request, { params }) {
       owner_id = ${next.ownerId}, due_at = ${next.dueAt}, is_active = ${next.isActive},
       done_at = CASE WHEN ${justDone} THEN NOW() WHEN ${reopened} THEN NULL ELSE done_at END,
       done_by = CASE WHEN ${justDone} THEN ${user.id} WHEN ${reopened} THEN NULL ELSE done_by END,
+      reminded_at = CASE WHEN ${dueChanged} THEN NULL ELSE reminded_at END,
       updated_at = NOW()
     WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
     RETURNING id, event_id, title, detail, kind, priority, status, owner_id, due_at, done_at, is_active,
