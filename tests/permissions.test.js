@@ -12,8 +12,23 @@ const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vert
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
 
 describe("permissions matrix (Website Plan Section 3)", () => {
-  it("covers all 20 matrix rows", () => {
-    expect(ACTIONS).toHaveLength(20);
+  it("covers all 21 matrix rows", () => {
+    // 20 plan rows, plus verify_evidence added with the ranking redesign. The
+    // count is asserted rather than left open because ACTIONS is the authority
+    // for every gate in the app -- a row added without a test is a row nobody
+    // has checked.
+    expect(ACTIONS).toHaveLength(21);
+  });
+
+  it("confirms evidence only to admin and platform_admin", () => {
+    // A confirmation is what puts points on a public board, so nothing below
+    // admin may do it. These assertions are the check on that: if the switch
+    // statement ever falls through to `ok`, they fail here.
+    for (const role of ["student", "core", "dept_lead", "vertical_lead"]) {
+      expect(can({ role, memberships: [{ department_id: D1, level: "dept_lead" }] }, "verify_evidence").ok).toBe(false);
+    }
+    expect(can(admin(), "verify_evidence").ok).toBe(true);
+    expect(can({ role: "platform_admin" }, "verify_evidence").ok).toBe(true);
   });
 
   it("rejects unknown users and actions", () => {
