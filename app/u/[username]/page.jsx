@@ -49,7 +49,7 @@ export async function generateMetadata({ params }) {
 }
 
 /** The whole card. One implementation, rendered in either shell. */
-function CardBody({ card, profile, displayName, url, rep, followers, skills, achievements, proofCounts, latestProject, isGuide, isOwn }) {
+function CardBody({ card, profile, displayName, url, rep, followers, skills, achievements, proofCounts, latestProject, isGuide, isOwn, showEndorsements = true }) {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-14 sm:px-6">
       {isOwn && (
@@ -159,8 +159,10 @@ function CardBody({ card, profile, displayName, url, rep, followers, skills, ach
         </section>
 
         <section aria-labelledby="known-for-heading">
-          <h2 id="known-for-heading" className="meta">Known for · {rep.endorsements}</h2>
-          {skills.length === 0 ? (
+          <h2 id="known-for-heading" className="meta">{showEndorsements ? `Known for · ${rep.endorsements}` : "Known for"}</h2>
+          {!showEndorsements ? (
+            <p className="narrative mt-3">This member has hidden their endorsements.</p>
+          ) : skills.length === 0 ? (
             <p className="narrative mt-3">No endorsements yet — vouch for a skill you have seen in action.</p>
           ) : (
             <ul className="mt-4 space-y-2.5">
@@ -241,7 +243,7 @@ export default async function PublicProfilePage({ params }) {
       card={card} profile={profile} displayName={displayName} url={url}
       rep={rep} followers={followers} skills={skills} achievements={achievements}
       proofCounts={proofCounts} latestProject={latestProject} isGuide={!!isGuide}
-      isOwn={false}
+      isOwn={false} showEndorsements={card.endorsements_visible !== false}
       />
     </>
   );
@@ -275,7 +277,7 @@ export default async function PublicProfilePage({ params }) {
             card={card} profile={profile} displayName={displayName} url={url}
             rep={rep} followers={followers} skills={skills} achievements={achievements}
             proofCounts={proofCounts} latestProject={latestProject} isGuide={!!isGuide}
-            isOwn
+            isOwn showEndorsements={card.endorsements_visible !== false}
           />
         </main>
       </AppShell>

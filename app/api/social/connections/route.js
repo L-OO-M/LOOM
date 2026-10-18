@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext, notify } from "@/lib/auth-server";
+import { getRequestContext, notify, writeAudit } from "@/lib/auth-server";
 
 const followSchema = z.object({ username: z.string().min(2).max(30) });
 const endorseSchema = z.object({
@@ -80,4 +80,26 @@ export async function POST(request) {
     title: "New follower", body: "Someone from your chapter followed you.", link: followLink
   });
   return ok({ following: true });
+}
+
+// The recipient of an endorsement may remove it. This is how an abusive or
+// unwanted endorsement is taken down by the person it is about, without waiting
+// for an admin. Scoped so a member can only ever delete an endorsement made
+// about themselves (`endorsee_id = user.id`), never someone else's.
+export async function DELETE(request) {
+  const ctx = await getRequestContext();
+  if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
+  if (ctx.error) return fail(ctx.error, "Profile not found", 404);
+  const { user, tenant, sql } = ctx;
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get("mode") !== "endorsement") return fail("INVALID", "Unsupported action", 400);
+  const id = searchParams.get("id");
+  if (!id) return fail("INVALID", "Missing endorsement id", 400);
+  const [deleted] = await sql`
+    DELETE FROM user_endorsements
+    WHERE id = ${id}::uuid AND endorsee_id = ${user.id}
+    RETURNING id, skill`;
+  if (!deleted) return fail("NOT_FOUND", "Endorsement not found", 404);
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "removed_endorsement", resource: "user_endorsement", resourceId: deleted.id, after: { skill: deleted.skill } });
+  return ok({ removed: true, id: deleted.id });
 }
