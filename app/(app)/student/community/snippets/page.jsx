@@ -4,7 +4,8 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
-import { SnippetForm, CopyButton } from "./SnippetBits";
+import { SnippetForm, CopyButton, SnippetOwnerActions } from "./SnippetBits";
+import { CodeBlock } from "./SnippetCode";
 import { DOMAIN_ORDER } from "@/lib/domains";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function SnippetsPage({ searchParams }) {
     WHERE s.tenant_id = ${tid}::uuid AND s.status = 'visible'
       AND (${language} = '' OR s.language = ${language})
       AND (${domain} = '' OR s.domain = ${domain})
-      AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.code ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`}))
+      AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`} OR s.language ILIKE ${`%${q}%`}))
     ORDER BY s.upvote_count DESC, s.created_at DESC LIMIT 50
   `;
   let votedIds = new Set();
@@ -100,10 +101,11 @@ export default async function SnippetsPage({ searchParams }) {
                         <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>{s.language}</span>
                         <CopyButton code={s.code} />
                       </div>
-                      <pre className="overflow-auto p-4 pt-2 font-mono text-xs leading-6" style={{ color: "var(--text)" }}>{s.code}</pre>
+                      <CodeBlock code={s.code} language={s.language} />
                     </div>
-                    <p className="meta mt-2">
+                    <p className="meta mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                       <Link href={`/student/community/snippets#snippet-${s.id}`} prefetch={false} className="hover:underline" style={{ color: "var(--text-muted)" }}>Link to this snippet →</Link>
+                      {s.author_id === user.id && <SnippetOwnerActions snippet={s} languages={langOptions} />}
                     </p>
                   </div>
                 </div>

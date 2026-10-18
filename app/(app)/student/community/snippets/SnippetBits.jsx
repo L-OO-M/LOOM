@@ -114,3 +114,93 @@ export function SnippetForm({ languages = [] }) {
     </form>
   );
 }
+
+// Author-only controls on a published snippet. The security report found there
+// was no way to edit or remove your own snippet once published.
+export function SnippetOwnerActions({ snippet, languages = [] }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [form, setForm] = useState({
+    title: snippet?.title || "",
+    code: snippet?.code || "",
+    language: snippet?.language || "javascript",
+    domain: snippet?.domain || "general",
+    description: snippet?.description || "",
+    tags: Array.isArray(snippet?.tags) ? snippet.tags.join(", ") : ""
+  });
+
+  const options = Array.from(new Set([...(languages || []), ...FALLBACK_LANGUAGES])).slice(0, 30);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/community/snippets/${snippet.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...form, tags: parseTags(form.tags) })
+      });
+      const data = await res.json();
+      if (!data?.ok) { setMsg(data?.error?.message || "Could not save"); setBusy(false); return; }
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setMsg("Network error — try again");
+    }
+    setBusy(false);
+  }
+
+  async function remove() {
+    if (!window.confirm("Delete this snippet? This cannot be undone.")) return;
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/community/snippets/${snippet.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data?.ok) { setMsg(data?.error?.message || "Could not delete"); setBusy(false); return; }
+      router.refresh();
+    } catch {
+      setMsg("Network error — try again");
+    }
+    setBusy(false);
+  }
+
+  if (!open) {
+    return (
+      <span className="inline-flex items-center gap-3">
+        <button type="button" onClick={() => setOpen(true)} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Edit</button>
+        <button type="button" onClick={remove} disabled={busy} className="font-semibold hover:underline disabled:opacity-50" style={{ color: "var(--danger)" }}>{busy ? "Deleting…" : "Delete"}</button>
+        {msg && <span role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 w-full space-y-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Edit snippet">
+      <Field label="Title"><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} maxLength={120} style={inputStyle} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Language">
+          <select value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} style={inputStyle}>
+            {options.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+        <Field label="Domain">
+          <select value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} style={inputStyle}>
+            {["general", "ai_ml", "web", "cybersecurity", "dsa", "blockchain"].map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="Code"><textarea value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required rows={6} maxLength={8000} spellCheck={false} className="font-mono" style={inputStyle} /></Field>
+      <Field label="What it does (optional)"><input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={500} style={inputStyle} /></Field>
+      <Field label="Tags (optional, comma-separated)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} maxLength={160} style={inputStyle} /></Field>
+      {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Saving…" : "Save changes"}</button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Cancel</button>
+      </div>
+    </form>
+  );
+}

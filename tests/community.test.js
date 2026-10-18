@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FLAG_REASONS, isFlagReason, parseTags, slugify, toggleVote, voteTableFor } from "@/lib/community";
+import { FLAG_REASONS, isFlagReason, parseTags, screenSnippet, slugify, toggleVote, voteTableFor } from "@/lib/community";
 
 describe("community helpers", () => {
   it("slugifies titles", () => {
@@ -61,5 +61,13 @@ describe("community helpers", () => {
   it("rejects unknown vote targets", async () => {
     const sql = async () => [];
     await expect(toggleVote({ sql, studentId: "u1", targetType: "admin", targetId: "t1" })).rejects.toThrow("INVALID_TARGET");
+  });
+
+  it("screens snippet title, description and tags but never the code", () => {
+    expect(screenSnippet({ title: "clean title", description: "clean", tags: ["react"] })).toEqual({ ok: true });
+    expect(screenSnippet({ title: "free shit here" }).code).toBe("UNSAFE_CONTENT");
+    expect(screenSnippet({ title: "ok", tags: ["bitch"] }).field).toBe("tags");
+    // Code bodies are not natural language; the filter must not look at them.
+    expect(screenSnippet({ title: "ok", code: "const shit = 1" })).toEqual({ ok: true });
   });
 });

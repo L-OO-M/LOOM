@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
+import { screenSnippet } from "@/lib/community";
 
 const createSchema = z.object({
   title: z.string().min(3).max(120),
@@ -26,7 +27,7 @@ export async function GET(request) {
     WHERE s.tenant_id = ${tenant?.id ?? null}::uuid AND s.status = 'visible'
       AND (${language} = '' OR s.language = ${language})
       AND (${domain} = '' OR s.domain = ${domain})
-      AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.code ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`}))
+      AND (${q} = '' OR (s.title ILIKE ${`%${q}%`} OR s.description ILIKE ${`%${q}%`} OR s.language ILIKE ${`%${q}%`}))
     ORDER BY s.upvote_count DESC, s.created_at DESC LIMIT 50
   `;
   return ok({ snippets });
@@ -43,6 +44,8 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
+  const screened = screenSnippet(body);
+  if (!screened.ok) return fail(screened.code, screened.message, 400);
   const [snippet] = await sql`
     INSERT INTO code_snippets (tenant_id, author_id, domain, language, title, code, description, tags)
     VALUES (${tenant?.id ?? null}, ${user.id}, ${body.domain}, ${body.language}, ${body.title}, ${body.code}, ${body.description}, ${body.tags})
