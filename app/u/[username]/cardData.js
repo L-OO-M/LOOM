@@ -10,18 +10,22 @@ import { absoluteUrl } from "@/lib/seo";
  * recipient sees. Returns null when the profile is missing or not public, which
  * is the single condition for "not found".
  */
-export async function loadPublicBuilderCard(clean) {
+export async function loadPublicBuilderCard(clean, sqlOverride) {
   if (!clean) return null;
   try {
-    const sql = getSql();
+    const sql = sqlOverride || getSql();
+    // user_id MUST be selected: reputationFor() and the follower count key off
+    // it. Omitting it made card.user_id undefined, and postgres.js rejects an
+    // undefined parameter -- the throw was swallowed by the catch below, so
+    // every card silently rendered the "BUILDER NOT FOUND" placeholder.
     const [card] = await sql`
-      SELECT username, bio, is_public FROM user_profiles
+      SELECT user_id, username, bio, is_public FROM user_profiles
       WHERE username = ${clean} AND is_public = true LIMIT 1`;
     if (!card) return null;
 
     const [profile] = await sql`
       SELECT p.name, p.primary_domain FROM profiles p
-      WHERE p.user_id = (SELECT user_id FROM user_profiles WHERE username = ${clean} LIMIT 1)
+      WHERE p.user_id = ${card.user_id}
       LIMIT 1`;
     const rep = await reputationFor(sql, card.user_id).catch(() => ({}));
     const [{ followers = 0 } = {}] = await sql`
