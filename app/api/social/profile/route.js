@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { RESERVED_USERNAMES, validUsername } from "@/lib/reputation";
+import { screenProfileCard } from "@/lib/content-safety";
 
 const cardSchema = z.object({
   username: z.string().min(2).max(30),
@@ -37,6 +38,8 @@ export async function PUT(request) {
   const username = body.username.trim().toLowerCase();
   if (RESERVED_USERNAMES.includes(username)) return fail("INVALID_USERNAME", "That name is reserved for app pages — pick another", 400);
   if (!validUsername(username)) return fail("INVALID_USERNAME", "Use 2-30 letters, numbers, - or _", 400);
+  const screened = screenProfileCard({ bio: body.bio, location: body.location, github: body.github, linkedin: body.linkedin });
+  if (!screened.ok) return fail(screened.code, screened.message, 400);
   const [taken] = await sql`SELECT user_id FROM user_profiles WHERE username = ${username} AND user_id <> ${user.id} LIMIT 1`;
   if (taken) return fail("USERNAME_TAKEN", "That username is taken", 409);
   const links = {};
