@@ -10,9 +10,21 @@ const patchSchema = z.object({
   branch: z.string().max(80).nullable().optional(),
   year: z.number().int().min(1).max(6).nullable().optional(),
   primaryDomain: z.string().max(40).nullable().optional(),
-  githubUsername: z.string().max(39).nullable().optional(),
   onboardingCompleted: z.boolean().optional()
 });
+
+// githubUsername is deliberately NOT settable here.
+//
+// This route used to accept it, which was a second, unguarded writer for
+// profiles.github_username. POST /api/github is the only legitimate path: it
+// rejects a handle already claimed by another account, and it is the path
+// migration 035's uniqueness constraint was written to protect.
+//
+// Because lib/github.js resolves webhook attribution from this column as a
+// fallback, the duplicate writer let a student point the mirror at somebody
+// else's handle and absorb their pushes and pull requests as their own score --
+// the same silent misattribution class migration 035 closed, reopened through
+// the settings form. Ownership of this column now lives in exactly one route.
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +59,6 @@ export async function PATCH(request) {
       branch = COALESCE(${body.branch ?? null}, branch),
       year = COALESCE(${body.year ?? null}, year),
       primary_domain = COALESCE(${body.primaryDomain ?? null}, primary_domain),
-      github_username = COALESCE(${body.githubUsername ?? null}, github_username),
       onboarding_completed = COALESCE(${body.onboardingCompleted ?? null}, onboarding_completed),
       updated_at = NOW()
     WHERE user_id = ${user.id}
