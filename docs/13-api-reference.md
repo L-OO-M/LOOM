@@ -117,6 +117,11 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/lead/directory/[id]` | dept_lead+ (`view_lead_tools`) | one directory entry |
 | PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields / flip current ↔ past / archive |
 | DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | remove (soft delete) |
+| GET | `/api/lead/event-ops` | dept_lead+ (`view_lead_tools`) | operations tasks (`?event=&status=&owner=&due=soon&q=`) |
+| POST | `/api/lead/event-ops` | dept_lead+ (`manage_event_ops`) | add a task (event optional, owner optional, `dueAt` ISO) |
+| GET | `/api/lead/event-ops/[id]` | dept_lead+ (`view_lead_tools`) | one task |
+| PATCH | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | edit / change status (stamps `done_at`/`done_by` on completion) |
+| DELETE | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | remove (soft delete) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
