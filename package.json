@@ -11,6 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "check:encoding": "node load/fix-encoding.js --check",
+    "fix:encoding": "node load/fix-encoding.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

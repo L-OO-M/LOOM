@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,7 +16,7 @@ export function CopyButton({ code }) {
     try {
       if (!navigator?.clipboard?.writeText) throw new Error("unsupported");
       await navigator.clipboard.writeText(code || "");
-      setMsg("Copied âœ“");
+      setMsg("Copied ✓");
     } catch {
       setMsg("Copy failed");
     }
@@ -66,11 +66,11 @@ export function SnippetForm({ languages = [] }) {
       });
       data = await res.json();
     } catch {
-      data = { ok: false, error: { message: "Network error â€” try again" } };
+      data = { ok: false, error: { message: "Network error — try again" } };
     }
     setBusy(false);
     if (!data?.ok) {
-      setMsg(data?.error?.message || "Could not share â€” try again");
+      setMsg(data?.error?.message || "Could not share — try again");
       return;
     }
     setTitle("");
@@ -103,12 +103,12 @@ export function SnippetForm({ languages = [] }) {
       {language === "other" && (
         <Field label="Custom language"><input value={customLanguage} onChange={(e) => setCustomLanguage(e.target.value)} required maxLength={30} placeholder="e.g. lua" style={inputStyle} aria-label="Custom language" /></Field>
       )}
-      <Field label="Code"><textarea value={code} onChange={(e) => setCode(e.target.value)} required rows={6} maxLength={8000} spellCheck={false} placeholder="Paste working codeâ€¦" className="font-mono" style={inputStyle} aria-label="Code" /></Field>
-      <Field label="What it does (optional)"><input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} placeholder="When to reach for thisâ€¦" style={inputStyle} aria-label="Description" /></Field>
+      <Field label="Code"><textarea value={code} onChange={(e) => setCode(e.target.value)} required rows={6} maxLength={8000} spellCheck={false} placeholder="Paste working code…" className="font-mono" style={inputStyle} aria-label="Code" /></Field>
+      <Field label="What it does (optional)"><input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} placeholder="When to reach for this…" style={inputStyle} aria-label="Description" /></Field>
       <Field label="Tags (optional, comma-separated)"><input value={tags} onChange={(e) => setTags(e.target.value)} maxLength={160} placeholder="hooks, search" style={inputStyle} aria-label="Tags" /></Field>
       {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
       <div className="flex flex-wrap gap-2">
-        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Sharingâ€¦" : "Share snippet"}</button>
+        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Sharing…" : "Share snippet"}</button>
         <button type="button" onClick={() => setOpen(false)} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Cancel</button>
       </div>
     </form>

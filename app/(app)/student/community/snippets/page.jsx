@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
@@ -50,19 +50,19 @@ export default async function SnippetsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>â† Community</Link>
+        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <Meta>Room 03 Â· copy-paste knowledge</Meta>
+            <Meta>Room 03 · copy-paste knowledge</Meta>
             <Display size="lg" className="mt-3">Snippets.</Display>
             <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-              Share useful code â†’ copy it â†’ reuse it. Ranked by upvotes.
+              Share useful code → copy it → reuse it. Ranked by upvotes.
             </p>
           </div>
           <SnippetForm languages={langOptions} />
         </div>
         <form method="get" className="mt-7 flex flex-col gap-2 sm:flex-row">
-          <input name="q" defaultValue={sp?.q || ""} placeholder="Search snippetsâ€¦" aria-label="Search snippets" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
+          <input name="q" defaultValue={sp?.q || ""} placeholder="Search snippets…" aria-label="Search snippets" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
           <div className="flex gap-2">
             <select name="language" defaultValue={language} aria-label="Filter by language" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm sm:flex-none" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
               <option value="">All languages</option>
@@ -75,7 +75,7 @@ export default async function SnippetsPage({ searchParams }) {
           </div>
         </form>
         {snippets.length === 0 ? (
-          <p className="narrative mt-8">No snippets yet. Share the helper you keep rewriting â€” hooks, queries, configs, scripts.</p>
+          <p className="narrative mt-8">No snippets yet. Share the helper you keep rewriting — hooks, queries, configs, scripts.</p>
         ) : (
           <ul className="mt-8 space-y-8">
             {snippets.map((s) => (
@@ -85,7 +85,7 @@ export default async function SnippetsPage({ searchParams }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                       <p className="text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>{s.title}</p>
-                      <span className="meta">{s.language} Â· {s.domain} Â· by {s.author_name || "a student"}</span>
+                      <span className="meta">{s.language} · {s.domain} · by {s.author_name || "a student"}</span>
                     </div>
                     {s.description && <p className="mt-1.5 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{s.description}</p>}
                     {Array.isArray(s.tags) && s.tags.length > 0 && (
@@ -103,7 +103,7 @@ export default async function SnippetsPage({ searchParams }) {
                       <pre className="overflow-auto p-4 pt-2 font-mono text-xs leading-6" style={{ color: "var(--text)" }}>{s.code}</pre>
                     </div>
                     <p className="meta mt-2">
-                      <Link href={`/student/community/snippets#snippet-${s.id}`} prefetch={false} className="hover:underline" style={{ color: "var(--text-muted)" }}>Link to this snippet â†’</Link>
+                      <Link href={`/student/community/snippets#snippet-${s.id}`} prefetch={false} className="hover:underline" style={{ color: "var(--text-muted)" }}>Link to this snippet →</Link>
                     </p>
                   </div>
                 </div>

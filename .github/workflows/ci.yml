@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint + encoding
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,12 @@ jobs:
       # 2 pre-existing warnings are the ceiling; -max-warnings=0 on errors only
       # means this fails on NEW errors, which is what the gate is for.
       - run: npm run lint
+      # Mojibake gate. Editors have been saving files with a UTF-8 BOM that a
+      # later tool read as cp1252, which surfaced as garbage text in rendered
+      # pages. This fails the build rather than auto-fixing: silent rewriting
+      # makes a wrong fix permanent, and a check that fails on correct text gets
+      # switched off, at which point it catches nothing.
+      - run: npm run check:encoding
 
   test:
     name: Unit tests

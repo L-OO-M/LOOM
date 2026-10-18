@@ -1,4 +1,4 @@
-﻿import { env, assertProductionSecrets } from "@/lib/env";
+import { env, assertProductionSecrets } from "@/lib/env";
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -378,8 +378,8 @@ const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId
 
   await notify({
     sql, tenantId, userId: profile.user_id,
-    type: "oss_verified", title: "PR merged â€” OSS verified",
-    body: `Your PR in ${fullName} was merged${granted.length ? ` â€” badge earned: ${granted.join(", ")}` : ""}.`,
+    type: "oss_verified", title: "PR merged — OSS verified",
+    body: `Your PR in ${fullName} was merged${granted.length ? ` — badge earned: ${granted.join(", ")}` : ""}.`,
     link: "/student/opensource"
   });
   return { userId: profile.user_id, prUrl, granted };

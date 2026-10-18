@@ -1,19 +1,19 @@
-﻿# GitHub Integration Guide
+# GitHub Integration Guide
 
-How GitHub activity becomes proof inside L.O.O.M. â€” what is built, how to
+How GitHub activity becomes proof inside L.O.O.M. — what is built, how to
 connect it, and how to operate it. (Supersedes the retired
 `04-github-pipeline.md` design note; runbook lives in
 `15-deploy-and-operations.md`.)
 
 ## 1. What the integration does
 
-A student's real GitHub work â€” commits, pull requests, reviews, merges â€”
+A student's real GitHub work — commits, pull requests, reviews, merges —
 flows into the platform and becomes first-class evidence:
 
 - **Daily activity** (`student_daily_activity`) feeds heatmaps, streaks, and
   consistency scores on the GitHub page and dashboard.
 - **Merged PRs in curated repos** auto-verify (`student_oss_contributions`
-  â†’ `verified`), award OSS badges, notify the student, and count as public
+  → `verified`), award OSS badges, notify the student, and count as public
   proof toward mentor eligibility and credentials.
 - Students **claim** PRs first on `/student/opensource`; the webhook upgrades
   the claim to `verified` when the merge lands. Unclaimed merges in tracked
@@ -31,7 +31,7 @@ Current scope, stated plainly:
 
 The webhook aggregates each delivery into `student_daily_activity` as it arrives.
 That table is what the heatmap, the commit/PR/streak tiles, and
-`commits Ã— 5 + pull_requests Ã— 20` in the leaderboard score are computed from â€”
+`commits × 5 + pull_requests × 20` in the leaderboard score are computed from —
 55% of the advertised score formula. If aggregation is not inline, every one of
 those numbers reads zero no matter how much real activity there is.
 
@@ -46,7 +46,7 @@ Counting rules (`summarizeDelivery`, covered by `tests/github-activity.test.js`)
 | `push` | `commits` = length of the commit array (a branch deletion is 0, not 1) |
 | `pull_request` | 1 when `action` is `opened` or `reopened` |
 | `pull_request_review` | 1 when `action` is `submitted` |
-| `ping`, `issues`, `star`, `fork`, `create`, â€¦ | nothing |
+| `ping`, `issues`, `star`, `fork`, `create`, … | nothing |
 
 Rows are attributed to the member who linked that GitHub username, scoped to
 their own tenant, and upserted additively on `(student_id, day)`.
@@ -63,22 +63,22 @@ their own tenant, and upserted additively on `(student_id, day)`.
   `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (for scheduled
   aggregation, section 5).
 
-## 3. Step A â€” students link their username
+## 3. Step A — students link their username
 
 1. Student opens `/student/github`.
-2. Enters their GitHub username in **Link GitHub** â†’ `POST /api/github`
-   (`{ "githubUsername": "..." }`, validated: 1â€“39 chars, `[a-zA-Z0-9-]`).
+2. Enters their GitHub username in **Link GitHub** → `POST /api/github`
+   (`{ "githubUsername": "..." }`, validated: 1–39 chars, `[a-zA-Z0-9-]`).
 3. The link is stored in `github_connections` and mirrored to
    `profiles.github_username`, and audited as `linked_github`.
 4. Matching everywhere is **case-insensitive** on this username.
 
-No OAuth scopes are requested today â€” linking is a claim of identity, and
+No OAuth scopes are requested today — linking is a claim of identity, and
 proof comes from merged work, not from login.
 
-## 4. Step B â€” receive webhooks from GitHub
+## 4. Step B — receive webhooks from GitHub
 
 1. In the society's GitHub organization (or per repository):
-   **Settings â†’ Webhooks â†’ Add webhook**.
+   **Settings → Webhooks → Add webhook**.
 2. **Payload URL**: `https://<chapter-domain>/api/github/webhook`
 3. **Content type**: `application/json`.
 4. **Secret**: the same value as `GITHUB_WEBHOOK_SECRET`. Every delivery is
@@ -86,7 +86,7 @@ proof comes from merged work, not from login.
    headers get `400`.
 5. **Events**: at minimum **Pushes** and **Pull requests**. Reviews and
    issues are accepted and stored but only pushes/PRs/reviews aggregate.
-6. Use **Recent Deliveries â†’ Redeliver** to replay after outages â€” inserts
+6. Use **Recent Deliveries → Redeliver** to replay after outages — inserts
    are idempotent on `(deliveryId, eventName)`, so replays do not duplicate raw
    events. The `student_daily_activity` upsert is additive, so a redelivered
    event does add to that day's totals again — prefer letting GitHub retry over
@@ -101,10 +101,10 @@ Behavior per event (`app/api/github/webhook/route.js`):
   in `open_source_projects` (owner/repo, case-insensitive, global or
   tenant-scoped), finds the student by linked username, upserts a `verified`
   contribution, awards badges (`awardOssBadges`), and notifies
-  (`oss_verified` â†’ `/student/opensource`). Best-effort â€” verification
+  (`oss_verified` → `/student/opensource`). Best-effort — verification
   never breaks webhook acknowledgement.
 
-## 5. Step C â€” curate repositories (admin)
+## 5. Step C — curate repositories (admin)
 
 Proof only counts in repos the chapter trusts:
 
@@ -129,33 +129,33 @@ Both are idempotent, so a missed night can simply be re-run.
 
 ## 7. Verify end-to-end
 
-1. Link a test username on `/student/github` â†’ expect `connected: true`.
-2. Push a commit to any watched repo â†’ `github_events` gains a row;
+1. Link a test username on `/student/github` → expect `connected: true`.
+2. Push a commit to any watched repo → `github_events` gains a row;
    heatmap updates after the next aggregation run.
 3. Open a PR in a curated repo, claim it on `/student/opensource`,
-   merge it â†’ status becomes `verified`, badge (if earned) + notification
+   merge it → status becomes `verified`, badge (if earned) + notification
    appear. Check `/student/credentials` and the mentor-bar proof count.
-4. Redeliver the merge event from GitHub â†’ no duplicate rows, no double
+4. Redeliver the merge event from GitHub → no duplicate rows, no double
    badge (idempotency).
 
 ## 8. Troubleshooting
 
-| Symptom | Cause â†’ fix |
+| Symptom | Cause → fix |
 |---|---|
-| Webhook `404 TENANT_NOT_FOUND` | Host header doesn't match a tenant domain/slug â†’ point GitHub at the chapter domain |
-| `failed to connect to host` | Payload URL isn't reachable from the internet (localhost, `127.x`, `169.254.x`, LAN IP) â†’ use the deployed HTTPS origin or a tunnel URL, and map that domain in `tenant_domains` |
-| Webhook `401` | Secret mismatch â†’ compare `GITHUB_WEBHOOK_SECRET` with the webhook secret byte-for-byte |
+| Webhook `404 TENANT_NOT_FOUND` | Host header doesn't match a tenant domain/slug → point GitHub at the chapter domain |
+| `failed to connect to host` | Payload URL isn't reachable from the internet (localhost, `127.x`, `169.254.x`, LAN IP) → use the deployed HTTPS origin or a tunnel URL, and map that domain in `tenant_domains` |
+| Webhook `401` | Secret mismatch → compare `GITHUB_WEBHOOK_SECRET` with the webhook secret byte-for-byte |
 | Merge not auto-verified | Repo not curated, author's GitHub username not linked, or PR target outside tracked `owner/repo` |
-| Heatmaps frozen | Aggregation not scheduled â†’ run the processor + nightly rollup, then schedule them |
-| `429` on bursts | Per-tenant 120/min guard â†’ spread deliveries or raise the limit in code |
+| Heatmaps frozen | Aggregation not scheduled → run the processor + nightly rollup, then schedule them |
+| `429` on bursts | Per-tenant 120/min guard → spread deliveries or raise the limit in code |
 
 ## 9. Pause switch (ingestion is opt-in)
 
-Webhooks fire automatically once configured â€” but the app only acts on them
+Webhooks fire automatically once configured — but the app only acts on them
 when the chapter enables ingestion. The `github_integration` feature flag
 (default **off**, migration `020`) gates everything:
 
-- Webhook with a valid signature while paused â†’ `200 { accepted: false,
+- Webhook with a valid signature while paused → `200 { accepted: false,
   reason: "GITHUB_INGESTION_PAUSED" }`. Nothing stored, verified, or
   aggregated. GitHub stays green.
 - `ping` deliveries are always acked (proves the URL works, stores nothing).
@@ -164,18 +164,18 @@ when the chapter enables ingestion. The `github_integration` feature flag
   `student_daily_activity`, so nothing is stored, verified, or aggregated and
   GitHub stays green. Deliveries made while paused are skipped, not queued
   (replay from GitHub's Recent Deliveries after re-enabling).
-- Enable in **Admin â†’ Flags â†’ github integration**. Disable any time to
-  freeze ingestion instantly â€” deliveries made while paused are skipped, not
+- Enable in **Admin → Flags → github integration**. Disable any time to
+  freeze ingestion instantly — deliveries made while paused are skipped, not
   queued (replay from GitHub's Recent Deliveries after re-enabling).
 
 ## 10. Limits & next steps
 
 - No OAuth yet: usernames are self-asserted; verification rests on merged
   work, which is the correct trust order anyway.
-- Rate limits are in-memory per instance â€” use a gateway limiter for
+- Rate limits are in-memory per instance — use a gateway limiter for
   multi-instance production.
 - Reconciliation (polling GitHub REST/GraphQL for missed events) is
-  designed (`04`) but not scheduled â€” add it once the chapter is live.
+  designed (`04`) but not scheduled — add it once the chapter is live.
 - Raw `github_events` retention is unbounded today; set a pruning policy
   before the table grows (aggregates are what dashboards read).
 - `student_daily_activity` is upserted additively on `(student_id, day)`, so a

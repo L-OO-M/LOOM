@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
@@ -102,8 +102,8 @@ export default async function EventDetailPage({ params }) {
 
   const facts = [
     { label: "When", value: whenLabel(event.starts_at), sub: event.ends_at ? `until ${whenLabel(event.ends_at)}` : null },
-    { label: "Where", value: event.is_online ? "Online â€” link shared with registered members" : (event.location || "Venue announced soon"), sub: event.department_name },
-    { label: "Seats", value: left === null ? "Open registration" : full ? "Full â€” waitlist" : `${left} of ${event.capacity} left`, sub: `${event.registered_count || 0} registered so far` },
+    { label: "Where", value: event.is_online ? "Online — link shared with registered members" : (event.location || "Venue announced soon"), sub: event.department_name },
+    { label: "Seats", value: left === null ? "Open registration" : full ? "Full — waitlist" : `${left} of ${event.capacity} left`, sub: `${event.registered_count || 0} registered so far` },
     { label: "Track", value: event.domain, sub: event.event_type }
   ];
 
@@ -161,7 +161,7 @@ export default async function EventDetailPage({ params }) {
         <EventBanner event={event} ratio="21 / 9" />
         <div className="mx-auto max-w-4xl px-5 py-10 sm:px-6 lg:px-8">
           <Link href="/events" prefetch={false} className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
-            â† All events
+            ← All events
           </Link>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <TypePill type={event.event_type} />
@@ -196,8 +196,8 @@ export default async function EventDetailPage({ params }) {
               <p className="mt-3 whitespace-pre-line text-sm leading-7" style={{ color: "var(--text-muted)" }}>{event.description}</p>
             ) : (
               <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
-                The organising department has not published a description yet. Everything else â€” date,
-                venue, and seats â€” is confirmed above.
+                The organising department has not published a description yet. Everything else — date,
+                venue, and seats — is confirmed above.
               </p>
             )}
 
@@ -215,7 +215,7 @@ export default async function EventDetailPage({ params }) {
                 <ul className="mt-3 space-y-2">
                   {materials.map((m, i) => (
                     <li key={i}>
-                      {/* Raw <a> on purpose â€” downloads must not go through the client router. */}
+                      {/* Raw <a> on purpose — downloads must not go through the client router. */}
                       <a href={m.storage_url} target="_blank" rel="noreferrer"
                         className="flex items-center justify-between rounded-xl border px-4 py-3 text-sm hover:underline"
                         style={{ borderColor: "var(--line)", color: "var(--text)" }}>
@@ -251,7 +251,7 @@ export default async function EventDetailPage({ params }) {
                   Create an account
                 </Link>
                 <Link href="/events" prefetch={false} className="text-center text-xs font-semibold" style={{ color: "var(--accent)" }}>
-                  Browse other events â†’
+                  Browse other events →
                 </Link>
               </div>
             </div>
@@ -271,7 +271,7 @@ export default async function EventDetailPage({ params }) {
 
       {/* Closing CTA. Deliberately NOT <PageHero>: that component renders an
           <h1>, and this page already has one for the event title. Two h1s on a
-          public page breaks the SEO contract (AGENTS.md Â§1 rule 9). */}
+          public page breaks the SEO contract (AGENTS.md §1 rule 9). */}
       <section className="border-t" style={{ borderColor: "var(--line)" }} aria-label="More events">
         <div className="mx-auto max-w-4xl px-5 py-14 text-center sm:px-6 lg:px-8">
           <p className="kicker">Never miss one</p>
@@ -279,7 +279,7 @@ export default async function EventDetailPage({ params }) {
             The calendar runs all year
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-7" style={{ color: "var(--text-muted)" }}>
-            Workshops, hackathons, talks and contests â€” posted by department leads as they happen.
+            Workshops, hackathons, talks and contests — posted by department leads as they happen.
           </p>
           <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/events" prefetch={false} className="btn-ink justify-center">See all events</Link>

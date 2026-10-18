@@ -134,5 +134,5 @@ rollups:
 - Email sending is not wired — invites/notifications are in-app only until an SMTP provider is added.
 - Never run builds and dev on the same checkout simultaneously (see CSS row above).
 
-- Serve production only over HTTPS with forced SSL/HSTS at the host (Vercel/AWS/Netlify project setting) � the app builds absolute canonical/OG URLs from NEXT_PUBLIC_APP_URL.
+- Serve production only over HTTPS with forced SSL/HSTS at the host (Vercel/AWS/Netlify project setting) — the app builds absolute canonical/OG URLs from NEXT_PUBLIC_APP_URL.
 

@@ -21,7 +21,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST | `/api/mentorship` | user | request/list sessions |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
-| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (â‰¤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded. Returns `verifiedOnly` + `breakdown`; rows carry `verified_score` and `pending`. Counts **only** attested GitHub activity and verified evidence — see [`20-verified-ranking.md`](20-verified-ranking.md) |
+| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (≤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded. Returns `verifiedOnly` + `breakdown`; rows carry `verified_score` and `pending`. Counts **only** attested GitHub activity and verified evidence — see [`20-verified-ranking.md`](20-verified-ranking.md) |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |
@@ -32,25 +32,25 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/opensource/projects` | user | global curated + own tenant; includes my counts |
-| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` â€” live GitHub fetch; 404 if repo missing |
+| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing |
 | GET | `/api/opensource/contributions` | user | my claims + badges |
-| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo â†’ `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
-| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` â€” awards badges + achievements + notify |
+| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
+| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — awards badges + achievements + notify |
 
 ## Chapters & network
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/chapters` | public | featured public chapters, anonymized counts, ordered featured â†’ members â†’ slug |
-| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row, ordered featured â†’ members â†’ slug |
+| GET | `/api/chapters` | public | featured public chapters, anonymized counts, ordered featured → members → slug |
+| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row, ordered featured → members → slug |
 
 ## Credentials & insights
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/credentials` | user | achievements + share links |
-| POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0â€“730) |
-| GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1â€“3) |
+| POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0–730) |
+| GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1–3) |
 | POST | `/api/admin/achievements` | admin | issue to a chapter student + notify |
 | GET | `/api/insights` | user | latest snapshot, 14-trend, peer avgs, rank, heuristic recommendation |
 
@@ -63,7 +63,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | POST | `/api/community/votes` | toggle vote thread/reply/snippet (60/min) |
 | POST | `/api/community/flags` | flag thread/reply for moderation (reason: spam/abuse/off-topic; repeat flags don&apos;t recount) |
 | GET/POST | `/api/community/wiki` | search / create page |
-| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) Â· apply/review (admin) |
+| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) · apply/review (admin) |
 | GET/POST | `/api/community/snippets` | search (q, language, domain) / share |
 | GET/PATCH | `/api/admin/community` | admin: flag queues / hide-visible |
 
@@ -74,9 +74,9 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced) |
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
-| POST | `/api/admin/events/[id]/attendance` | admin: check in by door code â†’ attended + certificate (once) + notify |
+| POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
 | GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved) |
-| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` â€” target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible |
+| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
 ## Errors & limits
@@ -97,7 +97,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
-| POST | `/api/admin/students/bulk` | admin | assign role to â‰¤50 users at once (audited; membership levels untouched) |
+| POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
 | POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
 | GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
