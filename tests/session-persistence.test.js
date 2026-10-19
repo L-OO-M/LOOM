@@ -67,6 +67,32 @@ it("does not assert on getSession() after a successful sign-in", () => {
 });
 });
 
+// Regression guard for the reported break: users who signed in through the Auth0
+// front door were 307'd to /login on every protected route -- /lead/directory in
+// particular -- because the middleware only ever read a Supabase session. These
+// are structural because the failure needs a real Auth0 cookie to reproduce, and
+// it was invisible to every existing spec (none of them hold an Auth0 session).
+describe("Auth0 sessions survive the middleware gate", () => {
+  it("reads the Auth0 session before falling back to Supabase", () => {
+    const auth0At = middleware.indexOf("auth0.getSession(request)");
+    const supabaseAt = middleware.indexOf("supabase.auth.getUser()");
+    expect(auth0At).toBeGreaterThan(-1);
+    expect(supabaseAt).toBeGreaterThan(-1);
+    expect(auth0At).toBeLessThan(supabaseAt);
+  });
+
+  it("lets an Auth0 session through instead of redirecting to /login", () => {
+    // The allow branch must return a next() response; a redirect there is the bug.
+    expect(middleware).toMatch(/auth0Session\?\.user[\s\S]{0,200}NextResponse\.next\(/);
+  });
+
+  it("keeps /auth/signout reachable without a session", () => {
+    // Sign-out is a POST from app chrome. The gate used to 307 it to /login
+    // (?redirect=/auth/signout) before the handler could clear anything.
+    expect(middleware).toMatch(/publicPaths[\s\S]*"\/auth\/signout"/);
+  });
+});
+
 // Found while fixing the above: these boundaries shipped a second <h1>, so any
 // streamed public page momentarily had two. Breaks the one-h1 SEO contract and
 // the document outline, and made an E2E assertion fail nondeterministically.

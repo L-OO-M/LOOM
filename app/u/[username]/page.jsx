@@ -5,7 +5,7 @@ import { reputationFor } from "@/lib/reputation";
 import { absoluteUrl } from "@/lib/seo";
 import { BrandMark } from "@/components/BrandMark";
 import { AppShell } from "@/components/AppShell";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getSessionIdentity } from "@/lib/auth-server";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { initials, domainLabel } from "@/lib/builderCard";
@@ -254,12 +254,14 @@ export default async function PublicProfilePage({ params }) {
   let viewerTenant = null;
   let isOwn = false;
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      viewer = user;
-      isOwn = card.user_id === user.id;
-      const [p] = await sql`SELECT tenant_id FROM profiles WHERE user_id = ${user.id} LIMIT 1`;
+    // Unified identity (Auth0 or the Supabase fallback). A Supabase-only read
+    // meant an Auth0 session was treated as a logged-out visitor, so members
+    // never saw their own card with app chrome.
+    const identity = await getSessionIdentity();
+    if (identity?.userId) {
+      viewer = { id: identity.userId, email: identity.email };
+      isOwn = card.user_id === identity.userId;
+      const [p] = await sql`SELECT tenant_id FROM profiles WHERE user_id = ${identity.userId} LIMIT 1`;
       if (p?.tenant_id) {
         const [t] = await sql`SELECT * FROM tenants WHERE id = ${p.tenant_id} LIMIT 1`;
         viewerTenant = t || null;

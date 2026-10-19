@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 //   - the provider is not enabled in Supabase (operator problem)
 //   - the user cancelled or the redirect URL is not allow-listed (config)
 
-export default function GitHubSignInButton({ label = "Continue with GitHub" }) {
+export default function GitHubSignInButton({ label = "Continue with GitHub", divider = true }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -66,16 +66,18 @@ export default function GitHubSignInButton({ label = "Continue with GitHub" }) {
 
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-3" aria-hidden="true">
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>or</span>
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-      </div>
+      {divider && (
+        <div className="mb-4 flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>or</span>
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        </div>
+      )}
       <button
         type="button"
         onClick={start}
         disabled={busy}
-        className="btn-ghost mt-4 w-full justify-center disabled:opacity-60"
+        className="btn-ghost w-full justify-center disabled:opacity-60"
         style={{ minHeight: "44px" }}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -88,9 +90,8 @@ export default function GitHubSignInButton({ label = "Continue with GitHub" }) {
           {error}
         </p>
       )}
-      <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-        GitHub confirms your email and identity. It does not by itself verify your
-        projects — link a repository separately for that.
+      <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+        GitHub confirms your identity only. Link a repository separately to verify a project.
       </p>
     </div>
   );

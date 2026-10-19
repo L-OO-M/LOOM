@@ -29,6 +29,10 @@ const publicPaths = [
   "/login",
   "/register",
   "/setup",
+  // Sign-out is a POST from the app chrome. It must reach its handler without a
+  // session check: its entire job is to clear the session(s), and the middleware
+  // gate would otherwise 307 it to /login before it ever ran.
+  "/auth/signout",
   "/auth/supabase-callback",
   "/api/health",
   "/api/chapters",
@@ -38,6 +42,9 @@ const publicPaths = [
   // 401 before the route could run.
   "/api/auth/login",
   "/api/auth/register",
+  // Client-side "who am I" probe. Public so logged-out visitors get a 200 with
+  // signedIn:false instead of the middleware's machine 401.
+  "/api/auth/state",
   "/api/public/events",
   "/api/public/projects",
   "/api/public/departments",
@@ -105,6 +112,46 @@ export async function middleware(request) {
   }
 
   // Session read + REFRESH.
+  //
+  // TWO identity providers can hold a session during the migration:
+  //   - Auth0, the front door (lib/auth0.js);
+  //   - Supabase, kept as a fallback for legacy sessions and the E2E suite.
+  //
+  // Auth0 is checked FIRST. Skipping it was a hard bug: every user who signed in
+  // through the new front door had a valid Auth0 cookie but no Supabase cookie,
+  // so this middleware 307'd them to /login on every protected page -- including
+  // /lead/directory -- and they could never get in.
+  //
+  // Auth0's own middleware is invoked for the request so ROLLING sessions work:
+  // its default branch (no auth route matched) re-issues the session cookie with
+  // a fresh maxAge. Only /auth/* used to be delegated, which meant the cookie
+  // was never rolled on app pages and users silently expired after the
+  // inactivity window.
+  if (auth0) {
+    let auth0Session = null;
+    try {
+      auth0Session = await auth0.getSession(request);
+    } catch {
+      // A corrupt/undecryptable cookie is "not signed in", never a 500.
+      auth0Session = null;
+    }
+    if (auth0Session?.user) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      try {
+        const rolled = await auth0.middleware(request);
+        for (const cookie of rolled.cookies.getAll()) res.cookies.set(cookie);
+        // Carry the SDK's cache-control (no-store for session responses) so a
+        // CDN or the browser does not cache an authenticated page.
+        const cacheControl = rolled.headers.get("cache-control");
+        if (cacheControl) res.headers.set("cache-control", cacheControl);
+      } catch {
+        /* rolling is best-effort; the session is still valid for this request */
+      }
+      return res;
+    }
+  }
+
+  // Session read + REFRESH (Supabase fallback).
   //
   // The refresh half used to be missing entirely: getSession() is a purely
   // cookie-local read, so nothing ever renewed the access token, and setAll

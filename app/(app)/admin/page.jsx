@@ -1,12 +1,15 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 
 export default async function AdminPage() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Same reasoning as the student dashboard: the admin layout already resolved
+  // the identity, and it must work for an Auth0 session. AppShell only needs
+  // { id, email } for the profile menu.
+  const ctx = await getRequestContext();
+  const user = ctx.user;
   const sql = getSql();
   const tenant = await resolveRequestTenant();
   const tid = tenant.id;

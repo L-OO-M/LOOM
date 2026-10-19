@@ -57,7 +57,7 @@ app/
   page.jsx, layout.jsx            # landing (client) + root metadata/OG/JSON-LD
   sitemap.js, robots.js           # SEO crawl surfaces
   about/ faq/ events/ domains/    # public server pages, each with metadata + canonical
-  (auth)/ login/ register/        # client pages + _components/LevelGuide.jsx + noindex layout
+  (auth)/ login/ register/        # client pages + _components/AuthShell.jsx + noindex layout
   (app)/ student/ lead/ admin/    # private workspaces (noindex layouts), each page's
                                   #   one-off components co-located in _components/ or *Bits.jsx
   api/                            # ~80 route handlers; envelopes { ok, data | error }

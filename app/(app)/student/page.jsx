@@ -1,4 +1,4 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
@@ -7,8 +7,12 @@ import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
 
 export default async function StudentPage() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  // The layout already resolved (and cache()d) this context. Reading the
+  // Supabase client here returned null for anyone signed in through Auth0, so
+  // every per-user query below ran with an empty id and the page showed another
+  // person's blank slate. ctx.user is the canonical id from either front door.
+  const ctx = await getRequestContext();
+  const user = ctx.user;
 
   const sql = getSql();
   // Chapter resolved from the request host (multi-chapter safe); demo slug

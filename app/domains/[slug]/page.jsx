@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
 import { resolveTenantFromHost } from "@/lib/tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getSessionIdentity } from "@/lib/auth-server";
 import { BrandMark } from "@/components/BrandMark";
 import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { JoinButtonClient } from "./_components/JoinButtonClient";
@@ -118,9 +118,10 @@ export default async function DomainPage({ params }) {
 
   let loggedIn = false;
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    loggedIn = !!user;
+    // Identity must come from the unified resolver: a Supabase-only check
+    // reported false for Auth0 sessions and hid the signed-in affordances.
+    const identity = await getSessionIdentity();
+    loggedIn = !!identity?.userId;
   } catch {
     loggedIn = false;
   }

@@ -16,7 +16,6 @@ import { MergeChain } from "@/components/landing/MergeChain";
 import { FindThread } from "@/components/landing/FindThread";
 import { JsonLd, organizationSchema, webSiteSchema } from "@/components/seo/JsonLd";
 import { useTheme } from "@/lib/theme";
-import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight, BookOpen, BriefcaseBusiness, Code2, Github,
   GraduationCap, Medal, Menu, Moon, Sun, Users, X
@@ -107,10 +106,16 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setEmail(session?.user?.email ?? null));
-    return () => data.subscription.unsubscribe();
+    // Sign-in state comes from the server probe, not the browser Supabase client.
+    // Auth0 is the front door now: its session cookie is httpOnly and invisible to
+    // supabase.auth.getUser(), so the header showed "signed out" to every Auth0
+    // user and its onAuthStateChange listener never fired for them.
+    let live = true;
+    fetch("/api/auth/state", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live) setEmail(d?.data?.signedIn ? d.data.email ?? "" : null); })
+      .catch(() => {});
+    return () => { live = false; };
   }, []);
 
   useEffect(() => {
