@@ -220,6 +220,30 @@ test("helper opt-in toggle issues the real profile request", async ({ page }) =>
   if (await appears(again, 10_000)) await again.first().click();
 });
 
+test("peer profile Projects link is scoped to that peer", async ({ page }) => {
+  await page.goto(`/student/${PEER}`, { waitUntil: "domcontentloaded" });
+  const link = page.getByRole("link", { name: "Projects", exact: true }).first();
+  await expect(link).toBeVisible({ timeout: 20_000 });
+  const href = await link.getAttribute("href");
+  expect(href, "peer Projects link carries ?owner=").toContain("/student/projects?owner=");
+
+  await page.goto(href, { waitUntil: "domcontentloaded" });
+  // The page must announce whose portfolio this is — not silently show your own.
+  await expect(page.getByText(new RegExp(`@${PEER}'s portfolio`, "i"))).toBeVisible({ timeout: 20_000 });
+});
+
+test("event page hands off to a pre-filled forum composer", async ({ page }) => {
+  await page.goto(`/student/events/${EVENT}`, { waitUntil: "domcontentloaded" });
+  const link = page.getByRole("link", { name: /continue the conversation/i });
+  test.skip(!(await appears(link)), "event has no conversation hand-off (past/archived)");
+
+  await link.click();
+  // Client-side nav fires no `load`, so assert on rendered state, then URL.
+  await expect(page.getByText(/starting a thread about the event/i)).toBeVisible({ timeout: 20_000 });
+  expect(page.url(), "handed off to the forums composer").toContain("/student/community/forums?new=1");
+  await expect(page.getByLabel("Question title")).toHaveValue(/Discussion:/, { timeout: 20_000 });
+});
+
 test("same-origin links on core student pages do not 404", async ({ page, request }) => {
   const origins = ["/student", "/student/community", "/student/projects", "/student/events"];
   const seen = new Set();

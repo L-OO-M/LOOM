@@ -28,12 +28,29 @@ export default async function ProjectsPage({ searchParams }) {
   const tag = (sp?.tag || "").trim().toLowerCase();
   const q = (sp?.q || "").trim().slice(0, 80);
   const status = STATUSES.includes(sp?.status) ? sp.status : "";
-  const base = { ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...(status ? { status } : {}) };
   const tid = tenant?.id ?? null;
+
+  // ?owner=<uuid> is how a peer's public card links to *their* portfolio. Only a
+  // same-chapter member whose card the viewer may see can be targeted; any other
+  // value sends the viewer back to their own list rather than quietly showing it.
+  const ownerParam = (sp?.owner || "").trim();
+  let ownerCard = null;
+  if (ownerParam && ownerParam !== user.id) {
+    if (!/^[0-9a-fA-F-]{36}$/.test(ownerParam)) redirect("/student/projects");
+    const [c] = await sql`
+      SELECT user_id, username, is_public, tenant_id FROM user_profiles
+      WHERE user_id = ${ownerParam} LIMIT 1
+    `;
+    if (c && (c.is_public || c.user_id === user.id) && (!c.tenant_id || c.tenant_id === tid)) ownerCard = c;
+    else redirect("/student/projects");
+  }
+  const viewingOther = Boolean(ownerCard);
+  const scopeOwnerId = ownerCard ? ownerCard.user_id : user.id;
+  const base = { ...(ownerParam ? { owner: ownerParam } : {}), ...(q ? { q } : {}), ...(tag ? { tag } : {}), ...(status ? { status } : {}) };
 
   const rows = await sql`
     SELECT * FROM projects
-    WHERE owner_id = ${user.id}
+    WHERE owner_id = ${scopeOwnerId}
       AND tenant_id = ${tid}::uuid
     ORDER BY created_at DESC LIMIT 100
   `;
@@ -62,14 +79,24 @@ export default async function ProjectsPage({ searchParams }) {
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <Meta>Build · workspace &amp; portfolio</Meta>
-            <Display size="lg" className="mt-3">Build what proves your skills.</Display>
+            <Meta>Build · {viewingOther ? `@${ownerCard.username}'s portfolio` : "workspace & portfolio"}</Meta>
+            <Display size="lg" className="mt-3">{viewingOther ? `What ${ownerCard.username} is building.` : "Build what proves your skills."}</Display>
             <p className="narrative mt-4 max-w-xl" style={{ color: "var(--text)" }}>
-              Projects turn learning into tangible work. Ship something small, track its status, link the repo — then carry it into proof.
+              {viewingOther
+                ? `Work published by @${ownerCard.username}. Ask them about it — or start a project of your own.`
+                : "Projects turn learning into tangible work. Ship something small, track its status, link the repo — then carry it into proof."}
             </p>
           </div>
-          <Link href="/student/projects/new" prefetch={false} className="btn-ink">+ New project</Link>
+          {viewingOther ? (
+            <Link href={`/student/${ownerCard.username}`} prefetch={false} className="btn-ghost">← @{ownerCard.username}</Link>
+          ) : (
+            <Link href="/student/projects/new" prefetch={false} className="btn-ink">+ New project</Link>
+          )}
         </div>
+
+        {viewingOther && filtered && (
+          <p className="meta mt-4"><Link href={`/student/projects?owner=${ownerCard.user_id}`} prefetch={false} className="hover:underline" style={{ color: "var(--accent)" }}>Clear filters</Link></p>
+        )}
 
         {total > 0 && (
           <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5 border-y py-6" style={{ borderColor: "var(--line)" }}>
@@ -92,7 +119,7 @@ export default async function ProjectsPage({ searchParams }) {
           {tag && <input type="hidden" name="tag" value={tag} />}
           {status && <input type="hidden" name="status" value={status} />}
           <button className="btn-ink !py-2 text-sm">Search</button>
-          {filtered && <Link href="/student/projects" prefetch={false} className="mono-tag hover:underline" style={{ color: "var(--text-muted)" }}>Clear</Link>}
+          {filtered && <Link href={viewingOther ? `/student/projects?owner=${ownerCard.user_id}` : "/student/projects"} prefetch={false} className="mono-tag hover:underline" style={{ color: "var(--text-muted)" }}>Clear</Link>}
           <span className="mx-1 hidden h-4 w-px sm:block" style={{ background: "var(--line)" }} aria-hidden="true" />
           <span className="mono-tag hidden sm:inline">Status</span>
           <span className="flex flex-wrap gap-1.5">
@@ -116,6 +143,14 @@ export default async function ProjectsPage({ searchParams }) {
 
         <div className="mt-8">
           {total === 0 ? (
+            viewingOther ? (
+              <OnboardingState
+                eyebrow="Portfolio"
+                title={`@${ownerCard.username} hasn't published a project yet.`}
+                why="When they ship something it will show up here — repo link and roadmap milestone included."
+                action={<Link href={`/student/${ownerCard.username}`} prefetch={false} className="btn-ghost">← Back to @{ownerCard.username}</Link>}
+              />
+            ) : (
             <OnboardingState
               eyebrow="Portfolio"
               title="Proof beats progress."
@@ -127,12 +162,13 @@ export default async function ProjectsPage({ searchParams }) {
               ]}
               action={<Link href="/student/projects/new" prefetch={false} className="btn-ink">Create your first project →</Link>}
             />
+            )
           ) : visible.length === 0 ? (
             <OnboardingState
               eyebrow="No matches"
               title={q ? `Nothing matches “${q}”.` : tag ? `Nothing tagged #${tag}.` : `No ${status} projects.`}
-              why="Try a shorter search, or clear a filter — your other projects are still here."
-              action={<Link href="/student/projects" prefetch={false} className="btn-ghost">Show everything</Link>}
+              why={viewingOther ? "Try a shorter search, or clear the filter — their other projects are still here." : "Try a shorter search, or clear a filter — your other projects are still here."}
+              action={<Link href={viewingOther ? `/student/projects?owner=${ownerCard.user_id}` : "/student/projects"} prefetch={false} className="btn-ghost">Show everything</Link>}
             />
           ) : (
             <>
@@ -173,10 +209,12 @@ export default async function ProjectsPage({ searchParams }) {
                   </li>
                 ))}
               </ol>
-              <div className="mt-8 flex flex-wrap justify-between gap-3">
-                <ActionLink href="/student/github">Link activity on GitHub</ActionLink>
-                <ActionLink href="/student/credentials">Turn shipped work into proof</ActionLink>
-              </div>
+              {!viewingOther && (
+                <div className="mt-8 flex flex-wrap justify-between gap-3">
+                  <ActionLink href="/student/github">Link activity on GitHub</ActionLink>
+                  <ActionLink href="/student/credentials">Turn shipped work into proof</ActionLink>
+                </div>
+              )}
             </>
           )}
         </div>

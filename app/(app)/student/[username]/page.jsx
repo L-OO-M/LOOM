@@ -94,7 +94,7 @@ export default async function PublicProfilePage({ params }) {
               <Display size="lg" className="mt-1 break-words">{displayName}</Display>
               <p className="mono-tag mt-2">@{card.username}{guideRows.length > 0 && <span className="ml-2 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>Guide</span>}</p>
               <p className="meta mt-1">{card.primary_domain || profile?.primary_domain || "student"}{card.location ? ` · ${card.location}` : ""}</p>
-              {!isSelf && <span className="mt-3 inline-block"><FollowButton username={card.username} initial={!!isFollowing} /></span>}
+              {!isSelf && <div className="mt-3"><FollowButton username={card.username} initial={!!isFollowing} /></div>}
               {card.bio && <p className="narrative mt-4 max-w-xl" style={{ color: "var(--text)" }}>{card.bio}</p>}
               {card.is_public && (
                 <div className="mt-3">

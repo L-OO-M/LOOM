@@ -18,21 +18,27 @@ export function ProfileEditor({ initial }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setMsg("");
-    const res = await fetch("/api/social/profile", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements })
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!data.ok) {
-      setMsg(data.error?.message || "Failed");
-      return;
+    try {
+      const res = await fetch("/api/social/profile", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setMsg(data?.error?.message || `Couldn't save (error ${res.status}). Try again.`);
+        return;
+      }
+      router.push(`/student/${data.data.card.username}`);
+      router.refresh();
+    } catch {
+      setMsg("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
-    router.push(`/student/${data.data.card.username}`);
-    router.refresh();
   }
 
   return (
@@ -50,7 +56,7 @@ export function ProfileEditor({ initial }) {
       <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
         <input type="checkbox" checked={showEndorsements} onChange={(e) => setShowEndorsements(e.target.checked)} /> Show endorsements on my profile
       </label>
-      {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
+      {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink disabled:opacity-50">{busy ? "Saving…" : initial ? "Save card" : "Claim username"}</button>
     </form>
   );
@@ -60,27 +66,40 @@ export function FollowButton({ username, initial }) {
   const router = useRouter();
   const [following, setFollowing] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function toggle() {
+    if (busy) return;
     setBusy(true);
-    const res = await fetch("/api/social/connections", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username })
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (data.ok) {
+    setErr("");
+    try {
+      const res = await fetch("/api/social/connections", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setErr(data?.error?.message || `Couldn't update (error ${res.status}). Try again.`);
+        return;
+      }
       setFollowing(data.data.following);
       router.refresh();
+    } catch {
+      setErr("Couldn't reach the server. Try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <button disabled={busy} onClick={toggle} aria-pressed={following} aria-label={following ? `Unfollow ${username}` : `Follow ${username}`} className={following ? "rounded-xl border px-4 py-2 text-sm disabled:opacity-50" : "btn-ink disabled:opacity-50"}
-      style={following ? { borderColor: "var(--line)", color: "var(--text-muted)" } : undefined}>
-      {busy ? "…" : following ? "Following ✓" : "Follow"}
-    </button>
+    <div className="flex flex-wrap items-center gap-2">
+      <button disabled={busy} onClick={toggle} aria-pressed={following} aria-label={following ? `Unfollow ${username}` : `Follow ${username}`} className={following ? "rounded-xl border px-4 py-2 text-sm disabled:opacity-50" : "btn-ink disabled:opacity-50"}
+        style={following ? { borderColor: "var(--line)", color: "var(--text-muted)" } : undefined}>
+        {busy ? "…" : following ? "Following ✓" : "Follow"}
+      </button>
+      {err && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{err}</p>}
+    </div>
   );
 }
 
