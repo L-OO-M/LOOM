@@ -152,6 +152,11 @@ test.describe("L.O.O.M. SEO surfaces", () => {
       const res = await request.get(path);
       const headers = res.headers();
       expect(headers["content-security-policy"]).toContain("default-src 'self'");
+      // Zen Mode frames external material; without a frame-src the browser
+      // falls back to default-src 'self' and refuses every embed.
+      expect(headers["content-security-policy"]).toContain("frame-src");
+      expect(headers["content-security-policy"]).toContain("https://www.youtube-nocookie.com");
+      expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
       expect(headers["x-frame-options"]).toBe("DENY");
       expect(headers["x-content-type-options"]).toBe("nosniff");
       expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
