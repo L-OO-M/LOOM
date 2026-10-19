@@ -12,6 +12,7 @@ export default function RoadmapTabs({
   nodes,
   edges,
   doneIds,
+  verifiedIds = [],
   nextId,
   resourcesByDomain,
   resourceDoneIds,
@@ -81,6 +82,7 @@ export default function RoadmapTabs({
               <RoadmapJourney
                 nodes={nodes}
                 doneIds={doneIds}
+                verifiedIds={verifiedIds}
                 nextId={nextId}
                 domain={domain}
                 resourcesByDomain={resourcesByDomain}

@@ -21,6 +21,7 @@ import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 export function RoadmapJourney({
   nodes,
   doneIds,
+  verifiedIds = [],
   nextId,
   resourcesByDomain,
   resourceDoneIds = [],
@@ -28,6 +29,9 @@ export function RoadmapJourney({
   domain = null,
 }) {
   const done = useMemo(() => new Set(doneIds), [doneIds]);
+  // doneIds still counts provisional claims for progression (a student must not
+  // be blocked on a slow review), but only verified nodes read as finished proof.
+  const verifiedSet = useMemo(() => new Set(verifiedIds), [verifiedIds]);
   const resourceDoneSet = useMemo(() => new Set(resourceDoneIds), [resourceDoneIds]);
   // null = drawer closed.
   const [selectedId, setSelectedId] = useState(null);
@@ -95,6 +99,7 @@ export function RoadmapJourney({
                             isNext={isNext}
                             isSelected={!!isSel}
                             justCompleted={fresh}
+                            verified={verifiedSet.has(node.id)}
                             resources={linked}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
@@ -133,6 +138,7 @@ export function RoadmapJourney({
                             isNext={isNext}
                             isSelected={!!isSel}
                             justCompleted={fresh}
+                            verified={verifiedSet.has(node.id)}
                             resources={linked}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
@@ -188,6 +194,7 @@ export function RoadmapJourney({
         index={selIndex}
         total={nodes.length}
         isDone={selected ? done.has(selected.id) : false}
+        verified={selected ? verifiedSet.has(selected.id) : false}
         isNext={selected ? selected.id === nextId : false}
         linked={selected ? resourcesByDomain[selected.domain] ?? [] : []}
         nodes={nodes}
@@ -282,7 +289,7 @@ function TrailNote({ state }) {
   );
 }
 
-function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId, onSelect, onClose, onCompleted }) {
+function NodeDrawer({ node, index, total, isDone, verified, isNext, linked, nodes, nextId, onSelect, onClose, onCompleted }) {
   const open = !!node;
   const prev = index > 0 ? nodes[index - 1] : null;
   const next = index >= 0 && index < nodes.length - 1 ? nodes[index + 1] : null;
@@ -308,16 +315,16 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
     <Drawer open={open} onClose={onClose} label={node ? `${node.domain} · Node ${index + 1} of ${total}` : "Node"}>
       {node && (
         <>
-          <p className="meta">Node {index + 1} of {total}{isDone ? " · completed" : isNext ? " · you are here" : ""}</p>
+          <p className="meta">Node {index + 1} of {total}{isDone ? (verified ? " · completed" : " · pending review") : isNext ? " · you are here" : ""}</p>
           <p className="display display-md mt-2">{node.title}</p>
           <p className="meta mt-3">
-            {isDone ? "Completed" : isNext ? "Up next" : "Upcoming"}
+            {isDone ? (verified ? "Completed" : "Completed · pending review") : isNext ? "Up next" : "Upcoming"}
             {node.difficulty_level ? ` · ${node.difficulty_level}` : ""}
           </p>
           <p className="narrative mt-4" style={{ color: "var(--text)" }}>{node.description}</p>
 
           <div className="mt-6">
-            <JourneyCompleteButton nodeId={node.id} completed={isDone} nextTitle={next?.title} onCompleted={onCompleted} />
+            <JourneyCompleteButton nodeId={node.id} completed={isDone} verified={verified} nextTitle={next?.title} onCompleted={onCompleted} />
           </div>
 
           <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--line)" }}>
@@ -378,7 +385,7 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
 
 /* Completion with a moment: the node pops, the line illuminates,
    a quiet line lands — then the page refreshes into the new state. */
-function JourneyCompleteButton({ nodeId, completed, nextTitle, onCompleted }) {
+function JourneyCompleteButton({ nodeId, completed, verified = false, nextTitle, onCompleted }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -409,12 +416,15 @@ function JourneyCompleteButton({ nodeId, completed, nextTitle, onCompleted }) {
   }
 
   if (completed && !celebrated) {
-    return <span className="text-sm font-semibold" style={{ color: "var(--accent)" }}>Completed ✓ — one more piece in place.</span>;
+    return verified
+      ? <span className="text-sm font-semibold" style={{ color: "var(--accent)" }}>Verified ✓ — one more piece in place.</span>
+      : <span className="text-sm font-semibold" style={{ color: "var(--text-muted)" }} title="A lead confirms your evidence before it counts toward standing.">Completed · pending review.</span>;
   }
   if (celebrated) {
     return (
       <div className="animate-in">
-        <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>Nice. One more piece is in place.</p>
+        <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>Nice — your claim is in.</p>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>A lead confirms your evidence before it counts toward standing.</p>
         {nextTitle && <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Next: {nextTitle}</p>}
       </div>
     );

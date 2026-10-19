@@ -15,8 +15,10 @@ export default async function RoadmapPage({ searchParams }) {
 
   const sp = (await searchParams) || {};
   const allNodes = await sql`SELECT * FROM roadmap_nodes ORDER BY sort_order ASC, title ASC`;
-  const done = await sql`SELECT node_id FROM student_roadmap_progress WHERE student_id = ${user.id} AND status = 'completed'`;
+  const done = await sql`SELECT node_id, evidence_state FROM student_roadmap_progress WHERE student_id = ${user.id} AND status = 'completed'`;
   const doneIds = done.map((d) => d.node_id);
+  // Progression counts every claim; "verified" is the subset a lead confirmed.
+  const verifiedIds = done.filter((d) => d.evidence_state === "verified").map((d) => d.node_id);
 
   const available = [...new Set(allNodes.map((n) => n.domain))];
   const domain = resolveDomain({
@@ -96,6 +98,7 @@ export default async function RoadmapPage({ searchParams }) {
           nodes={nodes}
           edges={edges}
           doneIds={doneIds}
+          verifiedIds={verifiedIds}
           nextId={nextId}
           resourcesByDomain={resourcesByDomain}
           resourceDoneIds={resourceDoneIds}

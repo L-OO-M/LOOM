@@ -14,7 +14,7 @@ async function postJSON(url, body) {
   }
 }
 
-export function MarkCompleteButton({ nodeId, completed }) {
+export function MarkCompleteButton({ nodeId, completed, verified = false }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -29,7 +29,13 @@ export function MarkCompleteButton({ nodeId, completed }) {
     }
     router.refresh();
   }
-  if (completed) return <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Completed ✓</span>;
+  // A self-declared completion is provisional until a lead confirms the
+  // evidence, so it must not read as a finished, scoreworthy achievement.
+  if (completed) {
+    return verified
+      ? <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Verified ✓</span>
+      : <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }} title="A lead confirms your evidence before it counts toward standing.">Completed · pending review</span>;
+  }
   return (
     <span className="inline-flex items-center gap-2">
       <button onClick={run} disabled={busy} className="btn-ink disabled:opacity-50">

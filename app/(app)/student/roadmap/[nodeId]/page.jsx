@@ -22,6 +22,9 @@ export default async function RoadmapNodePage({ params }) {
   const [total] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE domain = ${node.domain}`;
   const totalMins = resources.reduce((s, r) => s + (r.minutes || 0), 0);
   const completed = progress?.status === "completed";
+  // "Completed" is a claim; only a lead-confirmed node is verified proof. Keep
+  // the two visually distinct so the page never overstates what a student earned.
+  const verified = progress?.evidence_state === "verified";
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
@@ -30,14 +33,14 @@ export default async function RoadmapNodePage({ params }) {
           <div className="min-w-0">
             <Link href="/student/roadmap" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← The path</Link>
             <p className="meta mt-4">
-              {String(node.domain).replace(/_/g, " ").toUpperCase()} · Node {position?.c ?? "–"} of {total?.c ?? "–"} · {node.difficulty_level ? `${node.difficulty_level} · ` : ""}{completed ? "Completed" : "In progress"}
+              {String(node.domain).replace(/_/g, " ").toUpperCase()} · Node {position?.c ?? "–"} of {total?.c ?? "–"} · {node.difficulty_level ? `${node.difficulty_level} · ` : ""}{completed ? (verified ? "Completed" : "Completed · pending review") : "In progress"}
             </p>
             <h1 className="display display-lg mt-2">{node.title}</h1>
             <p className="lede mt-4 max-w-2xl">{node.description}</p>
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-y py-4" style={{ borderColor: "var(--line)" }}>
               <span className="meta">{resources.length} resources · ≈ {totalMins} min</span>
               {completed && progress?.completed_at && <span className="meta">Finished {new Date(progress.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>}
-              <span className="ml-auto"><MarkCompleteButton nodeId={node.id} completed={completed} /></span>
+              <span className="ml-auto"><MarkCompleteButton nodeId={node.id} completed={completed} verified={verified} /></span>
             </div>
             <section className="mt-10" aria-label="Study material">
               <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>Study this</h2>
@@ -76,7 +79,7 @@ export default async function RoadmapNodePage({ params }) {
               <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
                 <div className="h-full rounded-full" style={{ width: `${Math.round(((position?.c ?? 0) / Math.max(total?.c ?? 1, 1)) * 100)}%`, background: "var(--accent)" }} />
               </div>
-              <p className="meta mt-4">{completed ? "Completed · keep walking" : "Mark complete to advance"}</p>
+              <p className="meta mt-4">{completed ? (verified ? "Completed · keep walking" : "Completed · awaiting a lead's review") : "Mark complete to advance"}</p>
               <Link href="/student/roadmap" prefetch={false} className="mt-3 inline-block text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Back to path →</Link>
             </div>
           </aside>
