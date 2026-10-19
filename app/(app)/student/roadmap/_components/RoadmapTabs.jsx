@@ -15,6 +15,7 @@ export default function RoadmapTabs({
   verifiedIds = [],
   nextId,
   resourcesByDomain,
+  resourcesByNode = {},
   resourceDoneIds,
   projectsByNode,
 }) {
@@ -86,6 +87,7 @@ export default function RoadmapTabs({
                 nextId={nextId}
                 domain={domain}
                 resourcesByDomain={resourcesByDomain}
+                resourcesByNode={resourcesByNode}
                 resourceDoneIds={resourceDoneIds}
                 projectsByNode={projectsByNode}
               />

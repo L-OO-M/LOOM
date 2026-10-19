@@ -15,7 +15,14 @@ export default async function RoadmapNodePage({ params }) {
   const [node] = await sql`SELECT * FROM roadmap_nodes WHERE id = ${nodeId} LIMIT 1`;
   if (!node) notFound();
   const [progress] = await sql`SELECT * FROM student_roadmap_progress WHERE student_id = ${user.id} AND node_id = ${nodeId} LIMIT 1`;
-  const resources = await sql`SELECT * FROM resources WHERE domain = ${node.domain} ORDER BY minutes ASC LIMIT 6`;
+  // Prefer material curated for THIS node (migration 045); fall back to the
+  // domain catalog and say so, instead of presenting domain-wide pieces as if
+  // they were this node's own.
+  const nodeResources = await sql`SELECT * FROM resources WHERE node_id = ${nodeId} ORDER BY minutes ASC`;
+  const usingDomainFallback = nodeResources.length === 0;
+  const resources = usingDomainFallback
+    ? await sql`SELECT * FROM resources WHERE domain = ${node.domain} ORDER BY minutes ASC LIMIT 6`
+    : nodeResources;
   const [next] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order > ${node.sort_order} ORDER BY sort_order ASC LIMIT 1`;
   const [prev] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order < ${node.sort_order} ORDER BY sort_order DESC LIMIT 1`;
   const [position] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order <= ${node.sort_order}`;
@@ -43,7 +50,10 @@ export default async function RoadmapNodePage({ params }) {
               <span className="ml-auto"><MarkCompleteButton nodeId={node.id} completed={completed} verified={verified} /></span>
             </div>
             <section className="mt-10" aria-label="Study material">
-              <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>Study this</h2>
+              <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>{usingDomainFallback ? `Suggested for ${String(node.domain).replace(/_/g, " ")}` : "Study this"}</h2>
+              {usingDomainFallback && resources.length > 0 && (
+                <p className="meta mt-1">Nothing is pinned to this node yet — these are the strongest picks from the {String(node.domain).replace(/_/g, " ")} catalog.</p>
+              )}
               <ol className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
                 {resources.map((r, i) => {
                   const direct = getResourceHref(r);

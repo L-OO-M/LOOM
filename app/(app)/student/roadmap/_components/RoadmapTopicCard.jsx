@@ -14,6 +14,7 @@ export function RoadmapTopicCard({
   justCompleted,
   verified = false,
   resources,
+  resourcesFallback = false,
   resourceDoneSet,
   projects,
   onOpen,
@@ -56,6 +57,7 @@ export function RoadmapTopicCard({
         Learn · {(resources || []).length} pieces
         {totalMins ? ` · ≈ ${totalMins} min` : ""}
         {learnDone ? ` · ${learnDone} finished` : ""}
+        {resourcesFallback && (resources || []).length > 0 ? " · domain picks" : ""}
       </p>
       {(resources || []).length > 0 ? (
         <ul className="mt-2 divide-y" style={{ borderColor: "var(--line)" }}>

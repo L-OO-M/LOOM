@@ -71,8 +71,16 @@ export default async function RoadmapPage({ searchParams }) {
     return { domain: d, total: ids.size, done: dDone };
   });
 
-  const allResources = await sql`SELECT id, title, minutes, domain, kind, level, url FROM resources ORDER BY minutes ASC`;
+  const allResources = await sql`SELECT id, title, minutes, domain, kind, level, url, node_id FROM resources ORDER BY minutes ASC`;
   const resourcesByDomain = {};
+  // Node-pinned material (migration 045) takes precedence over the domain
+  // fallback on the map, so a node card shows what it is actually about.
+  const resourcesByNode = {};
+  for (const r of allResources) {
+    if (!r.node_id) continue;
+    resourcesByNode[r.node_id] ??= [];
+    if (resourcesByNode[r.node_id].length < 12) resourcesByNode[r.node_id].push(r);
+  }
   for (const r of allResources) {
     resourcesByDomain[r.domain] ??= [];
     if (resourcesByDomain[r.domain].length < 12) resourcesByDomain[r.domain].push(r);
@@ -101,6 +109,7 @@ export default async function RoadmapPage({ searchParams }) {
           verifiedIds={verifiedIds}
           nextId={nextId}
           resourcesByDomain={resourcesByDomain}
+          resourcesByNode={resourcesByNode}
           resourceDoneIds={resourceDoneIds}
           projectsByNode={projectsByNode}
         />

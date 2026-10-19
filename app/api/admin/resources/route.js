@@ -10,7 +10,10 @@ const resourceSchema = z.object({
   level: z.string().min(1).max(40).default("foundation"),
   kind: z.enum(["article", "doc", "video", "course"]).default("article"),
   url: z.string().url().nullable().optional(),
-  minutes: z.number().int().min(1).max(600).default(30)
+  minutes: z.number().int().min(1).max(600).default(30),
+  // Optional link to the exact roadmap node this resource teaches. Without it a
+  // node page can only fall back to the whole domain (migration 045).
+  nodeId: z.string().max(120).nullable().optional()
 });
 
 export async function GET() {
@@ -33,12 +36,12 @@ export async function POST(request) {
   }
   const id = body.id || `res_${Date.now().toString(36)}`;
   const [resource] = await sql`
-    INSERT INTO resources (id, title, domain, level, kind, url, minutes)
-    VALUES (${id}, ${body.title}, ${body.domain}, ${body.level}, ${body.kind}, ${body.url || null}, ${body.minutes})
-    ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, level = EXCLUDED.level, kind = EXCLUDED.kind, url = EXCLUDED.url, minutes = EXCLUDED.minutes
+    INSERT INTO resources (id, title, domain, level, kind, url, minutes, node_id)
+    VALUES (${id}, ${body.title}, ${body.domain}, ${body.level}, ${body.kind}, ${body.url || null}, ${body.minutes}, ${body.nodeId || null})
+    ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, domain = EXCLUDED.domain, level = EXCLUDED.level, kind = EXCLUDED.kind, url = EXCLUDED.url, minutes = EXCLUDED.minutes, node_id = EXCLUDED.node_id
     RETURNING *
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "upserted_resource", resource: "resource", resourceId: id, after: { title: body.title } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "upserted_resource", resource: "resource", resourceId: id, after: { title: body.title, nodeId: body.nodeId || null } });
   revalidateTag("resources:counts");
   revalidateTag("resources:levels");
   revalidateTag("resources:total");

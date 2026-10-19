@@ -24,6 +24,7 @@ export function RoadmapJourney({
   verifiedIds = [],
   nextId,
   resourcesByDomain,
+  resourcesByNode = {},
   resourceDoneIds = [],
   projectsByNode = {},
   domain = null,
@@ -85,7 +86,11 @@ export function RoadmapJourney({
                 const isSel = selected && node.id === selected.id;
                 const fresh = justDone === node.id;
                 const side = globalIndex % 2 === 0 ? "left" : "right";
-                const linked = resourcesByDomain[node.domain] ?? [];
+                // Node-pinned material first; fall back to the domain catalog and
+                // flag it so the card can say the picks are domain-wide.
+                const nodeLinked = resourcesByNode[node.id] ?? [];
+                const linked = nodeLinked.length ? nodeLinked : resourcesByDomain[node.domain] ?? [];
+                const linkedFallback = nodeLinked.length === 0;
                 const builds = projectsByNode[node.id] ?? [];
                 return (
                   <div key={node.id} id={`rm-node-${node.id}`} className="rm-row scroll-mt-28">
@@ -101,6 +106,7 @@ export function RoadmapJourney({
                             justCompleted={fresh}
                             verified={verifiedSet.has(node.id)}
                             resources={linked}
+                            resourcesFallback={linkedFallback}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
                             onOpen={() => setSelectedId(node.id)}
@@ -140,6 +146,7 @@ export function RoadmapJourney({
                             justCompleted={fresh}
                             verified={verifiedSet.has(node.id)}
                             resources={linked}
+                            resourcesFallback={linkedFallback}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
                             onOpen={() => setSelectedId(node.id)}
@@ -196,7 +203,8 @@ export function RoadmapJourney({
         isDone={selected ? done.has(selected.id) : false}
         verified={selected ? verifiedSet.has(selected.id) : false}
         isNext={selected ? selected.id === nextId : false}
-        linked={selected ? resourcesByDomain[selected.domain] ?? [] : []}
+        linked={selected ? (resourcesByNode[selected.id]?.length ? resourcesByNode[selected.id] : resourcesByDomain[selected.domain] ?? []) : []}
+        linkedFallback={selected ? !(resourcesByNode[selected.id]?.length) : false}
         nodes={nodes}
         nextId={nextId}
         onSelect={setSelectedId}
@@ -289,7 +297,7 @@ function TrailNote({ state }) {
   );
 }
 
-function NodeDrawer({ node, index, total, isDone, verified, isNext, linked, nodes, nextId, onSelect, onClose, onCompleted }) {
+function NodeDrawer({ node, index, total, isDone, verified, isNext, linked, linkedFallback, nodes, nextId, onSelect, onClose, onCompleted }) {
   const open = !!node;
   const prev = index > 0 ? nodes[index - 1] : null;
   const next = index >= 0 && index < nodes.length - 1 ? nodes[index + 1] : null;
@@ -329,6 +337,9 @@ function NodeDrawer({ node, index, total, isDone, verified, isNext, linked, node
 
           <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--line)" }}>
             <Meta>Linked resources · {linked.length}</Meta>
+            {linkedFallback && linked.length > 0 && (
+              <p className="meta mt-1">Nothing is pinned to this node yet — these are picks from the domain catalog.</p>
+            )}
             <ul className="mt-3 space-y-1">
               {linked.map((r) => {
                 const direct = getResourceHref(r);
