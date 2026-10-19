@@ -30,7 +30,19 @@ export async function PATCH(request, { params }) {
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `help_${body.status}`, resource: "help_match", resourceId: id, after: body });
   // Notify other party
   const otherId = sig.user_id === user.id ? m.helper_id : sig.user_id;
-  await notify({ sql, tenantId: tenant?.id, userId: otherId, type: "help_update", title: `Help ${body.status}`, body: `${ctx.profile?.name || user.id} marked help as ${body.status}`, link: "/student/help" });
+  // On accept, hand the other party a way to actually reach the accepter: there
+  // is no DM, so the link points straight at the accepter's profile. Identity
+  // stays hidden for every other status.
+  let link = "/student/help";
+  let noticeBody = `${ctx.profile?.name || user.id} marked help as ${body.status}`;
+  if (body.status === "accepted") {
+    const [up] = await sql`SELECT username FROM user_profiles WHERE user_id = ${user.id} AND is_public LIMIT 1`;
+    if (up?.username) {
+      link = `/student/${up.username}`;
+      noticeBody = `${ctx.profile?.name || user.id} accepted — open their profile to reach out.`;
+    }
+  }
+  await notify({ sql, tenantId: tenant?.id, userId: otherId, type: "help_update", title: `Help ${body.status}`, body: noticeBody, link });
   return ok({ match: updated });
 }
 
