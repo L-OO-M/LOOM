@@ -36,6 +36,13 @@ export async function middleware(request) {
   const raw = request.nextUrl.pathname;
   const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
 
+  // The student layout must gate first-run onboarding, but it has no pathname of
+  // its own and the onboarding route lives under that same layout — so it has to
+  // know the current path to avoid redirecting the onboarding page to itself.
+  // Forward it as a request header.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
   // Exact-match public pages; /api/* is NOT blanket-public (only listed routes).
   if (publicPaths.includes(pathname)) {
     return NextResponse.next();
@@ -80,7 +87,7 @@ export async function middleware(request) {
   // The response object is created up front so refreshed cookies can be
   // attached to it, and the mutated request is threaded through so downstream
   // handlers see the new values in the same pass.
-  let supabaseResponse = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -92,7 +99,7 @@ export async function middleware(request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );

@@ -18,7 +18,10 @@ describe("session persistence", () => {
 
   it("writes refreshed cookies onto the response, not just the request", () => {
     expect(middleware).toContain("supabaseResponse.cookies.set(");
-    expect(middleware).toMatch(/supabaseResponse\s*=\s*NextResponse\.next\(\{\s*request\s*\}\)/);
+    // The response is recreated forwarding the (modified) request so refreshed
+    // cookies attach. It now also carries the x-pathname request header the
+    // student layout reads to gate first-run onboarding.
+    expect(middleware).toMatch(/supabaseResponse\s*=\s*NextResponse\.next\(\{\s*request\b/);
   });
 
   it("returns the response carrying the refreshed cookies", () => {

@@ -31,14 +31,21 @@ function LoginForm() {
     }
 
     // Explicit bounce targets are honored (layouts enforce access); otherwise
-    // each level lands where it works: leads in /lead, admins in /admin.
+    // each level lands where it works: leads in /lead, admins in /admin. A
+    // student who has not finished onboarding is sent straight there rather than
+    // to a home page whose layout would only bounce them a hop later.
     if (redirect) {
       router.push(redirect);
     } else {
       try {
         const res = await fetch("/api/profile");
         const data = await res.json();
-        router.push(homeForRole(data?.data?.profile?.role));
+        const profile = data?.data?.profile;
+        const dest =
+          profile && profile.role === "student" && !profile.onboarding_completed
+            ? "/student/onboarding"
+            : homeForRole(profile?.role);
+        router.push(dest);
       } catch {
         router.push("/student");
       }
