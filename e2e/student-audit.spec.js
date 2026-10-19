@@ -195,12 +195,19 @@ test("following a peer issues the real connection request", async ({ page }) => 
 
 test("creating a credential share link returns a real URL", async ({ page }) => {
   await page.goto("/student/credentials", { waitUntil: "domcontentloaded" });
-  const share = page.getByRole("button", { name: /create signed proof link|issue link/i });
-  test.skip(!(await appears(share)), "no share control on this account");
+  // The control's accessible name is stable ("Create signed proof link for …")
+  // whether the form is open or revealed; if a link already exists the form
+  // starts collapsed behind "Issue another link…".
+  const submit = page.getByRole("button", { name: /create signed proof link/i });
+  if (!(await appears(submit, 8_000))) {
+    const reveal = page.getByRole("button", { name: /issue another link/i });
+    if (await appears(reveal, 5_000)) await reveal.click();
+  }
+  test.skip(!(await appears(submit)), "no share control on this account");
 
   const [req] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/api/credentials") && r.request().method() === "POST"),
-    share.first().click()
+    submit.first().click()
   ]);
   expect(req.status(), "POST /api/credentials").toBeLessThan(400);
 });
