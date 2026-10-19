@@ -13,6 +13,11 @@ export async function GET(request) {
     tenant = null;
   }
   const tid = tenant?.id ?? null;
+  // Fail closed. This endpoint is unauthenticated and does NOT pass through the
+  // fail-closed tenant guard in getRequestContext, so an unresolved tenant used
+  // to widen the query to every chapter (the `OR tid IS NULL` arm). Return empty
+  // instead — a public showcase with no chapter is legitimately empty.
+  if (!tid) return ok({ projects: [] });
   const sql = getSql();
   let projects = [];
   try {
@@ -21,7 +26,7 @@ export async function GET(request) {
              p.status, p.created_at, pr.name AS owner_name
       FROM projects p
       LEFT JOIN profiles pr ON pr.user_id = p.owner_id
-      WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      WHERE p.tenant_id = ${tid}::uuid
       ORDER BY p.created_at DESC
       LIMIT 24
     `;
