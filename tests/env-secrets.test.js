@@ -10,7 +10,11 @@ for (const k of [
   "NEXT_PUBLIC_APP_URL",
   "GITHUB_CLIENT_ID",
   "GITHUB_CLIENT_SECRET",
-  "GITHUB_TOKEN_ENCRYPTION_KEY"
+  "GITHUB_TOKEN_ENCRYPTION_KEY",
+  "AUTH0_DOMAIN",
+  "AUTH0_CLIENT_ID",
+  "AUTH0_CLIENT_SECRET",
+  "AUTH0_SECRET"
 ]) {
   ORIGINAL[k] = process.env[k];
 }
@@ -42,7 +46,13 @@ const GOOD = {
   // clone of the repo, and these fixtures exist only to be well-formed.
   GITHUB_CLIENT_ID: "Ov23li99TESTfixtureONLY0000",
   GITHUB_CLIENT_SECRET: "0000000000000000000000000000000000000000",
-  GITHUB_TOKEN_ENCRYPTION_KEY: GOOD_ENCRYPTION_KEY
+  GITHUB_TOKEN_ENCRYPTION_KEY: GOOD_ENCRYPTION_KEY,
+  // Auth0 fixtures -- also deliberately fake. See the note above: this file is
+  // tracked, so it must never carry live credentials.
+  AUTH0_DOMAIN: "loom-test.au.auth0.com",
+  AUTH0_CLIENT_ID: "0123456789abcdefTESTfixture",
+  AUTH0_CLIENT_SECRET: "fixture-client-secret-not-real-000000000000",
+  AUTH0_SECRET: "a".repeat(64)
 };
 
 async function loadEnvModule() {
@@ -116,6 +126,20 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).toThrow(/NEXT_PUBLIC_APP_URL/);
   });
 
+  // Auth0 is the login front door. Missing credentials would surface as an
+  // opaque 500 on /auth/login, so they are required-in-production like the rest.
+  it("rejects missing Auth0 credentials", async () => {
+    setEnv({ ...GOOD, AUTH0_DOMAIN: undefined, AUTH0_CLIENT_ID: undefined });
+    const { assertProductionSecrets } = await loadEnvModule();
+    expect(() => assertProductionSecrets()).toThrow(/AUTH0_DOMAIN/);
+  });
+
+  it("rejects a too-short AUTH0_SECRET, which encrypts the session cookie", async () => {
+    setEnv({ ...GOOD, AUTH0_SECRET: "short" });
+    const { assertProductionSecrets } = await loadEnvModule();
+    expect(() => assertProductionSecrets()).toThrow(/AUTH0_SECRET/);
+  });
+
   it("reports every problem at once rather than one per deploy cycle", async () => {
     setEnv({ NODE_ENV: "production" });
     const { assertProductionSecrets } = await loadEnvModule();
@@ -177,6 +201,13 @@ describe("secretProblems", () => {
     setEnv({ ...GOOD, GITHUB_TOKEN_ENCRYPTION_KEY: undefined });
     const { secretProblems } = await loadEnvModule();
     expect(secretProblems()).toContain("GITHUB_TOKEN_ENCRYPTION_KEY is not set");
+  });
+
+  it("reports a missing Auth0 configuration in production", async () => {
+    setEnv({ ...GOOD, AUTH0_DOMAIN: undefined, AUTH0_SECRET: undefined });
+    const { secretProblems } = await loadEnvModule();
+    expect(secretProblems()).toContain("AUTH0_DOMAIN is not set");
+    expect(secretProblems()).toContain("AUTH0_SECRET is not set");
   });
 
   it("rejects an encryption key of the wrong BYTE length, not just the wrong character length", async () => {

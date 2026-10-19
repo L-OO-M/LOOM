@@ -12,7 +12,7 @@ export async function GET(request) {
   const tid = tenant?.id ?? null;
   const rows = await sql`
     SELECT * FROM audit_logs
-    WHERE metadata->>'tenant_id' = ${tid}::text
+    WHERE tenant_id = ${tid}::uuid
     ORDER BY created_at DESC LIMIT ${limit}
   `;
   return ok({ audit: rows });

@@ -82,7 +82,7 @@ export default async function DomainsPage() {
               <li key={d.slug}>
                 <Link prefetch={false} href={`/domains/${d.slug}`} className="spot-card group block h-full rounded-2xl border p-6 transition hover:-translate-y-1" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                   <p className="font-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
-                    {String(i + 1).padStart(2, "0")} · {d.vertical}
+                    {String(i + 1).padStart(2, "0")} · {d.vertical === "non_technical" ? "Non-technical" : "Technical"}
                   </p>
                   <h2 className="font-display mt-2 text-2xl font-medium group-hover:underline" style={{ color: "var(--text)" }}>{d.name}</h2>
                   {d.description && <p className="mt-2 line-clamp-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{d.description}</p>}

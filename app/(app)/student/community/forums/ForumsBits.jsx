@@ -9,12 +9,12 @@ import { DOMAIN_ORDER } from "@/lib/domains";
 // See lib/domains.js — the hardcoded list here omitted `embedded`.
 const DOMAINS = ["general", ...DOMAIN_ORDER];
 
-export function ThreadForm() {
+export function ThreadForm({ defaultOpen = false, defaultTitle = "", defaultDomain = "general", defaultBody = "" }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [domain, setDomain] = useState("general");
+  const [open, setOpen] = useState(Boolean(defaultOpen));
+  const [title, setTitle] = useState(defaultTitle);
+  const [body, setBody] = useState(defaultBody);
+  const [domain, setDomain] = useState(DOMAINS.includes(defaultDomain) ? defaultDomain : "general");
   const [tags, setTags] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);

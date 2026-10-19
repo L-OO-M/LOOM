@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, notify, writeAudit } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   action: z.enum(["register", "cancel"]).default("register"),
@@ -45,6 +46,8 @@ export async function POST(request, { params }) {
   } catch (e) {
     return validationError(e);
   }
+  const limited = checkRateLimit(`event-register:${user.id}`, { limit: 30, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many registration attempts — slow down", 429);
   const [event] = await sql`SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid AND status IN ('upcoming', 'live', 'past') LIMIT 1`;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
 

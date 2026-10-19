@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Lightbulb } from "lucide-react";
 import { Drawer } from "./loom/Drawer";
 
@@ -50,7 +51,7 @@ export function FeatureRequestFab() {
           </label>
           <button disabled={busy} className="btn-ink w-full disabled:opacity-50">{busy ? "Submitting…" : "Submit idea"}</button>
           {msg && <p className="text-xs" style={{ color: msg.includes("✓") ? "var(--success)" : "var(--danger)" }}>{msg}</p>}
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Track yours at <a href="/student/feature-requests" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>/student/feature-requests</a></p>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Track yours at <Link href="/student/feature-requests" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>/student/feature-requests</Link></p>
         </form>
       </Drawer>
     </>

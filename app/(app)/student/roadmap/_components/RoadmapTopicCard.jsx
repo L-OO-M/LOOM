@@ -16,6 +16,7 @@ export function RoadmapTopicCard({
   isNext,
   isSelected,
   justCompleted,
+  verified = false,
   resources,
   resourceDoneSet,
   projects,
@@ -34,7 +35,7 @@ export function RoadmapTopicCard({
       <p className="meta">
         Milestone {String(index + 1).padStart(2, "0")}
         {node.difficulty_level ? ` · ${node.difficulty_level}` : ""}
-        {isDone ? " · completed" : isNext ? " · you are here" : ""}
+        {isDone ? (verified ? " · completed" : " · pending review") : isNext ? " · you are here" : ""}
       </p>
       <button
         type="button"
@@ -154,7 +155,7 @@ export function RoadmapTopicCard({
         className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"
         style={{ borderColor: "var(--line)" }}
       >
-        <MarkCompleteButton nodeId={node.id} completed={isDone} />
+        <MarkCompleteButton nodeId={node.id} completed={isDone} verified={verified} />
         <span className="flex items-center gap-3">
           <button
             type="button"

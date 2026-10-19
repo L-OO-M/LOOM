@@ -14,7 +14,7 @@ async function postJSON(url, body) {
   }
 }
 
-export function MarkCompleteButton({ nodeId, completed }) {
+export function MarkCompleteButton({ nodeId, completed, verified = false }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -29,7 +29,13 @@ export function MarkCompleteButton({ nodeId, completed }) {
     }
     router.refresh();
   }
-  if (completed) return <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Completed ✓</span>;
+  // A self-declared completion is provisional until a lead confirms the
+  // evidence, so it must not read as a finished, scoreworthy achievement.
+  if (completed) {
+    return verified
+      ? <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Verified ✓</span>
+      : <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }} title="A lead confirms your evidence before it counts toward standing.">Completed · pending review</span>;
+  }
   return (
     <span className="inline-flex items-center gap-2">
       <button onClick={run} disabled={busy} className="btn-ink disabled:opacity-50">
@@ -145,10 +151,21 @@ export function MarkNotificationRead({ id, read }) {
  * state cookie -- but passing it means the student does not have to click through
  * a second confirmation afterwards.
  */
-export function GithubLinkButton({ label = "Link GitHub account", repos = null, disabled = false, note = null }) {
+/**
+ * Build the OAuth start URL for a repository grant.
+ *
+ * Extracted from the button so the `repos` hand-off is unit-testable without a
+ * DOM (this repo runs vitest in node, with no renderer). The server re-validates
+ * and signs the list; passing it only saves the student a second confirmation.
+ */
+export function githubLinkHref(repos) {
   const params = new URLSearchParams();
   if (Array.isArray(repos) && repos.length) params.set("repos", repos.join(","));
-  const href = `/api/github/oauth/start${params.toString() ? `?${params.toString()}` : ""}`;
+  return `/api/github/oauth/start${params.toString() ? `?${params.toString()}` : ""}`;
+}
+
+export function GithubLinkButton({ label = "Link GitHub account", repos = null, disabled = false, note = null }) {
+  const href = githubLinkHref(repos);
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <a

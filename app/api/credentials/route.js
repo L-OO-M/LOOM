@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { signCredential } from "@/lib/credentials";
 import { env } from "@/lib/env";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const issueSchema = z.object({
   achievementId: z.string().uuid(),
@@ -42,6 +43,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, profile, sql } = ctx;
+  const limited = checkRateLimit(`credential-issue:${user.id}`, { limit: 20, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many credential issuances — slow down", 429);
   let body;
   try {
     body = issueSchema.parse(await request.json());
@@ -69,5 +72,6 @@ export async function POST(request) {
       ${issuedAt}, ${expiresAt}, ${signature})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "issued_credential", resource: "verifiable_credential", resourceId: cred.id, after: { achievementId: a.id } });
   return ok({ credential: cred, url: `${env.NEXT_PUBLIC_APP_URL}/verify/credential/${id}` }, { status: 201 });
 }

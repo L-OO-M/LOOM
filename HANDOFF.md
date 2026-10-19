@@ -57,40 +57,42 @@ app/
   page.jsx, layout.jsx            # landing (client) + root metadata/OG/JSON-LD
   sitemap.js, robots.js           # SEO crawl surfaces
   about/ faq/ events/ domains/    # public server pages, each with metadata + canonical
-  (auth)/ login/ register/        # client pages + _components/LevelGuide.jsx + noindex layout
+  (auth)/ login/ register/        # client pages + _components/AuthShell.jsx + noindex layout
   (app)/ student/ lead/ admin/    # private workspaces (noindex layouts), each page's
                                   #   one-off components co-located in _components/ or *Bits.jsx
   api/                            # ~80 route handlers; envelopes { ok, data | error }
-  setup/ verify/ auth/            # claim-first, credential verify, supabase callbacks
+  setup/ verify/ auth/            # claim-first, credential verify, supabase + Auth0 callbacks
   error.jsx, not-found.jsx, loading.jsx
 components/
   landing/ (12 files)             # living-network landing system
   loom/ (primitives, StatTiles, States, Drawer) · motion/ · student/OrgPanels · lead/LeadActions
   seo/JsonLd.jsx                  # Organization/WebSite/FAQPage/ItemList schemas
   AppShell.jsx, BrandMark.jsx, WeaveField.jsx, ui.jsx, actions.jsx, admin-forms.jsx
-lib/                              # one concern per file: auth, auth-server, permissions (20-action
+lib/                              # one concern per file: auth, auth-server, auth0 (client), user-identities
+                                  # (Auth0 sub → canonical uid), permissions (20-action
                                   # matrix), tenant, db (pooler-safe), nav (single IA source), seo,
                                   # github (pause gate), lead, oss, mentorship, reputation, community,
                                   # credentials, classification notes, api, audit, env, rate-limit, theme
 load/                             # migrate.js, seeds, rollups, wipe-dev.js, shoot.js, verify-gate.js,
                                   # env-local.js (shared DATABASE_URL loader — secrets never hardcoded)
-load/migrations/ 001–020         # THE schema source of truth; idempotent, never edit applied ones
+load/migrations/ 001–047         # THE schema source of truth; idempotent, never edit applied ones
 docs/ 00,05,06,09,11–19 + README  # current set (7 superseded docs deleted; redirect map in docs/README)
 tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 ```
 
 **Conventions (non-negotiable):** JS only · every `<Link>` gets `prefetch={false}` (pooler cost) · sequential awaits on pages, never parallel batches · every mutation: zod → server tenant → `can()` check → `writeAudit()` (+ `notify()`) · migrations idempotent (`IF NOT EXISTS`) · honest empty states, zero mock data in UI · one concern per commit.
 
-**Auth model:** single `/login`; tenant always from `profiles.tenant_id` server-side; `/api/*` returns machine `401`, pages redirect. **Roles (6, upward-only):** `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. The `mentor` *role* is retired (→`core`); mentorship is a capability. Roles are granted (request/appoint/claim), never self-selected. Post-login landing is role-aware (`/student`, `/lead`, `/admin`).
+**Auth model:** single `/login`; tenant always from `profiles.tenant_id` server-side; `/api/*` returns machine `401`, pages redirect. **Login runs through Auth0** (`@auth0/nextjs-auth0`, front door + `user_identities` map in migration 047) while the canonical user id stays the Supabase uid — the Auth0 `sub` → uid link is resolved in `lib/user-identities.js`, so no profile/owner ids are rewritten. Supabase auth is retained as a fallback path (legacy sessions + the E2E programmatic login). **Roles (6, upward-only):** `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. The `mentor` *role* is retired (→`core`); mentorship is a capability. Roles are granted (request/appoint/claim), never self-selected. Post-login landing is role-aware (`/student`, `/lead`, `/admin`).
 
 ---
 
 ## 5. What is done (so you don't redo it)
 
 - Full product loop: onboarding → roadmap → resources → projects → GitHub link → contests → mentorship ladder → credentials/certificates → leaderboard → social/discover.
-- Org model: 8 departments (5 technical active; 3 non-technical ship **inactive**), memberships with join/request-core/grant flow, scoped Head posting, VL approval queue, succession flags.
+- Org model: 11 departments (8 technical + 3 non-technical, **all active** since migration 046), memberships with join/request-core/grant flow, scoped Head posting, VL approval queue, succession flags.
 - Operations: announcements with notification fan-out, contribution ledger, volunteers, monthly dept reports, handover board, full finance (budget heads/expenses/sponsorships), FAQ manager, department CRUD.
 - Public site in landing language with pulse sections; SEO pass (title templates, canonicals, OG/Twitter, sitemap+robots, JSON-LD, single-h1 verified by E2E, private areas noindexed).
+- **Lead console Chapter tools** (committed locally, P0–P5): creative/media asset library (Supabase Storage, private bucket, versioned uploads, signed-URL downloads), MoU database with versioned documents, internal leadership directory, and an event operations task board — each mirrored in `/lead` and `/admin`, gated by six new `can()` actions (Head/VL/admin edit, `core` reads), plus a scheduled deadline reminder job (`load/remind-deadlines.js`). Docs live in `docs/13` (API) and `docs/14` (schema, migrations 040–044).
 - GitHub pipeline built but **paused by default** (kill-switch `020`, HMAC verified live, OSS auto-verify on merge).
 - Data hygiene: shared DB holds only real rows (2 users, MSIT tenant); all seed/dummy data purged; hardcoded DB secrets purged from source; 14 unused deps removed; 7 stale docs deleted with redirect map.
 
@@ -107,11 +109,11 @@ tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 ### 🟡 B. Feature wiring (biggest functional gaps)
 
 4. **Enable GitHub ingestion for real** (currently paused, flag off). Steps: public HTTPS origin (webhook must reach it — `localhost`/LAN IPs fail) → add row in `tenant_domains` → set `GITHUB_WEBHOOK_SECRET` on both sides → subscribe only to Push/PR/reviews/issues → flip `github_integration` at `/admin/flags` → test with `node load/verify-gate.js [enable|disable|status|clean]` → have every member link their username at `/student/github`. Full contract: `docs/16-github-integration.md`.
-5. **Schedule the two nightly rollups** (`load/rollup-federation.js`, `load/rollup-analytics.js`) via cron / Vercel Cron / GitHub Actions. Until scheduled, Insights/Data/federation totals go stale (runbook row exists in `docs/15`).
+5. **Schedule the two nightly rollups** (`load/rollup-federation.js`, `load/rollup-analytics.js`) via cron / Vercel Cron / GitHub Actions. Until scheduled, Insights/Data/federation totals go stale (runbook row exists in `docs/15`). Also schedule the deadline reminder job (`node load/remind-deadlines.js --apply`, hourly) so MoU expiry / overdue task nudges actually fire.
 6. **Wire email (SMTP).** Notifications/invites are in-app only. When adding a provider: keep in-app rows as the record, send mail as a side effect, never fail the mutation on mail failure.
 7. **Recommendation surface - SHIPPED.** `lib/recommend.js` (`findHelpers`, `upsertSignal`) is live and permission-checked, backed by migration 028 (`help_signals`, `helper_profiles`, `help_matches`), four `/api/help/*` routes, and a `/student/help` UI. It stays deterministic and reads stored aggregates only - no live AI calls on the request path. `docs/05-classification-and-recommendations.md` still calls this unwired; that note is now corrected too.
-8. **File uploads / object storage.** `resources.storage_key` exists but no R2/S3 integration; avatars, PDFs, screenshots have nowhere to live. Pick a provider, store metadata in Postgres, files in the bucket.
-9. **Activate the 3 non-technical departments** when the chapter staffs those verticals (they seed as `is_active=false`; toggle in `/admin/departments`).
+8. **File uploads / object storage - SHIPPED for lead tools.** Supabase Storage (private `loom-files` bucket, created by `node load/setup-storage.js` with 8 seeded categories) backs the creative asset library and MoU documents: uploads are MIME/size-validated (`lib/media.js`, 25 MB), stored under tenant-scoped paths (`lib/storage.js`), served via short-lived signed URLs. Still not wired for student avatars/resources — those keep `resources.storage_key` unwired.
+9. **Non-technical departments - SHIPPED active.** PR & Outreach, Design, and Sponsorship & EVM now seed active (migration 046 activates them for existing tenants) and appear on `/domains`, the homepage grid, and `/admin/departments`. Assign Heads when those verticals are staffed.
 
 ### 🟢 C. Production hardening
 

@@ -48,7 +48,15 @@ const protectedPages = [
   "/lead/roster",
   "/lead/workshops",
   "/lead/reports",
-  "/lead/succession"
+  "/lead/succession",
+  "/lead/assets",
+  "/lead/mous",
+  "/lead/directory",
+  "/lead/event-ops",
+  "/admin/assets",
+  "/admin/mous",
+  "/admin/directory",
+  "/admin/event-ops"
 ];
 
 test.describe("route protection", () => {
@@ -111,6 +119,11 @@ test.describe("api authorization", () => {
     "/api/admin/community",
     "/api/admin/overview",
     "/api/lead/overview",
+    "/api/lead/assets",
+    "/api/lead/asset-categories",
+    "/api/lead/mous",
+    "/api/lead/directory",
+    "/api/lead/event-ops",
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit"
@@ -188,6 +201,56 @@ test.describe("api authorization", () => {
     expect(bulk.status()).toBe(401);
     const approve = await request.post("/api/events/00000000-0000-0000-0000-000000000000/approve", { data: { approve: true } });
     expect(approve.status()).toBe(401);
+  });
+
+  test("asset library writes and downloads return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/assets", {
+      data: { title: "Brand kit", externalUrl: "https://example.com/kit.zip" }
+    });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/assets/${id}`, { data: { title: "x" } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/assets/${id}`);
+    expect(del.status()).toBe(401);
+    const version = await request.post(`/api/lead/assets/${id}/versions`, { data: {} });
+    expect(version.status()).toBe(401);
+    const download = await request.get(`/api/lead/assets/${id}/download`);
+    expect(download.status()).toBe(401);
+  });
+
+  test("MoU writes and document downloads return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/mous", { data: { title: "Cloud credits", partnerName: "Acme" } });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/mous/${id}`, { data: { status: "active" } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/mous/${id}`);
+    expect(del.status()).toBe(401);
+    const doc = await request.post(`/api/lead/mous/${id}/documents`, { data: {} });
+    expect(doc.status()).toBe(401);
+    const download = await request.get(`/api/lead/mous/${id}/documents/${id}/download`);
+    expect(download.status()).toBe(401);
+  });
+
+  test("directory writes return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/directory", { data: { name: "Asha Rao", title: "Department Lead" } });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/directory/${id}`, { data: { isCurrent: false } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/directory/${id}`);
+    expect(del.status()).toBe(401);
+  });
+
+  test("event ops writes return 401 without session", async ({ request }) => {
+    const id = "00000000-0000-0000-0000-000000000000";
+    const create = await request.post("/api/lead/event-ops", { data: { title: "Book auditorium" } });
+    expect(create.status()).toBe(401);
+    const patch = await request.patch(`/api/lead/event-ops/${id}`, { data: { status: "done" } });
+    expect(patch.status()).toBe(401);
+    const del = await request.delete(`/api/lead/event-ops/${id}`);
+    expect(del.status()).toBe(401);
   });
 
   test("POST /api/github/webhook without signature returns 401 (not redirect)", async ({ request }) => {

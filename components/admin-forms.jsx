@@ -40,23 +40,23 @@ export function NodeForm() {
   );
 }
 
-export function ResourceForm() {
+export function ResourceForm({ nodes = [] }) {
   const router = useRouter();
-  const [f, setF] = useState({ title: "", domain: "web", level: "foundation", kind: "article", url: "", minutes: 30 });
+  const [f, setF] = useState({ title: "", domain: "web", level: "foundation", kind: "article", url: "", minutes: 30, nodeId: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
     setMsg("");
-    const res = await fetch("/api/admin/resources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...f, minutes: Number(f.minutes), url: f.url || null }) });
+    const res = await fetch("/api/admin/resources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...f, minutes: Number(f.minutes), url: f.url || null, nodeId: f.nodeId || null }) });
     const data = await res.json();
     setBusy(false);
     if (!data.ok) {
       setMsg(data.error?.message || "Failed");
       return;
     }
-    setF({ title: "", domain: "web", level: "foundation", kind: "article", url: "", minutes: 30 });
+    setF({ title: "", domain: "web", level: "foundation", kind: "article", url: "", minutes: 30, nodeId: "" });
     router.refresh();
   }
   return (
@@ -76,6 +76,13 @@ export function ResourceForm() {
         <input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https:// (optional)" style={input} />
         <input value={f.minutes} onChange={(e) => setF({ ...f, minutes: e.target.value })} type="number" min={1} max={600} placeholder="minutes" style={input} />
       </div>
+      <label className="text-xs" style={{ color: "var(--text-muted)" }}>
+        Roadmap node <span style={{ color: "var(--text-faint, var(--text-muted))" }}>(optional — shown on that node&apos;s page)</span>
+        <select value={f.nodeId} onChange={(e) => setF({ ...f, nodeId: e.target.value })} style={{ ...input, marginTop: 4 }}>
+          <option value="">None — domain-wide fallback</option>
+          {nodes.map((n) => <option key={n.id} value={n.id}>{n.domain} · {n.title}</option>)}
+        </select>
+      </label>
       {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink w-fit disabled:opacity-50">{busy ? "Saving…" : "Save resource"}</button>
     </form>

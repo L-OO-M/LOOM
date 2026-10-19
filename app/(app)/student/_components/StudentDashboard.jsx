@@ -285,9 +285,11 @@ export function StudentDashboard({
                       [`${cadence?.projects??0} shipped`, "Projects","/student/projects"],
                       [`${cadence?.oss??0} repos`, "OSS","/student/opensource"]
                     ].map(([detail,label,href],i)=>(
-                      <li key={i} className="flex items-baseline justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
-                        <span className="meta">{label}</span>
-                        <span className="truncate text-xs font-semibold" style={{ color:"var(--text)" }}>{detail}</span>
+                      <li key={i}>
+                        <Link href={href} prefetch={false} className="flex items-baseline justify-between gap-3 rounded-xl border px-4 py-3 transition hover:shadow-sm" style={{ borderColor:"var(--line)", background:"var(--bg-elevated)" }}>
+                          <span className="meta">{label}</span>
+                          <span className="truncate text-xs font-semibold" style={{ color:"var(--text)" }}>{detail} →</span>
+                        </Link>
                       </li>
                     ))}
                   </ul>

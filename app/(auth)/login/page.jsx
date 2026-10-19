@@ -3,16 +3,29 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { BrandMark } from "@/components/BrandMark";
+import { ArrowRight } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
-import { homeForRole } from "@/lib/auth";
-import { LevelGuide } from "@/app/(auth)/_components/LevelGuide";
+import { homeForRole, safeRedirectPath } from "@/lib/auth";
+import { AuthField, AuthShell, authInputClass } from "@/app/(auth)/_components/AuthShell";
 import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
+
+// Auth0 owns the front door. `returnTo` carries the same sanitized destination
+// the email form honours, so an Auth0 login deep-links to the page that sent the
+// user here instead of dumping them on the default home. The SDK validates
+// returnTo again on its side (toSafeRedirect), so this is defence in depth.
+function Auth0Cta() {
+  const redirect = safeRedirectPath(useSearchParams().get("redirect"));
+  const href = redirect ? `/auth/login?returnTo=${encodeURIComponent(redirect)}` : "/auth/login";
+  return <a href={href} className="btn-ink w-full justify-center">Continue with Auth0</a>;
+}
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect");
+  // `?redirect=` is attacker-controlled. It must be sanitised before it is ever
+  // handed to router.push, or `/login?redirect=https://evil.example` turns this
+  // page into an open redirect for freshly authenticated users.
+  const redirect = safeRedirectPath(searchParams.get("redirect"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,14 +44,21 @@ function LoginForm() {
     }
 
     // Explicit bounce targets are honored (layouts enforce access); otherwise
-    // each level lands where it works: leads in /lead, admins in /admin.
+    // each level lands where it works: leads in /lead, admins in /admin. A
+    // student who has not finished onboarding is sent straight there rather than
+    // to a home page whose layout would only bounce them a hop later.
     if (redirect) {
       router.push(redirect);
     } else {
       try {
         const res = await fetch("/api/profile");
         const data = await res.json();
-        router.push(homeForRole(data?.data?.profile?.role));
+        const profile = data?.data?.profile;
+        const dest =
+          profile && profile.role === "student" && !profile.onboarding_completed
+            ? "/student/onboarding"
+            : homeForRole(profile?.role);
+        router.push(dest);
       } catch {
         router.push("/student");
       }
@@ -46,12 +66,9 @@ function LoginForm() {
     router.refresh();
   }
 
-  const input = "mt-1 block min-h-[44px] w-full rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-sm focus:border-[var(--accent)] focus:outline-none";
-
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-      <div>
-        <label className="block text-sm font-medium" htmlFor="email">Email</label>
+    <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+      <AuthField id="email" label="Email">
         <input
           id="email"
           type="email"
@@ -59,13 +76,14 @@ function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={input}
+          className={authInputClass}
+          style={{ borderColor: "var(--line)", color: "var(--text)" }}
           placeholder="student@college.edu"
           aria-describedby={error ? "login-err" : undefined}
         />
-      </div>
-      <div>
-        <label className="block text-sm font-medium" htmlFor="password">Password</label>
+      </AuthField>
+
+      <AuthField id="password" label="Password">
         <input
           id="password"
           type="password"
@@ -73,17 +91,21 @@ function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={input}
+          className={authInputClass}
+          style={{ borderColor: "var(--line)", color: "var(--text)" }}
         />
-      </div>
-      {error && <p id="login-err" role="alert" className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        aria-busy={loading}
-        className="btn-ink w-full justify-center disabled:opacity-50"
-      >
-        {loading ? "Signing in..." : "Sign in"}
+      </AuthField>
+
+      {error && (
+        <p id="login-err" role="alert" className="rounded-lg border px-3 py-2 text-sm"
+          style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}>
+          {error}
+        </p>
+      )}
+
+      <button type="submit" disabled={loading} aria-busy={loading} className="btn-ink w-full justify-center disabled:opacity-50">
+        {loading ? "Signing in…" : "Sign in"}
+        {!loading && <ArrowRight size={15} />}
       </button>
     </form>
   );
@@ -91,31 +113,50 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main id="main" className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12" style={{ background: "var(--bg)" }}>
-      <div className="ambient-wash" aria-hidden="true" />
-      <span className="ghost-type left-1/2 top-10 -translate-x-1/2 text-[4.5rem] sm:text-[6rem] lg:text-[9rem]" aria-hidden="true">LOOM</span>
-      <div className="card-sheen relative w-full max-w-md rounded-2xl border border-[var(--line)] p-8" style={{ background: "var(--bg-elevated)" }}>
-        <BrandMark size={34} />
-        <div className="rule-gold mt-5 w-16" />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="mt-2 text-sm text-[var(--text-muted)]">
-          One login for students and admins. Admins claim access once at setup.
-        </p>
-        <Suspense fallback={<div className="mt-8 text-sm text-[var(--text-muted)]">Loading...</div>}>
-          <LoginForm />
+    <AuthShell>
+      <h1 className="font-display text-3xl font-medium tracking-tight" style={{ color: "var(--text)" }}>
+        Sign in
+      </h1>
+      <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+        One login for members, leads and admins.
+      </p>
+
+      <div className="mt-6 space-y-3">
+        <Suspense fallback={<a href="/auth/login" className="btn-ink w-full justify-center">Continue with Auth0</a>}>
+          <Auth0Cta />
         </Suspense>
-        <Suspense fallback={null}>
-          <GitHubSignInButton />
-        </Suspense>
-        <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
-          No account?{" "}
-          <Link href="/register" className="font-medium text-[var(--accent)] hover:underline">Register</Link>
-        </p>
-        <p className="mt-3 text-center text-xs leading-5 text-[var(--text-muted)]">
-          Admin? Same login — then visit <Link href="/setup" className="font-medium text-[var(--accent)] hover:underline">/setup</Link> once to claim admin.
-        </p>
-        <LevelGuide compact />
       </div>
-    </main>
+
+      <div className="my-6 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>or use email and password</span>
+        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+      </div>
+
+      <Suspense fallback={<p className="mt-7 text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>}>
+        <LoginForm />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <GitHubSignInButton />
+      </Suspense>
+
+      <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+        New here?{" "}
+        <Link prefetch={false} href="/register" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+          Create an account
+        </Link>
+      </p>
+
+      <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--line)" }}>
+        <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+          Setting up a new chapter? Sign in, then claim the first admin at{" "}
+          <Link prefetch={false} href="/setup" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            /setup
+          </Link>
+          . It only works once.
+        </p>
+      </div>
+    </AuthShell>
   );
 }

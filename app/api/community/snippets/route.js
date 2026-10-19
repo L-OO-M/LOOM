@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { screenSnippet } from "@/lib/community";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const createSchema = z.object({
   title: z.string().min(3).max(120),
@@ -38,6 +39,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  const limited = checkRateLimit(`snippet:${user.id}`, { limit: 15, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many snippets — slow down", 429);
   let body;
   try {
     body = createSchema.parse(await request.json());
@@ -51,5 +54,6 @@ export async function POST(request) {
     VALUES (${tenant?.id ?? null}, ${user.id}, ${body.domain}, ${body.language}, ${body.title}, ${body.code}, ${body.description}, ${body.tags})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_snippet", resource: "code_snippet", resourceId: snippet.id, after: { title: snippet.title } });
   return ok({ snippet }, { status: 201 });
 }

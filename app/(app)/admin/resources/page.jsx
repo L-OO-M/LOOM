@@ -29,6 +29,8 @@ export default async function AdminResourcesPage({ searchParams }) {
     FROM resources
   `;
   const domains = await sql`SELECT DISTINCT domain FROM resources ORDER BY domain`;
+  const nodes = await sql`SELECT id, title, domain, sort_order FROM roadmap_nodes ORDER BY domain ASC, sort_order ASC`;
+  const nodeLabel = new Map(nodes.map((n) => [n.id, `${n.domain} · ${n.title}`]));
   const rows = await sql`
     SELECT * FROM resources
     WHERE (${q ? sql`(title ILIKE ${"%" + q + "%"} OR domain ILIKE ${"%" + q + "%"})` : sql`TRUE`})
@@ -101,6 +103,7 @@ export default async function AdminResourcesPage({ searchParams }) {
                         <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: kindTone(r.kind) }}>{r.kind}</span>
                         <span className="inline-flex rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}>{r.domain}</span>
                         {r.level && <span className="meta rounded-full border px-2 py-0.5 capitalize" style={{ borderColor: "var(--line)" }}>{r.level}</span>}
+                        {r.node_id && nodeLabel.has(r.node_id) && <span className="inline-flex max-w-[18rem] items-center gap-1 truncate rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--accent)" }} title={`Linked to node: ${nodeLabel.get(r.node_id)}`}>⌁ {nodeLabel.get(r.node_id)}</span>}
                       </span>
                       <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
                         <span className="inline-flex items-center gap-1"><Clock3 size={11} /> {r.minutes} min</span>
@@ -115,7 +118,7 @@ export default async function AdminResourcesPage({ searchParams }) {
           </section>
 
           <div className="space-y-4">
-            <ResourceForm />
+            <ResourceForm nodes={nodes} />
             <div className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
               <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text)" }}><GraduationCap size={12} /> Curation tips</p>
               <ul className="mt-2 space-y-1.5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>

@@ -39,6 +39,26 @@ export default async function ForumsPage({ searchParams }) {
   const sort = sp?.sort === "top" ? "top" : "recent";
   const state = STATES.includes(sp?.state) ? sp?.state : "all";
 
+  // ?new=1&event=<uuid> is how an event page's "Continue the conversation"
+  // hands off. Threads carry no event_id, so the honest behaviour is to open
+  // the composer pre-filled from the event rather than ignore the context.
+  const wantsNew = sp?.new === "1";
+  const eventParam = (sp?.event || "").trim();
+  let seed = null;
+  if (wantsNew && /^[0-9a-fA-F-]{36}$/.test(eventParam)) {
+    const [ev] = await sql`
+      SELECT title, domain FROM events
+      WHERE id = ${eventParam}::uuid AND tenant_id = ${tid}::uuid LIMIT 1
+    `;
+    if (ev) {
+      seed = {
+        title: `Discussion: ${ev.title}`.slice(0, 160),
+        domain: DOMAIN_ORDER.includes(ev.domain) ? ev.domain : "general",
+        body: `Continuing the conversation from “${ev.title}”. What did you take away, and what still needs unpacking?`
+      };
+    }
+  }
+
   const orderBy = sort === "top"
     ? sql`t.pinned DESC, t.upvote_count DESC, t.updated_at DESC`
     : sql`t.pinned DESC, t.updated_at DESC`;
@@ -88,8 +108,14 @@ export default async function ForumsPage({ searchParams }) {
               Ask something → help someone → solve it. Server-backed search; pinned first.
             </p>
           </div>
-          <ThreadForm />
+          <ThreadForm defaultOpen={wantsNew} defaultTitle={seed?.title} defaultDomain={seed?.domain} defaultBody={seed?.body} />
         </div>
+
+        {seed && (
+          <p className="meta mt-4" role="status" style={{ color: "var(--accent)" }}>
+            Starting a thread about the event — edit the title or details before posting.
+          </p>
+        )}
 
         <div className="mt-7 flex flex-wrap gap-2" role="group" aria-label="Thread state">
           {STATES.map((s) => {

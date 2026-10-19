@@ -14,6 +14,10 @@ export async function GET(request) {
     tenant = null;
   }
   const tid = tenant?.id ?? null;
+  // Fail closed. Unauthenticated, and not routed through the fail-closed tenant
+  // guard in getRequestContext, so an unresolved tenant previously widened to
+  // every chapter. Return empty instead.
+  if (!tid) return ok({ departments: [] });
   const sql = getSql();
   let departments = [];
   try {
@@ -24,7 +28,7 @@ export async function GET(request) {
       FROM departments d
       LEFT JOIN profiles hp ON hp.user_id = d.head_user_id
       LEFT JOIN profiles cp ON cp.user_id = d.co_head_user_id
-      WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      WHERE d.tenant_id = ${tid}::uuid
         AND d.is_active
       ORDER BY d.vertical, d.name
     `;

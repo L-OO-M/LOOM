@@ -1,12 +1,15 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 
 export default async function AdminPage() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Same reasoning as the student dashboard: the admin layout already resolved
+  // the identity, and it must work for an Auth0 session. AppShell only needs
+  // { id, email } for the profile menu.
+  const ctx = await getRequestContext();
+  const user = ctx.user;
   const sql = getSql();
   const tenant = await resolveRequestTenant();
   const tid = tenant.id;
@@ -98,16 +101,17 @@ export default async function AdminPage() {
     WHERE tenant_id = ${tid} AND starts_at >= NOW()
     ORDER BY starts_at ASC LIMIT 4
   `;
-  // writeAudit stores the chapter in metadata JSONB (audit_logs has no
-  // tenant_id column) — filter on it so one chapter never sees another's
-  // feed. Actor names are joined so the trail reads as people, not UUIDs.
-  // before/after JSONB is deliberately not selected for a preview feed.
+  // audit_logs carries a tenant_id column (populated by writeAudit and by the
+  // GitHub webhook's direct insert); filter on it so one chapter never sees
+  // another's feed and webhook/bootstrap rows are not invisible. Actor names
+  // are joined so the trail reads as people, not UUIDs. before/after JSONB is
+  // deliberately not selected for a preview feed.
   const auditEntries = await sql`
     SELECT a.id, a.actor_id, a.action, a.resource, a.resource_id, a.created_at,
       p.name AS actor_name
     FROM audit_logs a
     LEFT JOIN profiles p ON p.user_id = a.actor_id
-    WHERE (a.metadata->>'tenant_id') = ${tid}::text
+    WHERE a.tenant_id = ${tid}::uuid
     ORDER BY a.created_at DESC LIMIT 8
   `;
 

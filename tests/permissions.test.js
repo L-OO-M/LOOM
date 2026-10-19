@@ -12,12 +12,13 @@ const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vert
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
 
 describe("permissions matrix (Website Plan Section 3)", () => {
-  it("covers all 21 matrix rows", () => {
-    // 20 plan rows, plus verify_evidence added with the ranking redesign. The
-    // count is asserted rather than left open because ACTIONS is the authority
-    // for every gate in the app -- a row added without a test is a row nobody
-    // has checked.
-    expect(ACTIONS).toHaveLength(21);
+  it("covers all 27 matrix rows", () => {
+    // 20 plan rows, verify_evidence from the ranking redesign, and the 6 lead-tool
+    // actions (view_lead_tools, manage_mou, manage_leads, manage_event_ops,
+    // view_assets, manage_assets). The count is asserted rather than left open
+    // because ACTIONS is the authority for every gate in the app -- a row added
+    // without a test is a row nobody has checked.
+    expect(ACTIONS).toHaveLength(27);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {
@@ -182,5 +183,25 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     const r = can(vlead(), "manage_advisor");
     expect(r.ok).toBe(false);
     expect(r.note).toBe("view_only");
+  });
+
+  it("lead tools: leads edit, core reads only, students denied", () => {
+    const manage = ["manage_mou", "manage_leads", "manage_event_ops", "manage_assets"];
+    for (const a of manage) {
+      expect(can(admin(), a).ok, `admin ${a}`).toBe(true);
+      expect(can(vlead(), a).ok, `vlead ${a}`).toBe(true);
+      expect(can(lead("dept_lead"), a, { departmentId: D1 }).ok, `head ${a}`).toBe(true);
+      expect(can(core(), a).ok, `core ${a}`).toBe(false);
+      expect(can(student(), a).ok, `student ${a}`).toBe(false);
+    }
+    // Read access is wider: core is explicitly view-only.
+    for (const a of ["view_lead_tools", "view_assets"]) {
+      expect(can(admin(), a).ok).toBe(true);
+      expect(can(vlead(), a).ok).toBe(true);
+      const r = can(core(), a);
+      expect(r.ok).toBe(true);
+      expect(r.note).toBe("view_only");
+      expect(can(student(), a).ok).toBe(false);
+    }
   });
 });

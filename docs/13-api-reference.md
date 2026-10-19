@@ -97,6 +97,31 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
+| GET | `/api/lead/assets` | dept_lead+ (`view_assets`) | creative asset library list (`?category=&kind=&q=`) |
+| POST | `/api/lead/assets` | dept_lead+ (`manage_assets`) | create an asset: multipart file upload, or JSON link-out with `externalUrl` |
+| GET | `/api/lead/assets/[id]` | dept_lead+ (`view_assets`) | one asset + its version history |
+| PATCH | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | edit title/description/category/tags/kind; set or clear `externalUrl`; `isActive` |
+| DELETE | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | archive (soft delete `is_active = false`; files and versions are kept) |
+| POST | `/api/lead/assets/[id]/versions` | dept_lead+ (`manage_assets`) | upload a new version of a file asset (multipart `file`) |
+| GET | `/api/lead/assets/[id]/download` | dept_lead+ (`view_assets`) | `302` to a 5-minute signed URL (or the external link); raw `<a>`, never `<Link>` |
+| GET | `/api/lead/asset-categories` | dept_lead+ (`view_assets`) | the tenant's categories (seeded logos/signatures/templates/…) |
+| GET | `/api/lead/mous` | dept_lead+ (`view_lead_tools`) | MoU list (`?status=&expiring=1&q=`; `expiring` = active and ending within 30 days) |
+| POST | `/api/lead/mous` | dept_lead+ (`manage_mou`) | record an agreement (partner, status, dates, value) |
+| GET | `/api/lead/mous/[id]` | dept_lead+ (`view_lead_tools`) | one agreement + its versioned documents |
+| PATCH | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | edit fields / change status; moving `endsOn` resets the expiry reminder |
+| DELETE | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | archive (soft delete; documents kept) |
+| GET/POST | `/api/lead/mous/[id]/documents` | dept_lead+ (`view_lead_tools`/`manage_mou`) | list signed copies / upload a new labelled version (multipart `file`, `label`) |
+| GET | `/api/lead/mous/[id]/documents/[documentId]/download` | dept_lead+ (`view_lead_tools`) | `302` to a short-lived signed URL (raw `<a>`) |
+| GET | `/api/lead/directory` | dept_lead+ (`view_lead_tools`) | leadership directory (`?department=&vertical=&current=1&q=`; current + past holders) |
+| POST | `/api/lead/directory` | dept_lead+ (`manage_leads`) | add a person (optional link to a chapter account via `userId`) |
+| GET | `/api/lead/directory/[id]` | dept_lead+ (`view_lead_tools`) | one directory entry |
+| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields / flip current ↔ past / archive |
+| DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | remove (soft delete) |
+| GET | `/api/lead/event-ops` | dept_lead+ (`view_lead_tools`) | operations tasks (`?event=&status=&owner=&due=soon&q=`) |
+| POST | `/api/lead/event-ops` | dept_lead+ (`manage_event_ops`) | add a task (event optional, owner optional, `dueAt` ISO) |
+| GET | `/api/lead/event-ops/[id]` | dept_lead+ (`view_lead_tools`) | one task |
+| PATCH | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | edit / change status (stamps `done_at`/`done_by` on completion) |
+| DELETE | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | remove (soft delete) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
@@ -131,7 +156,7 @@ can be nominated.
 | POST | `/api/help/match` | 5/min | Nominate helpers for **my own** signal `{signal_id}` (or `{kind, ref_id}`). Notifies each match and flips the signal to `matched`. Returns `helpers: []` with a message when nobody is available — not an error |
 | PATCH | `/api/help/profile` | — | My helper profile `{available, topics?}`. This is the opt-in/opt-out switch |
 | GET | `/api/help/matches/[id]` | — | One match, tenant-scoped |
-| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party |
+| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party; on `accepted` the notification links to the accepter's profile (the only channel the two share) |
 
 Matching is deterministic and reads stored aggregates only
 (`lib/recommend.js`) — no AI calls on the request path. Candidates are drawn
@@ -160,7 +185,7 @@ requester.
 | GET/POST/PATCH | `/api/admin/contests` | admin | contest manager |
 | GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
 | GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
-| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager |
+| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node) |
 | GET/POST/PATCH | `/api/admin/roadmaps` | admin | roadmap authoring (nodes + edges) |
 
 ### `/api/admin/flags` is partially operator-only

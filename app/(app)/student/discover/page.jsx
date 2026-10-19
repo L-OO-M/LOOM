@@ -74,7 +74,7 @@ function BuilderRow({ b }) {
           </span>
         </span>
       </Link>
-      <a href={`/u/${b.username}`} target="_blank" className="hidden shrink-0 rounded-full border px-3 py-1 text-xs font-semibold group-hover:inline-flex" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }} title="Open shareable card">Share ↗</a>
+      <a href={`/u/${b.username}`} target="_blank" rel="noreferrer" className="hidden shrink-0 rounded-full border px-3 py-1 text-xs font-semibold group-hover:inline-flex" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }} title="Open shareable card">Share ↗</a>
     </li>
   );
 }

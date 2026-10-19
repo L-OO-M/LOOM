@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const editSchema = z.object({
   action: z.enum(["suggest", "review"]),
@@ -40,6 +41,8 @@ export async function PATCH(request, { params }) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   const { slug } = await params;
+  const limited = checkRateLimit(`wiki-edit:${user.id}`, { limit: 15, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many wiki edits — slow down", 429);
   let body;
   try {
     body = editSchema.parse(await request.json());
@@ -83,5 +86,6 @@ export async function PATCH(request, { params }) {
     VALUES (${page.id}, ${user.id}, ${body.title || null}, ${body.content || ""}, ${body.reason})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "suggested_wiki_edit", resource: "wiki_page", resourceId: page.id, after: { edit: edit.id } });
   return ok({ edit, applied: false }, { status: 201 });
 }

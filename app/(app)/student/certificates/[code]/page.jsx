@@ -44,7 +44,7 @@ export default async function CertificatePage({ params }) {
             {cert.tenant_name ? <> at <span style={{ color: "var(--text)" }}>{cert.tenant_name}</span></> : null}
             {cert.starts_at ? <> on {new Date(cert.starts_at).toLocaleDateString("en-IN", { dateStyle: "long" })}</> : null}.
           </p>
-          <p className="mt-6 font-mono text-xs" style={{ color: "var(--text-muted)" }}>Verify: {cert.verification_code} · issued {new Date(cert.issued_at).toLocaleDateString()}</p>
+          <p className="mt-6 font-mono text-xs" style={{ color: "var(--text-muted)" }}>Verify: <Link href={`/verify/certificate/${cert.verification_code}`} style={{ color: "var(--accent)" }}>{cert.verification_code}</Link> · issued {new Date(cert.issued_at).toLocaleDateString()}</p>
           <PrintButton />
         </div>
         <p className="mt-4 text-center text-xs print:hidden" style={{ color: "var(--text-muted)" }}>

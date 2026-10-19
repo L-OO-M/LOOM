@@ -11,7 +11,8 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Auth + client |
 | `DATABASE_URL` | yes | Migrations, seeds, rollups, server queries. Must be the **owner** (`postgres.<project-ref>`) — the app also uses it for unauthenticated public reads |
 | `DATABASE_APP_URL` | yes | Request handling as `loom_app` (NOBYPASSRLS, not the table owner). **Falls back to `DATABASE_URL` if unset**, which silently disables Row Level Security — `npm run rls:verify` will fail loudly. See `rls-rollout-runbook.md` |
-| `SUPABASE_SERVICE_ROLE_KEY` | for admin APIs | Currently empty in dev — admin user management limited until set |
+| `SUPABASE_SERVICE_ROLE_KEY` | for admin APIs + storage | Currently empty in dev — admin user management limited until set. Also required server-side by `lib/storage.js` (lead-tool file uploads) |
+| `SUPABASE_STORAGE_BUCKET` | no (default `loom-files`) | Private bucket for lead-tool documents/assets. Create it and seed categories with `node load/setup-storage.js` |
 | `NEXT_PUBLIC_APP_URL` | yes | metadataBase, share/verify links, calendar links. Unset in production publishes every absolute URL as `localhost` |
 | `DEFAULT_TENANT_SLUG` | no (defaults to `DEV_TENANT_SLUG`) | Chapter that owns a server-to-server delivery (webhook) that carries no chapter identity in its `Host` header |
 | `DEV_TENANT_SLUG` | no (default `demo-college`) | Fallback tenant for first-visit profiles |
@@ -19,6 +20,8 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC; also fallback signing secret. **Production rejects placeholder values** (`dev-secret`, `hello`, …) and anything under 16 chars |
 | `CREDENTIAL_SECRET` | no | Credential HMAC (falls back to webhook secret) |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Search Console ownership meta tag, emitted once in `app/layout.jsx` |
+| `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET` |
+| `APP_BASE_URL` | no (recommended in prod) | Origin the SDK uses to build `/auth/callback` and logout URLs. Unset locally so the SDK infers it from the `Host` header (dev `localhost:3000` **and** Playwright `127.0.0.1:3000` both work). Set per deploy to the exact registered origin — **no `:443` suffix**. Every origin must be in the Auth0 app's Allowed Callback / Logout / Web Origins lists |
 
 ### Search Console verification
 
@@ -42,7 +45,7 @@ curl -s  https://<your-domain>/google98eae5c43ea32d19.html   # expect the token
 
 A `307` to `/login` means the middleware matcher regressed.
 | `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | reserved (unused) | No queue/cache integration in use — webhook processes inline, rate limits are in-memory |
-| `R2_*` | reserved (unused) | No object-storage integration in use |
+| `R2_*` | reserved (unused) | Object storage runs on **Supabase Storage** instead (`lib/storage.js`), so these R2 keys are not read |
 | `SENTRY_DSN` | reserved (unused) | SDK not installed; errors surface via logs + `app/error.jsx` |
 
 > **Placeholder secrets are rejected at boot.** `lib/env.js` compares by *value*,
@@ -75,6 +78,7 @@ port, or error strings.
 | `npm run lint` / `npm run test` / `npm run test:e2e` | eslint / vitest / playwright |
 | `npm run build` / `npm start` | production build / serve |
 | `npm run db:migrate` | `node load/migrate.js` — tracked, idempotent, one transaction per file, advisory-locked |
+| `node load/setup-storage.js` | **once per env**: create the private `loom-files` bucket + seed asset categories (idempotent) |
 | `npm run db:seed` | control-plane + roadmap/resources content |
 | `npm run db:seed:roadmaps` | canonical roadmap graph (`seed-roadmaps.js`) + per-node resource shelves (`seed-node-resources.js`) |
 | `npm run db:verify` | `node load/verify-roadmap-shelf.js` — READ-ONLY preflight: schema, migration record, mapping count, orphans/duplicates, app-role SELECT |
@@ -82,6 +86,7 @@ port, or error strings.
 | `npm run rollup:federation` | **nightly**: chapter stats + federation row |
 | `npm run rollup:analytics` | **nightly**: snapshots, cohorts, funnels, mentor stats |
 | `npm run prune:retention` | **daily**: report rows past their retention window. Dry run — add `-- --apply` to delete |
+| `node load/remind-deadlines.js` | **hourly**: in-app nudges for MoUs ending within 30 days and ops tasks due within 48h. Dry run — add `--apply` to send |
 | `npm run flag:verify` | current feature-flag state, including `tenant_rls_enforced` |
 | `npm run rls:role` | generate/rotate the `loom_app` password (prints the URL once) |
 | `npm run rls:verify` | **gate**: proves RLS actually enforces before/after enabling it |
@@ -109,6 +114,20 @@ rollups:
 > is no in-repo scheduler and no `vercel.json`. Wire them to whatever your
 > platform provides.
 
+### Deadline reminders
+
+`mous.ends_on` and `event_ops_tasks.due_at` are only useful if someone is
+warned. `node load/remind-deadlines.js` sweeps every tenant (owner connection)
+and writes **in-app** notifications — there is no email provider wired up — to
+the MoU owner (agreement ending within 30 days) and the task owner (due within
+48 hours). It is idempotent: `mous.expiry_notified_at` and
+`event_ops_tasks.reminded_at` mark each row after its one nudge, and both are
+cleared when the date moves. Dry run by default; schedule it hourly:
+
+```
+0 * * * *  cd /app && node load/remind-deadlines.js --apply
+```
+
 ## 4. Deploy checklist
 
 **Schema before code.** `/student/roadmap` and `/student/roadmap/[nodeId]` query
@@ -118,7 +137,10 @@ migration has been applied fails those routes with
 build, because both routes are server-rendered on request. Apply and verify the
 schema first, then promote the build.
 
-1. Set env, run `db:migrate`, then `db:seed`, then `db:seed:roadmaps`.
+1. Set env, run `db:migrate`, then `db:seed`, then `db:seed:roadmaps`. Set
+   `SUPABASE_SERVICE_ROLE_KEY` and run `node load/setup-storage.js` (lead-tool
+   file uploads need the private bucket); optionally `node load/seed-community.js`
+   for curated OSS repos.
 2. **Verify before deploying** (read-only, safe against production):
    `DATABASE_URL=... node load/verify-roadmap-shelf.js` — exits non-zero with
    the exact remedy if the table, the migration record, the mappings, or the
@@ -202,6 +224,7 @@ before promoting a build, and confirm with `db:verify`.
 - Rate limits are in-memory per instance — use a gateway limiter for multi-instance prod.
 - Reputation, federation totals, and analytics are eventually consistent (nightly).
 - Email sending is not wired — invites/notifications are in-app only until an SMTP provider is added.
+- **Uploads have no antivirus scan.** File type is limited to a PDF/OFFICE/image/text/CSV/ZIP allowlist and capped at 25 MB (`lib/media.js`), and buckets are private with short-lived signed URLs, but a malicious file inside an allowed type is not detected. Add scanning before accepting untrusted public uploads.
 - Never run builds and dev on the same checkout simultaneously (see CSS row above).
 
 - Serve production only over HTTPS with forced SSL/HSTS at the host (Vercel/AWS/Netlify project setting) — the app builds absolute canonical/OG URLs from NEXT_PUBLIC_APP_URL.

@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { auth0 } from "@/lib/auth0";
+
+// Paths owned by the Auth0 SDK's middleware (login, logout, OAuth callback,
+// profile, token). They MUST be delegated to the SDK -- treating them as public
+// (a plain NextResponse.next()) would skip the OAuth code exchange entirely.
+//
+// /auth/callback is now Auth0's. The Supabase PKCE callback that used to live
+// there has moved to /auth/supabase-callback (kept for the legacy GitHub
+// sign-in path during the migration).
+const AUTH0_PATHS = new Set([
+  "/auth/login",
+  "/auth/logout",
+  "/auth/callback",
+  "/auth/profile",
+  "/auth/access-token",
+  "/auth/backchannel-logout"
+]);
 
 const publicPaths = [
   "/",
@@ -12,7 +29,11 @@ const publicPaths = [
   "/login",
   "/register",
   "/setup",
-  "/auth/callback",
+  // Sign-out is a POST from the app chrome. It must reach its handler without a
+  // session check: its entire job is to clear the session(s), and the middleware
+  // gate would otherwise 307 it to /login before it ever ran.
+  "/auth/signout",
+  "/auth/supabase-callback",
   "/api/health",
   "/api/chapters",
   // Credential endpoints. These MUST be reachable without a session -- that is
@@ -21,6 +42,9 @@ const publicPaths = [
   // 401 before the route could run.
   "/api/auth/login",
   "/api/auth/register",
+  // Client-side "who am I" probe. Public so logged-out visitors get a 200 with
+  // signedIn:false instead of the middleware's machine 401.
+  "/api/auth/state",
   "/api/public/events",
   "/api/public/projects",
   "/api/public/departments",
@@ -35,6 +59,25 @@ const publicPaths = [
 export async function middleware(request) {
   const raw = request.nextUrl.pathname;
   const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
+
+  // Auth0 front door: hand its routes to the SDK before anything else. The SDK
+  // performs the login redirect, the OAuth exchange, and session refresh; if the
+  // request reaches the gating logic below it would be treated as an app page
+  // and (for logged-out users) bounced to /login instead of completing auth.
+  //
+  // `auth0` is null when the Auth0 env vars are not configured (see lib/auth0.js);
+  // in that case these paths fall through to the normal Supabase gating, so the
+  // app behaves exactly as before Auth0 was introduced.
+  if (auth0 && AUTH0_PATHS.has(pathname)) {
+    return auth0.middleware(request);
+  }
+
+  // The student layout must gate first-run onboarding, but it has no pathname of
+  // its own and the onboarding route lives under that same layout — so it has to
+  // know the current path to avoid redirecting the onboarding page to itself.
+  // Forward it as a request header.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
 
   // Exact-match public pages; /api/* is NOT blanket-public (only listed routes).
   if (publicPaths.includes(pathname)) {
@@ -70,6 +113,46 @@ export async function middleware(request) {
 
   // Session read + REFRESH.
   //
+  // TWO identity providers can hold a session during the migration:
+  //   - Auth0, the front door (lib/auth0.js);
+  //   - Supabase, kept as a fallback for legacy sessions and the E2E suite.
+  //
+  // Auth0 is checked FIRST. Skipping it was a hard bug: every user who signed in
+  // through the new front door had a valid Auth0 cookie but no Supabase cookie,
+  // so this middleware 307'd them to /login on every protected page -- including
+  // /lead/directory -- and they could never get in.
+  //
+  // Auth0's own middleware is invoked for the request so ROLLING sessions work:
+  // its default branch (no auth route matched) re-issues the session cookie with
+  // a fresh maxAge. Only /auth/* used to be delegated, which meant the cookie
+  // was never rolled on app pages and users silently expired after the
+  // inactivity window.
+  if (auth0) {
+    let auth0Session = null;
+    try {
+      auth0Session = await auth0.getSession(request);
+    } catch {
+      // A corrupt/undecryptable cookie is "not signed in", never a 500.
+      auth0Session = null;
+    }
+    if (auth0Session?.user) {
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      try {
+        const rolled = await auth0.middleware(request);
+        for (const cookie of rolled.cookies.getAll()) res.cookies.set(cookie);
+        // Carry the SDK's cache-control (no-store for session responses) so a
+        // CDN or the browser does not cache an authenticated page.
+        const cacheControl = rolled.headers.get("cache-control");
+        if (cacheControl) res.headers.set("cache-control", cacheControl);
+      } catch {
+        /* rolling is best-effort; the session is still valid for this request */
+      }
+      return res;
+    }
+  }
+
+  // Session read + REFRESH (Supabase fallback).
+  //
   // The refresh half used to be missing entirely: getSession() is a purely
   // cookie-local read, so nothing ever renewed the access token, and setAll
   // wrote only to `request.cookies` -- a mutation that dies with the request
@@ -80,7 +163,7 @@ export async function middleware(request) {
   // The response object is created up front so refreshed cookies can be
   // attached to it, and the mutated request is threaded through so downstream
   // handlers see the new values in the same pass.
-  let supabaseResponse = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -92,7 +175,7 @@ export async function middleware(request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, notify, writeAudit } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const followSchema = z.object({ username: z.string().min(2).max(30) });
 const endorseSchema = z.object({
@@ -43,6 +44,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  const limited = checkRateLimit(`social-conn:${user.id}`, { limit: 60, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many connection actions — slow down", 429);
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") === "endorse" ? "endorse" : "follow";
   let body;

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { FLAG_REASONS } from "@/lib/community";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const flagSchema = z.object({
   targetType: z.enum(["thread", "reply"]),
@@ -14,6 +15,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, sql } = ctx;
+  const limited = checkRateLimit(`flags:${user.id}`, { limit: 30, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many flags — slow down", 429);
   let body;
   try {
     body = flagSchema.parse(await request.json());
@@ -35,6 +38,7 @@ export async function POST(request) {
     } else {
       await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId} AND tenant_id = ${tid}::uuid`;
     }
+    await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "flagged_content", resource: `forum_${body.targetType}`, resourceId: body.targetId, after: { reason: body.reason } });
   }
   return ok({ flagged: true });
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader, Card } from "@/components/ui";
@@ -50,7 +51,14 @@ export default async function HelpPage() {
     ? await sql`
         SELECT s.id, s.kind, s.ref_id, s.status, s.failures_count, s.updated_at,
           (SELECT COUNT(*)::int FROM help_matches m
-            WHERE m.signal_id = s.id AND m.status = 'pending') AS pending_matches
+            WHERE m.signal_id = s.id AND m.status = 'pending') AS pending_matches,
+          -- Once a helper accepts, reveal who — a profile link is the only
+          -- channel the two have (there is no DM). Hidden until accept, and
+          -- only if the helper's card is public.
+          (SELECT up.username FROM help_matches m2
+            JOIN user_profiles up ON up.user_id = m2.helper_id
+            WHERE m2.signal_id = s.id AND m2.status = 'accepted' AND up.is_public
+            ORDER BY m2.updated_at DESC LIMIT 1) AS helper_username
         FROM help_signals s
         WHERE s.user_id = ${user.id} AND s.tenant_id = ${tid}::uuid
         ORDER BY s.updated_at DESC
@@ -61,7 +69,9 @@ export default async function HelpPage() {
   // the requester nominates helpers, and the helper decides here.
   const myMatches = tid
     ? await sql`
-        SELECT m.id, m.status, m.created_at, s.kind, s.ref_id
+        SELECT m.id, m.status, m.created_at, s.kind, s.ref_id,
+          (SELECT up.username FROM user_profiles up
+            WHERE up.user_id = s.user_id AND up.is_public LIMIT 1) AS requester_username
         FROM help_matches m
         JOIN help_signals s ON s.id = m.signal_id
         WHERE m.helper_id = ${user.id} AND m.tenant_id = ${tid}::uuid
@@ -119,6 +129,13 @@ export default async function HelpPage() {
                           Raised {fmtWhen(s.updated_at)}
                           {s.failures_count > 1 ? ` · ${s.failures_count} attempts` : ""}
                         </span>
+                        {s.helper_username ? (
+                          <Link href={`/student/${s.helper_username}`} prefetch={false} className="mt-1 inline-flex text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                            Connected · open {s.helper_username}&apos;s profile to reach out →
+                          </Link>
+                        ) : (
+                          <span className="meta mt-1 block">Helpers stay anonymous until one accepts.</span>
+                        )}
                       </div>
                       <FindHelpersButton signalId={s.id} pending={s.pending_matches > 0} />
                     </Card>
@@ -156,6 +173,11 @@ export default async function HelpPage() {
                         </span>
                         <span className="meta mt-0.5 block truncate">{m.ref_id}</span>
                         <span className="meta mt-0.5 block">Nominated {fmtWhen(m.created_at)}</span>
+                        {m.status === "accepted" && m.requester_username && (
+                          <Link href={`/student/${m.requester_username}`} prefetch={false} className="mt-1 inline-flex text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                            Open {m.requester_username}&apos;s profile to follow up →
+                          </Link>
+                        )}
                       </div>
                       {m.status === "pending" ? (
                         <MatchDecision matchId={m.id} />

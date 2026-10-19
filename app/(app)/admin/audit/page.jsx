@@ -16,14 +16,14 @@ export default async function AdminAuditPage({ searchParams }) {
   const tid = tenant?.id ?? null;
 
   const [stats] = await sql`
-    SELECT COUNT(*)::int AS total FROM audit_logs WHERE (metadata->>'tenant_id') = ${tid}::text
+    SELECT COUNT(*)::int AS total FROM audit_logs WHERE tenant_id = ${tid}::uuid
   `;
 
   const rows = await sql`
     SELECT a.*, p.name AS actor_name
     FROM audit_logs a
     LEFT JOIN profiles p ON p.user_id = a.actor_id
-    WHERE (a.metadata->>'tenant_id') = ${tid}::text
+    WHERE a.tenant_id = ${tid}::uuid
       AND (${q ? sql`(a.action ILIKE ${"%" + q + "%"} OR a.resource ILIKE ${"%" + q + "%"} OR p.name ILIKE ${"%" + q + "%"})` : sql`TRUE`})
     ORDER BY a.created_at DESC LIMIT 100
   `;

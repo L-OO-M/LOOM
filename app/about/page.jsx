@@ -27,6 +27,42 @@ const THESIS = [
   ["Output", "Certificates in drawers.", "Open-source contribution, hackathons, collaboration."]
 ];
 
+// Membership levels. This used to live on /login and /register, where it buried
+// the actual sign-in form under five cards. It belongs on the page people read
+// BEFORE they have an account, so it moved here intact.
+const LEVELS = [
+  {
+    name: "General",
+    tag: "Everyone starts here",
+    body: "Register, join any domain instantly, attend workshops, ship projects. No approval, no interview.",
+    how: "Just register."
+  },
+  {
+    name: "Core",
+    tag: "Proven contributors",
+    body: "Self-log work, volunteer at events, see your department roster. Granted by your Head after steady work.",
+    how: "Join a domain → request Core from your dashboard."
+  },
+  {
+    name: "Head / Co-Head",
+    tag: "Department drivers",
+    body: "Run a department: roster, workshops, contribution logs, monthly reports. Both share equal power.",
+    how: "Appointed by a Super Admin."
+  },
+  {
+    name: "Vertical Lead",
+    tag: "Technical / Non-Technical",
+    body: "Coordinate departments in one vertical: calendars, approvals, documentation, succession.",
+    how: "Appointed by a Super Admin."
+  },
+  {
+    name: "Super Admin",
+    tag: "President, VP, Gen Sec",
+    body: "Everything: roles, departments, budgets, reports, handover. The society's root of trust.",
+    how: "Claimed once at /setup."
+  }
+];
+
 async function resolvePublicTenant() {
   try {
     const host = (await headers()).get("host") || "";
@@ -125,8 +161,36 @@ export default async function AboutPage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Membership levels">
+        <p className="kicker">Thread 03 — Five levels, one login</p>
+        <h2 className="font-display mt-4 max-w-2xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
+          Where do you fit?
+        </h2>
+        <p className="mt-4 max-w-xl leading-7" style={{ color: "var(--text-muted)" }}>
+          Access is earned or granted — never self-selected. The same login serves every
+          level; the server decides what it can reach.
+        </p>
+        <ol className="mt-8 divide-y" style={{ borderColor: "var(--line)" }}>
+          {LEVELS.map((l, i) => (
+            <li key={l.name} className="grid gap-x-6 gap-y-2 py-6 sm:grid-cols-[64px_1fr_minmax(0,320px)] sm:items-baseline">
+              <span className="font-mono text-xs font-bold" style={{ color: "var(--accent)" }} aria-hidden="true">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h3 className="font-display text-xl font-medium" style={{ color: "var(--text)" }}>{l.name}</h3>
+                  <span className="meta">{l.tag}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{l.body}</p>
+              </div>
+              <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>{l.how}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       <section className="mx-auto max-w-7xl px-5 py-16 text-center sm:px-6 lg:px-8" aria-label="Join">
-        <p className="kicker">Thread 03 — Enter</p>
+        <p className="kicker">Thread 04 — Enter</p>
         <h2 className="font-display mx-auto mt-4 max-w-2xl text-3xl font-medium sm:text-4xl" style={{ color: "var(--text)" }}>
           No prior skill required — bring your questions.
         </h2>

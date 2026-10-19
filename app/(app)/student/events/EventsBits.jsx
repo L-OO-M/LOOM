@@ -260,7 +260,7 @@ function EventRow({ e, mine, showAction }) {
   const step = nextStepFor(e);
   const pct = e.capacity ? Math.min(100, Math.round((e.seats_taken / e.capacity) * 100)) : null;
   return (
-    <li className="rounded-xl border bg-[var(--bg-elevated)] p-5 transition hover:shadow-sm sm:p-6" style={{ borderColor: "var(--line)" }}>
+    <div className="rounded-xl border bg-[var(--bg-elevated)] p-5 transition hover:shadow-sm sm:p-6" style={{ borderColor: "var(--line)" }}>
       <div className="flex gap-5">
         <div className="w-14 shrink-0 text-center" aria-hidden="true">
           <p className="figure text-3xl">{formatDay(e.starts_at)}</p>
@@ -297,7 +297,7 @@ function EventRow({ e, mine, showAction }) {
           )}
         </div>
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -436,7 +436,9 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
                   <EventRow e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
                 </li>
               ) : (
-                <EventRow key={e.id} e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
+                <li key={e.id}>
+                  <EventRow e={e} mine={mineByEvent.get(e.id) || null} showAction={showActions} />
+                </li>
               )
             ))}
           </ol>

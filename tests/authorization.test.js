@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasRole, homeForRole, requireRole } from "@/lib/auth";
+import { canLinkByEmail, hasRole, homeForRole, requireRole, safeRedirectPath } from "@/lib/auth";
 
 describe("authorization helpers", () => {
   it("grants admin everything student can do", () => {
@@ -35,5 +35,40 @@ describe("authorization helpers", () => {
     const clientSuppliedTenant = "college-b";
     const profileTenant = "college-a";
     expect(clientSuppliedTenant).not.toBe(profileTenant);
+  });
+});
+
+describe("safeRedirectPath", () => {
+  it("accepts single-slash relative paths, keeping query and hash", () => {
+    expect(safeRedirectPath("/lead/directory")).toBe("/lead/directory");
+    expect(safeRedirectPath("/events?scope=registered")).toBe("/events?scope=registered");
+    expect(safeRedirectPath("/student#roadmap")).toBe("/student#roadmap");
+  });
+
+  it("rejects absolute and protocol-relative URLs (open-redirect guard)", () => {
+    expect(safeRedirectPath("https://evil.example")).toBeNull();
+    expect(safeRedirectPath("http://evil.example/x")).toBeNull();
+    expect(safeRedirectPath("//evil.example")).toBeNull();
+    expect(safeRedirectPath("///evil.example")).toBeNull();
+    expect(safeRedirectPath("javascript:alert(1)")).toBeNull();
+  });
+
+  it("rejects backslash tricks and non-strings", () => {
+    expect(safeRedirectPath("/\\evil.example")).toBeNull();
+    expect(safeRedirectPath("\\\\evil.example")).toBeNull();
+    expect(safeRedirectPath(null)).toBeNull();
+    expect(safeRedirectPath(undefined)).toBeNull();
+    expect(safeRedirectPath(42)).toBeNull();
+  });
+});
+
+describe("canLinkByEmail", () => {
+  it("only permits linking when the address is verified and present", () => {
+    expect(canLinkByEmail({ email: "a@college.edu", email_verified: true })).toBe(true);
+    expect(canLinkByEmail({ email: "a@college.edu", email_verified: false })).toBe(false);
+    expect(canLinkByEmail({ email: "a@college.edu" })).toBe(false);
+    expect(canLinkByEmail({ email: "   ", email_verified: true })).toBe(false);
+    expect(canLinkByEmail({ email_verified: true })).toBe(false);
+    expect(canLinkByEmail(null)).toBe(false);
   });
 });

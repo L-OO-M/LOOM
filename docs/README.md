@@ -49,6 +49,6 @@ Superseded design docs were deleted (git history keeps them): `01-system-archite
 ## Conventions used across these docs
 
 - **Tenant** = one college chapter. One shared Postgres; every row is scoped by `tenant_id` resolved server-side from the member's profile — never from the client.
-- **Roles** (upward-only, see `lib/permissions.js` 20 actions): `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. Roles are granted (request/appoint/claim), never self-selected. Mentorship is a capability, not a role.
+- **Roles** (upward-only, see `lib/permissions.js` 27 actions): `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. Roles are granted (request/appoint/claim), never self-selected. Mentorship is a capability, not a role.
 - All API responses use `{ ok: true, data }` or `{ ok: false, error: { code, message } }` (see `13-api-reference.md`).
 - UI has two themes (dark black / light warm cream) and works without JavaScript for reading, with JS for actions.

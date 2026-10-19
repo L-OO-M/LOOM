@@ -91,7 +91,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
                     <Link
                       key={item.id}
                       href={item.href}
-                      prefetch={true}
+                      prefetch={false}
                       aria-label={item.label}
                       className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
@@ -137,7 +137,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
                               <Link
                                 key={child.id}
                                 href={child.href}
-                                prefetch={true}
+                                prefetch={false}
                                 role="menuitem"
                                 className="row-link flex items-start gap-3 px-3 py-2.5"
                                 style={{ background: childActive ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}

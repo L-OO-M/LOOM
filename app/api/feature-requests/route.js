@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { listFeatureRequests, screenFeatureRequest } from "@/lib/feature-requests";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const createSchema = z.object({
   title: z.string().min(4).max(160),
@@ -26,6 +27,8 @@ export async function POST(request) {
   let ctx;
   try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
   const { user, tenant, sql } = ctx;
+  const limited = checkRateLimit(`feature-req:${user.id}`, { limit: 15, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many requests — slow down", 429);
   let body;
   try { body = createSchema.parse(await request.json()); } catch (e) { return validationError(e); }
   const screened = screenFeatureRequest(body);

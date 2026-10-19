@@ -115,7 +115,7 @@ export default async function EventDetailPage({ params }) {
               <ActionLink href={step.href}>{step.label}</ActionLink>
             </div>
             <div className="mt-2">
-              <Link href={`/student/community/forums?event=${event.id}`} prefetch={false} className="text-sm font-medium hover:underline" style={{ color: "var(--text-muted)" }}>
+              <Link href={`/student/community/forums?new=1&event=${event.id}`} prefetch={false} className="text-sm font-medium hover:underline" style={{ color: "var(--text-muted)" }}>
                 Continue the conversation →
               </Link>
             </div>

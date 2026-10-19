@@ -15,7 +15,7 @@ This repository contains:
 - URL-addressable admin workspace: overview, students (+detail/scoped role assign/bulk), mentors, departments, roadmaps, resources, OSS, community, contests, events, projects, verification, analytics, finance, reports, handover, flags, FAQ, audit, settings
 - Public site: landing, `/about`, `/faq`, `/events`, `/domains`, `/domains/[slug]`
 - Tracked SQL migrations in `load/migrations/` applied via `node load/migrate.js`
-- Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (20 actions, 6 levels)
+- Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (27 actions, 6 levels)
 - Tenant resolution, API envelopes, raw-SQL data access (`lib/db.js`, pooler-safe), and HMAC-verified GitHub webhook processing (opt-in, paused by default)
 - Vitest (24 files, 172 cases) and Playwright (80 specs x chromium + mobile) coverage
 

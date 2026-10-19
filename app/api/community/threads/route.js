@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const createSchema = z.object({
@@ -55,5 +55,6 @@ export async function POST(request) {
     VALUES (${tenant?.id ?? null}, ${body.domain}, ${user.id}, ${body.title}, ${body.body}, ${body.tags})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_thread", resource: "forum_thread", resourceId: thread.id, after: { title: thread.title, domain: thread.domain } });
   return ok({ thread }, { status: 201 });
 }

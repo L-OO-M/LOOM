@@ -1,8 +1,10 @@
 // Seeds the society's departments for every tenant (idempotent).
 // Usage: node load/seed-departments.js
 // Slugs match the skill-domain taxonomy so roadmaps/resources/OSS catalogs
-// line up with org units. Non-technical departments ship inactive — a Super
-// Admin activates them when the chapter staffs those verticals.
+// line up with org units. Non-technical departments ship active too: the public
+// directory (/domains, the homepage grid) and the admin list both filter on
+// is_active, so shipping them inactive hid publicity/design/sponsorship from the
+// website entirely. An admin can still archive any department by hand.
 //
 // Embedded / Backend / DevOps were added because the roadmap graph already
 // carried 153 nodes across those domains (migration 023 + seed-roadmap-graph)
@@ -22,9 +24,9 @@ const DEPARTMENTS = [
   { name: "Embedded & Hardware", slug: "embedded", vertical: "technical", description: "Microcontrollers, Arduino, Raspberry Pi, sensors and firmware — build things you can hold." },
   { name: "Backend & APIs", slug: "backend", vertical: "technical", description: "Databases, service design, auth, queues and the plumbing behind every web product." },
   { name: "DevOps & Infra", slug: "devops", vertical: "technical", description: "Linux, containers, CI/CD, observability and shipping reliably." },
-  { name: "PR & Outreach", slug: "pr_outreach", vertical: "non_technical", description: "Socials, campus presence, event promotions, external communications.", active: false },
-  { name: "Design", slug: "design", vertical: "non_technical", description: "Visual identity, posters, merch, slide systems, media assets.", active: false },
-  { name: "Sponsorship & EVM", slug: "sponsorship_evm", vertical: "non_technical", description: "Sponsor pipeline, budget coordination, event logistics and venue management.", active: false }
+  { name: "PR & Outreach", slug: "pr_outreach", vertical: "non_technical", description: "Socials, campus presence, event promotions, external communications." },
+  { name: "Design", slug: "design", vertical: "non_technical", description: "Visual identity, posters, merch, slide systems, media assets." },
+  { name: "Sponsorship & EVM", slug: "sponsorship_evm", vertical: "non_technical", description: "Sponsor pipeline, budget coordination, event logistics and venue management." }
 ];
 
 const sql = postgres(DATABASE_URL, { max: 1 });

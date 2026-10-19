@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill, ActionLink } from "@/components/loom/primitives";
+import { GithubLinkButton } from "@/components/actions";
+import { cryptoConfigured } from "@/lib/crypto";
 import ProjectStatusControl from "../_components/ProjectStatusControl";
 import ProjectEditForm from "../_components/ProjectEditForm";
 
@@ -66,6 +68,29 @@ export default async function ProjectDetailPage({ params }) {
   // student's own organisation of their work and says nothing about proof.
   const isVerified = p.evidence_state === "verified";
   const isPending = p.evidence_state !== "verified" && p.status !== "archived";
+
+  // Hand the repo straight to the grant flow. The OAuth start route already
+  // validates and signs `repos`, but nothing was passing it from a project, so
+  // a student with a repo recorded still had to re-pick it. Derive `owner/repo`
+  // from the URL when the column is empty (older rows only stored repo_url).
+  const repoFull = p.repo_full_name || (() => {
+    try {
+      const u = new URL(p.repo_url || "");
+      if (u.hostname.replace(/^www\./, "") !== "github.com") return null;
+      const slug = u.pathname.replace(/^\/+|\/+$/g, "").replace(/\.git$/, "");
+      return /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(slug) ? slug : null;
+    } catch {
+      return null;
+    }
+  })();
+  const oauthConfigured = Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
+  const [repoGrant] = isOwner && repoFull
+    ? await sql`
+        SELECT verified_at FROM github_repo_grants
+        WHERE user_id = ${user.id} AND lower(repo_full_name) = lower(${repoFull})
+        LIMIT 1`
+    : [null];
+  const repoVerified = Boolean(repoGrant?.verified_at);
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -135,6 +160,22 @@ export default async function ProjectDetailPage({ params }) {
                   <>
                     <a href={p.repo_url} target="_blank" rel="noreferrer" className="mt-2 block truncate font-mono text-sm hover:underline" style={{ color: "var(--text)" }}>{repoHost || p.repo_url} ↗</a>
                     <a href={p.repo_url} target="_blank" rel="noreferrer" className="btn-ghost mt-3 w-full justify-center !py-2 text-xs">Open repository ↗</a>
+                    {isOwner && repoFull && (
+                      repoVerified ? (
+                        <p className="mt-3 text-xs font-semibold" style={{ color: "var(--accent)" }}>
+                          ✓ GitHub confirmed you can push to this repo.
+                        </p>
+                      ) : oauthConfigured ? (
+                        <div className="mt-3">
+                          <GithubLinkButton
+                            label="Verify this repo on GitHub"
+                            repos={[repoFull]}
+                            disabled={!cryptoConfigured()}
+                            note={cryptoConfigured() ? "Confirms this repository is really yours — no second confirmation needed." : "Unavailable: the server cannot store a token securely right now."}
+                          />
+                        </div>
+                      ) : null
+                    )}
                   </>
                 ) : (
                   <p className="meta mt-2">No repository linked yet — add one in Edit below.</p>
