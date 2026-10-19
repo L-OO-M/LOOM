@@ -41,4 +41,21 @@ describe("leadership directory queries", () => {
   it("returns null when the entry is not in this tenant", async () => {
     expect(await getEntry(recorder([[]]), { tenantId: "tenant-1", id: "e1" })).toBeNull();
   });
+
+  // Regression: both queries selected p.avatar_url from `profiles`, a column
+  // that does not exist there (the avatar lives on user_profiles). Postgres
+  // returned 42703, which threw during render and 500'd /lead/directory and
+  // /admin/directory for every signed-in user.
+  it("reads the avatar from user_profiles, never profiles.avatar_url", async () => {
+    const listSql = recorder([[]]);
+    await listDirectory(listSql, { tenantId: "tenant-1" });
+    expect(listSql.calls[0].text).toContain("user_profiles");
+    expect(listSql.calls[0].text).toContain("up.avatar_url AS account_avatar");
+    expect(listSql.calls[0].text).not.toMatch(/\bp\.avatar_url/);
+
+    const entrySql = recorder([[]]);
+    await getEntry(entrySql, { tenantId: "tenant-1", id: "e1" });
+    expect(entrySql.calls[0].text).toContain("user_profiles");
+    expect(entrySql.calls[0].text).not.toMatch(/\bp\.avatar_url/);
+  });
 });
