@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
 import { orderDomains, resolveDomain } from "@/lib/domains";
+import { isZenModeEnabled } from "@/lib/feature-flags";
 
 // Every roadmap is scoped to one domain. All 300+ nodes used to render as a
 // single graph, which made the map unreadable and made "next step" meaningless
@@ -69,12 +70,26 @@ export default async function RoadmapPage({ searchParams }) {
     return { domain: d, total: ids.size, done: dDone };
   });
 
-  const allResources = await sql`SELECT id, title, minutes, domain, kind, level, url FROM resources ORDER BY minutes ASC`;
-  const resourcesByDomain = {};
-  for (const r of allResources) {
-    resourcesByDomain[r.domain] ??= [];
-    if (resourcesByDomain[r.domain].length < 12) resourcesByDomain[r.domain].push(r);
+  // Explicit per-node shelves (036), scoped to this domain's nodes.
+  // Unmapped nodes get no rows and render honest empty states downstream.
+  const shelfNodeIds = nodes.map((n) => n.id);
+  const mapped = shelfNodeIds.length === 0 ? [] : await sql`
+    SELECT m.node_id AS node_id, r.id, r.title, r.minutes, r.domain, r.kind, r.level, r.url
+    FROM resources r
+    JOIN roadmap_node_resources m ON m.resource_id = r.id
+    WHERE m.node_id = ANY(${shelfNodeIds})
+    ORDER BY m.sort_order ASC, r.minutes ASC
+  `;
+  const resourcesByNode = {};
+  for (const r of mapped) {
+    resourcesByNode[r.node_id] ??= [];
+    resourcesByNode[r.node_id].push(r);
   }
+
+  // Zen Mode is OFF unless this chapter explicitly enabled the zen_mode flag.
+  // Read here, on the server, and passed down as a prop: one source of truth,
+  // so the server HTML and the hydrated client tree can never disagree.
+  const zenEnabled = await isZenModeEnabled(sql, tenant?.id);
 
   const resourceDone = await sql`SELECT resource_id FROM resource_progress WHERE student_id = ${user.id} AND status = 'completed'`;
   const resourceDoneIds = resourceDone.map((d) => d.resource_id);
@@ -97,9 +112,10 @@ export default async function RoadmapPage({ searchParams }) {
           edges={edges}
           doneIds={doneIds}
           nextId={nextId}
-          resourcesByDomain={resourcesByDomain}
+          resourcesByNode={resourcesByNode}
           resourceDoneIds={resourceDoneIds}
           projectsByNode={projectsByNode}
+          zenEnabled={zenEnabled}
         />
       </div>
     </AppShell>

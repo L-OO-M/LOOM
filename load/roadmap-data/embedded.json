@@ -146,6 +146,7 @@
       "title": "7. PCB Design",
       "nodes": [
         { "id": "em_circuit_schematics_netlists", "title": "Circuit Schematics & Netlists", "description": "Drawing the design before the board.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "em_eda_software_kicad_altium", "title": "EDA Software: KiCad & Altium Designer", "description": "The toolchains used for board design.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
         { "id": "em_component_selection_datasheet_review", "title": "Component Selection & Datasheet Review", "description": "Picking parts that actually meet the spec.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
         { "id": "em_footprint_symbol_creation", "title": "Footprint & Symbol Creation", "description": "Library entries for real components.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
         { "id": "em_multi_layer_pcb_stacks", "title": "Multi-layer PCB Stacks", "description": "Stackup and layer assignment.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
@@ -153,8 +154,7 @@
         { "id": "em_ground_planes_return_paths", "title": "Ground Planes & Return Paths", "description": "Why return current matters as much as the trace.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
         { "id": "em_erc_drc_design_rule_verification", "title": "ERC / DRC Design Rule Verification", "description": "Catching errors before fabrication.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
         { "id": "em_gerber_drill_file_generation", "title": "Gerber & Drill File Generation", "description": "Production outputs for the fab house.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
-        { "id": "em_pcba_dfm", "title": "PCBA & DFM (Design for Manufacturing)", "description": "Designing boards that can actually be assembled.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false },
-        { "id": "em_eda_software_kicad_altium", "title": "EDA Software: KiCad & Altium Designer", "description": "The toolchains used for board design.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+        { "id": "em_pcba_dfm", "title": "PCBA & DFM (Design for Manufacturing)", "description": "Designing boards that can actually be assembled.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
       ],
       "edges": [
         { "from_id": "em_circuit_schematics_netlists", "to_id": "em_component_selection_datasheet_review", "kind": "required" },

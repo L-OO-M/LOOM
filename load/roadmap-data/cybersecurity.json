@@ -48,10 +48,10 @@
       "nodes": [
         { "id": "cy_platform_tryhackme", "title": "TryHackMe", "description": "Guided, beginner-friendly learning paths and practical rooms. Good for building a structured foundation.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
         { "id": "cy_platform_overthewire", "title": "OverTheWire Wargames", "description": "Game-style exercises that build command-line, Linux and security problem-solving skills.", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "cy_platform_pwn_college", "title": "pwn.college", "description": "Hands-on security education with a strong focus on low-level systems and exploitation concepts.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
         { "id": "cy_platform_portswigger", "title": "PortSwigger Web Security Academy", "description": "Free interactive web-security labs covering major web vulnerabilities and techniques.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "cy_platform_ctflearn", "title": "CTFlearn", "description": "Capture-the-flag challenges across categories; useful for practicing problem solving.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_platform_pwn_college", "title": "pwn.college", "description": "Hands-on security education with a strong focus on low-level systems and exploitation concepts.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true },
         { "id": "cy_platform_cylab_academy", "title": "CyLab Academy", "description": "Formerly known as picoCTF.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
+        { "id": "cy_platform_ctflearn", "title": "CTFlearn", "description": "Capture-the-flag challenges across categories; useful for practicing problem solving.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": true },
         { "id": "cy_platform_cryptohack", "title": "CryptoHack", "description": "Interactive cryptography challenges, useful once basic programming and mathematical foundations are in place.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": true }
       ],
       "edges": [

@@ -27,6 +27,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 019 | `019_operations.sql` | `volunteer_slots`, `volunteer_signups`, `dept_reports`, `handover_checklists`, `budget_heads`, `expenses`, `sponsorships` |
 | 020 | `020_github_pause.sql` | data only: `github_integration` flag off (opt-in ingestion) |
 | 021 | `021_head_retention_cleanup.sql` | idempotent repair: clears stale `profiles.vertical` + downgrades orphan `dept_lead` memberships to `core` |
+| 036 | `036_roadmap_node_resources.sql` | `roadmap_node_resources(node_id, resource_id unique pair, sort_order)` — explicit per-node shelves (replaces the domain-wide shelf query; unmapped nodes show honest empty states; populate via `load/seed-node-resources.js`, reviewed proposal only) |
 
 Tracked migrations are the single source of truth for schema — there is no ORM mirror. All server queries are parameterized `postgres` template strings via `getSql()` in `lib/db.js` (`{max:10,idle_timeout:10,prepare:false}` for the PgBouncer pooler); tenant config is memoized 60s in `queryTenant()`.
 
@@ -34,7 +35,7 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 
 **Identity & tenancy**: `profiles(user_id unique, name, role, tenant_id, enrollment_number, department, year, primary_domain, onboarding_completed, github_username, classification)` — the single source of truth (the legacy `users` mirror was dropped in migration 012), `tenants(id, slug unique, name, status)`.
 
-**Learn**: `roadmap_nodes(id text PK, title, description, domain, difficulty_level, sort_order)` — no `roadmaps` table; domain is the catalog key (dropped in 012), `student_roadmap_progress(student_id, node_id, status, evidence_source, unique(student,node))`, `resources(id text PK, title, domain, level, kind, url, storage_key, minutes)`, `resource_progress(unique(student,resource))`.
+**Learn**: `roadmap_nodes(id text PK, title, description, domain, difficulty_level, sort_order)` — no `roadmaps` table; domain is the catalog key (dropped in 012), `student_roadmap_progress(student_id, node_id, status, evidence_source, unique(student,node))`, `resources(id text PK, title, domain, level, kind, url, storage_key, minutes)`, `roadmap_node_resources(node_id, resource_id unique pair, sort_order) [036]` — the explicit per-node shelf (detail page + journey drawer read this, not the domain-wide query), `resource_progress(unique(student,resource))`.
 
 **Build**: `projects(owner_id, tenant_id, title, description, roadmap_node_id, status, repo_url, tags[])`, `repositories`, `github_connections(user_id PK, github_username)`, `github_events(idempotency_key unique, event_name, delivery_id, actor_login, payload)`, `student_daily_activity(student_id, day, commits, pull_requests, reviews, score)`, `open_source_projects(github_repo_url unique, owner, repo_name, difficulty, primary_domain, language, stars, good_first_issues, is_curated, tenant nullable = global)`, `student_oss_contributions(unique(student,pr_url), project FK, status claimed|verified|rejected)`, `oss_badges(unique(student,badge_key))`.
 

@@ -1,9 +1,10 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
-import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 import { AppShell } from "@/components/AppShell";
 import { MarkCompleteButton } from "@/components/actions";
+import { NodeStudyList } from "./_components/NodeStudyList";
+import { isZenModeEnabled } from "@/lib/feature-flags";
 
 export default async function RoadmapNodePage({ params }) {
   const { nodeId } = await params;
@@ -15,7 +16,18 @@ export default async function RoadmapNodePage({ params }) {
   const [node] = await sql`SELECT * FROM roadmap_nodes WHERE id = ${nodeId} LIMIT 1`;
   if (!node) notFound();
   const [progress] = await sql`SELECT * FROM student_roadmap_progress WHERE student_id = ${user.id} AND node_id = ${nodeId} LIMIT 1`;
-  const resources = await sql`SELECT * FROM resources WHERE domain = ${node.domain} ORDER BY minutes ASC LIMIT 6`;
+  // Explicit per-node shelf (036). Unmapped nodes intentionally yield no
+  // rows here and render the honest empty state in NodeStudyList.
+  const resources = await sql`
+    SELECT r.* FROM resources r
+    JOIN roadmap_node_resources m ON m.resource_id = r.id
+    WHERE m.node_id = ${nodeId}
+    ORDER BY m.sort_order ASC, r.minutes ASC LIMIT 6
+  `;
+  // Zen Mode stays OFF unless this chapter enabled the zen_mode flag. The
+  // resource shelf above is NOT behind that flag — it is the node's study
+  // material and renders either way.
+  const zenEnabled = await isZenModeEnabled(sql, tenant?.id);
   const [next] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order > ${node.sort_order} ORDER BY sort_order ASC LIMIT 1`;
   const [prev] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order < ${node.sort_order} ORDER BY sort_order DESC LIMIT 1`;
   const [position] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE sort_order <= ${node.sort_order}`;
@@ -41,24 +53,7 @@ export default async function RoadmapNodePage({ params }) {
             </div>
             <section className="mt-10" aria-label="Study material">
               <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>Study this</h2>
-              <ol className="mt-4 divide-y" style={{ borderColor: "var(--line)" }}>
-                {resources.map((r, i) => {
-                  const direct = getResourceHref(r);
-                  const external = direct ? isExternalUrl(direct) : false;
-                  return (
-                  <li key={r.id} className="flex items-baseline gap-4 py-4">
-                    <span className="index-num w-6 shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                    {direct ? (
-                    <a href={direct} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="min-w-0 flex-1 truncate text-[0.95rem] font-medium hover:underline" style={{ color: "var(--text)" }} aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}>{r.title}{external ? " ↗" : ""}</a>
-                    ) : (
-                    <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium opacity-60" style={{ color: "var(--text)" }} role="note" title="Mentors haven't attached a destination to this piece yet">{r.title} · unavailable</span>
-                    )}
-                    <span className="meta shrink-0">{r.minutes} min</span>
-                  </li>
-                  );
-                })}
-                {resources.length === 0 && <li className="py-4 text-sm" style={{ color: "var(--text-muted)" }}>No linked material yet — mentors add it as the track matures.</li>}
-              </ol>
+              <NodeStudyList resources={resources} node={node} zenEnabled={zenEnabled} />
             </section>
             <nav className="mt-10 flex justify-between gap-3 border-t pt-6" style={{ borderColor: "var(--line)" }}>
               {prev ? <Link href={`/student/roadmap/${prev.id}`} prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>← {prev.title}</Link> : <span />}

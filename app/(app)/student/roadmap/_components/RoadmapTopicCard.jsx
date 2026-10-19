@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { MarkCompleteButton } from "@/components/actions";
-import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
+import { getResourceHref } from "@/lib/resource-link";
+import { ZenResourceLink, zenRowModel } from "@/components/loom/ZenResourceLink";
 
 /* One map stop expanded: description, real linked resources,
    real linked builds, and the honest completion control.
-   All styling uses LOOM theme tokens — no hardcoded palette. */
+   All styling uses LOOM theme tokens — no hardcoded palette.
+   Resource rows resolve through the shared ZenResourceLink decision path, so
+   this overview can no longer open a Zen-capable row in a new tab while the
+   journey drawer opens Zen Mode for the same row. */
 export function RoadmapTopicCard({
   node,
   index,
@@ -16,6 +20,8 @@ export function RoadmapTopicCard({
   resourceDoneSet,
   projects,
   onOpen,
+  onZen,
+  zenEnabled = false,
 }) {
   const totalMins = (resources || []).reduce((s, r) => s + (r.minutes || 0), 0);
   const learnDone = (resources || []).filter((r) => resourceDoneSet?.has(r.id)).length;
@@ -61,15 +67,23 @@ export function RoadmapTopicCard({
           {(resources || []).slice(0, 6).map((r) => {
             const rDone = resourceDoneSet?.has(r.id);
             const direct = getResourceHref(r);
-            const external = direct ? isExternalUrl(direct) : false;
+            const row = zenRowModel(r);
             return (
               <li key={r.id}>
                 {direct ? (
-                <a
-                  href={direct}
-                  {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                <ZenResourceLink
+                  resource={r}
+                  onZen={onZen}
+                  zenEnabled={zenEnabled}
+                  nodeId={node.id}
                   className="row-link flex items-baseline justify-between gap-3 px-2 py-2"
-                  aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}
+                  trailing={
+                    <span className="meta shrink-0">
+                      {r.kind ? `${r.kind} · ` : ""}
+                      {r.minutes ? `${r.minutes} min` : ""}
+                      {row.hint ? ` ${row.hint}` : ""}
+                    </span>
+                  }
                 >
                   <span
                     className="min-w-0 truncate text-sm font-medium"
@@ -78,12 +92,7 @@ export function RoadmapTopicCard({
                     {rDone && <span style={{ color: "var(--accent)" }}>✓ </span>}
                     {r.title}
                   </span>
-                  <span className="meta shrink-0">
-                    {r.kind ? `${r.kind} · ` : ""}
-                    {r.minutes ? `${r.minutes} min` : ""}
-                    {external ? " ↗" : ""}
-                  </span>
-                </a>
+                </ZenResourceLink>
                 ) : (
                 <span
                   className="flex items-baseline justify-between gap-3 px-2 py-2 opacity-60"

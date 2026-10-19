@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Reveal } from "@/components/motion/Reveal";
@@ -10,7 +10,10 @@ import { OnboardingState } from "@/components/loom/States";
 import { RoadmapHero } from "@/app/(app)/student/roadmap/_components/RoadmapHero";
 import { RoadmapTopicCard } from "@/app/(app)/student/roadmap/_components/RoadmapTopicCard";
 import { domainLabel } from "@/lib/domains";
-import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
+import { getResourceHref } from "@/lib/resource-link";
+import { toZenModel } from "@/lib/zen-embed";
+import { ZenMode } from "@/components/loom/ZenMode";
+import { ZenResourceLink, zenRowModel } from "@/components/loom/ZenResourceLink";
 
 /* The roadmap as a full map: a central path with each topic branching off it
    with real material, real builds, and the real completion control.
@@ -22,16 +25,54 @@ export function RoadmapJourney({
   nodes,
   doneIds,
   nextId,
-  resourcesByDomain,
+  resourcesByNode,
   resourceDoneIds = [],
   projectsByNode = {},
   domain = null,
+  zenEnabled = false,
 }) {
   const done = useMemo(() => new Set(doneIds), [doneIds]);
   const resourceDoneSet = useMemo(() => new Set(resourceDoneIds), [resourceDoneIds]);
   // null = drawer closed.
   const [selectedId, setSelectedId] = useState(null);
   const [justDone, setJustDone] = useState(null);
+  // Zen Learning Mode experiment: { resource, embed } or null. Clearing it
+  // unmounts the overlay; route, drawer, filters, and scroll are untouched
+  // because no navigation ever happens.
+  const [zenSelection, setZenSelection] = useState(null);
+// Zen navigation walks every row of the row's OWN node — not of whichever
+  // node happens to be selected. Filtering out non-embeddable rows here would
+  // have made prev/next skip the majority of a node's shelf. The overview cards
+  // show rows for every node, so the list travels with the selection. Rows
+  // without a validated destination are skipped: they have nothing to open.
+  const zenItemsFor = useCallback(
+    (nodeId) =>
+      (resourcesByNode[nodeId] ?? [])
+        .map((r) => ({ resource: r, embed: toZenModel(r) }))
+        .filter((x) => !!getResourceHref(x.resource)),
+    [resourcesByNode],
+  );
+  const openZen = useCallback(
+    (resource, embed, nodeId) => {
+      if (!zenEnabled || !nodeId) return;
+      const items = zenItemsFor(nodeId);
+      const index = items.findIndex((x) => x.resource.id === resource.id);
+      setZenSelection({ resource, embed, items, index: index >= 0 ? index : 0, nodeId });
+    },
+    [zenItemsFor, zenEnabled],
+  );
+  // Roadmap context for the overlay's fallback panel (Problem 3: a fallback
+  // must still tell the learner what they were about to study).
+  const zenNode = useMemo(
+    () => (zenSelection?.nodeId ? nodes.find((n) => n.id === zenSelection.nodeId) ?? null : null),
+    [nodes, zenSelection],
+  );
+  const stepZen = (delta) =>
+    setZenSelection((cur) => {
+      if (!cur) return cur;
+      const next = cur.items[cur.index + delta];
+      return next ? { resource: next.resource, embed: next.embed, items: cur.items, index: cur.index + delta } : cur;
+    });
 
   const selected = selectedId ? nodes.find((n) => n.id === selectedId) ?? null : null;
   const selIndex = selected ? nodes.findIndex((n) => n.id === selected.id) : -1;
@@ -62,10 +103,16 @@ export function RoadmapJourney({
 
         {(() => {
           const stageDone = doneIds.length;
-          const stageMins = (resourcesByDomain[trackedDomain] || []).reduce(
-            (s, r) => s + (r.minutes || 0),
-            0
-          );
+          // Unique linked resources across this track's nodes (a shared
+          // resource counts once).
+          const seenResourceIds = new Set();
+          const stageMins = nodes
+            .flatMap((n) => resourcesByNode[n.id] ?? [])
+            .reduce((s, r) => {
+              if (seenResourceIds.has(r.id)) return s;
+              seenResourceIds.add(r.id);
+              return s + (r.minutes || 0);
+            }, 0);
           return (
             <section id={`rm-stage-${trackedDomain}`} aria-label={`${domainLabel(trackedDomain)} topics`} className="rm-stage scroll-mt-24">
               <Reveal>
@@ -81,7 +128,7 @@ export function RoadmapJourney({
                 const isSel = selected && node.id === selected.id;
                 const fresh = justDone === node.id;
                 const side = globalIndex % 2 === 0 ? "left" : "right";
-                const linked = resourcesByDomain[node.domain] ?? [];
+                const linked = resourcesByNode[node.id] ?? [];
                 const builds = projectsByNode[node.id] ?? [];
                 return (
                   <div key={node.id} id={`rm-node-${node.id}`} className="rm-row scroll-mt-28">
@@ -94,11 +141,14 @@ export function RoadmapJourney({
                             isDone={isDone}
                             isNext={isNext}
                             isSelected={!!isSel}
+                            zenEnabled={zenEnabled}
                             justCompleted={fresh}
                             resources={linked}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
                             onOpen={() => setSelectedId(node.id)}
+                            onZen={openZen}
+                  zenEnabled={zenEnabled}
                           />
                         </Reveal>
                       ) : (
@@ -132,11 +182,14 @@ export function RoadmapJourney({
                             isDone={isDone}
                             isNext={isNext}
                             isSelected={!!isSel}
+                            zenEnabled={zenEnabled}
                             justCompleted={fresh}
                             resources={linked}
                             resourceDoneSet={resourceDoneSet}
                             projects={builds}
                             onOpen={() => setSelectedId(node.id)}
+                            onZen={openZen}
+                  zenEnabled={zenEnabled}
                           />
                         </Reveal>
                       ) : (
@@ -189,13 +242,28 @@ export function RoadmapJourney({
         total={nodes.length}
         isDone={selected ? done.has(selected.id) : false}
         isNext={selected ? selected.id === nextId : false}
-        linked={selected ? resourcesByDomain[selected.domain] ?? [] : []}
+        linked={selected ? resourcesByNode[selected.id] ?? [] : []}
         nodes={nodes}
         nextId={nextId}
         onSelect={setSelectedId}
         onClose={() => setSelectedId(null)}
         onCompleted={(id) => setJustDone(id)}
+        onZen={(resource, embed, nodeId) => openZen(resource, embed, nodeId ?? selected?.id)}
+        zenEnabled={zenEnabled}
       />
+
+      {zenEnabled && zenSelection ? (
+        <ZenMode
+          zenEnabled
+          resource={zenSelection.resource}
+          embed={zenSelection.embed}
+          node={zenNode}
+          onClose={() => setZenSelection(null)}
+          onPrev={() => stepZen(-1)}
+          onNext={() => stepZen(1)}
+          position={{ index: zenSelection.index, total: zenSelection.items.length }}
+        />
+      ) : null}
 
       <style>{`
         .rm-map { position: relative; }
@@ -282,7 +350,7 @@ function TrailNote({ state }) {
   );
 }
 
-function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId, onSelect, onClose, onCompleted }) {
+function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId, onSelect, onClose, onCompleted, onZen, zenEnabled }) {
   const open = !!node;
   const prev = index > 0 ? nodes[index - 1] : null;
   const next = index >= 0 && index < nodes.length - 1 ? nodes[index + 1] : null;
@@ -325,19 +393,23 @@ function NodeDrawer({ node, index, total, isDone, isNext, linked, nodes, nextId,
             <ul className="mt-3 space-y-1">
               {linked.map((r) => {
                 const direct = getResourceHref(r);
-                const external = direct ? isExternalUrl(direct) : false;
+                const row = zenRowModel(r);
                 return (
                 <li key={r.id}>
                   {direct ? (
-                  <a
-                    href={direct}
-                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  <ZenResourceLink
+                    resource={r}
+                    onZen={onZen}
+        zenEnabled={zenEnabled}
                     className="row-link flex items-baseline justify-between gap-3 px-2 py-2"
-                    aria-label={`Open ${r.title}${external ? " in a new tab" : ""}`}
+                    trailing={
+                      <span className="meta shrink-0">
+                        {r.minutes} min{row.hint ? ` ${row.hint}` : ""}
+                      </span>
+                    }
                   >
                     <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
-                    <span className="meta shrink-0">{r.minutes} min{external ? " ↗" : ""}</span>
-                  </a>
+                  </ZenResourceLink>
                   ) : (
                   <span className="flex items-baseline justify-between gap-3 px-2 py-2 opacity-60" role="note" title="Mentors haven't attached a destination to this piece yet">
                     <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{r.title}</span>

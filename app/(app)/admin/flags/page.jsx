@@ -9,6 +9,7 @@ import { FlagToggle } from "@/components/admin-forms";
 const FLAG_META = {
   github_integration: { title: "GitHub integration", desc: "When off, webhooks are acked but not stored or scored. Paused by default." },
   community_wiki: { title: "Community wiki", desc: "Controls wiki visibility for this chapter." },
+  zen_mode: { title: "Zen Learning Mode", desc: "When off, study resources open natively in a new tab and the distraction-free overlay never mounts. Off by default." },
 };
 
 export default async function AdminFlagsPage() {

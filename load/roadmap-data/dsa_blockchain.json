@@ -71,7 +71,7 @@
         { "id": "res_bc_patrick_collins", "title": "Patrick Collins", "kind": "video", "level": "foundation", "url": "https://youtube.com/@patrickalphac" },
         { "id": "res_bc_daulat_hussain", "title": "Daulat Hussain", "kind": "video", "level": "foundation", "url": "https://youtube.com/@daulathussain" },
         { "id": "res_bc_hackquest", "title": "Web3 programming for everyone — HackQuest", "kind": "course", "level": "foundation", "url": "https://share.google/VmJAaKIAPNldZhs4g" },
-        { "id": "res_bc_mit_ocw", "title": "MIT OpenCourseWare", "kind": "doc", "level": "foundation_plus", "url": null },
+        { "id": "res_bc_mit_ocw", "title": "MIT OpenCourseWare", "kind": "doc", "level": "foundation_plus", "url": "https://ocw.mit.edu/" },
         { "id": "res_bc_harkirat_100xdevs", "title": "Harkirat web3 cohort — 100xDevs", "kind": "course", "level": "foundation_plus", "url": "https://share.google/LGUpFbf56il9AL3Dv" },
         { "id": "res_bc_udemy_solidity", "title": "Master Solidity — TOON Macharis (Udemy)", "kind": "course", "level": "foundation_plus", "url": "https://www.udemy.com/share/10bwLp/" }
       ]
