@@ -30,6 +30,7 @@
     "rollup:federation": "node load/rollup-federation.js"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.32.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@vercel/og": "^1.0.2",

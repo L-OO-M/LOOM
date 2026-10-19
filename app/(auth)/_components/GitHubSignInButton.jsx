@@ -12,8 +12,8 @@ import { createClient } from "@/lib/supabase/client";
 // only thing that happened was a login.
 //
 // PKCE note: signInWithOAuth stores the code verifier in a cookie, so the
-// callback at /auth/callback can complete the exchange. That route already
-// exists and is unchanged.
+// callback at /auth/supabase-callback can complete the exchange. (Auth0 now owns
+// /auth/callback; Supabase's callback moved to keep both providers working.)
 //
 // Failure here is almost always one of two things, and they need different
 // answers, so they are distinguished rather than collapsed into "failed":
@@ -29,7 +29,7 @@ export default function GitHubSignInButton({ label = "Continue with GitHub" }) {
     setError("");
     try {
       const supabase = createClient();
-      const callback = `${window.location.origin}/auth/callback`;
+      const callback = `${window.location.origin}/auth/supabase-callback`;
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "github",
         // Scope is deliberately NOT set. Supabase's GitHub provider is

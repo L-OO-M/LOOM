@@ -6,6 +6,10 @@ import { provisionGitHubIdentity } from "@/lib/github-identity";
 
 // The Supabase OAuth callback (PKCE).
 //
+// This was /auth/callback until Auth0 became the front door and the SDK claimed
+// that path for its own OAuth exchange. The Supabase identity provider is kept
+// during the migration, so its callback moved here rather than being deleted.
+//
 // Serves both providers: magic links and GitHub sign-in both land here. For
 // GitHub it additionally records the verified identity, because Supabase
 // establishes WHO the person is and the rest of the app needs that on

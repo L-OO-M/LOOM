@@ -108,6 +108,17 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-[var(--text-muted)]">
           One login for students and admins. Admins claim access once at setup.
         </p>
+        {/* Auth0 front door. Labeled to avoid colliding with the email/password
+            form's "Sign in" / "Register" affordances below. */}
+        <div className="mt-6 space-y-3">
+          <a href="/auth/login" className="btn-ink w-full justify-center">Continue with Auth0</a>
+          <a href="/auth/login?screen_hint=signup" className="btn-ghost w-full justify-center">Create an account</a>
+        </div>
+        <div className="my-6 flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>or use email and password</span>
+          <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        </div>
         <Suspense fallback={<div className="mt-8 text-sm text-[var(--text-muted)]">Loading...</div>}>
           <LoginForm />
         </Suspense>

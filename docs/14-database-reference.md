@@ -56,6 +56,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | **044** | `044_event_ops_reminders.sql` | `event_ops_tasks.reminded_at` — dedupe marker for the deadline reminder job |
 | 045 | `045_resource_nodes.sql` | `resources.node_id → roadmap_nodes.id` (nullable) + index — pins a resource to a roadmap node |
 | 046 | `046_activate_non_technical_departments.sql` | data only — activates the three seeded non-technical departments (they shipped `is_active=false`, hiding them from `/domains`) |
+| 047 | `047_user_identities.sql` | **Auth0 identity map** — `user_identities(auth0_sub PK, user_id, email, provider)` links an Auth0 `sub` to the canonical Supabase uid (`profiles.user_id`), so login can move to Auth0 without rewriting any ids. Deny-all RLS (server/owner-only); resolver in `lib/user-identities.js` |
 
 ### Migration 037 — verified evidence
 

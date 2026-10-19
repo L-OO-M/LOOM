@@ -61,27 +61,28 @@ app/
   (app)/ student/ lead/ admin/    # private workspaces (noindex layouts), each page's
                                   #   one-off components co-located in _components/ or *Bits.jsx
   api/                            # ~80 route handlers; envelopes { ok, data | error }
-  setup/ verify/ auth/            # claim-first, credential verify, supabase callbacks
+  setup/ verify/ auth/            # claim-first, credential verify, supabase + Auth0 callbacks
   error.jsx, not-found.jsx, loading.jsx
 components/
   landing/ (12 files)             # living-network landing system
   loom/ (primitives, StatTiles, States, Drawer) · motion/ · student/OrgPanels · lead/LeadActions
   seo/JsonLd.jsx                  # Organization/WebSite/FAQPage/ItemList schemas
   AppShell.jsx, BrandMark.jsx, WeaveField.jsx, ui.jsx, actions.jsx, admin-forms.jsx
-lib/                              # one concern per file: auth, auth-server, permissions (20-action
+lib/                              # one concern per file: auth, auth-server, auth0 (client), user-identities
+                                  # (Auth0 sub → canonical uid), permissions (20-action
                                   # matrix), tenant, db (pooler-safe), nav (single IA source), seo,
                                   # github (pause gate), lead, oss, mentorship, reputation, community,
                                   # credentials, classification notes, api, audit, env, rate-limit, theme
 load/                             # migrate.js, seeds, rollups, wipe-dev.js, shoot.js, verify-gate.js,
                                   # env-local.js (shared DATABASE_URL loader — secrets never hardcoded)
-load/migrations/ 001–020         # THE schema source of truth; idempotent, never edit applied ones
+load/migrations/ 001–047         # THE schema source of truth; idempotent, never edit applied ones
 docs/ 00,05,06,09,11–19 + README  # current set (7 superseded docs deleted; redirect map in docs/README)
 tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 ```
 
 **Conventions (non-negotiable):** JS only · every `<Link>` gets `prefetch={false}` (pooler cost) · sequential awaits on pages, never parallel batches · every mutation: zod → server tenant → `can()` check → `writeAudit()` (+ `notify()`) · migrations idempotent (`IF NOT EXISTS`) · honest empty states, zero mock data in UI · one concern per commit.
 
-**Auth model:** single `/login`; tenant always from `profiles.tenant_id` server-side; `/api/*` returns machine `401`, pages redirect. **Roles (6, upward-only):** `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. The `mentor` *role* is retired (→`core`); mentorship is a capability. Roles are granted (request/appoint/claim), never self-selected. Post-login landing is role-aware (`/student`, `/lead`, `/admin`).
+**Auth model:** single `/login`; tenant always from `profiles.tenant_id` server-side; `/api/*` returns machine `401`, pages redirect. **Login runs through Auth0** (`@auth0/nextjs-auth0`, front door + `user_identities` map in migration 047) while the canonical user id stays the Supabase uid — the Auth0 `sub` → uid link is resolved in `lib/user-identities.js`, so no profile/owner ids are rewritten. Supabase auth is retained as a fallback path (legacy sessions + the E2E programmatic login). **Roles (6, upward-only):** `student` → `core` → `dept_lead` (Head = Co-Head, one tier) → `vertical_lead` → `admin` → `platform_admin`. The `mentor` *role* is retired (→`core`); mentorship is a capability. Roles are granted (request/appoint/claim), never self-selected. Post-login landing is role-aware (`/student`, `/lead`, `/admin`).
 
 ---
 

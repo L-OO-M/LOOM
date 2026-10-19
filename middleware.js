@@ -1,5 +1,22 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { auth0 } from "@/lib/auth0";
+
+// Paths owned by the Auth0 SDK's middleware (login, logout, OAuth callback,
+// profile, token). They MUST be delegated to the SDK -- treating them as public
+// (a plain NextResponse.next()) would skip the OAuth code exchange entirely.
+//
+// /auth/callback is now Auth0's. The Supabase PKCE callback that used to live
+// there has moved to /auth/supabase-callback (kept for the legacy GitHub
+// sign-in path during the migration).
+const AUTH0_PATHS = new Set([
+  "/auth/login",
+  "/auth/logout",
+  "/auth/callback",
+  "/auth/profile",
+  "/auth/access-token",
+  "/auth/backchannel-logout"
+]);
 
 const publicPaths = [
   "/",
@@ -12,7 +29,7 @@ const publicPaths = [
   "/login",
   "/register",
   "/setup",
-  "/auth/callback",
+  "/auth/supabase-callback",
   "/api/health",
   "/api/chapters",
   // Credential endpoints. These MUST be reachable without a session -- that is
@@ -35,6 +52,18 @@ const publicPaths = [
 export async function middleware(request) {
   const raw = request.nextUrl.pathname;
   const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
+
+  // Auth0 front door: hand its routes to the SDK before anything else. The SDK
+  // performs the login redirect, the OAuth exchange, and session refresh; if the
+  // request reaches the gating logic below it would be treated as an app page
+  // and (for logged-out users) bounced to /login instead of completing auth.
+  //
+  // `auth0` is null when the Auth0 env vars are not configured (see lib/auth0.js);
+  // in that case these paths fall through to the normal Supabase gating, so the
+  // app behaves exactly as before Auth0 was introduced.
+  if (auth0 && AUTH0_PATHS.has(pathname)) {
+    return auth0.middleware(request);
+  }
 
   // The student layout must gate first-run onboarding, but it has no pathname of
   // its own and the onboarding route lives under that same layout — so it has to
