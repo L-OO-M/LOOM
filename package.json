@@ -19,6 +19,7 @@
     "db:migrate": "node load/migrate.js",
     "db:seed": "node load/seed-control-plane.js && node load/seed-content.js",
     "db:seed:dev": "node load/seed-dev.js",
+    "seed:e2e": "node load/seed-e2e-student.js",
     "db:wipe": "node load/wipe-dev.js --confirm",
     "db:wipe:full": "node load/wipe-dev.js --confirm --full",
     "rls:role": "node load/create-app-role.js",
