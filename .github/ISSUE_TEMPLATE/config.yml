@@ -1,1 +1,25 @@
-blank_issues_enabled: false
+# Issue template chooser.
+#
+# blank_issues_enabled was false, which restricted reporters to the two templates
+# below (Bug report, Feature request) and offered no way to raise anything else --
+# a question, a docs typo, a duplicate, a regression that fits neither template.
+# This file existed to make the chooser deliberate; it was making it closed.
+blank_issues_enabled: true
+
+# Security reports get their own route rather than being the only route.
+#
+# SECURITY.md says not to open a public issue for a vulnerability, so the private
+# advisory path must stay reachable and obvious. Keeping it here does that
+# without making it the only option -- which is the tension that made the repo
+# feel security-only: a private report and a general issue competed for the same
+# button, and the private one won because the templates were closed.
+#
+# This is a deliberate control, not a leftover to clean up. Private disclosure
+# keeps an unpatched vulnerability out of the public issue history, and the
+# reporter gets an acknowledgement instead of a public thread.
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/L-OO-M/LOOM/security/advisories/new
+    about: >-
+      Please report security issues privately rather than as a public issue, so
+      they are not disclosed before a fix exists. See SECURITY.md.

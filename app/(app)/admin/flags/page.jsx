@@ -8,8 +8,18 @@ import { FlagToggle } from "@/components/admin-forms";
 
 const FLAG_META = {
   github_integration: { title: "GitHub integration", desc: "When off, webhooks are acked but not stored or scored. Paused by default." },
+  ranking_verified: { title: "Verified standings", desc: "Score only evidence a GitHub delivery or a lead confirmed. OFF means the older board, which counted nodes and projects a student declared themselves. Turning this on withdraws points they were shown as earned." },
   community_wiki: { title: "Community wiki", desc: "Controls wiki visibility for this chapter." },
   zen_mode: { title: "Zen Learning Mode", desc: "When off, study resources open natively in a new tab and the distraction-free overlay never mounts. Off by default." },
+};
+
+// Global security controls. Read-only here on purpose -- see the comment in
+// app/api/admin/flags/route.js. "Chapter-scoped" is wrong for these.
+const OPERATOR_ONLY = {
+  tenant_rls_enforced: {
+    title: "Tenant RLS enforcement",
+    desc: "Global database-level tenant isolation. Operator-only: change it in SQL after running node load/verify-rls.js. Not chapter-scoped.",
+  },
 };
 
 export default async function AdminFlagsPage() {
@@ -24,7 +34,7 @@ export default async function AdminFlagsPage() {
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
         <PageHeader kicker={`Control · ${rows.length} flags · this chapter`} title="Feature flags" desc="Toggles persist to this chapter and are audit-logged. Flip carefully — each change writes to the audit trail." />
         <div className="mb-4 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-          <Shield size={12} /> Changes are immediate and tenant-scoped — other colleges are unaffected.
+          <Shield size={12} /> Chapter toggles are immediate and scoped to this college. Global security controls below are operator-only.
         </div>
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -33,7 +43,8 @@ export default async function AdminFlagsPage() {
         ) : (
           <ul className="space-y-2">
             {rows.map((f) => {
-              const meta = FLAG_META[f.key] || { title: f.key.replaceAll("_", " "), desc: "Chapter-scoped toggle." };
+              const operatorOnly = OPERATOR_ONLY[f.key];
+              const meta = operatorOnly || FLAG_META[f.key] || { title: f.key.replaceAll("_", " "), desc: "Chapter-scoped toggle." };
               return (
                 <li key={f.key} className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: f.enabled ? "color-mix(in srgb, var(--accent) 18%, var(--line))" : "var(--line)", background: f.enabled ? "color-mix(in srgb, var(--accent) 4%, var(--bg-elevated))" : "var(--bg-elevated)" }}>
                   <span className="min-w-0">
@@ -43,7 +54,11 @@ export default async function AdminFlagsPage() {
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className="meta hidden sm:block">{f.enabled ? "On" : "Off"}</span>
-                    <FlagToggle flagKey={f.key} enabled={f.enabled} />
+                    {operatorOnly ? (
+                      <span className="meta rounded-lg border px-2 py-1" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Operator-only</span>
+                    ) : (
+                      <FlagToggle flagKey={f.key} enabled={f.enabled} />
+                    )}
                   </span>
                 </li>
               );

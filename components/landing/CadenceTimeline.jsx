@@ -37,7 +37,7 @@ export function CadenceTimeline() {
             </summary>
             <div className="mt-3 max-w-2xl">
               <p className="text-sm leading-6" style={{ color: "rgba(242,243,241,0.7)" }}>{c.detail}</p>
-              <Link href={c.href} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold transition hover:gap-2" style={{ color: "var(--accent)" }}>
+              <Link href={c.href} className="-mt-1.5 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold transition hover:gap-2" style={{ color: "var(--accent)" }}>
                 See it live <ArrowRight size={14} />
               </Link>
             </div>

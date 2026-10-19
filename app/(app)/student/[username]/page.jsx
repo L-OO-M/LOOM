@@ -6,7 +6,7 @@ import { Display, Meta, PlainStat, ActionLink, StatusPill } from "@/components/l
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { reputationFor } from "@/lib/reputation";
 import { absoluteUrl } from "@/lib/seo";
-import { ProfileEditor, FollowButton, EndorseForm } from "./ProfileBits";
+import { ProfileEditor, FollowButton, EndorseForm, EndorsementManager } from "./ProfileBits";
 import ShareButtons from "@/app/u/[username]/ShareButtons";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +66,12 @@ export default async function PublicProfilePage({ params }) {
   const latestProject = await sql`SELECT id, title FROM projects WHERE owner_id = ${card.user_id} ORDER BY created_at DESC LIMIT 1`;
   const guideRows = await sql`SELECT expertise FROM mentors WHERE user_id = ${card.user_id} LIMIT 1`;
   const isSelf = card.user_id === user.id;
+  // Opt-out: a member may hide endorsements from their public card. The owner
+  // still sees them (and can remove individual ones).
+  const showEndorsements = isSelf || card.endorsements_visible !== false;
+  const endorsements = isSelf
+    ? await sql`SELECT e.id, e.skill, p.name AS endorser_name FROM user_endorsements e LEFT JOIN profiles p ON p.user_id = e.endorser_id WHERE e.endorsee_id = ${card.user_id} ORDER BY e.endorsed_at DESC LIMIT 25`
+    : [];
   const links = card.social_links || {};
   const displayName = profile?.name || card.username;
   const proofCounts = [
@@ -105,7 +111,7 @@ export default async function PublicProfilePage({ params }) {
               <p className="mono-tag mt-3">Earned skills</p>
               <p className="mt-2 flex flex-wrap gap-1.5">{skills.slice(0, 8).map((s)=> <span key={s.skill} className="grid size-6 place-items-center rounded-full text-[10px] font-bold" style={{ background: "var(--accent)", color: "#101314" }}>{String(s.skill).slice(0, 2).toUpperCase()}</span>)}{skills.length===0 && <span className="mono-tag">no endorsements yet</span>}</p>
               <p className="mono-tag mt-4">Connections</p>
-              <p className="mono-tag mt-1" style={{ color: "var(--text-muted)" }}>{followers} follower{followers===1?"":"s"} · {rep.endorsements} endorsements</p>
+              <p className="mono-tag mt-1" style={{ color: "var(--text-muted)" }}>{followers} follower{followers===1?"":"s"}{showEndorsements ? ` · ${rep.endorsements} endorsements` : ""}</p>
             </div>
           </div>
         </div>
@@ -159,8 +165,10 @@ export default async function PublicProfilePage({ params }) {
             </div>
           </section>
           <section aria-labelledby="known-for-heading">
-            <h2 id="known-for-heading" className="meta">Known for · {rep.endorsements}</h2>
-            {skills.length === 0 ? (
+            <h2 id="known-for-heading" className="meta">{showEndorsements ? `Known for · ${rep.endorsements}` : "Known for"}</h2>
+            {!showEndorsements ? (
+              <p className="narrative mt-3">This member has hidden their endorsements.</p>
+            ) : skills.length === 0 ? (
               <p className="narrative mt-3">No endorsements yet — vouch for a skill you&apos;ve seen in action.</p>
             ) : (
               <ul className="mt-4 space-y-2.5">
@@ -174,7 +182,8 @@ export default async function PublicProfilePage({ params }) {
                 ))}
               </ul>
             )}
-            {!isSelf && <div className="mt-4"><EndorseForm username={card.username} /></div>}
+            {isSelf && <EndorsementManager endorsements={endorsements} />}
+            {!isSelf && showEndorsements && <div className="mt-4"><EndorseForm username={card.username} /></div>}
           </section>
         </div>
 

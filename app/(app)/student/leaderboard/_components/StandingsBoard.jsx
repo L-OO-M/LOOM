@@ -7,8 +7,18 @@ import { StatusPill } from "@/components/loom/primitives";
 const PAGE_STEP = 10;
 const INITIAL_ROWS = 20;
 
+// The progress line reports what is ATTESTED, not what the student asserted.
+// A pending claim is shown as pending rather than folded into the totals,
+// because a board row that reads "12 nodes" when 4 of them are unconfirmed is
+// simply a lie with a nicer font.
 function progressLine(r) {
-  return `${r.nodes_done} node${r.nodes_done === 1 ? "" : "s"} · ${r.commits} commit${r.commits === 1 ? "" : "s"} · ${r.prs} PR${r.prs === 1 ? "" : "s"} · ${r.projects} project${r.projects === 1 ? "" : "s"}`;
+  const parts = [
+    `${Number(r.commits) || 0} commit${Number(r.commits) === 1 ? "" : "s"}`,
+    `${Number(r.prs) || 0} PR${Number(r.prs) === 1 ? "" : "s"}`,
+    `${Number(r.verified_score) || 0} verified`,
+  ];
+  if (Number(r.pending) > 0) parts.push(`${Number(r.pending)} awaiting review`);
+  return parts.join(" · ");
 }
 
 // Client island for the Standings board: lightweight search over the fetched

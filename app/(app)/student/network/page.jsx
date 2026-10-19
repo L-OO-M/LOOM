@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { getFederationSql } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
@@ -17,7 +18,12 @@ const SORTS = [
 export default async function NetworkPage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/network");
-  const { tenant, user, sql } = ctx;
+  const { tenant, user } = ctx;
+  // Cross-tenant by design: the directory lists every public chapter and only
+  // exposes anonymised counts and names. A tenant-scoped connection would return
+  // this chapter alone with every counter at 0 and no error. See
+  // getFederationSql() for why this is a conscious exception.
+  const sql = getFederationSql();
   const sp = await searchParams;
   const q = (sp?.q || "").toString().trim().slice(0, 60);
   const sort = SORTS.some((s) => s.value === sp?.sort) ? sp.sort : "members";

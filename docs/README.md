@@ -15,6 +15,32 @@ Learning, Opportunity, Open source, Mentorship — one student journey per chapt
 | [Architecture](17-architecture.md) | Developers | Request lifecycle, roles, table map, workflows, security invariants |
 | [Public site](18-public-site.md) | Developers | Public pages, tenant fallback, empty-state policy |
 | [Operations](19-operations.md) | Developers | Departments, volunteers, reports, handover, finance |
+| [**Verified ranking**](20-verified-ranking.md) | Developers | What the leaderboard counts, what stops a student faking it, the review queue, the `ranking_verified` flag |
+| [**GitHub OAuth setup**](21-github-oauth-setup.md) | Operators | Production env vars, OAuth App + Supabase config, flag rollout order, verification steps |
+| [**Security findings — deferred**](22-security-findings-todo.md) | Developers | The two security-report items left **unfixed** (username-change takeover, temp-email spam) with exact locations + proposed fixes, and a table of what was fixed |
+| [**RLS rollout runbook**](rls-rollout-runbook.md) | Operators | Enabling database-level tenant isolation, verifying it, rolling it back |
+
+## Read this before deploying
+
+**Tenant isolation has two layers, and you need to know which one is active.**
+
+1. **Application layer (always on).** Every query carries an explicit
+   `WHERE tenant_id = …`. This is what the app has always relied on.
+2. **Database layer (opt-in).** Row Level Security policies, enforced only when
+   the `loom_app` role is used *and* the `tenant_rls_enforced` flag is on.
+
+Check which one is live at any time — no credentials needed:
+
+```bash
+curl -s https://<your-domain>/api/health
+```
+
+The `isolation.effective` field is the single source of truth. `false` means the
+app is relying on layer 1 alone. The procedure for turning layer 2 on, verifying
+it, and rolling it back is in [the RLS runbook](rls-rollout-runbook.md).
+
+The flag is deliberately **not** exposed as an admin UI toggle. See
+`app/api/admin/flags/route.js` for why.
 
 ## Retired docs
 

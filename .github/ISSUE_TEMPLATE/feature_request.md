@@ -1,7 +1,10 @@
 ---
 name: Feature request
-description: Propose a small, single-concern enhancement
-labels: [enhancement]
+about: what you  feel is missing in this project
+title: ''
+labels: enhancement
+assignees: demonstrikkk
+
 ---
 
 ## Problem

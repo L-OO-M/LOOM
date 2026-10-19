@@ -5,10 +5,12 @@ import {
   canLinkProfile,
   fetchBoard,
   fetchSelfStanding,
+  isVerifiedRankingEnabled,
   normalizeLimit,
   normalizeOffset,
   normalizePeriod,
   normalizeScope,
+  standingBreakdown,
 } from "@/lib/standings";
 
 // GET /api/leaderboard?scope=college|global|friends&period=all|30d&q=&limit=&offset=
@@ -39,6 +41,11 @@ export async function GET(request) {
   const offset = normalizeOffset(rawOffset ?? 0);
   const tid = tenant?.id ?? null;
 
+  // Fail-closed: if the chapter has not switched the verified board on, say so
+  // explicitly rather than returning an empty leaderboard that reads as "nobody
+  // has done anything".
+  const verifiedOnly = await isVerifiedRankingEnabled(sql, tid);
+
   // Sequential by pooler convention.
   const board = await fetchBoard(sql, {
     viewerId: user.id,
@@ -48,8 +55,11 @@ export async function GET(request) {
     limit,
     offset,
     query,
+    verifiedOnly,
   });
-  const self = await fetchSelfStanding(sql, { viewerId: user.id, tenantId: tid, scope, period });
+  const self = await fetchSelfStanding(sql, {
+    viewerId: user.id, tenantId: tid, scope, period, verifiedOnly,
+  });
 
   const leaderboard = board.map((r) => {
     const linkable = canLinkProfile(r, tid, user.id);
@@ -63,8 +73,8 @@ export async function GET(request) {
       username: linkable ? r.username : null,
       commits: Number(r.commits),
       prs: Number(r.prs),
-      nodes_done: Number(r.nodes_done),
-      projects: Number(r.projects),
+      verified_score: Number(r.verified_score),
+      pending: Number(r.pending),
       score: Number(r.score),
     };
   });
@@ -72,6 +82,8 @@ export async function GET(request) {
   return ok({
     scope,
     period,
+    verifiedOnly,
+    breakdown: verifiedOnly ? standingBreakdown() : [],
     leaderboard,
     self,
     // Legacy shape kept for any existing readers: full board + viewer rank.

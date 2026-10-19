@@ -4,15 +4,16 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import FeatureRequestList from "./FeatureRequestList";
+import { listFeatureRequests } from "@/lib/feature-requests";
 
 export default async function FeatureRequestsPage() {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/feature-requests");
-  const { user, tenant, sql } = ctx;
+  const { user, tenant, sql, profile } = ctx;
   const tid = tenant?.id ?? null;
   let rows = [];
   try {
-    rows = await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY fr.created_at DESC LIMIT 100`;
+    rows = await listFeatureRequests({ sql, tenantId: tid, userId: user.id, isAdmin: profile?.role === "admin" });
   } catch (e) {
     if (e?.code !== "42P01") throw e;
     rows = [];

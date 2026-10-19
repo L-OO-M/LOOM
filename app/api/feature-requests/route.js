@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
+import { listFeatureRequests, screenFeatureRequest } from "@/lib/feature-requests";
 
 const createSchema = z.object({
   title: z.string().min(4).max(160),
@@ -17,10 +18,7 @@ export async function GET() {
   if (ctx.error) return fail(ctx.error, "Auth required", ctx.error === "UNAUTHORIZED" ? 401 : 404);
   const { user, tenant, sql } = ctx;
   const tid = tenant?.id ?? null;
-  const isAdmin = ctx.profile?.role === "admin";
-  const rows = isAdmin
-    ? await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY fr.created_at DESC LIMIT 100`
-    : await sql`SELECT fr.*, p.name AS requester_name FROM feature_requests fr LEFT JOIN profiles p ON p.user_id = fr.requester_id WHERE (fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND (fr.requester_id = ${user.id} OR fr.status IN ('approved','built')) ORDER BY fr.created_at DESC LIMIT 100`;
+  const rows = await listFeatureRequests({ sql, tenantId: tid, userId: user.id, isAdmin: ctx.profile?.role === "admin" });
   return ok({ requests: rows });
 }
 
@@ -30,6 +28,8 @@ export async function POST(request) {
   const { user, tenant, sql } = ctx;
   let body;
   try { body = createSchema.parse(await request.json()); } catch (e) { return validationError(e); }
+  const screened = screenFeatureRequest(body);
+  if (!screened.ok) return fail(screened.code, screened.message, 400);
   const [row] = await sql`
     INSERT INTO feature_requests (tenant_id, requester_id, title, description, integration, tradeoffs, implementation, category)
     VALUES (${tenant?.id ?? null}, ${user.id}, ${body.title}, ${body.description}, ${body.integration || ""}, ${body.tradeoffs || ""}, ${body.implementation || ""}, ${body.category})

@@ -1,7 +1,10 @@
 ---
 name: Bug report
-description: Report a reproducible defect
-labels: [bug]
+about: whatever issue you find with the website
+title: ''
+labels: bug
+assignees: ''
+
 ---
 
 ## Page / API

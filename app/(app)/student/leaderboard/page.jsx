@@ -6,12 +6,13 @@ import { Display, Meta, PlainStat, Rule } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
 import {
   STANDINGS_BOARD_SIZE,
-  STANDINGS_WEIGHTS,
   canLinkProfile,
   fetchBoard,
   fetchSelfStanding,
+  isVerifiedRankingEnabled,
   normalizePeriod,
   normalizeScope,
+  standingBreakdown,
 } from "@/lib/standings";
 import StandingsBoard from "./_components/StandingsBoard";
 
@@ -53,6 +54,7 @@ export default async function StandingsPage({ searchParams }) {
   const active = SCOPES.find((s) => s.id === scope);
 
   // Sequential by pooler convention: one live aggregate at a time.
+  const verifiedOnly = await isVerifiedRankingEnabled(sql, tid);
   const board = await fetchBoard(sql, {
     viewerId: user.id,
     tenantId: tid,
@@ -60,8 +62,9 @@ export default async function StandingsPage({ searchParams }) {
     period,
     limit: STANDINGS_BOARD_SIZE,
     offset: 0,
+    verifiedOnly,
   });
-  const self = await fetchSelfStanding(sql, { viewerId: user.id, tenantId: tid, scope, period });
+  const self = await fetchSelfStanding(sql, { viewerId: user.id, tenantId: tid, scope, period, verifiedOnly });
 
   const rows = board.map((r) => ({
     user_id: r.user_id,
@@ -70,8 +73,8 @@ export default async function StandingsPage({ searchParams }) {
     primary_domain: r.primary_domain,
     commits: Number(r.commits),
     prs: Number(r.prs),
-    nodes_done: Number(r.nodes_done),
-    projects: Number(r.projects),
+    verified_score: Number(r.verified_score),
+    pending: Number(r.pending),
     score: Number(r.score),
     is_self: r.user_id === user.id,
     profile_href: canLinkProfile(r, tid, user.id) ? `/student/${r.username}` : null,
@@ -107,11 +110,17 @@ export default async function StandingsPage({ searchParams }) {
               </div>
             </div>
             <div className="mt-7 grid grid-cols-2 gap-6 border-t pt-6 sm:grid-cols-4" style={{ borderColor: "var(--line)" }}>
-              <PlainStat value={self.nodes_done} unit="nodes" label="roadmap nodes completed" />
+              <PlainStat value={self.verified_score} unit="pts" label="from verified evidence" />
               <PlainStat value={self.commits} unit="commits" label={period === "30d" ? "commits in the last 30 days" : "commits recorded"} />
               <PlainStat value={self.prs} unit="PRs" label={period === "30d" ? "pull requests in the last 30 days" : "pull requests opened"} />
-              <PlainStat value={self.projects} unit="projects" label="projects shipped" />
+              <PlainStat value={self.pending} unit="pending" label="claims awaiting review" />
             </div>
+            {Number(self.pending) > 0 && (
+              <p className="meta mt-4">
+                Pending claims score nothing until a lead confirms them. They are not a
+                penalty — they are simply not evidence yet.
+              </p>
+            )}
           </section>
         ) : (
           !empty && (
@@ -136,31 +145,67 @@ export default async function StandingsPage({ searchParams }) {
             How the score works
           </summary>
           <div className="max-w-2xl pb-6 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-            <ul className="space-y-1.5">
-              <li>Commits × {STANDINGS_WEIGHTS.commit}</li>
-              <li>Pull requests × {STANDINGS_WEIGHTS.pullRequest}</li>
-              <li>Completed roadmap nodes × {STANDINGS_WEIGHTS.roadmapNode}</li>
-              <li>Projects × {STANDINGS_WEIGHTS.project} <span className="meta">(every status except archived)</span></li>
+            <p className="font-semibold" style={{ color: "var(--text)" }}>
+              Only work somebody else can confirm counts.
+            </p>
+            <p className="mt-2">
+              Every point comes from one of two places: a signed GitHub delivery, or a
+              chapter lead reviewing what you submitted. A claim you make about yourself
+              is not evidence — it waits, scores nothing, and either a lead confirms it or
+              it does not count. The database refuses to record a score that nobody
+              vouched for, so there is no way to skip this.
+            </p>
+            <ul className="mt-4 space-y-2">
+              {standingBreakdown().map((b) => (
+                <li key={b.label} className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span>
+                    <span style={{ color: "var(--text)" }}>{b.label}</span>
+                    <span className="meta"> — {b.source}</span>
+                  </span>
+                  <span className="figure-mono shrink-0" style={{ color: "var(--accent)" }}>
+                    +{b.weight}
+                  </span>
+                </li>
+              ))}
             </ul>
             <p className="mt-4">
-              Standings use activity counts to provide a simple view of visible progress — not a measure of developer ability.
-              Equal scores share a rank. Chapter service accounts stay off the board.
+              Each kind pays full value up to a cap and a tenth of that afterwards, so
+              repeating the same easy thing cannot climb the board. Older evidence fades
+              gradually rather than disappearing.
+            </p>
+            <p className="mt-2">
+              Standings reflect verified contribution, not developer ability. Equal scores
+              share a rank. Chapter service accounts stay off the board.
             </p>
             {period === "30d" && (
               <p className="mt-2">
-                In the 30-day view, commits and pull requests cover the last 30 days. Roadmap nodes and projects are lifetime totals.
+                In the 30-day view, commits and pull requests cover the last 30 days.
+                Verified evidence is lifetime.
               </p>
             )}
+            <p className="mt-2">
+              If a lead declines a claim, the points are withdrawn. A board that cannot be
+              corrected is not worth reading.
+            </p>
           </div>
         </details>
 
         {empty ? (
-          <OnboardingState
-            eyebrow="Standings"
-            title="Nobody is standing here yet."
-            why="Once builders start contributing, their progress will appear here."
-            action={<Link href="/student/github" prefetch={false} className="btn-ink">Start with GitHub →</Link>}
-          />
+          verifiedOnly ? (
+            <OnboardingState
+              eyebrow="Standings"
+              title="Nobody is standing here yet."
+              why="Standings only count work that a chapter lead or GitHub has confirmed. Once verified contributions arrive, they will appear here."
+              action={<Link href="/student/github" prefetch={false} className="btn-ink">Start with GitHub →</Link>}
+            />
+          ) : (
+            <OnboardingState
+              eyebrow="Standings"
+              title="Verified standings are not switched on yet."
+              why="Your chapter is still showing the older self-reported board, which counted nodes and projects without anyone confirming them. An admin can switch on verified standings from Feature flags."
+              action={<Link href="/student/github" prefetch={false} className="btn-ghost">Connect GitHub</Link>}
+            />
+          )
         ) : (
           <>
             <div className="mt-8 flex flex-wrap items-center gap-2 rounded-[var(--radius-lg)] border p-2" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>

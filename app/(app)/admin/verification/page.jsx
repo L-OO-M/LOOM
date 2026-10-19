@@ -30,8 +30,8 @@ export default async function AdminVerificationPage({ searchParams }) {
 
   const [stats] = await sql`
     SELECT
-      (SELECT COUNT(*)::int FROM skill_badges WHERE tenant_id IS NULL OR tenant_id = ${tid}::uuid) AS badges,
-      (SELECT COUNT(*)::int FROM student_achievements WHERE tenant_id IS NULL OR tenant_id = ${tid}::uuid) AS issued,
+      (SELECT COUNT(*)::int FROM skill_badges WHERE tenant_id = ${tid}::uuid) AS badges,
+      (SELECT COUNT(*)::int FROM student_achievements WHERE tenant_id = ${tid}::uuid) AS issued,
       (SELECT COUNT(*)::int FROM verifiable_credentials WHERE tenant_id = ${tid}::uuid) AS links
   `;
 
@@ -39,7 +39,7 @@ export default async function AdminVerificationPage({ searchParams }) {
     SELECT b.*, COALESCE(a.earned, 0)::int AS earned
     FROM skill_badges b
     LEFT JOIN (SELECT badge_id, COUNT(*)::int AS earned FROM student_achievements GROUP BY badge_id) a ON a.badge_id = b.id
-    WHERE (b.tenant_id IS NULL OR b.tenant_id = ${tid}::uuid)
+    WHERE b.tenant_id = ${tid}::uuid
       AND (${q ? sql`(b.name ILIKE ${"%" + q + "%"})` : sql`TRUE`})
     ORDER BY b.tier DESC, b.name ASC LIMIT 50
   `;
@@ -52,16 +52,16 @@ export default async function AdminVerificationPage({ searchParams }) {
     SELECT a.*, p.name AS student_name, b.name AS badge_name FROM student_achievements a
     LEFT JOIN profiles p ON p.user_id = a.student_id
     LEFT JOIN skill_badges b ON b.id = a.badge_id
-    WHERE a.tenant_id IS NULL OR a.tenant_id = ${tid}::uuid
+    WHERE a.tenant_id = ${tid}::uuid
     ORDER BY a.earned_at DESC LIMIT 30
   `;
   const tierRows = await sql`
     SELECT tier, COUNT(*)::int AS c FROM skill_badges
-    WHERE tenant_id IS NULL OR tenant_id = ${tid}::uuid GROUP BY tier ORDER BY tier
+    WHERE tenant_id = ${tid}::uuid GROUP BY tier ORDER BY tier
   `;
   const weeklyRows = await sql`
     SELECT to_char(date_trunc('week', earned_at), 'Mon DD') AS label, COUNT(*)::int AS c
-    FROM student_achievements WHERE (tenant_id IS NULL OR tenant_id = ${tid}::uuid) AND earned_at >= NOW() - INTERVAL '8 weeks'
+    FROM student_achievements WHERE tenant_id = ${tid}::uuid AND earned_at >= NOW() - INTERVAL '8 weeks'
     GROUP BY date_trunc('week', earned_at) ORDER BY date_trunc('week', earned_at) ASC
   `;
 

@@ -58,6 +58,35 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
     await expect(page.locator("h1")).toContainText("Choose your domain.");
   });
 
+  test("legal pages load with headings", async ({ page }) => {
+    for (const [path, heading] of [
+      ["/privacy", "Privacy notice."],
+      ["/terms", "Terms of use."],
+      ["/contact", "Contact the chapter."]
+    ]) {
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(200);
+      await expect(page.locator("h1")).toContainText(heading);
+    }
+  });
+
+  test("legal footer links point to public policies", async ({ page }) => {
+    await page.goto("/about");
+    for (const [label, url] of [["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"]]) {
+      const link = page.getByRole("link", { name: label, exact: true }).filter({ visible: true }).first();
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", url);
+    }
+  });
+
+  test("registration discloses privacy and terms before signup", async ({ page }) => {
+    await page.goto("/register");
+    const consent = page.getByText("I have read the");
+    await expect(consent).toBeVisible();
+    await expect(page.getByRole("link", { name: "Privacy notice", exact: true })).toHaveAttribute("href", "/privacy");
+    await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");
+  });
+
   test("unknown routes redirect logged-out visitors to login, never a blank screen", async ({ page }) => {
     await page.goto("/this-thread-was-never-woven");
     // Logged-out: the auth gate redirects (signed-in users get the 404 page).
@@ -103,8 +132,30 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     const res = await request.get("/sitemap.xml");
     expect(res.ok()).toBeTruthy();
     const xml = await res.text();
-    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       expect(xml).toContain(path);
+    }
+  });
+
+  test("llms.txt exposes the public crawl contract", async ({ request }) => {
+    const res = await request.get("/llms.txt");
+    expect(res.ok()).toBeTruthy();
+    expect(res.headers()["content-type"]).toContain("text/plain");
+    const txt = await res.text();
+    for (const path of ["/about", "/api/public/events", "/sitemap.xml", "/privacy", "/terms", "/contact"]) {
+      expect(txt).toContain(path);
+    }
+  });
+
+  test("public and unauthenticated responses carry security headers", async ({ request }) => {
+    for (const path of ["/about", "/sitemap.xml", "/api/roadmap"]) {
+      const res = await request.get(path);
+      const headers = res.headers();
+      expect(headers["content-security-policy"]).toContain("default-src 'self'");
+      expect(headers["x-frame-options"]).toBe("DENY");
+      expect(headers["x-content-type-options"]).toBe("nosniff");
+      expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+      expect(headers["permissions-policy"]).toContain("camera=()");
     }
   });
 
@@ -118,9 +169,9 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   });
 
   test("public pages carry canonical + description + single h1", async ({ page }) => {
-    for (const path of ["/about", "/faq", "/events", "/domains"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       await page.goto(path);
-      expect(await page.locator("h1").count()).toBe(1);
+      await expect(page.locator("h1")).toHaveCount(1);
       const canonical = page.locator('link[rel="canonical"]');
       expect(await canonical.count()).toBe(1);
       expect(await canonical.getAttribute("href")).toContain(path);
@@ -145,12 +196,19 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     }
     const first = events[0];
     await page.goto(`/events/${first.id}`);
-    expect(await page.locator("h1").count()).toBe(1);
+    // toHaveCount() polls: a bare count() can run mid-stream while the route's
+    // loading skeleton ("One moment." h1) is still mounted, flaking to 2.
+    await expect(page.locator("h1")).toHaveCount(1);
     const canonical = page.locator('link[rel="canonical"]');
     expect(await canonical.count()).toBe(1);
     expect(await canonical.getAttribute("href")).toContain(`/events/${first.id}`);
     const desc = page.locator('meta[name="description"]');
     expect(await desc.count()).toBe(1);
+    const ld = page.locator('script[type="application/ld+json"]');
+    await expect(ld.first()).toBeAttached();
+    const structured = (await ld.allTextContents()).join("\n");
+    expect(structured).toContain("Event");
+    expect(structured).toContain("BreadcrumbList");
     // The registration process must be explained on the page itself.
     await expect(page.getByText("The registration process")).toBeVisible();
     // The detail page's situation-aware join CTA (one of these three states).
@@ -166,10 +224,21 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     expect(await robots.getAttribute("content")).toContain("noindex");
   });
 
+  test("about ships AboutPage structured data", async ({ page }) => {
+    await page.goto("/about");
+    const ld = page.locator('script[type="application/ld+json"]');
+    await expect(ld.first()).toBeAttached();
+    expect(await ld.first().textContent()).toContain("AboutPage");
+  });
+
   test("faq ships FAQPage structured data", async ({ page }) => {
     await page.goto("/faq");
     const ld = page.locator('script[type="application/ld+json"]');
-    expect(await ld.count()).toBeGreaterThan(0);
+    // toBeAttached() polls for the node without requiring visibility -- the
+    // right assertion for a <script>, which is never "visible".
+    // It must then be read with textContent(): toContainText() resolves to ""
+    // for <script> because that assertion reads rendered text.
+    await expect(ld.first()).toBeAttached();
     expect(await ld.first().textContent()).toContain("FAQPage");
   });
 });

@@ -76,7 +76,7 @@ load/                             # migrate.js, seeds, rollups, wipe-dev.js, sho
                                   # env-local.js (shared DATABASE_URL loader — secrets never hardcoded)
 load/migrations/ 001–020         # THE schema source of truth; idempotent, never edit applied ones
 docs/ 00,05,06,09,11–19 + README  # current set (7 superseded docs deleted; redirect map in docs/README)
-tests/ (10 files) · e2e/ (app + public incl. SEO specs)
+tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 ```
 
 **Conventions (non-negotiable):** JS only · every `<Link>` gets `prefetch={false}` (pooler cost) · sequential awaits on pages, never parallel batches · every mutation: zod → server tenant → `can()` check → `writeAudit()` (+ `notify()`) · migrations idempotent (`IF NOT EXISTS`) · honest empty states, zero mock data in UI · one concern per commit.
@@ -109,7 +109,7 @@ tests/ (10 files) · e2e/ (app + public incl. SEO specs)
 4. **Enable GitHub ingestion for real** (currently paused, flag off). Steps: public HTTPS origin (webhook must reach it — `localhost`/LAN IPs fail) → add row in `tenant_domains` → set `GITHUB_WEBHOOK_SECRET` on both sides → subscribe only to Push/PR/reviews/issues → flip `github_integration` at `/admin/flags` → test with `node load/verify-gate.js [enable|disable|status|clean]` → have every member link their username at `/student/github`. Full contract: `docs/16-github-integration.md`.
 5. **Schedule the two nightly rollups** (`load/rollup-federation.js`, `load/rollup-analytics.js`) via cron / Vercel Cron / GitHub Actions. Until scheduled, Insights/Data/federation totals go stale (runbook row exists in `docs/15`).
 6. **Wire email (SMTP).** Notifications/invites are in-app only. When adding a provider: keep in-app rows as the record, send mail as a side effect, never fail the mutation on mail failure.
-7. **Recommendation surface (`docs/05`).** The design is sound but unwired (helpers were removed as dead code). When shipping it: reintroduce small tested pure functions, keep them deterministic, read stored aggregates — no live AI calls on the request path.
+7. **Recommendation surface - SHIPPED.** `lib/recommend.js` (`findHelpers`, `upsertSignal`) is live and permission-checked, backed by migration 028 (`help_signals`, `helper_profiles`, `help_matches`), four `/api/help/*` routes, and a `/student/help` UI. It stays deterministic and reads stored aggregates only - no live AI calls on the request path. `docs/05-classification-and-recommendations.md` still calls this unwired; that note is now corrected too.
 8. **File uploads / object storage.** `resources.storage_key` exists but no R2/S3 integration; avatars, PDFs, screenshots have nowhere to live. Pick a provider, store metadata in Postgres, files in the bucket.
 9. **Activate the 3 non-technical departments** when the chapter staffs those verticals (they seed as `is_active=false`; toggle in `/admin/departments`).
 
@@ -127,6 +127,10 @@ tests/ (10 files) · e2e/ (app + public incl. SEO specs)
 16. New tables = new migration file (`load/migrations/0NN_name.sql`, idempotent) + append `docs/13/14/17`. Never edit an applied migration; never ALTER by hand.
 17. Keep docs honest: the repo deletes superseded docs rather than letting them rot — follow the redirect-map convention in `docs/README.md`.
 18. Shared-DB discipline: real data only. `db:seed:dev`/`db:wipe` are local tools; `wipe-dev --confirm` removes seed rows, `--full` truncates data tables (keeps schema).
+
+### 🔵 E. Deferred security work (from the Cybersec Dept report)
+
+19. **Two vulnerabilities are documented and deliberately not fixed:** V1 (account takeover via unlimited username changes) and V2 (spam accounts via temp-email providers). Exact locations and proposed fixes are in **`docs/22-security-findings-todo.md`** — read it before claiming the app is hardened against them. Everything else from that report was fixed in the 2026-10 pass (see the same file's closing table).
 
 ---
 

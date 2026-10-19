@@ -133,31 +133,40 @@ export function MarkNotificationRead({ id, read }) {
   );
 }
 
-export function GithubConnectForm({ initial = "", submitLabel = "Link GitHub" }) {
-  const router = useRouter();
-  const [username, setUsername] = useState(initial);
-  const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function run(e) {
-    e.preventDefault();
-    setBusy(true);
-    setMsg("");
-    const data = await postJSON("/api/github", { githubUsername: username.trim() });
-    setBusy(false);
-    if (!data.ok) {
-      setMsg(data.error?.message || "Failed");
-      return;
-    }
-    router.refresh();
-  }
+/**
+ * Start the GitHub repository grant.
+ *
+ * This navigates to /api/github/oauth/start, which sets a signed state cookie
+ * and 302s to GitHub. It is deliberately a full-page navigation rather than a
+ * fetch: OAuth is a browser redirect chain, and there is nothing to await.
+ *
+ * `repos` is an optional allow-list of `owner/repo` pairs to verify during the
+ * grant. It is not trusted here -- the server re-validates and signs it into the
+ * state cookie -- but passing it means the student does not have to click through
+ * a second confirmation afterwards.
+ */
+export function GithubLinkButton({ label = "Link GitHub account", repos = null, disabled = false, note = null }) {
+  const params = new URLSearchParams();
+  if (Array.isArray(repos) && repos.length) params.set("repos", repos.join(","));
+  const href = `/api/github/oauth/start${params.toString() ? `?${params.toString()}` : ""}`;
   return (
-    <form onSubmit={run} className="mt-4 flex flex-wrap items-center gap-2">
-      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="github-username" required pattern="[a-zA-Z0-9-]+" maxLength={39}
-        style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }} />
-      <button disabled={busy} className="btn-ink disabled:opacity-50">
-        {busy ? "Linking…" : submitLabel}
-      </button>
-      {msg && <span className="text-xs" style={{ color: "var(--danger)" }}>{msg}</span>}
-    </form>
+    <span className="inline-flex flex-col items-start gap-1">
+      <a
+        href={href}
+        className={`btn-ink ${disabled ? "pointer-events-none opacity-50" : ""}`}
+        aria-disabled={disabled || undefined}
+        style={{ textDecoration: "none" }}
+      >
+        {label}
+      </a>
+      {note && <span className="meta">{note}</span>}
+    </span>
   );
 }
+
+/**
+ * @deprecated Removed. Linking is done through GitHub OAuth, because a typed
+ * handle is an assertion rather than proof — see lib/github-oauth.js and
+ * migration 038. The old form is gone rather than left to fail, so no surface
+ * can offer a path that is guaranteed to 409.
+ */

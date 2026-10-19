@@ -89,6 +89,15 @@ test.describe("api authorization", () => {
     "/api/notifications",
     "/api/profile",
     "/api/github",
+    // The repository grant. These MUST require a session: state is signed with
+    // the starting user's id and the callback writes github_connections for
+    // them, so making either public would let a flow land on a stranger's
+    // account. /api/github/webhook is deliberately excluded above — GitHub has
+    // no session and is authenticated by HMAC instead.
+    "/api/github/oauth/start",
+    "/api/github/oauth/callback",
+    "/api/github/oauth/callback?code=stolen&state=forged",
+    "/api/admin/ranking",
     "/api/opensource/projects",
     "/api/opensource/contributions",
     "/api/credentials",

@@ -62,7 +62,7 @@ export async function PATCH(request) {
         AND thread_id IN (SELECT id FROM forum_threads WHERE tenant_id = ${tenant?.id ?? null}::uuid)
     `;
   } else {
-    await sql`UPDATE code_snippets SET status = ${body.status} WHERE id = ${body.targetId} AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)`;
+    await sql`UPDATE code_snippets SET status = ${body.status} WHERE id = ${body.targetId} AND tenant_id = ${tenant?.id ?? null}::uuid`;
   }
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `moderated_${body.targetType}_${body.status}`, resource: body.targetType, resourceId: body.targetId });
   return ok({ status: body.status });

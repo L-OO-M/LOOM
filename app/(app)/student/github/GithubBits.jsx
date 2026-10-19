@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GithubConnectForm } from "@/components/actions";
+import { GithubLinkButton } from "@/components/actions";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { StatusPill } from "@/components/loom/primitives";
 import ExportGithubButton from "./ExportButton";
@@ -98,9 +98,14 @@ export function GithubTabs({ items, repos }) {
   );
 }
 
-export function ConnectionControls({ username, exportData }) {
+export function ConnectionControls({
+  username,
+  exportData,
+  identityVerified = false,
+  oauthConfigured = true,
+  tokenStorageReady = true
+}) {
   const router = useRouter();
-  const [relink, setRelink] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -117,6 +122,11 @@ export function ConnectionControls({ username, exportData }) {
         return;
       }
       setConfirming(false);
+      setMsg(
+        data.data?.revokedEvidence
+          ? `Disconnected. ${data.data.revokedEvidence} proof point${data.data.revokedEvidence === 1 ? "" : "s"} were withdrawn, because they depended on this link.`
+          : "Disconnected. Previously recorded activity stays as history."
+      );
       router.refresh();
     } catch {
       setMsg("Couldn't reach the server. Try again.");
@@ -126,6 +136,36 @@ export function ConnectionControls({ username, exportData }) {
 
   return (
     <div className="mt-5">
+      {!identityVerified && (
+        <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
+          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            @{username} is typed in, not verified by GitHub.
+          </p>
+          <p className="narrative mt-1">
+            Until GitHub confirms the link, your handle is only your word for it — and
+            so are the repositories you claim. Verify it to have your projects
+            confirmed automatically.
+          </p>
+          <div className="mt-3">
+            {oauthConfigured ? (
+              <GithubLinkButton
+                label="Verify with GitHub"
+                disabled={!tokenStorageReady}
+                note={
+                  tokenStorageReady
+                    ? null
+                    : "Unavailable: the server cannot store a token securely right now."
+                }
+              />
+            ) : (
+              <p className="text-xs" style={{ color: "var(--danger)" }}>
+                GitHub linking is not configured for this chapter. Ask an admin.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <a
           href={`https://github.com/${username}`}
@@ -135,9 +175,6 @@ export function ConnectionControls({ username, exportData }) {
         >
           Open GitHub ↗
         </a>
-        <button type="button" onClick={() => setRelink((v) => !v)} className="btn-ghost !py-2 text-sm" aria-expanded={relink}>
-          {relink ? "Close relink" : "Relink"}
-        </button>
         {!confirming ? (
           <button type="button" onClick={() => setConfirming(true)} className="rounded-[10px] border px-4 py-2 text-sm font-semibold transition active:scale-[0.97]" style={{ borderColor: "var(--line)", color: "var(--danger)" }}>
             Disconnect
@@ -153,14 +190,13 @@ export function ConnectionControls({ username, exportData }) {
           </span>
         )}
       </div>
-      {msg && <p className="mt-2 text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
-      {confirming && <p className="narrative mt-2">Disconnecting removes the link and clears the mirrored handle. Recorded activity stays as history.</p>}
-
-      {relink && (
-        <div className="mt-4 max-w-sm rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
-          <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>Link a different username</p>
-          <GithubConnectForm initial="" submitLabel="Save username" />
-        </div>
+      {msg && <p className="mt-2 text-xs" style={{ color: msg.includes("withdrawn") ? "var(--accent)" : "var(--danger)" }}>{msg}</p>}
+      {confirming && (
+        <p className="narrative mt-2">
+          Disconnecting removes the link, clears the mirrored handle, and deletes any
+          repository verifications that depended on it. Recorded activity stays as
+          history.
+        </p>
       )}
 
       <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--line)" }}>

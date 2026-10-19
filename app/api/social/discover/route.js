@@ -67,7 +67,7 @@ export async function POST(request) {
   }
   const [mentor] = await sql`
     SELECT user_id FROM mentors WHERE user_id = ${body.mentorId}
-      AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid) LIMIT 1
+      AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1
   `;
   if (!mentor) return fail("NOT_FOUND", "Mentor not found", 404);
   if (body.mentorId === user.id) return fail("INVALID", "You cannot review yourself", 400);

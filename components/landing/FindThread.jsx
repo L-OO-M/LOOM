@@ -63,7 +63,7 @@ export function FindThread() {
       <div className="flex flex-wrap gap-2 p-6 sm:p-7" role="group" aria-label="What brings you here?">
         {Object.entries(PATHS).map(([key, p]) => (
           <button key={key} type="button" onClick={() => setChoice(key)} aria-pressed={choice === key}
-            className="rounded-full border px-4 py-2 text-sm font-semibold transition active:scale-95"
+            className="inline-flex min-h-[44px] items-center rounded-full border px-4 py-2 text-sm font-semibold transition active:scale-95"
             style={choice === key
               ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
               : { borderColor: "var(--line)", color: "var(--text)" }}>

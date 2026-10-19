@@ -22,12 +22,20 @@ export default async function ProjectDetailPage({ params }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=/student/projects/${id}`);
   const { user, profile, tenant, sql } = ctx;
-  const [p] = await sql`SELECT * FROM projects WHERE id = ${id} LIMIT 1`;
+  // Tenant predicate in SQL, not in JavaScript after the read.
+  //
+  // This fetched the row by id and then decided tenant membership in JavaScript,
+  // treating an absent tenant on EITHER side as "same tenant". So any project
+  // that ever landed without a tenant became readable by any admin. Filtering
+  // in the query means a foreign project is never read at all, which also
+  // matches the API route.
+  const [p] = await sql`
+    SELECT * FROM projects
+    WHERE id = ${id}
+      AND (tenant_id = ${tenant?.id ?? null}::uuid
+           OR (tenant_id IS NULL AND owner_id = ${user.id}))
+    LIMIT 1`;
   if (!p) notFound();
-  // Tenant isolation: a project from another tenant must not be visible,
-  // even to an admin who guesses the UUID. Same-tenant admins keep review access.
-  const sameTenant = !p.tenant_id || !tenant?.id || p.tenant_id === tenant.id;
-  if (!sameTenant) notFound();
   const isOwner = p.owner_id === user.id;
   const isAdmin = profile.role === "admin";
   if (!isOwner && !isAdmin) redirect("/student/projects");
@@ -49,7 +57,15 @@ export default async function ProjectDetailPage({ params }) {
     }
   })();
 
-  const isVerified = p.status === "completed";
+  // "Verified" must mean somebody checked, not that the owner ticked a box.
+  //
+  // This used to be `p.status === "completed"` — a value the owner sets with
+  // one click on their own project — and the page rendered it as "Verified" and
+  // "Shipped and verifiable". That is the whole forgery in miniature: the
+  // surface asserted a fact the student controlled. Status is still the
+  // student's own organisation of their work and says nothing about proof.
+  const isVerified = p.evidence_state === "verified";
+  const isPending = p.evidence_state !== "verified" && p.status !== "archived";
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -101,8 +117,17 @@ export default async function ProjectDetailPage({ params }) {
             <aside className="min-w-0 space-y-6" aria-label="Proof and actions">
               <div className="rounded-2xl border p-5" style={{ borderColor: isVerified ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }}>
                 <Meta>Proof status</Meta>
-                <p className="mt-2 flex items-center gap-2 text-lg font-semibold" style={{ color: "var(--text)" }}><span className="grid size-6 place-items-center rounded-full text-sm" style={{ background: isVerified ? "var(--accent)" : "var(--line)", color: isVerified ? "#101314" : "var(--text-muted)" }}>{isVerified ? "✓" : "·"}</span>{isVerified ? "Verified" : p.status}</p>
-                <p className="meta mt-2">{isVerified ? "Shipped and verifiable" : "Build → complete → prove"}</p>
+                <p className="mt-2 flex items-center gap-2 text-lg font-semibold" style={{ color: "var(--text)" }}>
+                  <span className="grid size-6 place-items-center rounded-full text-sm" style={{ background: isVerified ? "var(--accent)" : "var(--line)", color: isVerified ? "#101314" : "var(--text-muted)" }}>{isVerified ? "✓" : "·"}</span>
+                  {isVerified ? "Verified" : isPending ? "Awaiting proof" : "Not claimed"}
+                </p>
+                <p className="meta mt-2">
+                  {isVerified
+                    ? `Counted toward your standing${p.verified_at ? ` since ${new Date(p.verified_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}` : ""}.`
+                    : isPending
+                      ? "Worth nothing on the leaderboard until we see activity in the repository, or a chapter lead confirms it."
+                      : "This project was withdrawn, so it does not count."}
+                </p>
               </div>
               <div className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                 <Meta>Repository</Meta>

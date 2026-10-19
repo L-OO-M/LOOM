@@ -57,12 +57,34 @@ describe("migration 036", () => {
     expect(sql.match(/ON DELETE CASCADE/g) ?? []).toHaveLength(2);
   });
 
-  it("is the highest-numbered tracked migration and sorts last", () => {
+  it("ships the exact migration file the roadmap shelf depends on", () => {
+    // Upstream added migrations after this one (036_tenant_leading_indexes,
+    // 037, 038, 039), so "highest numbered" is no longer true — and must not
+    // be: what matters is that this exact file exists and is applied.
+    const files = fs
+      .readdirSync(path.join(process.cwd(), "load/migrations"))
+      .filter((f) => f.endsWith(".sql"));
+    expect(files).toContain("036_roadmap_node_resources.sql");
+  });
+
+  it("is applied in the runner's lexicographic order, ahead of later migrations", () => {
+    // load/migrate.js enumerates load/migrations/*.sql and sorts them, so files
+    // apply in lexicographic filename order rather than in whatever order the
+    // filesystem lists them.
     const files = fs
       .readdirSync(path.join(process.cwd(), "load/migrations"))
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    expect(files[files.length - 1]).toBe("036_roadmap_node_resources.sql");
+    const at = (name) => files.indexOf(name);
+
+    expect(files[0]).toMatch(/^\d{3}_/);
+    expect(at("036_roadmap_node_resources.sql")).toBeGreaterThan(-1);
+    // The shelf table must exist before any migration that could depend on it.
+    expect(at("036_roadmap_node_resources.sql")).toBeLessThan(at("039_endorsement_controls.sql"));
+
+    // And the runner really sorts — it does not trust directory order.
+    const runner = read("load/migrate.js");
+    expect(runner).toMatch(/readdirSync[\s\S]{0,160}\.sort\(\)/);
   });
 });
 

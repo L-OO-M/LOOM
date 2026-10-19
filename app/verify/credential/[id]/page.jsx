@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSql } from "@/lib/db";
 import { verifyCredentialSignature } from "@/lib/credentials";
+import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -87,6 +88,12 @@ export default async function VerifyCredentialPage({ params }) {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12 sm:px-6" style={{ background: "var(--bg)", minHeight: "100dvh" }}>
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: "Home", url: absoluteUrl("/") },
+          { name: cred.title, url: absoluteUrl(`/verify/credential/${id}`) }
+        ])}
+      />
       <BrandMark size={28} />
       <p className="kicker mt-8">Verifiable credential</p>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight" style={{ color: "var(--text)" }}>{cred.title}</h1>

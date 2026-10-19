@@ -16,11 +16,16 @@ export function LoomLetters() {
   const [active, setActive] = useState(0);
   return (
     <div className="hero-actions mt-12">
-      <div className="flex items-stretch gap-1 sm:gap-2" role="group" aria-label="The four letters of L.O.O.M.">
+      {/* Four labelled letters plus three connectors cannot fit in 280px of
+          usable width on a 320px screen: the uppercase labels have a min-content
+          width, and the last item was `flex-none`, so the row overflowed and the
+          final letter was pushed off-screen. Wrap to 2x2 on narrow screens and
+          hide the connectors there; from `sm` up it is the original single row. */}
+      <div className="flex flex-wrap items-stretch gap-x-1 gap-y-3 sm:flex-nowrap sm:gap-2" role="group" aria-label="The four letters of L.O.O.M.">
         {LETTERS.map((l, i) => {
           const on = i === active;
           return (
-            <div key={`${l.name}-${i}`} className="flex flex-1 items-center last:flex-none">
+            <div key={`${l.name}-${i}`} className="flex min-w-0 flex-1 basis-[calc(50%-0.25rem)] items-center sm:basis-0">
               <button
                 type="button"
                 onMouseEnter={() => setActive(i)}
@@ -43,7 +48,7 @@ export function LoomLetters() {
                 </span>
               </button>
               {i < LETTERS.length - 1 && (
-                <span aria-hidden="true" className="relative mx-1 h-px flex-1 self-center overflow-hidden sm:mx-2" style={{ background: "rgba(244,241,232,0.15)" }}>
+                <span aria-hidden="true" className="relative mx-1 hidden h-px flex-1 self-center overflow-hidden sm:block sm:mx-2" style={{ background: "rgba(244,241,232,0.15)" }}>
                   <span className="absolute inset-0 origin-left transition-transform duration-300" style={{
                     background: on || active === i + 1 ? LETTERS[Math.max(active, i)].color : "transparent",
                     transform: `scaleX(${on || active === i + 1 ? 1 : 0})`

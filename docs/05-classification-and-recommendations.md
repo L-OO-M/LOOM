@@ -1,6 +1,6 @@
 # Classification and Recommendations
 
-> Design intent, not yet wired in: the helpers that implemented this (`lib/classification.js`, `lib/recommendations.js`) were removed as unused — dashboards currently compute progress, reputation (`lib/reputation.js`), and trends inline. Reintroduce tested helpers when a real recommendation surface ships, and keep them deterministic per the principle below.
+> **Status: shipped.** The implementation lives in `lib/recommend.js` (`findHelpers`, `upsertSignal`), backed by migration 028 (`help_signals`, `helper_profiles`, `help_matches`), four permission-checked `/api/help/*` routes, and the `/student/help` UI. Dashboards still compute progress inline where noted below. The design below remains the reference.
 
 ## Classification Principle
 

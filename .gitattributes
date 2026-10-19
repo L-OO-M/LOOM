@@ -1,0 +1,45 @@
+# Line endings and encoding.
+#
+# WHY THIS EXISTS
+#
+# A dozen source files were saved with a UTF-8 byte-order mark by an editor, then
+# read as cp1252 by a tool and written back. The result was visible mojibake in
+# rendered JSX -- a middle dot arriving as two Latin-1 characters -- across
+# student-facing pages. See load/fix-encoding.js.
+#
+# The BOM was the upstream cause, so this repo now states its expectations rather
+# than leaving them to each contributor's editor settings.
+
+# Normalise line endings on commit and check out LF everywhere. The previous
+# setup relied on a per-machine core.autocrlf, which is why 146 files disagreed
+# and why every `git add` printed an LF->CRLF warning.
+* text=auto eol=lf
+
+# Source and documentation: LF, and never a BOM.
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sql   text eol=lf
+
+# Windows is already LF via the rules above; .bat/.cmd keep CRLF because cmd.exe
+# cannot parse LF batch files.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary assets must never be line-ending normalised -- doing so corrupts them.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary

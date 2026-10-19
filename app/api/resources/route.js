@@ -2,7 +2,6 @@ import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { recordRankingEvent, recomputeScores } from "@/lib/ranking";
 
 export async function GET(request) {
   const ctx = await getRequestContext();
@@ -42,9 +41,13 @@ export async function POST(request) {
   }
   const [resource] = await sql`SELECT id, title FROM resources WHERE id = ${body.resourceId} LIMIT 1`;
   if (!resource) return fail("NOT_FOUND", "Resource not found", 404);
+  // tenant_id is explicit: resource_progress is a strict-RLS table (migration
+  // 031) whose WITH CHECK requires tenant_id = app.tenant_id. Omitting it left
+  // the column NULL and every resource completion would fail once enforcement
+  // is switched on.
   const [row] = await sql`
-    INSERT INTO resource_progress (student_id, resource_id, status, completed_at)
-    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW())
+    INSERT INTO resource_progress (student_id, resource_id, status, completed_at, tenant_id)
+    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW(), ${tenant?.id ?? null}::uuid)
     ON CONFLICT (student_id, resource_id) DO UPDATE SET status = 'completed', completed_at = NOW(), updated_at = NOW()
     RETURNING *
   `;
@@ -52,7 +55,14 @@ export async function POST(request) {
   revalidateTag("resources:counts");
   revalidateTag("resources:total");
   revalidateTag("progress:nodes");
-  await recordRankingEvent({ sql, tenantId: tenant?.id, userId: user.id, kind: "resource_done", refId: body.resourceId });
-  await recomputeScores(sql, tenant?.id);
+  // No ranking write here, and that is the point.
+  //
+  // This used to call recordRankingEvent({kind:"resource_done"}) on every tick.
+  // Ticking "I watched this" is a self-declaration with no external fact behind
+  // it, so it has no verifiedBy to record and cannot go near the ledger — whose
+  // trigger rejects exactly this. `resource_done` keeps its row in WEIGHTS at 0
+  // rather than being deleted, so the kind stays valid for the rows migration
+  // 027 already wrote, and the audit line below remains the honest record of
+  // what the student asserted.
   return ok({ progress: row });
 }

@@ -1,12 +1,17 @@
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
+import { getFederationSql } from "@/lib/db";
 
 // Authed federation view: every public chapter + my chapter + partnerships.
 export async function GET() {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
-  const { tenant, sql } = ctx;
+  const { tenant } = ctx;
+  // Cross-tenant by design: this view IS the federation directory. Scoping it to
+  // the caller's tenant would hide every other chapter and zero all counters,
+  // with no error to explain it. See getFederationSql().
+  const sql = getFederationSql();
   // Deterministic: curated signal first, then size, then slug —
   // ties must never shuffle between renders.
   const chapters = await sql`

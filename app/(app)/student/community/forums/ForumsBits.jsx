@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -32,11 +32,11 @@ export function ThreadForm() {
       });
       data = await res.json();
     } catch {
-      data = { ok: false, error: { message: "Network error â€” try again" } };
+      data = { ok: false, error: { message: "Network error — try again" } };
     }
     setBusy(false);
     if (!data?.ok) {
-      setMsg(data?.error?.message || "Could not post â€” try again");
+      setMsg(data?.error?.message || "Could not post — try again");
       return;
     }
     router.push(`/student/community/forums/${data.data.thread.id}`);
@@ -62,10 +62,10 @@ export function ThreadForm() {
           <input value={tags} onChange={(e) => setTags(e.target.value)} maxLength={160} placeholder="dp, recursion" style={inputStyle} aria-label="Tags" />
         </Field>
       </div>
-      <Field label="Details â€” what you tried, where you are stuck"><textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={8000} placeholder="What I tried, where I am stuckâ€¦" style={inputStyle} aria-label="Details" /></Field>
+      <Field label="Details — what you tried, where you are stuck"><textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={8000} placeholder="What I tried, where I am stuck…" style={inputStyle} aria-label="Details" /></Field>
       {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
       <div className="flex flex-wrap gap-2">
-        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Postingâ€¦" : "Post thread"}</button>
+        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Posting…" : "Post thread"}</button>
         <button type="button" onClick={() => setOpen(false)} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Cancel</button>
       </div>
     </form>
@@ -91,11 +91,11 @@ export function ReplyForm({ threadId }) {
       });
       data = await res.json();
     } catch {
-      data = { ok: false, error: { message: "Network error â€” try again" } };
+      data = { ok: false, error: { message: "Network error — try again" } };
     }
     setBusy(false);
     if (!data?.ok) {
-      setMsg(data?.error?.message || "Could not reply â€” try again");
+      setMsg(data?.error?.message || "Could not reply — try again");
       return;
     }
     setBody("");
@@ -105,9 +105,9 @@ export function ReplyForm({ threadId }) {
   return (
     <form onSubmit={submit} className="mt-4 space-y-3" aria-label="Post a reply">
       <label className="sr-only" htmlFor={`reply-${threadId}`}>Write a helpful reply</label>
-      <textarea id={`reply-${threadId}`} value={body} onChange={(e) => setBody(e.target.value)} required rows={3} maxLength={8000} placeholder="Write a helpful replyâ€¦" style={inputStyle} />
+      <textarea id={`reply-${threadId}`} value={body} onChange={(e) => setBody(e.target.value)} required rows={3} maxLength={8000} placeholder="Write a helpful reply…" style={inputStyle} />
       {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
-      <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Replyingâ€¦" : "Post reply"}</button>
+      <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Replying…" : "Post reply"}</button>
     </form>
   );
 }
@@ -127,9 +127,9 @@ export function SolveButton({ threadId, replyId }) {
         body: JSON.stringify({ action: "solve", replyId })
       });
       const data = await res.json();
-      if (!data?.ok) setMsg(data?.error?.message || "Could not mark â€” try again");
+      if (!data?.ok) setMsg(data?.error?.message || "Could not mark — try again");
     } catch {
-      setMsg("Network error â€” try again");
+      setMsg("Network error — try again");
     }
     setBusy(false);
     router.refresh();
@@ -138,7 +138,7 @@ export function SolveButton({ threadId, replyId }) {
   return (
     <span className="inline-flex shrink-0 flex-col items-end gap-1">
       <button disabled={busy} onClick={solve} aria-busy={busy} className="shrink-0 text-xs font-semibold disabled:opacity-50" style={{ color: "var(--accent)" }}>
-        {busy ? "Markingâ€¦" : "Mark as solution"}
+        {busy ? "Marking…" : "Mark as solution"}
       </button>
       {msg && <span className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</span>}
     </span>

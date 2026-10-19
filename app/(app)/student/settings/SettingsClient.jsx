@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function SettingsClient({ profile }) {
@@ -10,8 +11,7 @@ export default function SettingsClient({ profile }) {
     enrollmentNumber: profile?.enrollment_number || "",
     department: profile?.department || "",
     year: profile?.year || "",
-    primaryDomain: profile?.primary_domain || "web",
-    githubUsername: profile?.github_username || ""
+    primaryDomain: profile?.primary_domain || "web"
   });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,7 +29,6 @@ export default function SettingsClient({ profile }) {
         department: form.department || null,
         year: form.year ? Number(form.year) : null,
         primaryDomain: form.primaryDomain || null,
-        githubUsername: form.githubUsername || null,
         onboardingCompleted: true
       })
     });
@@ -56,7 +55,29 @@ export default function SettingsClient({ profile }) {
         <label style={label}>Year<input value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} type="number" min={1} max={6} style={{ ...input, marginTop: 6 }} /></label>
         <label style={label}>Primary domain<input value={form.primaryDomain} onChange={(e) => setForm({ ...form, primaryDomain: e.target.value })} style={{ ...input, marginTop: 6 }} /></label>
       </div>
-      <label style={label}>GitHub username<input value={form.githubUsername} onChange={(e) => setForm({ ...form, githubUsername: e.target.value })} pattern="[a-zA-Z0-9-]*" maxLength={39} style={{ ...input, marginTop: 6 }} /></label>
+      <div style={label}>
+        GitHub username
+        <div
+          className="flex flex-wrap items-center gap-3"
+          style={{ ...input, marginTop: 6, display: "flex", alignItems: "center" }}
+        >
+          <span style={{ fontWeight: 600 }}>
+            {profile?.github_username || "Not linked"}
+          </span>
+          <Link
+            href="/student/github"
+            prefetch={false}
+            className="text-xs font-semibold underline"
+            style={{ color: "var(--accent)", marginLeft: "auto" }}
+          >
+            {profile?.github_username ? "Change on GitHub" : "Link GitHub"}
+          </Link>
+        </div>
+        <p className="meta" style={{ marginTop: 6 }}>
+          Your handle is linked on the GitHub page, where one handle can belong to
+          only one member.
+        </p>
+      </div>
       {msg && <p className="text-xs" style={{ color: msg.includes("✓") ? "var(--accent)" : "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink w-fit disabled:opacity-50">
         {busy ? "Saving…" : "Save profile"}

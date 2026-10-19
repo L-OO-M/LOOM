@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ export function CopyLinkButton() {
       const url = window.location.href;
       if (!navigator?.clipboard?.writeText) throw new Error("unsupported");
       await navigator.clipboard.writeText(url);
-      setMsg("Copied âœ“");
+      setMsg("Copied ✓");
     } catch {
       setMsg("Copy failed");
     }
@@ -56,11 +56,11 @@ export function NewPageForm() {
       });
       data = await res.json();
     } catch {
-      data = { ok: false, error: { message: "Network error â€” try again" } };
+      data = { ok: false, error: { message: "Network error — try again" } };
     }
     setBusy(false);
     if (!data?.ok) {
-      setMsg(data?.error?.message || "Could not create â€” a page with this title may already exist");
+      setMsg(data?.error?.message || "Could not create — a page with this title may already exist");
       return;
     }
     router.push(`/student/community/wiki/${data.data.page.slug}`);
@@ -79,10 +79,10 @@ export function NewPageForm() {
           {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
       </Field>
-      <Field label="Content"><textarea value={content} onChange={(e) => setContent(e.target.value)} rows={6} maxLength={20000} placeholder="Steps, gotchas, linksâ€¦" style={inputStyle} aria-label="Content" /></Field>
+      <Field label="Content"><textarea value={content} onChange={(e) => setContent(e.target.value)} rows={6} maxLength={20000} placeholder="Steps, gotchas, links…" style={inputStyle} aria-label="Content" /></Field>
       {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
       <div className="flex flex-wrap gap-2">
-        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Creatingâ€¦" : "Create page"}</button>
+        <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Creating…" : "Create page"}</button>
         <button type="button" onClick={() => setOpen(false)} className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Cancel</button>
       </div>
     </form>
@@ -109,11 +109,11 @@ export function SuggestForm({ slug, isAdmin }) {
       });
       data = await res.json();
     } catch {
-      data = { ok: false, error: { message: "Network error â€” try again" } };
+      data = { ok: false, error: { message: "Network error — try again" } };
     }
     setBusy(false);
     if (!data?.ok) {
-      setMsg(data?.error?.message || "Could not save â€” try again");
+      setMsg(data?.error?.message || "Could not save — try again");
       return;
     }
     setContent("");
@@ -124,13 +124,13 @@ export function SuggestForm({ slug, isAdmin }) {
   return (
     <form onSubmit={submit} className="mt-4 space-y-3" aria-label="Suggest an improvement">
       <Field label={isAdmin ? "Edit content directly (admin)" : "Propose new content (goes to review)"}>
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} required rows={5} maxLength={20000} placeholder="The corrected stepsâ€¦" style={inputStyle} aria-label="Proposed content" />
+        <textarea value={content} onChange={(e) => setContent(e.target.value)} required rows={5} maxLength={20000} placeholder="The corrected steps…" style={inputStyle} aria-label="Proposed content" />
       </Field>
       {!isAdmin && (
         <Field label="Why this change?"><input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Fixes the outdated install steps" style={inputStyle} aria-label="Reason" /></Field>
       )}
       {msg && <p className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
-      <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Savingâ€¦" : isAdmin ? "Apply edit" : "Submit for review"}</button>
+      <button disabled={busy} className="btn-ink disabled:opacity-50" aria-busy={busy}>{busy ? "Saving…" : isAdmin ? "Apply edit" : "Submit for review"}</button>
     </form>
   );
 }

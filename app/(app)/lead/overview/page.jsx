@@ -1,4 +1,4 @@
-﻿import { LeadSection } from "../_components/LeadLayout";
+import { LeadSection } from "../_components/LeadLayout";
 
 export const dynamic = "force-dynamic";
 

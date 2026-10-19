@@ -62,7 +62,7 @@ export default async function AdminCommunityPage() {
   `;
   const hiddenSnippets = await sql`
     SELECT s.id, s.title, s.language FROM code_snippets s
-    WHERE s.status = 'hidden' AND (s.tenant_id IS NULL OR s.tenant_id = ${tid}::uuid)
+    WHERE s.status = 'hidden' AND s.tenant_id = ${tid}::uuid
     ORDER BY s.created_at DESC LIMIT 20
   `;
 

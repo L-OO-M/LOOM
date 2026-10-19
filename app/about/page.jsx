@@ -5,6 +5,7 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { JsonLd, aboutPageSchema } from "@/components/seo/JsonLd";
 import { SITE_DESCRIPTION, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export default async function AboutPage() {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd data={aboutPageSchema()} />
       <PublicNav />
       <div className="pt-16">
         <PageHero
@@ -101,7 +103,7 @@ export default async function AboutPage() {
               {leadership.map((d) => (
                 <li key={d.slug} className="spot-card rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                   <p className="font-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>{d.vertical}</p>
-                  <Link prefetch={false} href={`/domains/${d.slug}`} className="font-display mt-2 block text-xl font-medium hover:underline" style={{ color: "var(--text)" }}>
+                  <Link prefetch={false} href={`/domains/${d.slug}`} className="font-display mt-2 flex min-h-[44px] items-center text-xl font-medium hover:underline" style={{ color: "var(--text)" }}>
                     {d.name}
                   </Link>
                   <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>

@@ -53,3 +53,29 @@ oindex, nofollow.
 - Structured data via components/seo/JsonLd.jsx: Organization + WebSite on /, FAQPage on /faq (DB-driven), ItemList of departments on /domains.
 - One <h1> per public page (PageHero owns it; empty-state branches are mutually exclusive); department cards use <h2>. All internal navigation uses <Link prefetch={false}> (pooler-friendly); the only raw <a href> targets are API file downloads, which must not client-navigate.
 
+
+## Pages added since the original table
+
+| Route | Purpose | Notes |
+|-------|---------|-------|
+| `/privacy` | Privacy notice | **Draft.** Legal entity, contact and retention period are bracketed placeholders awaiting chapter input. Registration forces acceptance of it |
+| `/terms` | Terms of use | Same placeholder caveat as `/privacy` |
+| `/contact` | Contact the chapter | Honest empty state: the chapter has not published a contact address yet |
+| `/u/[username]` | Public shareable profile | The only student-facing public profile. Its most recent project no longer links into the authenticated project route |
+| `/u/[username]/card/[format]` | Downloadable ID card | Raw asset route |
+| `/u/[username]/opengraph-image` | Social share image | Generated |
+| `/verify/credential/[id]` | Public credential verification | Exists to be reached by people who have **no account**; it must stay unauthenticated |
+| `/llms.txt` | AI crawler guidance | Served as a static route, listed in `robots.txt` |
+| `/sitemap.xml`, `/robots.txt` | Crawl surfaces | Excluded from the middleware matcher so they are never auth-gated — which is why security headers live in `next.config.mjs`, not middleware |
+
+## Structural note: one `h1`, always
+
+Public pages carry exactly one `<h1>`, enforced by `e2e/public.spec.js`.
+
+Loading boundaries (`loading.jsx`) must **not** emit an `<h1>`. They render while
+the page streams in, so an `<h1>` there briefly gives the document two. All four
+public loading boundaries pass `headingLevel="h2"` to `PageHero` for this reason.
+
+Security headers are applied to every response — including `sitemap.xml` and
+static assets — from `next.config.mjs`, because the middleware matcher excludes
+those paths so they are never auth-gated.

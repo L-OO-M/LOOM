@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -72,7 +72,7 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
   async function share() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${name} â€” L.O.O.M.`, text, url });
+        await navigator.share({ title: `${name} — L.O.O.M.`, text, url });
         return;
       } catch {
         /* user dismissed, or unsupported payload: fall through to link */
@@ -82,9 +82,9 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
   }
 
   const formats = [
-    { id: "feed", label: "Feed", note: "1200Ã—630 â€” link previews, Slack, X" },
-    { id: "story", label: "Story", note: "1080Ã—1920 â€” Instagram, WhatsApp status" },
-    { id: "square", label: "Square", note: "1080Ã—1080 â€” feed posts" }
+    { id: "feed", label: "Feed", note: "1200×630 — link previews, Slack, X" },
+    { id: "story", label: "Story", note: "1080×1920 — Instagram, WhatsApp status" },
+    { id: "square", label: "Square", note: "1080×1080 — feed posts" }
   ];
   const current = formats.find((f) => f.id === format);
 
@@ -101,7 +101,7 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
           {open ? "Hide card" : "Preview & download"}
         </button>
         {copied && (
-          <span className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{copied} âœ“</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{copied} ✓</span>
         )}
       </div>
 

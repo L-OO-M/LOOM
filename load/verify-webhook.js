@@ -7,10 +7,13 @@
 //   node load/verify-webhook.js --ping    # also send a signed ping to production
 //
 // Requires GITHUB_WEBHOOK_URL and GITHUB_WEBHOOK_SECRET in env or .env.local.
+// The deployment origin is derived from NEXT_PUBLIC_APP_URL rather than
+// hardcoded, so pointing the app at a different domain needs no code change.
 import { databaseUrl } from "./env-local.js";
 import postgres from "postgres";
 
-const URL = process.env.GITHUB_WEBHOOK_URL || "https://loom-self-omega.vercel.app/api/webhook";
+const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+const URL = process.env.GITHUB_WEBHOOK_URL || `${appUrl}/api/webhook`;
 const SECRET = process.env.GITHUB_WEBHOOK_SECRET;
 const sql = postgres(databaseUrl(), { max: 1, prepare: false });
 

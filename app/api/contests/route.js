@@ -20,6 +20,11 @@ export async function GET() {
 const registerSchema = z.object({ contestId: z.string().uuid() });
 const submitSchema = z.object({ contestId: z.string().uuid(), url: z.string().url().optional().nullable(), note: z.string().max(2000).optional().nullable() });
 
+// Both contest lookups are tenant-filtered in SQL rather than checked after the
+// read. The old guard (`tenant?.id && contest.tenant_id && ...`) failed open
+// whenever either side was null, so a foreign contest was read into process
+// memory before being rejected, and a NULL-tenant contest skipped the check
+// entirely.
 export async function POST(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
@@ -36,9 +41,12 @@ export async function POST(request) {
     } catch (e) {
       return validationError(e);
     }
-    const [contest] = await sql`SELECT * FROM contests WHERE id = ${body.contestId} LIMIT 1`;
-    if (!contest) return fail("NOT_FOUND", "Challenge not found", 404);
-    if (tenant?.id && contest.tenant_id && contest.tenant_id !== tenant.id) return fail("FORBIDDEN", "Wrong college", 403);
+    const [contest] = await sql`
+      SELECT * FROM contests
+      WHERE id = ${body.contestId}
+        AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+      LIMIT 1`;
+    if (!contest) return fail("FORBIDDEN", "Wrong college", 403);
     if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {
       return fail("NOT_OPEN", "This challenge is not accepting entries", 403);
     }
@@ -63,9 +71,12 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  const [contest] = await sql`SELECT * FROM contests WHERE id = ${body.contestId} LIMIT 1`;
-  if (!contest) return fail("NOT_FOUND", "Challenge not found", 404);
-  if (tenant?.id && contest.tenant_id && contest.tenant_id !== tenant.id) return fail("FORBIDDEN", "Wrong college", 403);
+  const [contest] = await sql`
+    SELECT * FROM contests
+    WHERE id = ${body.contestId}
+      AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+    LIMIT 1`;
+  if (!contest) return fail("FORBIDDEN", "Wrong college", 403);
   if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {
     return fail("NOT_OPEN", "Contest is not open for registration", 403);
   }

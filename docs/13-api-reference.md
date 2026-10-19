@@ -1,4 +1,4 @@
-﻿# API Reference
+# API Reference
 
 Base: same origin. Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message } }`.
 Auth: Supabase session cookie. Pages redirect to `/login`; `/api/*` returns `401 UNAUTHORIZED`.
@@ -12,15 +12,16 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 |--------|-------|------|-------|
 | GET/PUT | `/api/profile` | user | own profile |
 | GET | `/api/roadmap` | user | nodes + my progress |
-| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status); awards first-step/halfway/complete achievements idempotently + notifies |
+| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Rate limited. |
 | GET | `/api/resources` | user | curated library |
-| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, repoUrl?, tags[â‰¤8] |
-| GET/PATCH | `/api/projects/[id]` | owner/admin | |
+| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, **repoUrl (required; github.com/owner/repo, must match your linked GitHub handle, one claim per repo)**, tags. Always created `provisional` — **scores nothing** until a signed delivery proves activity in that repo, or a lead confirms it. Rate limited. |
+| GET/PATCH | `/api/projects/[id]` | owner/admin | PATCH cannot set `evidence_state`/`verified_by`/`verified_at`. Changing `repoUrl` returns the claim to provisional. Archiving withdraws the standing. |
+| GET/POST | `/api/admin/ranking` | admin | the evidence review queue: GET lists provisional node/project claims; POST `{kind, id, decision:"verified"\|"rejected"}`, or `clearAllForStudent:true` to reverse every unverified claim for one student. Requires `verify_evidence` (admin/platform_admin). |
 | GET/POST | `/api/contests` | user/admin-create | register + submit flows |
 | GET/POST | `/api/mentorship` | user | request/list sessions |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
-| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (â‰¤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded |
+| GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (≤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded. Returns `verifiedOnly` + `breakdown`; rows carry `verified_score` and `pending`. Counts **only** attested GitHub activity and verified evidence — see [`20-verified-ranking.md`](20-verified-ranking.md) |
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |
@@ -31,25 +32,25 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/opensource/projects` | user | global curated + own tenant; includes my counts |
-| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` â€” live GitHub fetch; 404 if repo missing |
+| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing |
 | GET | `/api/opensource/contributions` | user | my claims + badges |
-| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo â†’ `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
-| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` â€” awards badges + achievements + notify |
+| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
+| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — awards badges + achievements + notify |
 
 ## Chapters & network
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/chapters` | public | featured public chapters, anonymized counts, ordered featured â†’ members â†’ slug |
-| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row, ordered featured â†’ members â†’ slug |
+| GET | `/api/chapters` | public | featured public chapters, anonymized counts, ordered featured → members → slug |
+| GET | `/api/network` | user | all public chapters + my partnerships + latest federation row, ordered featured → members → slug |
 
 ## Credentials & insights
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/credentials` | user | achievements + share links |
-| POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0â€“730) |
-| GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1â€“3) |
+| POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0–730) |
+| GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1–3) |
 | POST | `/api/admin/achievements` | admin | issue to a chapter student + notify |
 | GET | `/api/insights` | user | latest snapshot, 14-trend, peer avgs, rank, heuristic recommendation |
 
@@ -62,8 +63,9 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | POST | `/api/community/votes` | toggle vote thread/reply/snippet (60/min) |
 | POST | `/api/community/flags` | flag thread/reply for moderation (reason: spam/abuse/off-topic; repeat flags don&apos;t recount) |
 | GET/POST | `/api/community/wiki` | search / create page |
-| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) Â· apply/review (admin) |
-| GET/POST | `/api/community/snippets` | search (q, language, domain) / share |
+| GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) · apply/review (admin) |
+| GET/POST | `/api/community/snippets` | search (q matches title/description/language — never code bodies) / share (screened for abuse) |
+| PATCH/DELETE | `/api/community/snippets/[id]` | author/admin | edit or remove your own snippet (delete soft-hides: `status='hidden'`) |
 | GET/PATCH | `/api/admin/community` | admin: flag queues / hide-visible |
 
 ## Events & social
@@ -73,9 +75,9 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced) |
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
-| POST | `/api/admin/events/[id]/attendance` | admin: check in by door code â†’ attended + certificate (once) + notify |
-| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved) |
-| GET/POST | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` â€” target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible |
+| POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
+| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out |
+| GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
 ## Errors & limits
@@ -96,7 +98,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
-| POST | `/api/admin/students/bulk` | admin | assign role to â‰¤50 users at once (audited; membership levels untouched) |
+| POST | `/api/admin/students/bulk` | admin | assign role to ≤50 users at once (audited; membership levels untouched) |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
 | POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
 | GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
@@ -114,3 +116,56 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |
 | GET/POST/PATCH | `/api/admin/faq` | admin | FAQ manager backing store (create / edit incl. publish flag) |
 | GET/PATCH | `/api/admin/flags` | admin | feature-flag list / toggle (incl. `github_integration` ingestion kill-switch) |
+
+## Peer help (migration 028)
+
+Rate-limited, permission-checked via `help:request` (any authenticated member).
+Drives the `/student/help` page. Helper enrollment is opt-in: a member must
+explicitly set `available: true` via `PATCH /api/help/profile` before they
+can be nominated.
+
+| Method | Route | Rate limit | Notes |
+|--------|-------|-----------|-------|
+| POST | `/api/help/signals` | 10/min | Raise a struggle signal `{kind, ref_id}`. `kind` ∈ `roadmap_node\|resource\|contest\|topic`. Idempotent per `(tenant, user, kind, ref)` — repeat calls increment `failures_count`. Increments automatically after a repeated `active` roadmap-node POST |
+| GET | `/api/help/signals` | — | My signals, newest first |
+| POST | `/api/help/match` | 5/min | Nominate helpers for **my own** signal `{signal_id}` (or `{kind, ref_id}`). Notifies each match and flips the signal to `matched`. Returns `helpers: []` with a message when nobody is available — not an error |
+| PATCH | `/api/help/profile` | — | My helper profile `{available, topics?}`. This is the opt-in/opt-out switch |
+| GET | `/api/help/matches/[id]` | — | One match, tenant-scoped |
+| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party |
+
+Matching is deterministic and reads stored aggregates only
+(`lib/recommend.js`) — no AI calls on the request path. Candidates are drawn
+from `helper_profiles WHERE available` within the same tenant, excluding the
+requester.
+
+## Ideas / feature requests
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET/POST | `/api/feature-requests` | user | list (status filter: members see their own + approved/built) / create (abuse-screened, lands `pending`) |
+| PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status |
+| POST | `/api/feature-requests/[id]/comments` | user | comment on a request |
+
+## Health
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/health` | public | Real DB probe. `200` when reachable, `503` when not. Reports `checks.database`, `checks.configuration` (placeholder/missing secrets **by name only**), and `isolation.{flag,connection,effective}` — the authoritative answer to "is Row Level Security actually in force?". Exposes no tenant id, host, port, or error strings |
+
+## Admin boards (backing stores for the admin UI)
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/admin/audit` | admin | audit trail, filterable |
+| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager |
+| GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
+| GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
+| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager |
+| GET/POST/PATCH | `/api/admin/roadmaps` | admin | roadmap authoring (nodes + edges) |
+
+### `/api/admin/flags` is partially operator-only
+
+`PATCH` returns `403 OPERATOR_ONLY` for `tenant_rls_enforced`. That flag is
+global, not chapter-scoped, and flipping it changes production security posture,
+so it is changed deliberately in SQL after `npm run rls:verify` — not from the
+UI. See `docs/rls-rollout-runbook.md`.

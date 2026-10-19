@@ -23,7 +23,7 @@ export async function PATCH(request, { params }) {
   }
   const [row] = await sql`
     SELECT * FROM student_oss_contributions WHERE id = ${id}
-      AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)
+      AND tenant_id = ${tenant?.id ?? null}::uuid
     LIMIT 1
   `;
   if (!row) return fail("NOT_FOUND", "Contribution not found", 404);

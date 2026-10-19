@@ -12,6 +12,7 @@ export function ProfileEditor({ initial }) {
   const [github, setGithub] = useState(initial?.social_links?.github ? initial.social_links.github.split("/").pop() : "");
   const [linkedin, setLinkedin] = useState(initial?.social_links?.linkedin || "");
   const [isPublic, setIsPublic] = useState(initial?.is_public ?? true);
+  const [showEndorsements, setShowEndorsements] = useState(initial?.endorsements_visible ?? true);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -22,7 +23,7 @@ export function ProfileEditor({ initial }) {
     const res = await fetch("/api/social/profile", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic })
+      body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements })
     });
     const data = await res.json();
     setBusy(false);
@@ -45,6 +46,9 @@ export function ProfileEditor({ initial }) {
       <Field label="LinkedIn URL (optional)"><input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} type="url" style={inputStyle} /></Field>
       <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
         <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /> Public profile
+      </label>
+      <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+        <input type="checkbox" checked={showEndorsements} onChange={(e) => setShowEndorsements(e.target.checked)} /> Show endorsements on my profile
       </label>
       {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink disabled:opacity-50">{busy ? "Saving…" : initial ? "Save card" : "Claim username"}</button>
@@ -110,5 +114,45 @@ export function EndorseForm({ username }) {
       <button className="btn-ink">Endorse</button>
       {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
     </form>
+  );
+}
+
+// Owner-only: remove an endorsement they received. The security report found a
+// member had no way to take down an abusive endorsement about themselves.
+export function EndorsementManager({ endorsements = [] }) {
+  const router = useRouter();
+  const [items, setItems] = useState(endorsements);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  async function remove(id) {
+    setBusy(id);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/social/connections?mode=endorsement&id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data?.ok) { setMsg(data?.error?.message || "Could not remove"); setBusy(null); return; }
+      setItems((prev) => prev.filter((e) => e.id !== id));
+      router.refresh();
+    } catch {
+      setMsg("Network error — try again");
+    }
+    setBusy(null);
+  }
+
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <p className="meta">Endorsements you received</p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((e) => (
+          <li key={e.id} className="flex items-center justify-between gap-3 text-sm" style={{ color: "var(--text)" }}>
+            <span className="min-w-0 truncate">{e.skill}{e.endorser_name ? <span style={{ color: "var(--text-muted)" }}> · from {e.endorser_name}</span> : null}</span>
+            <button type="button" disabled={busy === e.id} onClick={() => remove(e.id)} className="shrink-0 font-semibold hover:underline disabled:opacity-50" style={{ color: "var(--danger)" }}>{busy === e.id ? "Removing…" : "Remove"}</button>
+          </li>
+        ))}
+      </ul>
+      {msg && <p className="mt-2 text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</p>}
+    </div>
   );
 }

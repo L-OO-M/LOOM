@@ -201,14 +201,14 @@ export default function LandingPage() {
           <div className="flex items-center gap-1 lg:hidden">
             <button
               onClick={toggle}
-              className="rounded-lg p-2"
+              className="grid size-11 place-items-center rounded-lg"
               style={{ color: "var(--text)" }}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
               {mounted && theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <button
-              className="rounded-lg p-2"
+              className="grid size-11 place-items-center rounded-lg"
               style={{ color: "var(--text)" }}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
@@ -262,7 +262,10 @@ export default function LandingPage() {
         }} />
         {/* Bottom fade into the page body. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28" aria-hidden="true" style={{ background: "linear-gradient(to bottom, transparent, rgba(10,22,40,0.9))" }} />
-        <div ref={glowRef} className="cursor-glow left-1/2 top-1/3" aria-hidden="true" />
+        {/* pointer-events-none: this is a cursor-tracking glow. It is aria-hidden
+            decoration, but without this it was a 340px box that intercepted
+            pointer events over the hero and registered as page overflow at 320px. */}
+        <div ref={glowRef} className="cursor-glow pointer-events-none left-1/2 top-1/3" aria-hidden="true" />
         <div className="hero-inner relative mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8 lg:pb-32">
           <p className="hero-label kicker mb-7 flex items-center gap-3" style={{ color: "#e8c26a" }}>
             <span className="inline-block h-px w-8" style={{ background: "#e8c26a" }} />
@@ -356,7 +359,7 @@ export default function LandingPage() {
           <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
             That is what makes the culture outlive its founders — and why mentorship sits at the center of the platform, not the edge.
           </p>
-          <Link href="/register" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+          <Link href="/register" className="-mt-2.5 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
             Enter as a beginner <ArrowRight size={15} />
           </Link>
         </div>
@@ -504,8 +507,8 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
               <FooterGroup title="Product" links={[["Roadmaps", "/student/roadmap"], ["Projects", "/student/projects"], ["Mentorship", "/student/mentorship"]]} />
               <FooterGroup title="Resources" links={[["Learning paths", "/student/resources"], ["Contests", "/student/contests"], ["Open source", "/student/opensource"]]} />
-              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
-              <FooterGroup title="Legal" links={[["Privacy", "/student/privacy"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
+              <FooterGroup title="Company" links={[["Ecosystem", "#ecosystem"], ["About", "/about"], ["Events", "/events"], ["FAQ", "/faq"], ["Domains", "/domains"], ["Admin setup", "/setup"], ["Sign in", "/login"]]} />
+              <FooterGroup title="Legal" links={[["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"], ["Settings", "/student/settings"], ["Get started", "/register"]]} />
             </div>
           </div>
           <p className="mt-14 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.4)" }} aria-hidden="true">
@@ -662,7 +665,7 @@ function UpcomingEventsStrip() {
           No upcoming events yet — workshops are posted by department leads through the week. Check back soon.
         </p>
       )}
-      <Link href="/events" prefetch={false} className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+      <Link href="/events" prefetch={false} className="-mt-2.5 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
         Full calendar <ArrowRight size={15} />
       </Link>
     </div>
@@ -700,7 +703,7 @@ function ProjectShowcase() {
           No showcased projects yet — members ship every semester, and the first builds land here automatically.
         </p>
       )}
-      <Link href="/register" prefetch={false} className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
+      <Link href="/register" prefetch={false} className="-mt-2.5 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--accent)" }}>
         Start building <ArrowRight size={15} />
       </Link>
     </div>

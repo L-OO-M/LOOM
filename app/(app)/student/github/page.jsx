@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { GithubConnectForm } from "@/components/actions";
+import { GithubLinkButton } from "@/components/actions";
 import { Display, Meta, PlainStat, ActionLink, StatusPill } from "@/components/loom/primitives";
 import { Heatmap } from "@/components/loom/Heatmap";
 import { Evidence } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { eventUrlFromPayload, isGithubEnabled, nextMoveState, repoFullNameFromPayload } from "@/lib/github";
+import { cryptoConfigured } from "@/lib/crypto";
 import { GithubTabs, ConnectionControls } from "./GithubBits";
 import { GithubDiagnostics } from "./GithubDiagnostics";
 
@@ -70,6 +71,16 @@ export default async function GithubPage() {
     username: conn?.github_username || null
   };
 
+  // Repositories where GitHub confirmed this student has push access. Distinct
+  // from the webhook-derived `repos` above: this list is what GitHub vouched for,
+  // not what happened to deliver a payload.
+  const grants = await sql`
+    SELECT repo_full_name, can_push, can_admin, is_private, verified_at
+    FROM github_repo_grants
+    WHERE user_id = ${user.id} AND tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY verified_at DESC LIMIT 20
+  `;
+
   const recentEvents = conn ? await sql`
     SELECT event_name, repository_id, actor_login, received_at, payload FROM github_events
     WHERE lower(actor_login) = lower(${conn.github_username})
@@ -101,6 +112,12 @@ export default async function GithubPage() {
   const repoGroups = groupRepos(items);
   const lastActive = items.length > 0 ? items[0].date : null;
   const move = nextMoveState({ connected: !!conn, eventCount: items.length, pendingCount: pending.length, verifiedCount: verified.length });
+
+  // Both halves of the grant must be present before the UI offers to link. The
+  // encryption key matters as much as the client secret: without it a token
+  // would be stored in a form we could never read back, which is worse than not
+  // storing one.
+  const oauthConfigured = Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
   const moveHref = move.kind === "first-push" && conn ? `https://github.com/${conn.github_username}` : move.href;
   const moveExternal = move.kind === "first-push";
   const profileUrl = conn ? `https://github.com/${conn.github_username}` : null;
@@ -128,14 +145,30 @@ export default async function GithubPage() {
               title="Your work, becoming visible."
               why="Link your GitHub username and every push, pull request, and review flows in through webhooks — attributed to you, rolled into your growth story, and eligible as open-source evidence."
               steps={[
-                { title: "Save your username", body: "Events are matched to you by login — no OAuth, no plugins." },
+                { title: "GitHub confirms who you are", body: "One click through GitHub — no plugins, and no typing a handle someone else could also type." },
                 { title: "Push like normal", body: "Activity lands here on its own once your chapter enables ingestion." },
                 { title: "Claim open-source PRs", body: "Merged work becomes verified evidence with badges attached." }
               ]}
               action={
                 <div className="mx-auto max-w-sm rounded-2xl border p-5 text-left" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                  <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>Manual linking — type the exact GitHub login</p>
-                  <GithubConnectForm />
+                  <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>Link through GitHub</p>
+                  <p className="meta mt-1">
+                    GitHub verifies your identity, and can confirm that the
+                    repositories you claim are really yours.
+                  </p>
+                  <div className="mt-3">
+                    {oauthConfigured ? (
+                      <GithubLinkButton
+                        label="Link GitHub account"
+                        disabled={!cryptoConfigured()}
+                        note={cryptoConfigured() ? null : "Unavailable: the server cannot store a token securely right now."}
+                      />
+                    ) : (
+                      <p className="text-xs" style={{ color: "var(--danger)" }}>
+                        GitHub linking is not configured for this chapter. Ask an admin.
+                      </p>
+                    )}
+                  </div>
                 </div>
               }
             />
@@ -291,7 +324,13 @@ export default async function GithubPage() {
               </div>
             </dl>
             <p className="narrative mt-4">LOOM matches webhook events to you by this username — manual linking, no OAuth scopes. Proof comes from merged work, not from login, so keep the handle exact.</p>
-            <ConnectionControls username={conn.github_username} exportData={exportData} />
+            <ConnectionControls
+              username={conn.github_username}
+              exportData={exportData}
+              identityVerified={conn.github_user_id != null}
+              oauthConfigured={oauthConfigured}
+              tokenStorageReady={cryptoConfigured()}
+            />
           </div>
         </section>
       </main>

@@ -28,7 +28,7 @@ export default async function CommunityPage() {
 
   const [{ threads = 0 } = {}] = await sql`SELECT COUNT(*)::int AS threads FROM forum_threads WHERE tenant_id = ${tid}::uuid AND status = 'visible'`;
   const [{ pages = 0 } = {}] = await sql`SELECT COUNT(*)::int AS pages FROM wiki_pages WHERE tenant_id = ${tid}::uuid AND status = 'published'`;
-  const [{ snippets = 0 } = {}] = await sql`SELECT COUNT(*)::int AS snippets FROM code_snippets WHERE (tenant_id IS NULL OR tenant_id = ${tid}::uuid) AND status = 'visible'`;
+  const [{ snippets = 0 } = {}] = await sql`SELECT COUNT(*)::int AS snippets FROM code_snippets WHERE tenant_id = ${tid}::uuid AND status = 'visible'`;
   const recent = await sql`
     SELECT t.id, t.title, t.domain, t.reply_count, t.upvote_count, t.solved, t.updated_at, p.name AS author_name FROM forum_threads t
     LEFT JOIN profiles p ON p.user_id = t.author_id

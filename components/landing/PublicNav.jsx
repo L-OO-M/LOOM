@@ -22,9 +22,10 @@ export function PublicNav() {
   return (
     <header className="fixed top-0 z-50 h-16 w-full border-b backdrop-blur-md" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
-        <Link href="/" prefetch={false} aria-label="L.O.O.M. home">
-          <BrandMark size={30} />
-        </Link>
+        {/* BrandMark already renders its own <Link href="/"> with the
+            44px tap target. Wrapping it in another Link produced nested
+            anchors, which the browser flattened into a zero-width element. */}
+        <BrandMark size={30} />
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
           {LINKS.map(([label, href]) => (
             <Link key={label} href={href} prefetch={false} className="link-slide text-sm font-medium transition hover:opacity-100" style={{ color: "var(--text-muted)" }}>
@@ -35,7 +36,7 @@ export function PublicNav() {
         <div className="hidden items-center gap-2 lg:flex">
           <button
             onClick={toggle}
-            className="rounded-full p-2 transition hover:opacity-80 active:scale-95"
+            className="grid size-11 place-items-center rounded-full transition hover:opacity-80 active:scale-95"
             style={{ color: "var(--text-muted)" }}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
@@ -47,11 +48,11 @@ export function PublicNav() {
           <Link href="/register" prefetch={false} className="btn-ink !py-2">Get started</Link>
         </div>
         <div className="flex items-center gap-1 lg:hidden">
-          <button onClick={toggle} className="rounded-lg p-2" style={{ color: "var(--text)" }} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          <button onClick={toggle} className="grid size-11 place-items-center rounded-lg" style={{ color: "var(--text)" }} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
             {mounted && theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
           <button
-            className="rounded-lg p-2"
+            className="grid size-11 place-items-center rounded-lg"
             style={{ color: "var(--text)" }}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
