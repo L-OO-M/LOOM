@@ -53,7 +53,13 @@ async function main() {
         "DELETE FROM public.contests WHERE title LIKE 'Seed%'",
         "DELETE FROM public.mentors WHERE user_id LIKE 'seed-user-%'",
         "DELETE FROM public.profiles WHERE user_id LIKE 'seed-user-%'",
-        "DELETE FROM public.audit_logs WHERE actor_id = 'seed'"
+        "DELETE FROM public.audit_logs WHERE actor_id = 'seed'",
+        "DELETE FROM public.projects WHERE title IN ('great project', 'hiflow', 'E2E fixture project')",
+        "DELETE FROM public.events WHERE title IN ('Hallucination', 'redistribution') OR (title = 'Git & GitHub hands-on' AND created_by IS NULL)",
+        "DELETE FROM public.page_views WHERE visitor_key LIKE 'smoke-test%'",
+        "DELETE FROM public.notifications WHERE title ILIKE '%Seed Sprint%' OR body ILIKE '%Seed Sprint%'",
+        "DELETE FROM public.cohort_metrics",
+        "DELETE FROM public.federation_metrics"
       ];
       for (const s of stmts) {
         const r = await sql.unsafe(s + " RETURNING 1").catch(() => sql.unsafe(s));

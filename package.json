@@ -22,6 +22,7 @@
     "db:verify": "node load/verify-roadmap-shelf.js",
     "db:seed:dev": "node load/seed-dev.js",
     "seed:e2e": "node load/seed-e2e-student.js",
+    "db:clean:launch": "node load/clean-launch-data.js",
     "db:wipe": "node load/wipe-dev.js --confirm",
     "db:wipe:full": "node load/wipe-dev.js --confirm --full",
     "rls:role": "node load/create-app-role.js",

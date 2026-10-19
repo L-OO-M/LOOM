@@ -19,6 +19,9 @@ coverage/
 # Local proof screenshots (large binaries)
 .screenshots/
 
+# Database exports contain live PII and auth hashes — never commit
+load/snapshots/
+
 # OS / editor
 .DS_Store
 Thumbs.db
