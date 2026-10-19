@@ -58,7 +58,14 @@ export async function POST(request) {
   let vertical = null;
   if (body.scope === "department") {
     if (!body.departmentId) return fail("VALIDATION_ERROR", "departmentId is required for department announcements", 400);
-    const verdict = can(me, "post_announcement", { departmentId: body.departmentId });
+    const [dept] = await sql`
+      SELECT id, vertical FROM departments
+      WHERE id = ${body.departmentId}
+        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      LIMIT 1
+    `;
+    if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+    const verdict = can(me, "post_announcement", { departmentId: body.departmentId, vertical: dept.vertical });
     if (!verdict.ok) return fail("FORBIDDEN", "Only the department's Head, Co-Head, or above can post here", 403);
     // own_feed note: a dept_lead may only speak to feeds they lead.
     if (verdict.note === "own_feed" && me.memberships.find((m) => m.department_id === body.departmentId)?.level !== "dept_lead") {

@@ -21,7 +21,7 @@ import {
  * two navigation systems for one page. Now there is one, and refreshing,
  * sharing a link, and browser back all work.
  */
-export function LeadConsole({ initialData, userId, isVertical, section }) {
+export function LeadConsole({ initialData, userId, isVertical, section, termEnd = null }) {
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
   const [liveAt, setLiveAt] = useState(Date.now());
@@ -60,6 +60,18 @@ export function LeadConsole({ initialData, userId, isVertical, section }) {
       <span className="mono-tag">Live</span>
       <span className="size-2 rounded-full animate-pulse" style={{ background: loading ? "var(--warn)" : "var(--success)" }} />
       <span className="mono-tag">{loading ? "syncing…" : `synced ${new Date(liveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} · poll 15s`}</span>
+      {termEnd && (
+        <span
+          className="mono-tag rounded-full border px-2.5 py-1"
+          style={{
+            borderColor: new Date(termEnd) < new Date() ? "var(--danger)" : "var(--line)",
+            color: new Date(termEnd) < new Date() ? "var(--danger)" : "var(--text-muted)"
+          }}
+        >
+          Term {new Date(termEnd) < new Date() ? "ended" : "ends"}{" "}
+          {new Date(termEnd).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+        </span>
+      )}
       <button onClick={fetchLive} className="ml-auto btn-ghost !py-1.5 !text-xs">Refresh</button>
     </div>
   );

@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { MOU_PARTNER_TYPES, MOU_STATUSES, listMous } from "@/lib/mou";
+import { canAccessVertical, ownedVerticals } from "@/lib/scope";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const dateField = z.string().regex(DATE).nullable().optional();
@@ -36,14 +37,20 @@ export async function GET(request) {
     if (r) return r;
     throw e;
   }
-  const { tenant, sql } = ctx;
+  const { profile, tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
   const statusParam = (searchParams.get("status") || "").trim();
   const status = MOU_STATUSES.includes(statusParam) ? statusParam : null;
   const expiring = searchParams.get("expiring") === "1";
   const q = (searchParams.get("q") || "").trim().slice(0, 80);
   const mous = await listMous(sql, { tenantId: tenant.id, status, expiring, q });
-  return ok({ mous });
+  // Domain non-interference: leads see their own domain's MoUs (plus
+  // society-wide ones); admins see everything.
+  const owned = ownedVerticals(profile);
+  const scoped = owned.all
+    ? mous
+    : mous.filter((m) => m.vertical == null || owned.has(m.vertical));
+  return ok({ mous: scoped });
 }
 
 export async function POST(request) {
@@ -55,7 +62,7 @@ export async function POST(request) {
     if (r) return r;
     throw e;
   }
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
 
   let body;
   try {
@@ -66,6 +73,19 @@ export async function POST(request) {
   if (body.startsOn && body.endsOn && body.endsOn < body.startsOn) {
     return fail("VALIDATION_ERROR", "The end date cannot be before the start date", 400);
   }
+  // Domain non-interference: a lead may only file MoUs for their own domain;
+  // society-wide MoUs are admin-only.
+  let vertical = body.vertical ?? null;
+  if (vertical == null) {
+    const owned = ownedVerticals(profile);
+    if (!owned.all && owned.size === 1) vertical = [...owned][0];
+  }
+  if (!canAccessVertical(profile, vertical)) {
+    if (vertical == null) {
+      return fail("FORBIDDEN", "Only an admin can file a society-wide MoU", 403);
+    }
+    return fail("FORBIDDEN", "You can only file MoUs for your own domain", 403);
+  }
 
   const [mou] = await sql`
     INSERT INTO mous
@@ -73,7 +93,7 @@ export async function POST(request) {
        value_amount, value_currency, signed_on, starts_on, ends_on, owner_id, notes)
     VALUES
       (${tenant.id}::uuid, ${body.title}, ${body.partnerName}, ${body.partnerType}, ${body.summary},
-       ${body.status}, ${body.vertical ?? null}, ${body.valueAmount ?? null}, ${body.valueCurrency},
+       ${body.status}, ${vertical}, ${body.valueAmount ?? null}, ${body.valueCurrency},
        ${body.signedOn ?? null}, ${body.startsOn ?? null}, ${body.endsOn ?? null}, ${user.id}, ${body.notes})
     RETURNING id, title, partner_name, partner_type, status, vertical, value_amount, value_currency,
               signed_on, starts_on, ends_on, owner_id, is_active, created_at, updated_at

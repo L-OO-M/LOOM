@@ -14,7 +14,7 @@ nullable, queries use `tenant_id = X OR X IS NULL`), `IF NOT EXISTS`,
 | `handover_checklists` | Admin continuity items: `title, category, detail, done`. |
 | `budget_heads` | `name, allocated >= 0`, optional `vertical` (NULL = society-wide). |
 | `expenses` | `head_id`/`department_id` nullable, `amount > 0`, `status proposed\|approved\|rejected`. |
-| `sponsorships` | `name, amount >= 0`, `status pipeline\|committed\|received`. |
+| `sponsorships` | `name, amount >= 0`, `status pipeline\|committed\|received`, optional `vertical` (048; NULL = society-wide). |
 
 ## API
 
@@ -23,14 +23,14 @@ nullable, queries use `tenant_id = X OR X IS NULL`), `IF NOT EXISTS`,
 | GET | `/api/volunteers?eventId=` | any member; includes `signup_count`, `seats_left`, `signed_up` |
 | POST | `/api/volunteers` `{eventId,title,capacity}` | event's dept lead, VL, admin |
 | POST / DELETE | `/api/volunteers/[id]/signup` | any member; 409 `EVENT_FULL` when full; re-signup idempotent |
-| GET | `/api/reports?status=&departmentId=` | own departments (leads), all (VL/admin) |
-| POST | `/api/reports` `{departmentId, month}` | dept lead / VL / admin; auto-compiles draft, upserts on `(department,month)` |
-| GET / PATCH | `/api/reports/[id]` | read: own dept + VL/admin; submit `draft→submitted` by dept lead; reopen admin-only |
-| GET | `/api/reports/export?scope=semester\|annual` | VL + admin (`export_reports`); JSON download of submitted reports + counts |
+| GET | `/api/reports?status=&departmentId=` | own departments (heads), own vertical (VL), all (admin) |
+| POST | `/api/reports` `{departmentId, month}` | dept lead / VL / admin; VL limited to their vertical; auto-compiles draft, upserts on `(department,month)` |
+| GET / PATCH | `/api/reports/[id]` | read: own dept, VL own vertical, admin; submit `draft→submitted` by dept lead; reopen admin-only |
+| GET | `/api/reports/export?scope=semester\|annual` | VL + admin (`export_reports`); JSON download of submitted reports + counts, VL scoped to own vertical |
 | GET / POST | `/api/handover` | admin only (`isAdmin`) |
 | PATCH | `/api/handover/[id]` `{done,detail}` | admin only |
 | GET | `/api/finance` | admin full; VL own-vertical + society rows; others 403 |
-| POST | `/api/finance/expenses` | dept_lead / VL / admin propose |
+| POST | `/api/finance/expenses` | dept_lead (own department) / VL (own vertical) / admin propose |
 | PATCH | `/api/finance/expenses` `{id,decision}` | admin only — VL is `recommend_only` |
 | POST / PUT | `/api/finance/sponsorships` | admin only |
 

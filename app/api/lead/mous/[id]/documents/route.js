@@ -3,6 +3,7 @@ import { ok, fail } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { getMou, nextDocumentVersion } from "@/lib/mou";
+import { canAccessVertical } from "@/lib/scope";
 import { validateUpload, buildStoragePath } from "@/lib/media";
 import { uploadObject, removeObjects } from "@/lib/storage";
 
@@ -26,6 +27,9 @@ export async function GET(request, { params }) {
   if (!UUID.test(id)) return fail("NOT_FOUND", "MoU not found", 404);
   const mou = await getMou(ctx.sql, { tenantId: ctx.tenant.id, id });
   if (!mou) return fail("NOT_FOUND", "MoU not found", 404);
+  if (mou.vertical != null && !canAccessVertical(ctx.profile, mou.vertical)) {
+    return fail("FORBIDDEN", "That MoU belongs to another domain", 403);
+  }
   return ok({ documents: mou.documents });
 }
 
@@ -44,6 +48,9 @@ export async function POST(request, { params }) {
 
   const mou = await getMou(sql, { tenantId: tenant.id, id });
   if (!mou) return fail("NOT_FOUND", "MoU not found", 404);
+  if (!canAccessVertical(ctx.profile, mou.vertical)) {
+    return fail("FORBIDDEN", "That MoU belongs to another domain", 403);
+  }
 
   let form;
   try {

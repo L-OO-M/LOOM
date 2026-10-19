@@ -49,8 +49,9 @@ export async function POST(request) {
   }
 
   const [won] = await sql`
-    INSERT INTO platform_admins (user_id)
-    SELECT ${userId} WHERE NOT EXISTS (SELECT 1 FROM platform_admins)
+    INSERT INTO platform_admins (user_id, is_founder, locked, label)
+    SELECT ${userId}, true, true, 'Founder'
+    WHERE NOT EXISTS (SELECT 1 FROM platform_admins)
     ON CONFLICT (user_id) DO NOTHING
     RETURNING user_id
   `;

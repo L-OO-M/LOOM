@@ -28,7 +28,14 @@ export async function GET(request) {
     // Reading another member's log needs a department scope + permission.
     if (!departmentId) return fail("VALIDATION_ERROR", "departmentId is required to view another member's log", 400);
     const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
-    if (!isAdmin(me) && !can(me, "log_contribution", { departmentId }).ok) {
+    const [dept] = await sql`
+      SELECT vertical FROM departments
+      WHERE id = ${departmentId}
+        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      LIMIT 1
+    `;
+    if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+    if (!isAdmin(me) && !can(me, "log_contribution", { departmentId, vertical: dept.vertical }).ok) {
       return fail("FORBIDDEN", "Only leads of that department can view member logs", 403);
     }
   }
@@ -64,7 +71,14 @@ export async function POST(request) {
   if (targetId !== user.id) {
     // Logging on behalf of a member: needs log_contribution over the dept.
     if (!body.departmentId) return fail("VALIDATION_ERROR", "departmentId is required to log for another member", 400);
-    if (!can(me, "log_contribution", { departmentId: body.departmentId, ownerId: targetId }).ok) {
+    const [dept] = await sql`
+      SELECT vertical FROM departments
+      WHERE id = ${body.departmentId}
+        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      LIMIT 1
+    `;
+    if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+    if (!can(me, "log_contribution", { departmentId: body.departmentId, vertical: dept.vertical, ownerId: targetId }).ok) {
       return fail("FORBIDDEN", "Only leads of that department can log for members", 403);
     }
     const [target] = await sql`

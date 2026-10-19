@@ -34,19 +34,47 @@ export async function POST(request) {
     return fail("FORBIDDEN", "Only department leads and above can propose expenses", 403);
   }
   const tid = tenant?.id ?? null;
+  let headVertical = null;
   if (body.headId) {
     const [head] = await sql`
-      SELECT id FROM budget_heads WHERE id = ${body.headId}
+      SELECT id, vertical FROM budget_heads WHERE id = ${body.headId}
         AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
     `;
     if (!head) return fail("NOT_FOUND", "Budget head not found", 404);
+    headVertical = head.vertical;
   }
+  let deptVertical = null;
   if (body.departmentId) {
     const [dept] = await sql`
-      SELECT id FROM departments WHERE id = ${body.departmentId}
+      SELECT id, vertical FROM departments WHERE id = ${body.departmentId}
         AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+    deptVertical = dept.vertical;
+    if (!admin) {
+      const leadsDept = (profile.memberships || []).some(
+        (m) => m.department_id === body.departmentId && m.level === "dept_lead"
+      );
+      if (profile.role === "vertical_lead") {
+        if (dept.vertical !== profile.vertical) {
+          return fail("FORBIDDEN", "You can only propose expenses for departments in your vertical", 403);
+        }
+      } else if (!leadsDept) {
+        return fail("FORBIDDEN", "You can only propose expenses for departments you lead", 403);
+      }
+    }
+  }
+  if (!admin) {
+    if (profile.role === "vertical_lead") {
+      if (headVertical && headVertical !== profile.vertical) {
+        return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
+      }
+    } else if (headVertical && deptVertical && headVertical !== deptVertical) {
+      return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
+    }
+    if (!body.departmentId && !body.headId) {
+      return fail("VALIDATION_ERROR", "Choose a department or budget head", 400);
+    }
   }
   const [expense] = await sql`
     INSERT INTO expenses (tenant_id, head_id, department_id, amount, note, status, created_by)

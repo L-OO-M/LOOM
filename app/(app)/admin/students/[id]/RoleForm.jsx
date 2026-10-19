@@ -4,14 +4,26 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, AlertTriangle, Check } from "lucide-react";
 
-export default function RoleForm({ userId, currentRole }) {
+function oneYearFromNow() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+const LEADERSHIP = new Set(["dept_lead", "vertical_lead", "admin"]);
+
+export default function RoleForm({ userId, currentRole, termEnd: currentTermEnd = "" }) {
   const router = useRouter();
   const [role, setRole] = useState(currentRole);
   const [departments, setDepartments] = useState([]);
   const [departmentId, setDepartmentId] = useState("");
   const [vertical, setVertical] = useState("technical");
+  const [termEnd, setTermEnd] = useState(
+    currentTermEnd ? String(currentTermEnd).slice(0, 10) : oneYearFromNow()
+  );
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const needsTerm = LEADERSHIP.has(role);
 
   useEffect(() => {
     // Public departments list is unauthenticated by design; failures are silent
@@ -39,7 +51,8 @@ export default function RoleForm({ userId, currentRole }) {
       body: JSON.stringify({
         userId, role,
         departmentId: role === "dept_lead" ? departmentId || null : null,
-        vertical: role === "vertical_lead" ? vertical : null
+        vertical: role === "vertical_lead" ? vertical : null,
+        termEnd: needsTerm ? termEnd || null : null
       })
     });
     const data = await res.json().catch(() => null);
@@ -76,6 +89,20 @@ export default function RoleForm({ userId, currentRole }) {
             <option value="non_technical">Non-technical</option>
           </select>
         )}
+        {needsTerm && (
+          <label className="inline-flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            Term ends
+            <input
+              type="date"
+              value={termEnd}
+              onChange={(e) => setTermEnd(e.target.value)}
+              required
+              aria-label="Term end date"
+              className={select}
+              style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
+            />
+          </label>
+        )}
         <button disabled={busy} className="btn-ink inline-flex items-center gap-1.5 disabled:opacity-50">
           {busy ? "Saving…" : <><ShieldCheck size={14} /> Save role</>}
         </button>
@@ -91,9 +118,9 @@ export default function RoleForm({ userId, currentRole }) {
       </div>
 
       <p className="meta">
-        {role === "dept_lead" && "Heads are scoped to one department — the student also becomes a dept_lead member there."}
-        {role === "vertical_lead" && "Vertical leads are scoped to technical or non-technical — checked on every mutation."}
-        {role === "admin" && "Admin is global to this chapter. Prefer scoped leads where possible."}
+        {role === "dept_lead" && "Heads are scoped to one department and cannot act in another department or vertical. Term defaults to one year."}
+        {role === "vertical_lead" && "Vertical leads are scoped to technical or non-technical and cannot cross into the other domain. Term defaults to one year."}
+        {role === "admin" && "Admin is global to this chapter, but rotates annually. Only seeded founders are permanent."}
         {role === "core" && "Core members can be marked succession-ready by their Head."}
         {role === "student" && "General membership — the default after signup."}
       </p>

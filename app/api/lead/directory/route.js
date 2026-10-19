@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { listDirectory } from "@/lib/directory";
+import { canAccessVertical, ownedVerticals } from "@/lib/scope";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const dateField = z.string().regex(DATE).nullable().optional();
@@ -29,11 +30,11 @@ function guard(e) {
 
 async function departmentInTenant(sql, tenantId, departmentId) {
   const [row] = await sql`
-    SELECT id FROM departments
+    SELECT id, vertical FROM departments
     WHERE id = ${departmentId}::uuid AND tenant_id = ${tenantId}::uuid
     LIMIT 1
   `;
-  return !!row;
+  return row || null;
 }
 
 async function accountInTenant(sql, tenantId, userId) {
@@ -54,7 +55,7 @@ export async function GET(request) {
     if (r) return r;
     throw e;
   }
-  const { tenant, sql } = ctx;
+  const { profile, tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
   const departmentId = searchParams.get("department") || null;
   const verticalParam = (searchParams.get("vertical") || "").trim();
@@ -62,7 +63,12 @@ export async function GET(request) {
   const current = searchParams.get("current") === "1";
   const q = (searchParams.get("q") || "").trim().slice(0, 80);
   const entries = await listDirectory(sql, { tenantId: tenant.id, departmentId, vertical, current, q });
-  return ok({ entries });
+  const owned = ownedVerticals(profile);
+  return ok({
+    entries: owned.all
+      ? entries
+      : entries.filter((e) => e.vertical == null || owned.has(e.vertical))
+  });
 }
 
 export async function POST(request) {
@@ -74,7 +80,7 @@ export async function POST(request) {
     if (r) return r;
     throw e;
   }
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
 
   let body;
   try {
@@ -85,11 +91,22 @@ export async function POST(request) {
   if (body.tenureStart && body.tenureEnd && body.tenureEnd < body.tenureStart) {
     return fail("VALIDATION_ERROR", "Tenure end cannot be before tenure start", 400);
   }
-  if (body.departmentId && !(await departmentInTenant(sql, tenant.id, body.departmentId))) {
-    return fail("VALIDATION_ERROR", "Unknown department", 400);
+  let department = null;
+  if (body.departmentId) {
+    department = await departmentInTenant(sql, tenant.id, body.departmentId);
+    if (!department) return fail("VALIDATION_ERROR", "Unknown department", 400);
   }
   if (body.userId && !(await accountInTenant(sql, tenant.id, body.userId))) {
     return fail("VALIDATION_ERROR", "That account is not in this chapter", 400);
+  }
+  // The entry's domain follows its department when one is chosen.
+  const vertical = department?.vertical ?? body.vertical ?? null;
+  if (department?.vertical && body.vertical && body.vertical !== department.vertical) {
+    return fail("VALIDATION_ERROR", "The entry's vertical must match its department", 400);
+  }
+  if (!canAccessVertical(profile, vertical)) {
+    if (vertical == null) return fail("FORBIDDEN", "Only an admin can add a society-wide directory entry", 403);
+    return fail("FORBIDDEN", "You can only add leaders to your own domain", 403);
   }
 
   const [entry] = await sql`
@@ -98,7 +115,7 @@ export async function POST(request) {
        tenure_start, tenure_end, is_current, sort_order, created_by)
     VALUES
       (${tenant.id}::uuid, ${body.userId ?? null}, ${body.name}, ${body.title}, ${body.departmentId ?? null},
-       ${body.vertical ?? null}, ${body.email ?? null}, ${body.linkedinUrl ?? null}, ${body.bio},
+       ${vertical}, ${body.email ?? null}, ${body.linkedinUrl ?? null}, ${body.bio},
        ${body.tenureStart ?? null}, ${body.tenureEnd ?? null}, ${body.isCurrent}, ${body.sortOrder}, ${user.id})
     RETURNING id, name, title, department_id, vertical, is_current, sort_order, created_at
   `;

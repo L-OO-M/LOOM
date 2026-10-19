@@ -24,7 +24,8 @@ export default async function AdminStudentDetailPage({ params }) {
   const { user, tenant, sql } = ctx;
 
   const [s] = await sql`
-    SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical, tenant_id, updated_at
+    SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical,
+           tenant_id, updated_at, role_term_end
     FROM profiles
     WHERE user_id = ${id} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1
   `;
@@ -77,6 +78,17 @@ export default async function AdminStudentDetailPage({ params }) {
                 <Shield size={12} /> {roleLabel(s.role)}
               </span>
               {s.vertical && <span className="meta rounded-full border px-2 py-0.5 capitalize" style={{ borderColor: "var(--line)" }}>{s.vertical.replace("_", " ")}</span>}
+              {s.role_term_end && s.role !== "student" && (
+                <span
+                  className="meta rounded-full border px-2 py-0.5"
+                  style={{
+                    borderColor: new Date(s.role_term_end) < new Date() ? "color-mix(in srgb, var(--danger) 25%, transparent)" : "var(--line)",
+                    color: new Date(s.role_term_end) < new Date() ? "var(--danger)" : "var(--text-muted)"
+                  }}
+                >
+                  Term ends {new Date(s.role_term_end).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              )}
             </div>
             <p className="meta mt-1 flex flex-wrap items-center gap-1.5">
               {s.branch && <span>{s.branch}</span>}
@@ -127,7 +139,7 @@ export default async function AdminStudentDetailPage({ params }) {
             <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Shield size={14} /> Role management</h2>
               <p className="narrative mt-1">Grant is scoped — Heads require a department, Vertical Leads require a vertical. Every change is audited.</p>
-              <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} /></div>
+              <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} termEnd={s.role_term_end} /></div>
             </section>
 
             <ActivityBars data={activityBars} />

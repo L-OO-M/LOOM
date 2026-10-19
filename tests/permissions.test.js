@@ -44,11 +44,12 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(isAdmin(student())).toBe(false);
   });
 
-  it("manage_users: admin full, vertical-lead own vertical only", () => {
+  it("manage_users: admin only — leads never reassign roles", () => {
     expect(can(admin(), "manage_users").ok).toBe(true);
-    expect(can(vlead(), "manage_users", { vertical: "technical" }).ok).toBe(true);
-    expect(can(vlead(), "manage_users", { vertical: "non_technical" }).ok).toBe(false);
-    expect(can(vlead(), "manage_users").ok).toBe(false); // no scope, no grant
+    // Governance: only admins appoint people. A vertical lead cannot create or
+    // edit accounts, even inside their own vertical.
+    expect(can(vlead(), "manage_users", { vertical: "technical" }).ok).toBe(false);
+    expect(can(vlead(), "manage_users").ok).toBe(false);
     expect(can(lead("dept_lead"), "manage_users", { departmentId: D1 }).ok).toBe(false);
     expect(can(core(), "manage_users").ok).toBe(false);
   });
@@ -97,8 +98,11 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(can(lead("dept_lead"), "view_finance", { departmentId: D1 }).ok).toBe(false);
   });
 
-  it("mentors: vertical oversees, dept_lead assigns in own dept", () => {
-    expect(can(vlead(), "assign_mentor").ok).toBe(true);
+  it("mentors: vertical oversees its own domain, dept_lead assigns in own dept", () => {
+    // A vertical lead's oversight is domain-bound — no blank scope, no grant.
+    expect(can(vlead(), "assign_mentor", { vertical: "technical" }).ok).toBe(true);
+    expect(can(vlead(), "assign_mentor").ok).toBe(false);
+    expect(can(vlead("non_technical"), "assign_mentor", { vertical: "technical" }).ok).toBe(false);
     expect(can(lead("dept_lead"), "assign_mentor", { departmentId: D1 }).ok).toBe(true);
     expect(can(lead("dept_lead"), "assign_mentor", { departmentId: "other" }).ok).toBe(false);
     expect(can(core(), "assign_mentor").ok).toBe(false);
@@ -178,11 +182,13 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(can(core(), "export_reports").ok).toBe(false);
   });
 
-  it("advisor comms: admin owns, vertical views", () => {
+  it("advisor comms: admin owns, vertical views its own domain", () => {
     expect(can(admin(), "manage_advisor").ok).toBe(true);
-    const r = can(vlead(), "manage_advisor");
+    const r = can(vlead(), "manage_advisor", { vertical: "technical" });
     expect(r.ok).toBe(false);
     expect(r.note).toBe("view_only");
+    // Outside the vertical there is not even read standing.
+    expect(can(vlead(), "manage_advisor", { vertical: "non_technical" }).note).toBeNull();
   });
 
   it("lead tools: leads edit, core reads only, students denied", () => {

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { ClipboardCheck, Users } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, ClipboardCheck, Users } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
@@ -34,6 +35,21 @@ export default async function AdminHandoverPage() {
     ORDER BY category
   `;
 
+  // Annual rotation: leaders whose term ends within 45 days, or already ended.
+  // Founders are permanent and never appear here.
+  const expiringTerms = await sql`
+    SELECT p.user_id, p.name, p.role, p.role_term_end
+    FROM profiles p
+    LEFT JOIN platform_admins pa ON pa.user_id = p.user_id
+    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND p.role IN ('dept_lead', 'vertical_lead', 'admin')
+      AND p.role_term_end IS NOT NULL
+      AND p.role_term_end <= (CURRENT_DATE + INTERVAL '45 days')
+      AND COALESCE(pa.is_founder, false) = false
+    ORDER BY p.role_term_end ASC
+    LIMIT 20
+  `;
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
@@ -65,6 +81,33 @@ export default async function AdminHandoverPage() {
           </div>
           <p className="meta mt-2">{pct}% complete — process tracker, not task cards</p>
         </div>
+        <section className="mb-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Expiring leadership terms">
+          <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}>
+            <CalendarClock size={14} /> Terms ending soon
+          </h2>
+          <p className="narrative mt-1">Leadership rotates annually. Hand over before the date; an expired term loses its authority automatically.</p>
+          {expiringTerms.length === 0 ? (
+            <p className="narrative mt-3">No leadership terms end in the next 45 days.</p>
+          ) : (
+            <ul className="mt-3 divide-y rounded-xl border" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              {expiringTerms.map((t) => {
+                const days = Math.ceil((new Date(t.role_term_end) - new Date()) / 86400000);
+                return (
+                  <li key={t.user_id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 text-sm">
+                    <Link href={`/admin/students/${t.user_id}`} prefetch={false} className="font-medium hover:underline" style={{ color: "var(--text)" }}>
+                      {t.name || t.user_id.slice(0, 8)}
+                    </Link>
+                    <span className="meta capitalize">{t.role.replace("_", " ")}</span>
+                    <span className="font-mono text-xs" style={{ color: days < 0 ? "var(--danger)" : days <= 14 ? "var(--warning, #b45309)" : "var(--text-muted)" }}>
+                      {days < 0 ? `ended ${Math.abs(days)}d ago` : days === 0 ? "ends today" : `ends in ${days}d`}
+                      {" · "}{new Date(t.role_term_end).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
         <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Checklist">
           <Meta>Transfer checklist · audited on toggle</Meta>
           <div className="mt-3">

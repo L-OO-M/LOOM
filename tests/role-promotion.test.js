@@ -10,12 +10,31 @@ const D2 = "dept-2";
 describe("role promotion invariants (021 hardening)", () => {
   it("vertical is scoped — clearing on demotion closes stale scope", () => {
     const vlead = { id: "u", role: "vertical_lead", vertical: "technical", memberships: [] };
-    expect(can(vlead, "manage_users", { vertical: "technical" }).ok).toBe(true);
-    expect(can(vlead, "manage_users", { vertical: "non_technical" }).ok).toBe(false);
+    // Vertical leads govern operations in their domain, never accounts.
+    expect(can(vlead, "manage_users", { vertical: "technical" }).ok).toBe(false);
+    expect(can(vlead, "post_workshop_dept", { vertical: "technical" }).ok).toBe(true);
+    expect(can(vlead, "post_workshop_dept", { vertical: "non_technical" }).ok).toBe(false);
     // After demotion vertical must be null — simulated by stripping.
     const demoted = { ...vlead, role: "core", vertical: null };
-    expect(can(demoted, "manage_users", { vertical: "technical" }).ok).toBe(false);
+    expect(can(demoted, "post_workshop_dept", { vertical: "technical" }).ok).toBe(false);
     expect(demoted.vertical).toBeNull();
+  });
+
+  it("an expired term suspends authority but keeps history", () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const expired = { id: "u", role: "vertical_lead", vertical: "technical", roleTermEnd: yesterday, memberships: [] };
+    expect(can(expired, "post_event_society").ok).toBe(false);
+    expect(can({ ...expired, roleTermEnd: null }, "post_event_society").ok).toBe(true);
+    // Founders are exempt: the platform flag survives an old date.
+    expect(can({ ...expired, isPlatformAdmin: true }, "post_event_society").ok).toBe(true);
+  });
+
+  it("dept heads cannot act outside their department", () => {
+    const head = { id: "u", role: "dept_lead", vertical: "technical", memberships: [{ department_id: D1, level: "dept_lead", vertical: "technical" }] };
+    expect(can(head, "edit_dept_content", { departmentId: D1 }).ok).toBe(true);
+    expect(can(head, "edit_dept_content", { departmentId: D2 }).ok).toBe(false);
+    // Cross-domain society event is not theirs to publish either.
+    expect(can(head, "post_workshop_dept", { departmentId: D2, vertical: "non_technical" }).ok).toBe(false);
   });
 
   it("dept_lead without membership is not ambiently privileged", () => {

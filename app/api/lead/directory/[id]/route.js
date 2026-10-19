@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { getEntry } from "@/lib/directory";
+import { canAccessVertical } from "@/lib/scope";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,9 +33,9 @@ function guard(e) {
 
 async function departmentInTenant(sql, tenantId, departmentId) {
   const [row] = await sql`
-    SELECT id FROM departments
+    SELECT id, vertical FROM departments
     WHERE id = ${departmentId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
-  return !!row;
+  return row || null;
 }
 
 async function accountInTenant(sql, tenantId, userId) {
@@ -57,6 +58,9 @@ export async function GET(request, { params }) {
   if (!UUID.test(id)) return fail("NOT_FOUND", "Directory entry not found", 404);
   const entry = await getEntry(ctx.sql, { tenantId: ctx.tenant.id, id });
   if (!entry) return fail("NOT_FOUND", "Directory entry not found", 404);
+  if (entry.vertical != null && !canAccessVertical(ctx.profile, entry.vertical)) {
+    return fail("FORBIDDEN", "That leader belongs to another domain", 403);
+  }
   return ok({ entry });
 }
 
@@ -82,10 +86,14 @@ export async function PATCH(request, { params }) {
 
   const existing = await getEntry(sql, { tenantId: tenant.id, id });
   if (!existing) return fail("NOT_FOUND", "Directory entry not found", 404);
+  if (!canAccessVertical(ctx.profile, existing.vertical)) {
+    return fail("FORBIDDEN", "That leader belongs to another domain", 403);
+  }
 
-  if (body.departmentId !== undefined && body.departmentId !== null
-      && !(await departmentInTenant(sql, tenant.id, body.departmentId))) {
-    return fail("VALIDATION_ERROR", "Unknown department", 400);
+  let department = null;
+  if (body.departmentId !== undefined && body.departmentId !== null) {
+    department = await departmentInTenant(sql, tenant.id, body.departmentId);
+    if (!department) return fail("VALIDATION_ERROR", "Unknown department", 400);
   }
   if (body.userId !== undefined && body.userId !== null
       && !(await accountInTenant(sql, tenant.id, body.userId))) {
@@ -109,6 +117,15 @@ export async function PATCH(request, { params }) {
   };
   if (next.tenureStart && next.tenureEnd && next.tenureEnd < next.tenureStart) {
     return fail("VALIDATION_ERROR", "Tenure end cannot be before tenure start", 400);
+  }
+  if (department?.vertical) {
+    if (next.vertical && next.vertical !== department.vertical) {
+      return fail("VALIDATION_ERROR", "The entry's vertical must match its department", 400);
+    }
+    next.vertical = department.vertical;
+  }
+  if (!canAccessVertical(ctx.profile, next.vertical)) {
+    return fail("FORBIDDEN", "You can only move a leader within your own domain", 403);
   }
 
   const [entry] = await sql`
@@ -144,6 +161,12 @@ export async function DELETE(request, { params }) {
   const { user, tenant, sql } = ctx;
   const { id } = await params;
   if (!UUID.test(id)) return fail("NOT_FOUND", "Directory entry not found", 404);
+
+  const existing = await getEntry(sql, { tenantId: tenant.id, id });
+  if (!existing) return fail("NOT_FOUND", "Directory entry not found", 404);
+  if (!canAccessVertical(ctx.profile, existing.vertical)) {
+    return fail("FORBIDDEN", "That leader belongs to another domain", 403);
+  }
 
   const [entry] = await sql`
     UPDATE lead_directory SET is_active = false, updated_at = NOW()

@@ -77,8 +77,18 @@ export async function POST(request) {
   if (admin || role === "vertical_lead") {
     departmentId = body.scope === "department" ? body.departmentId || null : null;
     if (body.scope === "department" && body.departmentId) {
-      const [d] = await sql`SELECT id FROM departments WHERE id = ${body.departmentId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+      const [d] = await sql`
+        SELECT id, vertical FROM departments
+        WHERE id = ${body.departmentId}
+          AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        LIMIT 1
+      `;
       if (!d) return fail("NOT_FOUND", "Department not found", 404);
+      // A vertical lead runs their own domain only. Admins are the only
+      // cross-vertical authority in a chapter.
+      if (!admin && profile.vertical && d.vertical !== profile.vertical) {
+        return fail("FORBIDDEN", "You can only schedule events for departments in your vertical", 403);
+      }
     }
   } else if (role === "dept_lead") {
     if (body.scope === "department") {

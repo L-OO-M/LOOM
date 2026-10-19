@@ -30,6 +30,32 @@ export async function POST(request, { params }) {
   `;
   if (!event) return fail("NOT_FOUND", "No proposed event found", 404);
 
+  // A vertical lead approves only proposals from their own domain. Society-wide
+  // proposals have no department, so the proposer's memberships decide.
+  if (!admin) {
+    let eventVertical = null;
+    if (event.department_id) {
+      const [d] = await sql`
+        SELECT vertical FROM departments
+        WHERE id = ${event.department_id}
+          AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        LIMIT 1
+      `;
+      eventVertical = d?.vertical ?? null;
+    } else if (event.created_by) {
+      const [d] = await sql`
+        SELECT d.vertical FROM department_memberships m
+        JOIN departments d ON d.id = m.department_id
+        WHERE m.user_id = ${event.created_by} AND d.vertical = ${profile.vertical}
+        LIMIT 1
+      `;
+      eventVertical = d?.vertical ?? null;
+    }
+    if (!profile.vertical || eventVertical !== profile.vertical) {
+      return fail("FORBIDDEN", "You can only approve events in your vertical", 403);
+    }
+  }
+
   const [updated] = await sql`
     UPDATE events SET status = ${body.approve ? "upcoming" : "cancelled"} WHERE id = ${id} RETURNING *
   `;

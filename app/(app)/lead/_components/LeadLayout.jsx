@@ -64,7 +64,7 @@ export async function LeadSection({ section = "overview" }) {
           title={meta.title}
           desc={meta.desc}
         />
-        <LeadConsole initialData={data} userId={user.id} isVertical={isVertical} section={section} />
+        <LeadConsole initialData={data} userId={user.id} isVertical={isVertical} section={section} termEnd={profile.roleTermEnd} />
       </main>
     </AppShell>
   );

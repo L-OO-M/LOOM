@@ -87,6 +87,8 @@ port, or error strings.
 | `npm run rollup:analytics` | **nightly**: snapshots, cohorts, funnels, mentor stats |
 | `npm run prune:retention` | **daily**: report rows past their retention window. Dry run — add `-- --apply` to delete |
 | `node load/remind-deadlines.js` | **hourly**: in-app nudges for MoUs ending within 30 days and ops tasks due within 48h. Dry run — add `--apply` to send |
+| `node load/expire-terms.js` | **weekly**: expire ended leadership terms, notify holder + admins, add handover items. Dry run — add `--apply` to write |
+| `node load/seed-founder.js --user-id <id>` | deliberate founder seat. Idempotent; founder seats never rotate |
 | `npm run flag:verify` | current feature-flag state, including `tenant_rls_enforced` |
 | `npm run rls:role` | generate/rotate the `loom_app` password (prints the URL once) |
 | `npm run rls:verify` | **gate**: proves RLS actually enforces before/after enabling it |
@@ -128,6 +130,21 @@ cleared when the date moves. Dry run by default; schedule it hourly:
 0 * * * *  cd /app && node load/remind-deadlines.js --apply
 ```
 
+### Leadership term expiry
+
+Non-founder leadership is term-bound. Authority expires **at request time** the
+moment `role_term_end` passes, so a missed job never leaves someone in power.
+The job exists to notify people and put the handover on the checklist:
+
+```
+0 4 * * 1  cd /app && node load/expire-terms.js --apply
+```
+
+It is idempotent: `leadership_terms.status` moves `active → expired`, the
+holder and admins get one notification, and the handover item is deduplicated
+by title. Dry-run first after any bulk role change. `/admin/handover` also
+lists every term ending in the next 45 days.
+
 ## 4. Deploy checklist
 
 **Schema before code.** `/student/roadmap` and `/student/roadmap/[nodeId]` query
@@ -147,7 +164,8 @@ schema first, then promote the build.
    application role's `SELECT` grant is missing.
 3. Open `/setup`, claim first admin.
 4. Configure GitHub webhook → `/api/github/webhook` with the secret.
-5. Schedule the two rollups nightly (cron/Vercel Cron/GitHub Actions).
+5. Schedule the two rollups nightly, the deadline reminders hourly, and
+   `node load/expire-terms.js --apply` weekly (cron/Vercel Cron/GitHub Actions).
 6. `npm run build && npm start` behind HTTPS; set `NEXT_PUBLIC_APP_URL` to the public origin.
 
 ### 4b. Zen Mode is off by default

@@ -39,6 +39,8 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `admin` | Setup claim (`POST /api/admin/claim-first` from `/setup` — only while `platform_admins` is empty) or promotion via `/api/admin/students` single/bulk endpoints (audited). Sees everything. |
 | `platform_admin` | Row in `platform_admins`; `getRequestContext` maps it to effective role `admin` regardless of stored role. |
 
+**Governance & terms (migration 048).** Leadership is term-bound and permanent only for founders. `platform_admins` rows gain `is_founder`/`locked`/`label`; the `/setup` claim writes a locked founder seat that role-change APIs refuse to touch, and deliberate co-founders are added only via `node load/seed-founder.js --user-id <id>`. Every other role carries `profiles.role_term_start/role_term_end`; `getRequestContext` and `can()` govern the request by `effectiveRole()`, so a non-founder whose `role_term_end` has passed keeps the title for history but falls back to `core` the moment the date passes — no cron is required for safety. `department_memberships.term_start/term_end` do the same for a Head/Co-Head position. `leadership_terms` is the append-only appointment history; `node load/expire-terms.js [--apply]` flips ended terms to `expired`, notifies the holder and admins, and files a handover item. Domain non-interference: a `vertical_lead` acts only inside their own `vertical` and a `dept_lead` only inside the department they lead — enforced in the scoping helpers (`lib/scope.js`) that every lead route passes to `can()`. Society-wide records (`vertical = NULL`) are admin-only to create or edit. Full model: `docs/23-governance-and-terms.md`.
+
 ## 4. Data domains
 
 ~62 tables grouped by product area. One line each: what it stores → readers/writers (derived from route/page filenames; `ctx` = `getRequestContext`).
@@ -47,12 +49,13 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 
 | Table | Stores → read / written by |
 |-------|----------------------------|
-| `profiles` | Identity/role/tenant/vertical/roll_number/branch — the single source of truth → `ctx`, `GET/PATCH /api/profile`, `GET/PATCH /api/admin/students`, bulk assign; written by first-login auto-create, grant upward-sync, admin edits |
+| `profiles` | Identity/role/tenant/vertical/roll_number/branch + `role_term_start/role_term_end` [048] — the single source of truth; an expired term downgrades the governing role to `core` → `ctx`, `GET/PATCH /api/profile`, `GET/PATCH /api/admin/students`, bulk assign; written by first-login auto-create, grant upward-sync, admin edits |
 | `tenants` | Chapter rows (`demo-college` seeded) → `queryTenant`, `/api/network`, public APIs; written by `seed-control-plane.js` |
 | `tenant_domains` | Host→tenant mapping → `getTenantFromRequest` (webhook, `/api/public/*`); written by seed |
 | `departments` | 8 seeded org units + head/co-head pointers + vertical → `/api/departments`, `/api/public/departments`, `/domains*`, lead/admin overviews; written by `seed-departments.js` (no admin UI — DB-managed) |
-| `department_memberships` | User↔dept `level` (general/core/dept_lead) + `core_requested` + `succession_ready` → attached on every `ctx`, rosters; written by join / request-core / grant PATCH |
-| `platform_admins` | Setup claimants → `ctx` effective role; written by `/api/admin/claim-first` |
+| `department_memberships` | User↔dept `level` (general/core/dept_lead) + `core_requested` + `succession_ready` + `term_start/term_end` [048] (an ended `dept_lead` row stops conferring authority) → attached on every `ctx`, rosters; written by join / request-core / grant PATCH |
+| `platform_admins` | Setup claimants → `ctx` effective role; `is_founder`/`locked`/`label` [048] mark permanent founder seats immune to role changes; written by `/api/admin/claim-first` (founder) and `load/seed-founder.js` |
+| `leadership_terms` | Append-only appointment history (`role`, `vertical`, `department_id`, `starts_on`/`ends_on`, `status` active/ended/expired) with partial unique indexes against two active non-department terms per user/role → `load/expire-terms.js`; written by admin role changes |
 | `user_profiles` | Public social cards (unique username) → `/api/social/profile`, `/student/[username]`, discover |
 | `followers` | Follow edges → `/api/social/connections`, profile pages |
 | `user_endorsements` | Skill endorsements → `/api/social/connections?mode=endorse`, profile pages |
@@ -113,7 +116,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `handover_checklists` | Admin continuity items + done flags → `GET/POST /api/handover`, `PATCH …/[id]` |
 | `budget_heads` | Budget envelopes, optional vertical (NULL = society-wide) → `GET /api/finance`, admin finance page (created directly in DB) |
 | `expenses` | Proposed→approved/rejected spend → `POST` (leads+ propose) / `PATCH` decide (admin only) `/api/finance/expenses` |
-| `sponsorships` | Sponsor pipeline→committed→received → `POST/PUT /api/finance/sponsorships` (admin) |
+| `sponsorships` | Sponsor pipeline→committed→received + `vertical` [048] (NULL = society-wide) → `POST/PUT /api/finance/sponsorships` (admin); a VL reads their own vertical plus society-wide rows |
 
 **GitHub pipeline** — link → deliver → verify → aggregate.
 
@@ -192,7 +195,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 
 ## 8. Post-audit hardening (no-dummy-data pass)
 
-- Seed wipe: all seed-user-* rows removed from the shared DB via load/wipe-dev.js --confirm; orphaned content (1 event, 1 thread, 1 wiki page) reassigned to the real admin;  20 fixed a live webhook 500 (
+- Seed wipe: all seed-user-* rows removed from the shared DB via load/wipe-dev.js --confirm; orphaned content (1 event, 1 thread, 1 wiki page) reassigned to the real admin; 20 fixed a live webhook 500 (
 ormalized.payload never existed) found by HMAC-signed delivery tests.
 - Tenant renamed Demo College ? MSIT (	enants.name, chapter_profiles.public_name); seed-control-plane is now insert-only on tenant name so reruns never clobber it.
 - New surfaces: LevelGuide (auth pages explain all 5 levels; roles are granted, never self-selected), StatTiles (visual metric tiles on student/admin/lead dashboards), /admin/departments (create/rename/archive), /admin/handover (transfer checklist board), budget-head creation on /admin/finance, global pp/error.jsx + pp/not-found.jsx, role-scoped assignment in PATCH /api/admin/students (dept_lead requires department + fills Head?Co-Head slots; vertical_lead requires vertical).

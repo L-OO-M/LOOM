@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { TASK_KINDS, TASK_PRIORITIES, TASK_STATUSES, getTask } from "@/lib/event-ops";
+import { canManageSocietyWide, ownedVerticals } from "@/lib/scope";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,9 +26,17 @@ function guard(e) {
 
 async function eventInTenant(sql, tenantId, eventId) {
   const [row] = await sql`
-    SELECT id FROM events
-    WHERE id = ${eventId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
-  return !!row;
+    SELECT e.id, d.vertical FROM events e
+    LEFT JOIN departments d ON d.id = e.department_id
+    WHERE e.id = ${eventId}::uuid AND e.tenant_id = ${tenantId}::uuid LIMIT 1`;
+  return row || null;
+}
+
+function canTouchTask(profile, task, userId) {
+  const owned = ownedVerticals(profile);
+  if (owned.all) return true;
+  if (task.owner_id === userId || task.created_by === userId) return true;
+  return task.event_vertical != null && owned.has(task.event_vertical);
 }
 
 async function accountInTenant(sql, tenantId, userId) {
@@ -50,6 +59,9 @@ export async function GET(request, { params }) {
   if (!UUID.test(id)) return fail("NOT_FOUND", "Task not found", 404);
   const task = await getTask(ctx.sql, { tenantId: ctx.tenant.id, id });
   if (!task) return fail("NOT_FOUND", "Task not found", 404);
+  if (!canTouchTask(ctx.profile, task, ctx.user.id)) {
+    return fail("FORBIDDEN", "That task belongs to another domain", 403);
+  }
   return ok({ task });
 }
 
@@ -75,10 +87,23 @@ export async function PATCH(request, { params }) {
 
   const existing = await getTask(sql, { tenantId: tenant.id, id });
   if (!existing) return fail("NOT_FOUND", "Task not found", 404);
+  if (!canTouchTask(ctx.profile, existing, user.id)) {
+    return fail("FORBIDDEN", "That task belongs to another domain", 403);
+  }
 
-  if (body.eventId !== undefined && body.eventId !== null
-      && !(await eventInTenant(sql, tenant.id, body.eventId))) {
-    return fail("VALIDATION_ERROR", "Unknown event", 400);
+  let nextEvent = null;
+  if (body.eventId !== undefined && body.eventId !== null) {
+    nextEvent = await eventInTenant(sql, tenant.id, body.eventId);
+    if (!nextEvent) return fail("VALIDATION_ERROR", "Unknown event", 400);
+  }
+  if (body.eventId === null && !canManageSocietyWide(ctx.profile)) {
+    return fail("FORBIDDEN", "Only an admin can make an operations task society-wide", 403);
+  }
+  if (nextEvent) {
+    const owned = ownedVerticals(ctx.profile);
+    if (!owned.all && !(nextEvent.vertical != null && owned.has(nextEvent.vertical))) {
+      return fail("FORBIDDEN", "You can only move a task to an event in your own domain", 403);
+    }
   }
   if (body.ownerId !== undefined && body.ownerId !== null
       && !(await accountInTenant(sql, tenant.id, body.ownerId))) {
@@ -137,6 +162,12 @@ export async function DELETE(request, { params }) {
   const { user, tenant, sql } = ctx;
   const { id } = await params;
   if (!UUID.test(id)) return fail("NOT_FOUND", "Task not found", 404);
+
+  const existing = await getTask(sql, { tenantId: tenant.id, id });
+  if (!existing) return fail("NOT_FOUND", "Task not found", 404);
+  if (!canTouchTask(ctx.profile, existing, user.id)) {
+    return fail("FORBIDDEN", "That task belongs to another domain", 403);
+  }
 
   const [task] = await sql`
     UPDATE event_ops_tasks SET is_active = false, updated_at = NOW()

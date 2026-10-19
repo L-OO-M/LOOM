@@ -20,13 +20,14 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const tid = tenant?.id ?? null;
   const [report] = await sql`
-    SELECT r.*, d.name AS department_name FROM dept_reports r
+    SELECT r.*, d.name AS department_name, d.vertical FROM dept_reports r
     JOIN departments d ON d.id = r.department_id
     WHERE r.id = ${id} AND (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
-  const wide = admin || profile.role === "vertical_lead";
+  const verticalLead = profile.role === "vertical_lead";
+  const wide = admin || (verticalLead && report.vertical === profile.vertical);
   const mine = (profile.memberships || []).some((m) => m.department_id === report.department_id);
   if (!wide && !mine) return fail("FORBIDDEN", "Only that department's leads, vertical leads, and admins can read reports", 403);
   return ok({ report });
@@ -46,13 +47,16 @@ export async function PATCH(request, { params }) {
   }
   const tid = tenant?.id ?? null;
   const [report] = await sql`
-    SELECT * FROM dept_reports WHERE id = ${id}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+    SELECT r.*, d.vertical FROM dept_reports r
+    JOIN departments d ON d.id = r.department_id
+    WHERE r.id = ${id}
+      AND (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
   const lead = (profile.memberships || []).some((m) => m.department_id === report.department_id && m.level === "dept_lead");
-  if (!admin && profile.role !== "vertical_lead" && !lead) {
+  const verticalLead = profile.role === "vertical_lead" && report.vertical === profile.vertical;
+  if (!admin && !verticalLead && !lead) {
     return fail("FORBIDDEN", "Only that department's Head/Co-Head can edit or submit its report", 403);
   }
   if (report.status === "submitted" && body.status === "submitted" && !admin) {

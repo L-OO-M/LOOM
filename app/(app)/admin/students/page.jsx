@@ -55,7 +55,7 @@ export default async function AdminStudentsPage({ searchParams }) {
 
   let rows = await sql`
     SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
-           p.github_username, p.updated_at, p.vertical,
+           p.github_username, p.updated_at, p.vertical, p.role_term_end,
       (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
        FROM department_memberships m JOIN departments d ON d.id = m.department_id
        WHERE m.user_id = p.user_id) AS departments
@@ -224,6 +224,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                   <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--bg)" }}>
                     <th className="whitespace-nowrap px-4 py-3 font-medium">Student</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Role</th>
+                    <th className="whitespace-nowrap px-3 py-3 font-medium">Term ends</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Tier</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Track</th>
                     <th className="whitespace-nowrap px-3 py-3 font-medium">Departments</th>
@@ -251,6 +252,10 @@ export default async function AdminStudentsPage({ searchParams }) {
                         </td>
                         <td className="px-3 py-3">
                           <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>{tone.label}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs" style={{ color: r.role_term_end && new Date(r.role_term_end) < new Date() ? "var(--danger)" : "var(--text-muted)" }}>
+                          {r.role_term_end ? new Date(r.role_term_end).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "—"}
+                          {r.role_term_end && new Date(r.role_term_end) < new Date() && <span className="ml-1.5 font-sans">expired</span>}
                         </td>
                         <td className="px-3 py-3">
                           <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: tierColor }} title={tier?.need || ""}>

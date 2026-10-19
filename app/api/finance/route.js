@@ -44,6 +44,7 @@ export async function GET() {
   const sponsorships = await sql`
     SELECT * FROM sponsorships
     WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND (${vertical ? sql`(vertical = ${vertical} OR vertical IS NULL)` : sql`TRUE`})
     ORDER BY created_at DESC
     LIMIT 200
   `;

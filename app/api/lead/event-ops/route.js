@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { TASK_KINDS, TASK_PRIORITIES, TASK_STATUSES, listTasks } from "@/lib/event-ops";
+import { canManageSocietyWide, ownedVerticals } from "@/lib/scope";
 
 const createSchema = z.object({
   title: z.string().min(2).max(160),
@@ -22,9 +23,10 @@ function guard(e) {
 
 async function eventInTenant(sql, tenantId, eventId) {
   const [row] = await sql`
-    SELECT id FROM events
-    WHERE id = ${eventId}::uuid AND tenant_id = ${tenantId}::uuid LIMIT 1`;
-  return !!row;
+    SELECT e.id, d.vertical FROM events e
+    LEFT JOIN departments d ON d.id = e.department_id
+    WHERE e.id = ${eventId}::uuid AND e.tenant_id = ${tenantId}::uuid LIMIT 1`;
+  return row || null;
 }
 
 async function accountInTenant(sql, tenantId, userId) {
@@ -43,7 +45,7 @@ export async function GET(request) {
     if (r) return r;
     throw e;
   }
-  const { tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event") || null;
   const statusParam = (searchParams.get("status") || "").trim();
@@ -52,7 +54,16 @@ export async function GET(request) {
   const dueSoon = searchParams.get("due") === "soon";
   const q = (searchParams.get("q") || "").trim().slice(0, 80);
   const tasks = await listTasks(sql, { tenantId: tenant.id, eventId, status, ownerId, dueSoon, q });
-  return ok({ tasks });
+  const owned = ownedVerticals(profile);
+  return ok({
+    tasks: owned.all
+      ? tasks
+      : tasks.filter((t) =>
+          t.owner_id === user.id ||
+          t.created_by === user.id ||
+          (t.event_vertical != null && owned.has(t.event_vertical))
+        )
+  });
 }
 
 export async function POST(request) {
@@ -64,7 +75,7 @@ export async function POST(request) {
     if (r) return r;
     throw e;
   }
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
 
   let body;
   try {
@@ -72,8 +83,15 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  if (body.eventId && !(await eventInTenant(sql, tenant.id, body.eventId))) {
-    return fail("VALIDATION_ERROR", "Unknown event", 400);
+  if (body.eventId) {
+    const event = await eventInTenant(sql, tenant.id, body.eventId);
+    if (!event) return fail("VALIDATION_ERROR", "Unknown event", 400);
+    const owned = ownedVerticals(profile);
+    if (!owned.all && !(event.vertical != null && owned.has(event.vertical))) {
+      return fail("FORBIDDEN", "You can only add tasks to events in your own domain", 403);
+    }
+  } else if (!canManageSocietyWide(profile)) {
+    return fail("FORBIDDEN", "Only an admin can create a society-wide operations task", 403);
   }
   if (body.ownerId && !(await accountInTenant(sql, tenant.id, body.ownerId))) {
     return fail("VALIDATION_ERROR", "That account is not in this chapter", 400);

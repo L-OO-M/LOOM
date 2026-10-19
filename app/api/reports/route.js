@@ -15,17 +15,17 @@ function monthRange(month) {
   return { start: start.toISOString(), end: end.toISOString(), firstDay: `${month.slice(0, 7)}-01` };
 }
 
-function canReadReport({ profile }, departmentId) {
+function canReadReport({ profile }, departmentId, departmentVertical = null) {
   const me = { id: profile.user_id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   if (isAdmin(me)) return true;
-  if (profile.role === "vertical_lead") return true;
+  if (profile.role === "vertical_lead") return departmentVertical === profile.vertical;
   return (profile.memberships || []).some((m) => m.department_id === departmentId && (m.level === "dept_lead" || m.level === "core"));
 }
 
-function canWriteReport({ profile }, departmentId) {
+function canWriteReport({ profile }, departmentId, departmentVertical = null) {
   const me = { id: profile.user_id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   if (isAdmin(me)) return true;
-  if (profile.role === "vertical_lead") return true;
+  if (profile.role === "vertical_lead") return departmentVertical === profile.vertical;
   return (profile.memberships || []).some((m) => m.department_id === departmentId && m.level === "dept_lead");
 }
 
@@ -44,7 +44,8 @@ export async function GET(request) {
     return fail("VALIDATION_ERROR", "status must be draft or submitted", 400);
   }
   const admin = isAdmin({ role: profile.role });
-  const wide = admin || profile.role === "vertical_lead";
+  const verticalLead = !admin && profile.role === "vertical_lead";
+  const wide = admin || verticalLead;
   const mine = (profile.memberships || []).map((m) => m.department_id);
   if (!wide && mine.length === 0) return ok({ reports: [] });
   const rows = await sql`
@@ -55,11 +56,12 @@ export async function GET(request) {
     WHERE (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
       AND (${departmentId ? sql`r.department_id = ${departmentId}` : sql`TRUE`})
       AND (${status ? sql`r.status = ${status}` : sql`TRUE`})
+      AND (${verticalLead ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
       AND (${wide ? sql`TRUE` : sql`r.department_id = ANY(${mine})`})
     ORDER BY r.month DESC, d.name ASC
     LIMIT 100
   `;
-  return ok({ reports: rows.filter((r) => wide || canReadReport(ctx, r.department_id)) });
+  return ok({ reports: rows.filter((r) => wide ? (admin || r.vertical === profile.vertical) : canReadReport(ctx, r.department_id, r.vertical)) });
 }
 
 export async function POST(request) {
@@ -73,15 +75,15 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  if (!canWriteReport(ctx, body.departmentId)) {
-    return fail("FORBIDDEN", "Only that department's Head/Co-Head (or a vertical lead / admin) can compile its report", 403);
-  }
   const tid = tenant?.id ?? null;
   const [dept] = await sql`
     SELECT * FROM departments WHERE id = ${body.departmentId}
       AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
   `;
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+  if (!canWriteReport(ctx, body.departmentId, dept.vertical)) {
+    return fail("FORBIDDEN", "Only that department's Head/Co-Head (or a vertical lead / admin) can compile its report", 403);
+  }
   const { start, end, firstDay } = monthRange(body.month);
 
   const byKind = await sql`

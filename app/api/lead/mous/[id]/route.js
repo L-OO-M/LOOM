@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { MOU_PARTNER_TYPES, MOU_STATUSES, getMou } from "@/lib/mou";
+import { canAccessVertical } from "@/lib/scope";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,6 +44,9 @@ export async function GET(request, { params }) {
   if (!UUID.test(id)) return fail("NOT_FOUND", "MoU not found", 404);
   const mou = await getMou(ctx.sql, { tenantId: ctx.tenant.id, id });
   if (!mou) return fail("NOT_FOUND", "MoU not found", 404);
+  if (mou.vertical != null && !canAccessVertical(ctx.profile, mou.vertical)) {
+    return fail("FORBIDDEN", "That MoU belongs to another domain", 403);
+  }
   return ok({ mou });
 }
 
@@ -68,6 +72,9 @@ export async function PATCH(request, { params }) {
 
   const existing = await getMou(sql, { tenantId: tenant.id, id });
   if (!existing) return fail("NOT_FOUND", "MoU not found", 404);
+  if (!canAccessVertical(ctx.profile, existing.vertical)) {
+    return fail("FORBIDDEN", "That MoU belongs to another domain", 403);
+  }
 
   const next = {
     title: body.title ?? existing.title,
@@ -86,6 +93,9 @@ export async function PATCH(request, { params }) {
   };
   if (next.startsOn && next.endsOn && next.endsOn < next.startsOn) {
     return fail("VALIDATION_ERROR", "The end date cannot be before the start date", 400);
+  }
+  if (!canAccessVertical(ctx.profile, next.vertical)) {
+    return fail("FORBIDDEN", "You can only move a MoU within your own domain", 403);
   }
   // A moved end date resets the reminder so the new date can be announced.
   const endsChanged = String(next.endsOn || "") !== String(existing.ends_on || "");
@@ -125,6 +135,12 @@ export async function DELETE(request, { params }) {
   const { user, tenant, sql } = ctx;
   const { id } = await params;
   if (!UUID.test(id)) return fail("NOT_FOUND", "MoU not found", 404);
+
+  const existing = await getMou(sql, { tenantId: tenant.id, id });
+  if (!existing) return fail("NOT_FOUND", "MoU not found", 404);
+  if (!canAccessVertical(ctx.profile, existing.vertical)) {
+    return fail("FORBIDDEN", "That MoU belongs to another domain", 403);
+  }
 
   const [mou] = await sql`
     UPDATE mous SET is_active = false, updated_at = NOW()
