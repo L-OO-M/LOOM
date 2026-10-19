@@ -80,6 +80,13 @@ describe("flag definition", () => {
     await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(true);
   });
 
+  // Zen Mode is not shipped to chapters yet, so production ignores the row
+  // entirely -- even an explicit enabled row stays OFF there.
+  it("is OFF in production even when the chapter row is enabled", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    await expect(isZenModeEnabled(fakeSql({ enabled: true }), "tenant-1")).resolves.toBe(false);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });

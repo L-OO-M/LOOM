@@ -160,8 +160,8 @@ no row — or any error reading it — it stays off.
 
 **Development is the one exception:** under `next dev`,
 `isZenModeEnabled()` returns true so the overlay is available locally without
-writing the shared `zen_mode` row. Production — and the unit-test runtime —
-never take that branch and stay fail-closed.
+writing the shared `zen_mode` row. Production is **hard-off** for now — the
+persisted row is ignored there until the feature is cleared for real chapters.
 
 Enable it per chapter at `/admin/flags`. While it is off, study resources are
 ordinary links: external resources open natively in a new tab, and the overlay
