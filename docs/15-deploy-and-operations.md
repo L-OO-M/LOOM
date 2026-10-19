@@ -158,6 +158,11 @@ the server by `isZenModeEnabled()` (`lib/feature-flags.js`) and passed to the
 client as a prop, so the server HTML and the hydrated tree always agree. With
 no row — or any error reading it — it stays off.
 
+**Development is the one exception:** under `next dev`,
+`isZenModeEnabled()` returns true so the overlay is available locally without
+writing the shared `zen_mode` row. Production — and the unit-test runtime —
+never take that branch and stay fail-closed.
+
 Enable it per chapter at `/admin/flags`. While it is off, study resources are
 ordinary links: external resources open natively in a new tab, and the overlay
 never mounts by any path (the flag defaults to false in `ZenMode`,

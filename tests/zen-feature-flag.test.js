@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -69,6 +69,19 @@ describe("flag definition", () => {
     await expect(isZenModeEnabled(fakeSql({ enabled: true }), "tenant-1")).resolves.toBe(true);
     await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(false);
     await expect(isZenModeEnabled(fakeSql({ enabled: "true" }), "tenant-1")).resolves.toBe(false);
+  });
+
+  // Development is the deliberate exception: `next dev` turns the feature on so
+  // it can be worked on locally, while production and the test runtime stay
+  // fail-closed. The shared flag row is never consulted in development.
+  it("is ON in development with no row and no tenant", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    await expect(isZenModeEnabled(null, null)).resolves.toBe(true);
+    await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 });
 
