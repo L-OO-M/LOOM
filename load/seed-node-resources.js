@@ -1,19 +1,19 @@
-﻿// load/seed-node-resources.js â€” nodeâ†’resource shelves for roadmap_node_resources (036).
+// load/seed-node-resources.js — node→resource shelves for roadmap_node_resources (036).
 // Replaces the domain-wide shelf query so each node lists its own material.
-// Usage: node load/seed-node-resources.js   (uses DATABASE_URL â€” override it!)
+// Usage: node load/seed-node-resources.js   (uses DATABASE_URL — override it!)
 //
 // SCOPE: canonical catalogue nodes that have a genuine subject match in the
 // existing resource set. Web track is hand-curated; Blockchain and DSA use
 // the catalogue's own name-identity pairing (node names the exact channel,
 // course, or sheet). Nodes with no genuine match stay uncovered and render
-// the honest empty state â€” no filler, no invented rows.
+// the honest empty state — no filler, no invented rows.
 //
 // Idempotent: fixed pairs + ON CONFLICT DO NOTHING. Writes ONLY this table.
 // Aborts if any referenced node/resource id is missing, so it can never
 // invent or orphan rows.
 const LINKS = [
-  // â”€â”€ AI / ML â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Phase 1 â€¢ Foundations
+  // ── AI / ML ────────────────────────────────────────────────────────────
+  // Phase 1 • Foundations
   ["ai_ml_foundations_data_workflow", "res_ml_crash", 0],
   ["ai_ml_foundations_data_workflow", "res_ai_pandas_10min", 1],
   ["ai_ml_foundations_data_workflow", "res_ai_sklearn_user_guide", 2],
@@ -27,7 +27,7 @@ const LINKS = [
   ["ai_feature_engineering_preprocessing", "res_ml_crash", 1],
   ["ai_feature_engineering_preprocessing", "res_ai_pandas_10min", 2],
 
-  // Phase 2 â€¢ Supervised learning â€” regression family
+  // Phase 2 • Supervised learning — regression family
   ["ai_supervised_learning_regression", "res_ml_crash", 0],
   ["ai_supervised_learning_regression", "res_ai_sklearn_linear_model", 1],
   ["ai_simple_linear_regression", "res_ai_sklearn_linear_model", 0],
@@ -50,7 +50,7 @@ const LINKS = [
   ["ai_lasso_regression_l1", "res_ml_crash", 1],
   ["ai_elastic_net", "res_ai_sklearn_linear_model", 0],
 
-  // Phase 3 â€¢ Ensembles
+  // Phase 3 • Ensembles
   ["ai_ensemble_learning", "res_ai_sklearn_ensemble", 0],
   ["ai_ensemble_learning", "res_ml_crash", 1],
   ["ai_voting_ensembles", "res_ai_sklearn_ensemble", 0],
@@ -66,7 +66,7 @@ const LINKS = [
   ["ai_xgboost", "res_ai_sklearn_ensemble", 1],
   ["ai_stacking_blending", "res_ai_sklearn_ensemble", 0],
 
-  // Phase 4 â€¢ Unsupervised learning & dimensionality
+  // Phase 4 • Unsupervised learning & dimensionality
   ["ai_clustering_dimensionality_reduction", "res_ai_sklearn_clustering", 0],
   ["ai_clustering_dimensionality_reduction", "res_ai_sklearn_decomposition", 1],
   ["ai_k_means_clustering", "res_ai_sklearn_clustering", 0],
@@ -78,7 +78,7 @@ const LINKS = [
   ["ai_pca", "res_ai_sklearn_decomposition", 0],
   ["ai_pca", "res_ml_crash", 1],
 
-  // Phase 5 â€¢ Tuning & validation
+  // Phase 5 • Tuning & validation
   ["ai_hyperparameter_tuning_reliable_experiments", "res_ai_sklearn_gridsearch", 0],
   ["ai_hyperparameter_tuning_reliable_experiments", "res_ml_crash", 1],
   ["ai_search_strategies", "res_ai_sklearn_gridsearch", 0],
@@ -87,7 +87,7 @@ const LINKS = [
   ["ai_experiment_hygiene", "res_ai_sklearn_cross_validation", 0],
   ["ai_experiment_hygiene", "res_ml_crash", 1],
 
-  // Phase 6 â€¢ Deep learning
+  // Phase 6 • Deep learning
   ["ai_neural_network_fundamentals", "res_ai_d2l", 0],
   ["ai_neural_network_fundamentals", "res_ai_3b1b_nn", 1],
   ["ai_neural_network_fundamentals", "res_ai_keras_guide", 2],
@@ -116,7 +116,7 @@ const LINKS = [
   ["ai_nn_hyperparameter_tuning", "res_ai_keras_guide", 0],
   ["ai_nn_hyperparameter_tuning", "res_ai_optuna", 1],
 
-  // Phase 7 â€¢ Computer vision
+  // Phase 7 • Computer vision
   ["ai_convolutional_neural_networks", "res_ai_cs231n", 0],
   ["ai_convolutional_neural_networks", "res_fastai", 1],
   ["ai_cnn_intuition", "res_ai_cs231n", 0],
@@ -128,7 +128,7 @@ const LINKS = [
   ["ai_data_augmentation_transfer_learning", "res_ai_cs231n", 0],
   ["ai_data_augmentation_transfer_learning", "res_fastai", 1],
 
-  // Phase 8 â€¢ Sequences
+  // Phase 8 • Sequences
   ["ai_rnn_lstm_gru", "res_ai_colah_lstm", 0],
   ["ai_rnn_lstm_gru", "res_ai_d2l", 1],
   ["ai_recurrent_neural_networks", "res_ai_colah_lstm", 0],
@@ -140,7 +140,7 @@ const LINKS = [
   ["ai_deep_bidirectional_rnns", "res_ai_colah_lstm", 0],
   ["ai_deep_bidirectional_rnns", "res_ai_d2l", 1],
 
-  // Phase 9 â€¢ Attention & transformers
+  // Phase 9 • Attention & transformers
   ["ai_seq2seq_attention_transformers", "res_ai_illustrated_transformer", 0],
   ["ai_seq2seq_attention_transformers", "res_hf_nlp", 1],
   ["ai_encoder_decoder_seq2seq", "res_hf_nlp", 0],
@@ -859,43 +859,43 @@ const LINKS = [
   ["cy_check_specialization", "res_cy_awesome_cyber_security", 0],
   ["cy_check_specialization", "res_cy_nist_sp800_61", 1],
 
-  // HTML5 â€” semantic tags, document structure, forms, a11y, SEO basics
+  // HTML5 — semantic tags, document structure, forms, a11y, SEO basics
   ["web_html5", "res_web_mdn_web_docs", 0],
   ["web_html5", "res_html_semantic", 1],
   ["web_html5", "res_web_codewithharry_sigma", 2],
 
-  // CSS3 â€” box model, selectors, flexbox, grid, responsive
+  // CSS3 — box model, selectors, flexbox, grid, responsive
   ["web_css3", "res_web_mdn_web_docs", 0],
   ["web_css3", "res_css_grid", 1],
   ["web_css3", "res_web_codewithharry_sigma", 2],
 
-  // JavaScript (Core) â€” variables, DOM, events, async, ES6+
+  // JavaScript (Core) — variables, DOM, events, async, ES6+
   ["web_javascript_core", "res_web_javascript_info", 0],
   ["web_javascript_core", "res_js_async", 1],
   ["web_javascript_core", "res_web_namaste_javascript", 2],
   ["web_javascript_core", "res_web_mdn_web_docs", 3],
 
-  // Git & GitHub â€” init/commit/push, branch, merge, PRs, forking
+  // Git & GitHub — init/commit/push, branch, merge, PRs, forking
   ["web_git_github", "res_git_branching", 0],
 
-  // Dev Tools & Fundamentals â€” devtools, how the web works, npm
+  // Dev Tools & Fundamentals — devtools, how the web works, npm
   ["web_dev_tools_fundamentals", "res_web_mdn_web_docs", 0],
   ["web_dev_tools_fundamentals", "res_web_codewithharry_sigma", 1],
 
-  // React.js Fundamentals â€” JSX, components, useState/useEffect, forms
+  // React.js Fundamentals — JSX, components, useState/useEffect, forms
   ["web_react_fundamentals", "res_web_react_official_docs", 0],
   ["web_react_fundamentals", "res_react_hooks", 1],
 
-  // React â€” Intermediate â€” router, custom hooks, Context, fetch + states
+  // React — Intermediate — router, custom hooks, Context, fetch + states
   ["web_react_intermediate", "res_web_react_official_docs", 0],
   ["web_react_intermediate", "res_react_hooks", 1],
   ["web_react_intermediate", "res_web_durgesh_blogging_app", 2],
 
-  // React â€” Advanced â€” state management, auth flow, code-splitting
+  // React — Advanced — state management, auth flow, code-splitting
   ["web_react_advanced", "res_web_react_official_docs", 0],
   ["web_react_advanced", "res_web_durgesh_blogging_app", 1],
 
-  // Blockchain â€” teacher/provider nodes. Each node names the exact channel,
+  // Blockchain — teacher/provider nodes. Each node names the exact channel,
   // course, or sheet it points at, so the resource is subject-identical.
   ["bc_patrick_collins", "res_bc_patrick_collins", 0],
   ["bc_daulat_hussain", "res_bc_daulat_hussain", 0],
@@ -904,7 +904,7 @@ const LINKS = [
   ["bc_harkirat_cohort", "res_bc_harkirat_100xdevs", 0],
   ["bc_udemy_solidity", "res_bc_udemy_solidity", 0],
 
-  // DSA â€” each node names the exact sheet/editorial it points at.
+  // DSA — each node names the exact sheet/editorial it points at.
   ["dsa_striver", "res_dsa_striver_a2z", 0],
   ["dsa_neetcode_150", "res_dsa_neetcode_150", 0],
   ["dsa_leetcode_codeforces", "res_dsa_leetcode_codeforces", 0],
@@ -933,10 +933,10 @@ const LINKS = [
   ["node_deploy", "res_vercel_docs", 0],
 ];
 
-// Web nodes deliberately left uncovered â€” no genuine catalogue match exists,
+// Web nodes deliberately left uncovered — no genuine catalogue match exists,
 // so they render the honest empty state until mentors curate one.
-//   web_css_frameworks      â€” no Bootstrap/Tailwind resource in the catalogue
-//   web_mern_portfolio_projects â€” full-stack projects not yet catalogued
+//   web_css_frameworks      — no Bootstrap/Tailwind resource in the catalogue
+//   web_mern_portfolio_projects — full-stack projects not yet catalogued
 // No canonical node is intentionally left uncovered: every catalogue node
 // now has at least one genuinely relevant, verified resource.
 const UNCOVERED_NODES = [];
