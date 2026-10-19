@@ -26,8 +26,8 @@ export default async function SettingsPage() {
               <p className="narrative mt-2">Shareable anywhere — Discord, Insta story, Snapchat, Twitter. Unfurls with your Proof Score.</p>
               <p className="mt-3 font-mono text-sm font-semibold" style={{ color: "var(--accent)" }}>loom.sh/u/{card.username}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <a href={`/u/${card.username}`} target="_blank" className="btn-ink !py-2 text-sm">View public card ↗</a>
-                <a href={`/u/${card.username}/opengraph-image`} target="_blank" className="btn-ghost !py-2 text-sm">Download card PNG</a>
+                <a href={`/u/${card.username}`} target="_blank" rel="noreferrer" className="btn-ink !py-2 text-sm">View public card ↗</a>
+                <a href={`/u/${card.username}/opengraph-image`} target="_blank" rel="noreferrer" className="btn-ghost !py-2 text-sm">Download card PNG</a>
                 <Link href={`/student/${card.username}`} prefetch={false} className="rounded-full border px-4 py-2 text-sm font-semibold" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Edit card</Link>
               </div>
               <p className="meta mt-2">{card.is_public ? "Public · visible to anyone with the link" : "Private · only you can see it — toggle Public in Edit"}</p>
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
           <SettingsClient profile={profile} />
         </section>
 
-        <section className="mt-10" aria-label="Membership">
+        <section id="membership" className="mt-10 scroll-mt-20" aria-label="Membership">
           <Meta>Membership</Meta>
           <dl className="mt-4">
             {[

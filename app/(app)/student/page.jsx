@@ -15,39 +15,13 @@ export default async function StudentPage() {
   // is only a fallback when host headers are absent (local dev, tests).
   const tenant = await resolveRequestTenant();
 
-  let [profile] = await sql`
+  // The student layout runs getRequestContext() first, which creates the
+  // profile (with the domain the member actually picked) and seeds department
+  // memberships on first login. This page only reads it — the former duplicate
+  // INSERT here hardcoded primary_domain 'web' and could never win the race.
+  const [profile] = await sql`
     SELECT * FROM profiles WHERE user_id = ${user?.id ?? ""} LIMIT 1
   `;
-
-  // Auto-create profile on first visit so new users aren't stuck with empty state.
-  // Consumes the same signup metadata as lib/auth-server (roll, branch, year,
-  // instant domain memberships) — whichever entry point runs first wins.
-  if (!profile && user?.id) {
-    const meta = user.user_metadata || {};
-    const displayName = meta.name || user.email?.split("@")[0] || "Student";
-    const year = Number.isInteger(meta.year) && meta.year >= 1 && meta.year <= 6 ? meta.year : null;
-    const [created] = await sql`
-      INSERT INTO profiles (user_id, name, role, primary_domain, tenant_id, roll_number, branch, year)
-      VALUES (${user.id}, ${displayName}, 'student', 'web', ${tenant?.id ?? null}, ${meta.roll_number || null}, ${meta.branch || null}, ${year})
-      ON CONFLICT (user_id) DO NOTHING
-      RETURNING *
-    `;
-    if (created) {
-      profile = created;
-      try {
-        const picked = Array.isArray(meta.domains) ? meta.domains.filter((d) => typeof d === "string") : [];
-        if (picked.length && tenant?.id) {
-          const depts = await sql`SELECT id FROM departments WHERE tenant_id = ${tenant.id} AND is_active AND slug = ANY(${picked})`;
-          for (const d of depts) {
-            await sql`INSERT INTO department_memberships (user_id, department_id, level) VALUES (${user.id}, ${d.id}, 'general') ON CONFLICT (user_id, department_id) DO NOTHING`;
-          }
-        }
-      } catch { /* membership seeding must never break first login */ }
-    } else {
-      const [refetched] = await sql`SELECT * FROM profiles WHERE user_id = ${user.id} LIMIT 1`;
-      profile = refetched;
-    }
-  }
 
   const nodes = await sql`
     SELECT * FROM roadmap_nodes ORDER BY sort_order ASC

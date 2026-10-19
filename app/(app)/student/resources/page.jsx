@@ -150,7 +150,7 @@ export default async function ResourcesPage({ searchParams }) {
         <Meta>Resources · the curated library</Meta>
         <Display size="lg" className="mt-3">Learn with intention.</Display>
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
-          Five tracks, curated by mentors — not an endless feed. Finish something and it stays on your record.
+          {TRACKS.length} tracks, curated by mentors — not an endless feed. Finish something and it stays on your record.
         </p>
         <div className="mt-6 flex flex-wrap items-baseline gap-x-8 gap-y-3 border-y py-4" style={{ borderColor: "var(--line)" }} aria-label="Library progress">
           <span>
