@@ -14,10 +14,10 @@ export default function RoadmapTabs({
   doneIds,
   verifiedIds = [],
   nextId,
-  resourcesByDomain,
-  resourcesByNode = {},
+  resourcesByNode,
   resourceDoneIds,
   projectsByNode,
+  zenEnabled = false,
 }) {
   const [view, setView] = useState("graph");
   const total = nodes.length;
@@ -86,10 +86,10 @@ export default function RoadmapTabs({
                 verifiedIds={verifiedIds}
                 nextId={nextId}
                 domain={domain}
-                resourcesByDomain={resourcesByDomain}
                 resourcesByNode={resourcesByNode}
                 resourceDoneIds={resourceDoneIds}
                 projectsByNode={projectsByNode}
+                zenEnabled={zenEnabled}
               />
             </div>
           )}

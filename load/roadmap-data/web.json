@@ -17,8 +17,9 @@
         { "from_id": "web_css3", "to_id": "web_javascript_core", "kind": "required" },
         { "from_id": "web_javascript_core", "to_id": "web_git_github", "kind": "required" },
         { "from_id": "web_git_github", "to_id": "web_dev_tools_fundamentals", "kind": "required" },
-        { "from_id": "web_html5", "to_id": "web_git_github", "kind": "required" }
-      ]
+{ "from_id": "web_html5", "to_id": "web_git_github", "kind": "required" },
+          { "from_id": "web_css3", "to_id": "web_css_frameworks", "kind": "optional" }
+        ]
     },
     {
       "title": "2. Styling Frameworks & React.js",
@@ -31,8 +32,9 @@
       "edges": [
         { "from_id": "web_css_frameworks", "to_id": "web_react_fundamentals", "kind": "required" },
         { "from_id": "web_react_fundamentals", "to_id": "web_react_intermediate", "kind": "required" },
-        { "from_id": "web_react_intermediate", "to_id": "web_react_advanced", "kind": "required" }
-      ]
+{ "from_id": "web_react_intermediate", "to_id": "web_react_advanced", "kind": "required" },
+          { "from_id": "web_react_advanced", "to_id": "web_mern_portfolio_projects", "kind": "optional" }
+        ]
     },
     {
       "title": "3. Node.js, Express & MongoDB",
@@ -57,6 +59,7 @@
       ],
       "edges": [
         { "from_id": "web_connecting_frontend_backend", "to_id": "web_deployment", "kind": "required" },
+          { "from_id": "web_deployment", "to_id": "web_java_deployment", "kind": "optional" },
         { "from_id": "web_deployment", "to_id": "web_mern_portfolio_projects", "kind": "required" }
       ]
     },
@@ -109,13 +112,14 @@
     {
       "title": "8. System Design (LLD + HLD)",
       "nodes": [
+        { "id": "web_dsa_track", "title": "DSA", "description": "Arrays, strings, recursion, backtracking, trees, graphs, dynamic programming, greedy, and time/space complexity analysis — run in parallel throughout, not just Phase 8.", "domain": "dsa", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
         { "id": "web_low_level_design", "title": "Low-Level Design (LLD)", "description": "SOLID principles, design patterns (Factory, Singleton, Strategy, Observer, Builder), UML basics, and classic LLD problems like Parking Lot, Elevator System, Splitwise, Tic-Tac-Toe, BookMyShow.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "web_high_level_design", "title": "High-Level Design (HLD)", "description": "Scalability, caching (Redis), CDNs, database sharding and replication, CAP theorem, SQL vs NoSQL trade-offs, message queues, and classic HLD problems.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "web_dsa_track", "title": "DSA", "description": "Arrays, strings, recursion, backtracking, trees, graphs, dynamic programming, greedy, and time/space complexity analysis — run in parallel throughout, not just Phase 8.", "domain": "dsa", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
+        { "id": "web_high_level_design", "title": "High-Level Design (HLD)", "description": "Scalability, caching (Redis), CDNs, database sharding and replication, CAP theorem, SQL vs NoSQL trade-offs, message queues, and classic HLD problems.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_low_level_design", "to_id": "web_high_level_design", "kind": "required" },
         { "from_id": "web_java_basics", "to_id": "web_dsa_track", "kind": "optional" },
+          { "from_id": "web_dsa_track", "to_id": "dsa_striver", "kind": "required" },
         { "from_id": "web_dsa_track", "to_id": "web_low_level_design", "kind": "alternative" }
       ]
     }

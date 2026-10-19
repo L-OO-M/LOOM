@@ -77,9 +77,11 @@ port, or error strings.
 | `npm run dev` | local server `:3000` |
 | `npm run lint` / `npm run test` / `npm run test:e2e` | eslint / vitest / playwright |
 | `npm run build` / `npm start` | production build / serve |
-| `npm run db:migrate` | `node load/migrate.js` — tracked, idempotent |
+| `npm run db:migrate` | `node load/migrate.js` — tracked, idempotent, one transaction per file, advisory-locked |
 | `node load/setup-storage.js` | **once per env**: create the private `loom-files` bucket + seed asset categories (idempotent) |
 | `npm run db:seed` | control-plane + roadmap/resources content |
+| `npm run db:seed:roadmaps` | canonical roadmap graph (`seed-roadmaps.js`) + per-node resource shelves (`seed-node-resources.js`) |
+| `npm run db:verify` | `node load/verify-roadmap-shelf.js` — READ-ONLY preflight: schema, migration record, mapping count, orphans/duplicates, app-role SELECT |
 | `node load/seed-community.js` | curated OSS repos (live GitHub data) + demo chapter card |
 | `npm run rollup:federation` | **nightly**: chapter stats + federation row |
 | `npm run rollup:analytics` | **nightly**: snapshots, cohorts, funnels, mentor stats |
@@ -128,11 +130,85 @@ cleared when the date moves. Dry run by default; schedule it hourly:
 
 ## 4. Deploy checklist
 
-1. Set env, run `db:migrate`, then `db:seed` (+ `seed-community.js`). Set `SUPABASE_SERVICE_ROLE_KEY` and run `node load/setup-storage.js` (lead-tool file uploads need the bucket).
-2. Open `/setup`, claim first admin.
-3. Configure GitHub webhook → `/api/github/webhook` with the secret.
-4. Schedule the two rollups nightly (cron/Vercel Cron/GitHub Actions).
-5. `npm run build && npm start` behind HTTPS; set `NEXT_PUBLIC_APP_URL` to the public origin.
+**Schema before code.** `/student/roadmap` and `/student/roadmap/[nodeId]` query
+`public.roadmap_node_resources` (migration `036`). Deploying code before that
+migration has been applied fails those routes with
+`relation "roadmap_node_resources" does not exist` — it is not caught by the
+build, because both routes are server-rendered on request. Apply and verify the
+schema first, then promote the build.
+
+1. Set env, run `db:migrate`, then `db:seed`, then `db:seed:roadmaps`. Set
+   `SUPABASE_SERVICE_ROLE_KEY` and run `node load/setup-storage.js` (lead-tool
+   file uploads need the private bucket); optionally `node load/seed-community.js`
+   for curated OSS repos.
+2. **Verify before deploying** (read-only, safe against production):
+   `DATABASE_URL=... node load/verify-roadmap-shelf.js` — exits non-zero with
+   the exact remedy if the table, the migration record, the mappings, or the
+   application role's `SELECT` grant is missing.
+3. Open `/setup`, claim first admin.
+4. Configure GitHub webhook → `/api/github/webhook` with the secret.
+5. Schedule the two rollups nightly (cron/Vercel Cron/GitHub Actions).
+6. `npm run build && npm start` behind HTTPS; set `NEXT_PUBLIC_APP_URL` to the public origin.
+
+### 4b. Zen Mode is off by default
+
+Zen Learning Mode (the distraction-free overlay for study resources) ships
+**disabled**. It is a per-chapter `feature_flags` row, key `zen_mode`, read on
+the server by `isZenModeEnabled()` (`lib/feature-flags.js`) and passed to the
+client as a prop, so the server HTML and the hydrated tree always agree. With
+no row — or any error reading it — it stays off.
+
+**Development is the one exception:** under `next dev`,
+`isZenModeEnabled()` returns true so the overlay is available locally without
+writing the shared `zen_mode` row. Production is **hard-off** for now — the
+persisted row is ignored there until the feature is cleared for real chapters.
+
+Enable it per chapter at `/admin/flags`. While it is off, study resources are
+ordinary links: external resources open natively in a new tab, and the overlay
+never mounts by any path (the flag defaults to false in `ZenMode`,
+`ZenResourceLink`, and `NodeStudyList`, so an unmounted or mis-wired call site
+is inert).
+
+**Turning Zen Mode off does not remove the need for migration 036.** Both
+`/student/roadmap` and `/student/roadmap/[nodeId]` read
+`roadmap_node_resources` to build each node's study shelf — that shelf is the
+resource experience itself and is independent of the overlay. Apply
+`db:migrate` and `db:seed:roadmaps` before deploying regardless of the flag.
+
+### 4a. Vercel (no `vercel.json` in repo — framework auto-detection)
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| Framework preset | Next.js (auto-detected) | builds `npm run build`, serves `next start` |
+| Build command | `npm run build` | **must not** run migrations — see below |
+| Install command | `npm install` | no `postinstall` hook exists, and none should be added |
+| Node version | 20+ | matches local toolchain |
+
+Environment variables come from the Vercel project's **Production / Preview /
+Development** environment settings — never from `.env.local`, which is
+gitignored and never uploaded. Required at runtime (and therefore must be set
+before the first production deploy):
+
+- `DATABASE_URL` — runtime server queries
+- `DATABASE_APP_URL` — request-time connection as `loom_app` (`NOBYPASSRLS`).
+  Strongly recommended; it falls back to `DATABASE_URL`, which runs as the
+  table owner and therefore bypasses RLS entirely.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — auth
+- `NEXT_PUBLIC_APP_URL` — metadata base, share/verify links
+- `GITHUB_WEBHOOK_SECRET` (+ `CREDENTIAL_SECRET`) — ingestion HMAC
+- `SUPABASE_SERVICE_ROLE_KEY` — admin user APIs
+- `DATABASE_URL_TARGET` / `DATABASE_URL_MUMBAI` — only if you use `db:migrate --target`
+
+The build itself needs **no database access**: no route queries a database at
+build time (the roadmap routes are `ƒ` dynamic), and no `load/*.js` script is
+imported by application code.
+
+**Deliberately not automated:** migrations are not run by `postinstall`,
+`prebuild`, or any CI workflow (this repository has no `.github/workflows`).
+Every preview deployment targets the same shared database, so a build-time
+migration would apply production DDL from every branch and every preview. Run
+migrations as an explicit, human-invoked step against the intended database
+before promoting a build, and confirm with `db:verify`.
 
 ## 5. Runbook
 
@@ -145,6 +221,8 @@ cleared when the date moves. Dry run by default; schedule it hourly:
 | Insights/Data stale | Rollups not scheduled → run scripts manually, then schedule |
 | E2E `webServer` timeout | Port busy → free 3000 first |
 | `SUPABASE_SERVICE_ROLE_KEY` empty | Admin user APIs limited — set the key, restart |
+| `relation "roadmap_node_resources" does not exist` | Deployed before migration 036 → `node load/migrate.js` against that database, then `node load/seed-node-resources.js`, then `npm run db:verify` |
+| `permission denied for table roadmap_node_resources` | App role lacks the grant (database predates migration 030 defaults) → as owner: `GRANT SELECT ON public.roadmap_node_resources TO loom_app;` |
 
 ## 6. Known limits
 

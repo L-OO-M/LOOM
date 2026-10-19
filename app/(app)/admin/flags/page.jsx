@@ -10,6 +10,7 @@ const FLAG_META = {
   github_integration: { title: "GitHub integration", desc: "When off, webhooks are acked but not stored or scored. Paused by default." },
   ranking_verified: { title: "Verified standings", desc: "Score only evidence a GitHub delivery or a lead confirmed. OFF means the older board, which counted nodes and projects a student declared themselves. Turning this on withdraws points they were shown as earned." },
   community_wiki: { title: "Community wiki", desc: "Controls wiki visibility for this chapter." },
+  zen_mode: { title: "Zen Learning Mode", desc: "When off, study resources open natively in a new tab and the distraction-free overlay never mounts. Off by default." },
 };
 
 // Global security controls. Read-only here on purpose -- see the comment in

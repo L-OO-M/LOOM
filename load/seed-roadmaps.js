@@ -56,8 +56,8 @@ let order = 200;
 for (const track of tracks) {
   for (const group of track.groups) {
     const groupOrder = order++;
-    for (const node of group.nodes) {
-      if (!node.id) { problems.push(`${track.domain}: node without id in "${group.title}"`); continue; }
+    group.nodes.forEach((node, index) => {
+      if (!node.id) { problems.push(`${track.domain}: node without id in "${group.title}"`); return; }
       if (allNodes.has(node.id)) problems.push(`duplicate node id: ${node.id}`);
       if (!VALID_DIFF.has(node.difficulty_level)) problems.push(`bad difficulty_level on ${node.id}: ${node.difficulty_level}`);
       allNodes.set(node.id, {
@@ -65,14 +65,18 @@ for (const track of tracks) {
         title: node.title,
         description: node.description || DEFAULT_DESCRIPTION(node.title),
         domain: node.domain || track.domain,
-        sort_order: groupOrder,
+        // Group order first, then the authored order inside the group. A
+        // single value per group made every node in it tie, and the UI fell
+        // back to alphabetical title — that is what scrambled the learning
+        // sequence. *100 leaves room for 99 nodes per group.
+        sort_order: groupOrder * 100 + index,
         kind: node.kind || "topic",
         is_highlighted: !!node.is_highlighted,
         is_optional: !!node.is_optional,
         difficulty_level: node.difficulty_level,
         group_title: group.title,
       });
-    }
+    });
     for (const e of group.edges || []) {
       if (!VALID_EDGE_KINDS.has(e.kind)) problems.push(`bad edge kind on ${e.from_id}->${e.to_id}: ${e.kind}`);
       allEdges.push({ from_id: e.from_id, to_id: e.to_id, kind: e.kind });
