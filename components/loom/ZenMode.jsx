@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { X, Maximize2, Minimize2, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
-import { ZEN_EMBED_LOAD_TIMEOUT_MS, zenHostOf, zenLearningSummary, zenResourceFacts, zenSiteFallback, zenUnsupportedFallback } from "@/lib/zen-embed";
+import { ZEN_EMBED_LOAD_TIMEOUT_MS, zenHostOf, zenLearningSummary, zenResourceFacts, zenSiteFallback, zenUnsupportedFallback, isFrameCspViolation } from "@/lib/zen-embed";
 import { ZEN_OUTCOME, zenStageInit, zenStageNext, zenStageOutcome, zenStageView } from "@/lib/zen-stage";
 
 /* Zen Learning Mode — distraction-free overlay for supported resources.
@@ -153,6 +153,20 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
     const t = setTimeout(() => dispatchStage({ type: "timeout" }), ZEN_EMBED_LOAD_TIMEOUT_MS);
     return () => clearTimeout(t);
   }, [embedUrl, resourceKey, status, stage.frameKey]);
+
+  // CSP refusals. When our own frame-src blocks the embed the browser fires
+  // securitypolicyviolation — and often a `load` for its error page too, so a
+  // "ready" frame can be empty. This is the one block signal we own; the
+  // reducer makes it idempotent and it never rewinds a retry. Scoped to the
+  // current embed so a stale violation cannot fall back the next resource.
+  useEffect(() => {
+    if (status === "pdf" || !embedUrl) return;
+    const onViolation = (e) => {
+      if (isFrameCspViolation(e)) dispatchStage({ type: "violation" });
+    };
+    document.addEventListener("securitypolicyviolation", onViolation);
+    return () => document.removeEventListener("securitypolicyviolation", onViolation);
+  }, [embedUrl, status]);
 
   // Track browser fullscreen so the toggle icon stays honest when the
   // user exits via browser Esc or gesture (overlay itself stays open).

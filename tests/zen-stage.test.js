@@ -48,6 +48,20 @@ describe("zenStageNext transitions", () => {
     expect(run([{ type: "loaded" }, { type: "error" }]).phase).toBe("ready");
   });
 
+  it("falls back on a CSP violation even after a ready load", () => {
+    // A frame the browser refuses via our own frame-src still fires `load`
+    // for its error page; securitypolicyviolation is the honest signal.
+    const s = run([{ type: "loaded" }, { type: "violation" }]);
+    expect(s.phase).toBe(ZEN_STAGE.FALLBACK);
+    expect(zenStageView(s, "site").showSitePanel).toBe(true);
+  });
+
+  it("keeps a violation idempotent against an existing fallback", () => {
+    const s = run([{ type: "show" }, { type: "violation" }]);
+    expect(s.phase).toBe(ZEN_STAGE.FALLBACK);
+    expect(zenStageNext(s, { type: "violation" })).toBe(s);
+  });
+
   it("retries back to loading with a bumped remount key", () => {
     const s = run([{ type: "timeout" }, { type: "retry" }]);
     expect(s.phase).toBe("loading");

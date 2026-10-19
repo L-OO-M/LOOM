@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFrameCspViolation,
   isZenSupported,
   parseYouTubeId,
   toYouTubeEmbedUrl,
@@ -313,3 +314,20 @@ describe("zenSiteFallback", () => {
     );
     expect(toZenModel({ id: "a", url: "https://neetcode.io:8443/" }).status).toBe("unsupported");
   });
+
+describe("isFrameCspViolation", () => {
+  it("recognises a refused frame via frame-src or its child-src fallback", () => {
+    expect(isFrameCspViolation({ effectiveDirective: "frame-src" })).toBe(true);
+    expect(isFrameCspViolation({ violatedDirective: "frame-src" })).toBe(true);
+    expect(isFrameCspViolation({ effectiveDirective: "child-src" })).toBe(true);
+    expect(isFrameCspViolation({ violatedDirective: "FRAME-SRC" })).toBe(true);
+  });
+
+  it("ignores unrelated CSP violations and missing events", () => {
+    expect(isFrameCspViolation({ effectiveDirective: "script-src" })).toBe(false);
+    expect(isFrameCspViolation({ effectiveDirective: "img-src" })).toBe(false);
+    expect(isFrameCspViolation({})).toBe(false);
+    expect(isFrameCspViolation(null)).toBe(false);
+    expect(isFrameCspViolation(undefined)).toBe(false);
+  });
+});
