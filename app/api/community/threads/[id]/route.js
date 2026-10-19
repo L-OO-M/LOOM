@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, notify } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const replySchema = z.object({ body: z.string().min(1).max(8000) });
 const patchSchema = z.object({
@@ -40,6 +41,8 @@ export async function POST(request, { params }) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
   const { id } = await params;
+  const limited = checkRateLimit(`thread-reply:${user.id}`, { limit: 20, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many replies — slow down", 429);
   let body;
   try {
     body = replySchema.parse(await request.json());

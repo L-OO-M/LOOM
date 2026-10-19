@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { RESERVED_USERNAMES, validUsername } from "@/lib/reputation";
 import { screenProfileCard } from "@/lib/content-safety";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const cardSchema = z.object({
   username: z.string().min(2).max(30),
@@ -30,6 +31,8 @@ export async function PUT(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, profile, sql } = ctx;
+  const limited = checkRateLimit(`social-profile:${user.id}`, { limit: 30, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many profile saves — slow down", 429);
   let body;
   try {
     body = cardSchema.parse(await request.json());

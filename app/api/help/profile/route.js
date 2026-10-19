@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   available: z.boolean(),
@@ -19,6 +20,8 @@ export async function PATCH(request) {
   let ctx;
   try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
   const { user, tenant, sql } = ctx;
+  const limited = checkRateLimit(`help-profile:${user.id}`, { limit: 30, windowMs: 60_000 });
+  if (!limited.ok) return fail("RATE_LIMITED", "Too many updates — slow down", 429);
   let body;
   try { body = schema.parse(await request.json()); } catch (e) { return validationError(e); }
   const topics = body.topics ? `{${body.topics.map(t=>`"${t.replace(/"/g,'')}"`).join(",")}}` : null;
