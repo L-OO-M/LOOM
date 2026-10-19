@@ -25,10 +25,21 @@ export async function POST(request, { params }) {
   }
   const [event] = await sql`SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
+  // Lifecycle guards: a cancelled event has no attendance, and check-in must
+  // not open before the event starts. Without these, a cancelled or not-yet-run
+  // event could mint certificates.
+  if (event.status === "cancelled") {
+    return fail("EVENT_CANCELLED", "This event was cancelled — check-in is closed", 409);
+  }
+  if (event.starts_at && Date.now() < new Date(event.starts_at).getTime()) {
+    return fail("EVENT_NOT_STARTED", "Check-in opens when the event starts", 409);
+  }
 
+  // Never check in a cancelled registration (re-registering mints a new row, so
+  // a cancelled code must not still admit anyone).
   const [reg] = "checkInCode" in body
-    ? await sql`SELECT * FROM event_registrations WHERE event_id = ${id} AND check_in_code = ${body.checkInCode} LIMIT 1`
-    : await sql`SELECT * FROM event_registrations WHERE event_id = ${id} AND student_id = ${body.studentId} LIMIT 1`;
+    ? await sql`SELECT * FROM event_registrations WHERE event_id = ${id} AND check_in_code = ${body.checkInCode} AND status <> 'cancelled' LIMIT 1`
+    : await sql`SELECT * FROM event_registrations WHERE event_id = ${id} AND student_id = ${body.studentId} AND status <> 'cancelled' LIMIT 1`;
   if (!reg) return fail("NOT_FOUND", "No registration matches", 404);
 
   await sql`UPDATE event_registrations SET status = 'attended', attended_at = now() WHERE id = ${reg.id}`;

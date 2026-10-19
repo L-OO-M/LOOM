@@ -72,26 +72,37 @@ export async function PATCH(request, { params }) {
   const nextTags = body.tags !== undefined ? body.tags.map((t) => t.toLowerCase()) : project.tags;
   const nextNodeId = body.roadmapNodeId === undefined ? project.roadmap_node_id : body.roadmapNodeId;
 
-  // Changing the repository invalidates the claim. The repo is what the
-  // evidence was about, so a swapped url must drop the verification back to
-  // provisional rather than carry the old standing onto an unrelated repo.
-  const nextRepoFullName =
-    body.repoUrl === undefined ? project.repo_full_name : parseGitHubRepo(body.repoUrl);
-  if (body.repoUrl !== undefined && !nextRepoFullName) {
-    return fail("REPO_URL_INVALID", "Link a GitHub repository (github.com/owner/repo)", 400);
+  // Changing OR removing the repository invalidates the claim. The repo is what
+  // the evidence was about, so a swapped or cleared url must drop the
+  // verification back to provisional rather than carry the old standing onto an
+  // unrelated repo (or onto nothing at all).
+  let nextRepoFullName;
+  if (body.repoUrl === undefined) {
+    nextRepoFullName = project.repo_full_name;
+  } else if (body.repoUrl === null) {
+    nextRepoFullName = null; // explicit clear — the field is optional
+  } else {
+    nextRepoFullName = parseGitHubRepo(body.repoUrl);
+    if (!nextRepoFullName) {
+      return fail("REPO_URL_INVALID", "Link a GitHub repository (github.com/owner/repo)", 400);
+    }
   }
-  const repoChanged =
-    nextRepoFullName !== null && project.repo_full_name !== null && nextRepoFullName !== project.repo_full_name;
+  const repoChanged = body.repoUrl !== undefined && nextRepoFullName !== project.repo_full_name;
+  // Direct assignment (not COALESCE) so an explicit null actually clears both
+  // columns; COALESCE kept the old url and made the "optional" field sticky.
+  const nextRepoUrl = body.repoUrl === undefined
+    ? project.repo_url
+    : (nextRepoFullName ? body.repoUrl : null);
 
   const [updated] = await sql`
     UPDATE projects SET
       title = COALESCE(${body.title ?? null}, title),
       description = COALESCE(${body.description ?? null}, description),
       status = COALESCE(${body.status ?? null}, status),
-      repo_url = COALESCE(${body.repoUrl ?? null}, repo_url),
+      repo_url = ${nextRepoUrl},
       tags = ${nextTags},
       roadmap_node_id = ${nextNodeId},
-      repo_full_name = COALESCE(${nextRepoFullName}, repo_full_name),
+      repo_full_name = ${nextRepoFullName},
       evidence_state = CASE WHEN ${repoChanged} THEN 'provisional' ELSE evidence_state END,
       verified_by = CASE WHEN ${repoChanged} THEN NULL ELSE verified_by END,
       verified_at = CASE WHEN ${repoChanged} THEN NULL ELSE verified_at END,
@@ -100,15 +111,16 @@ export async function PATCH(request, { params }) {
     RETURNING *
   `;
 
-  // Archiving withdraws the standing, because a project the student has taken
-  // down is not proof of anything they shipped. Reversal goes through the same
-  // derived recompute as every other change, so the board can never drift.
-  if (body.status === "archived") {
+  // A swapped or cleared repo withdraws the standing that was awarded for the
+  // OLD repo, and the recompute is derived so the board can never drift. The
+  // subject is the project's owner, not the caller — an admin may edit another
+  // student's row. Archiving below withdraws standing for the same reason.
+  if (repoChanged || body.status === "archived") {
     await revokeEvidence({
-      sql, tenantId: tenant?.id, userId: user.id, kind: "project_verified", refId: id
+      sql, tenantId: tenant?.id, userId: project.owner_id, kind: "project_verified", refId: id
     });
-    await recomputeScore(sql, tenant?.id, user.id);
+    await recomputeScore(sql, tenant?.id, project.owner_id);
   }
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_project", resource: "project", resourceId: id, before: { status: project.status }, after: { status: updated.status } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_project", resource: "project", resourceId: id, before: { status: project.status, repo: project.repo_full_name }, after: { status: updated.status, repo: updated.repo_full_name } });
   return ok({ project: updated });
 }
