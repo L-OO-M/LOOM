@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { RESERVED_USERNAMES, validUsername } from "@/lib/reputation";
 import { screenProfileCard } from "@/lib/content-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -61,5 +61,6 @@ export async function PUT(request) {
       updated_at = now()
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_profile_card", resource: "user_profile", resourceId: user.id, after: { username: card.username, is_public: card.is_public } });
   return ok({ card });
 }

@@ -86,5 +86,6 @@ export async function PATCH(request, { params }) {
     VALUES (${page.id}, ${user.id}, ${body.title || null}, ${body.content || ""}, ${body.reason})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "suggested_wiki_edit", resource: "wiki_page", resourceId: page.id, after: { edit: edit.id } });
   return ok({ edit, applied: false }, { status: 201 });
 }

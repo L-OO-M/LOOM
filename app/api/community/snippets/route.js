@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { screenSnippet } from "@/lib/community";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -54,5 +54,6 @@ export async function POST(request) {
     VALUES (${tenant?.id ?? null}, ${user.id}, ${body.domain}, ${body.language}, ${body.title}, ${body.code}, ${body.description}, ${body.tags})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_snippet", resource: "code_snippet", resourceId: snippet.id, after: { title: snippet.title } });
   return ok({ snippet }, { status: 201 });
 }

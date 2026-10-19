@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { signCredential } from "@/lib/credentials";
 import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -72,5 +72,6 @@ export async function POST(request) {
       ${issuedAt}, ${expiresAt}, ${signature})
     RETURNING *
   `;
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "issued_credential", resource: "verifiable_credential", resourceId: cred.id, after: { achievementId: a.id } });
   return ok({ credential: cred, url: `${env.NEXT_PUBLIC_APP_URL}/verify/credential/${id}` }, { status: 201 });
 }

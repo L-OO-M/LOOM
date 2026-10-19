@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
+import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { FLAG_REASONS } from "@/lib/community";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -38,6 +38,7 @@ export async function POST(request) {
     } else {
       await sql`UPDATE forum_replies SET flag_count = flag_count + 1 WHERE id = ${body.targetId} AND tenant_id = ${tid}::uuid`;
     }
+    await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "flagged_content", resource: `forum_${body.targetType}`, resourceId: body.targetId, after: { reason: body.reason } });
   }
   return ok({ flagged: true });
 }
