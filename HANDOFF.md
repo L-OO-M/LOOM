@@ -88,7 +88,7 @@ tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 ## 5. What is done (so you don't redo it)
 
 - Full product loop: onboarding → roadmap → resources → projects → GitHub link → contests → mentorship ladder → credentials/certificates → leaderboard → social/discover.
-- Org model: 8 departments (5 technical active; 3 non-technical ship **inactive**), memberships with join/request-core/grant flow, scoped Head posting, VL approval queue, succession flags.
+- Org model: 11 departments (8 technical + 3 non-technical, **all active** since migration 046), memberships with join/request-core/grant flow, scoped Head posting, VL approval queue, succession flags.
 - Operations: announcements with notification fan-out, contribution ledger, volunteers, monthly dept reports, handover board, full finance (budget heads/expenses/sponsorships), FAQ manager, department CRUD.
 - Public site in landing language with pulse sections; SEO pass (title templates, canonicals, OG/Twitter, sitemap+robots, JSON-LD, single-h1 verified by E2E, private areas noindexed).
 - **Lead console Chapter tools** (committed locally, P0–P5): creative/media asset library (Supabase Storage, private bucket, versioned uploads, signed-URL downloads), MoU database with versioned documents, internal leadership directory, and an event operations task board — each mirrored in `/lead` and `/admin`, gated by six new `can()` actions (Head/VL/admin edit, `core` reads), plus a scheduled deadline reminder job (`load/remind-deadlines.js`). Docs live in `docs/13` (API) and `docs/14` (schema, migrations 040–044).
@@ -112,7 +112,7 @@ tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 6. **Wire email (SMTP).** Notifications/invites are in-app only. When adding a provider: keep in-app rows as the record, send mail as a side effect, never fail the mutation on mail failure.
 7. **Recommendation surface - SHIPPED.** `lib/recommend.js` (`findHelpers`, `upsertSignal`) is live and permission-checked, backed by migration 028 (`help_signals`, `helper_profiles`, `help_matches`), four `/api/help/*` routes, and a `/student/help` UI. It stays deterministic and reads stored aggregates only - no live AI calls on the request path. `docs/05-classification-and-recommendations.md` still calls this unwired; that note is now corrected too.
 8. **File uploads / object storage - SHIPPED for lead tools.** Supabase Storage (private `loom-files` bucket, created by `node load/setup-storage.js` with 8 seeded categories) backs the creative asset library and MoU documents: uploads are MIME/size-validated (`lib/media.js`, 25 MB), stored under tenant-scoped paths (`lib/storage.js`), served via short-lived signed URLs. Still not wired for student avatars/resources — those keep `resources.storage_key` unwired.
-9. **Activate the 3 non-technical departments** when the chapter staffs those verticals (they seed as `is_active=false`; toggle in `/admin/departments`).
+9. **Non-technical departments - SHIPPED active.** PR & Outreach, Design, and Sponsorship & EVM now seed active (migration 046 activates them for existing tenants) and appear on `/domains`, the homepage grid, and `/admin/departments`. Assign Heads when those verticals are staffed.
 
 ### 🟢 C. Production hardening
 

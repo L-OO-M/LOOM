@@ -156,7 +156,7 @@ can be nominated.
 | POST | `/api/help/match` | 5/min | Nominate helpers for **my own** signal `{signal_id}` (or `{kind, ref_id}`). Notifies each match and flips the signal to `matched`. Returns `helpers: []` with a message when nobody is available — not an error |
 | PATCH | `/api/help/profile` | — | My helper profile `{available, topics?}`. This is the opt-in/opt-out switch |
 | GET | `/api/help/matches/[id]` | — | One match, tenant-scoped |
-| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party |
+| PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party; on `accepted` the notification links to the accepter's profile (the only channel the two share) |
 
 Matching is deterministic and reads stored aggregates only
 (`lib/recommend.js`) — no AI calls on the request path. Candidates are drawn
@@ -185,7 +185,7 @@ requester.
 | GET/POST/PATCH | `/api/admin/contests` | admin | contest manager |
 | GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
 | GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
-| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager |
+| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node) |
 | GET/POST/PATCH | `/api/admin/roadmaps` | admin | roadmap authoring (nodes + edges) |
 
 ### `/api/admin/flags` is partially operator-only

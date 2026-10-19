@@ -54,6 +54,8 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | **042** | `042_lead_directory.sql` | **leadership directory** — `lead_directory` (current + past tenure, optional account link) + fail-closed RLS (see below) |
 | **043** | `043_event_ops.sql` | **event operations** — `event_ops_tasks` (task deadlines, owner, status) + fail-closed RLS (see below) |
 | **044** | `044_event_ops_reminders.sql` | `event_ops_tasks.reminded_at` — dedupe marker for the deadline reminder job |
+| 045 | `045_resource_nodes.sql` | `resources.node_id → roadmap_nodes.id` (nullable) + index — pins a resource to a roadmap node |
+| 046 | `046_activate_non_technical_departments.sql` | data only — activates the three seeded non-technical departments (they shipped `is_active=false`, hiding them from `/domains`) |
 
 ### Migration 037 — verified evidence
 
@@ -110,7 +112,7 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 
 **Identity & tenancy**: `profiles(user_id unique, name, role, tenant_id, enrollment_number, department, year, primary_domain, onboarding_completed, github_username, classification)` — the single source of truth (the legacy `users` mirror was dropped in migration 012), `tenants(id, slug unique, name, status)`.
 
-**Learn**: `roadmap_nodes(id text PK, title, description, domain, difficulty_level, sort_order)` — no `roadmaps` table; domain is the catalog key (dropped in 012), `student_roadmap_progress(student_id, node_id, status, evidence_source, unique(student,node))`, `resources(id text PK, title, domain, level, kind, url, storage_key, minutes)`, `resource_progress(unique(student,resource))`.
+**Learn**: `roadmap_nodes(id text PK, title, description, domain, difficulty_level, sort_order)` — no `roadmaps` table; domain is the catalog key (dropped in 012), `student_roadmap_progress(student_id, node_id, status, evidence_source, unique(student,node))`, `resources(id text PK, title, domain, level, kind, url, storage_key, minutes, node_id [045] → roadmap_nodes.id nullable)`, `resource_progress(unique(student,resource))`.
 
 **Build**: `projects(owner_id, tenant_id, title, description, roadmap_node_id, status, repo_url, tags[])`, `repositories`, `github_connections(user_id PK, github_username)`, `github_events(idempotency_key unique, event_name, delivery_id, actor_login, payload)`, `student_daily_activity(student_id, day, commits, pull_requests, reviews, score)`, `open_source_projects(github_repo_url unique, owner, repo_name, difficulty, primary_domain, language, stars, good_first_issues, is_curated, tenant nullable = global)`, `student_oss_contributions(unique(student,pr_url), project FK, status claimed|verified|rejected)`, `oss_badges(unique(student,badge_key))`.
 
@@ -133,7 +135,7 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 
 ## Tables added in 014–020 (org, broadcast, lead console, operations)
 
-**Org (014, data backfill 015)**: `departments(tenant_id, name, slug unique per tenant, vertical technical|non_technical, description, head_user_id, co_head_user_id, is_active)` — 8 seeded rows, non-technical start inactive; `department_memberships(user_id, department_id unique pair, level general|core|dept_lead, core_requested, succession_ready [017])` — the join/request/grant/succession state machine; `profiles` gains `vertical` (VL scope), `roll_number` + `branch` (approval-free signup form). 015 retires the `mentor` role value to `core` (mentorship is capability, not a role).
+**Org (014, data backfill 015)**: `departments(tenant_id, name, slug unique per tenant, vertical technical|non_technical, description, head_user_id, co_head_user_id, is_active)` — 11 seeded rows (8 technical + 3 non-technical), all active since 046 (the non-technical three previously seeded `is_active=false`, which hid them from the public directory); `department_memberships(user_id, department_id unique pair, level general|core|dept_lead, core_requested, succession_ready [017])` — the join/request/grant/succession state machine; `profiles` gains `vertical` (VL scope), `roll_number` + `branch` (approval-free signup form). 015 retires the `mentor` role value to `core` (mentorship is capability, not a role).
 
 **Broadcast + ledger (016)**: `announcements(scope society|vertical|department, department_id, vertical, title, body, author_id)` — dept heads post to their own feed only (API-enforced `own_feed`), delivery fans out into `notifications`; `member_contributions(student_id, department_id nullable, kind project|competition|certification|event, title, evidence_url, logged_by)` — single source for certificates, dept reports, and exports; self-logged rows carry `logged_by = student_id`.
 
