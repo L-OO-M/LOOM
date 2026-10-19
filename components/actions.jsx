@@ -151,10 +151,21 @@ export function MarkNotificationRead({ id, read }) {
  * state cookie -- but passing it means the student does not have to click through
  * a second confirmation afterwards.
  */
-export function GithubLinkButton({ label = "Link GitHub account", repos = null, disabled = false, note = null }) {
+/**
+ * Build the OAuth start URL for a repository grant.
+ *
+ * Extracted from the button so the `repos` hand-off is unit-testable without a
+ * DOM (this repo runs vitest in node, with no renderer). The server re-validates
+ * and signs the list; passing it only saves the student a second confirmation.
+ */
+export function githubLinkHref(repos) {
   const params = new URLSearchParams();
   if (Array.isArray(repos) && repos.length) params.set("repos", repos.join(","));
-  const href = `/api/github/oauth/start${params.toString() ? `?${params.toString()}` : ""}`;
+  return `/api/github/oauth/start${params.toString() ? `?${params.toString()}` : ""}`;
+}
+
+export function GithubLinkButton({ label = "Link GitHub account", repos = null, disabled = false, note = null }) {
+  const href = githubLinkHref(repos);
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <a
