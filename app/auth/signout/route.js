@@ -21,5 +21,7 @@ export async function POST(request) {
   } catch {
     // A missing Supabase session is a no-op, not a failed sign-out.
   }
-  return NextResponse.redirect(new URL(auth0 ? "/auth/logout" : "/", request.url));
+  // 303, not the default 307: the SDK's /auth/logout only answers GET, and a
+  // 307 would replay this POST there and land on the 404 page.
+  return NextResponse.redirect(new URL(auth0 ? "/auth/logout" : "/", request.url), 303);
 }
