@@ -4,7 +4,9 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import SettingsClient from "./SettingsClient";
+import EmailVerificationCard from "./EmailVerificationCard";
 import { AppearancePanel } from "./AppearancePanel";
+import { maskEmail, verificationConfigured } from "@/lib/email-verification";
 
 export default async function SettingsPage() {
   const ctx = await getRequestContext();
@@ -60,6 +62,12 @@ export default async function SettingsPage() {
             ))}
           </dl>
         </section>
+
+        <EmailVerificationCard
+          verifiedAt={profile?.email_verified_at ? String(profile.email_verified_at) : null}
+          email={maskEmail(user.email)}
+          configured={verificationConfigured()}
+        />
 
         <section id="privacy" className="mt-10 scroll-mt-20" aria-label="Privacy control center">
           <Meta>Privacy — you control what becomes visible</Meta>

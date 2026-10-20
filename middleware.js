@@ -42,6 +42,11 @@ const publicPaths = [
   // 401 before the route could run.
   "/api/auth/login",
   "/api/auth/register",
+  // Email verification link. Opened from an inbox, often without a session and
+  // frequently in a different browser -- the token is the credential, and the
+  // handler validates, expires and single-uses it.
+  "/api/auth/verify-email/confirm",
+  "/verify-email",
   // Client-side "who am I" probe. Public so logged-out visitors get a 200 with
   // signedIn:false instead of the middleware's machine 401.
   "/api/auth/state",
