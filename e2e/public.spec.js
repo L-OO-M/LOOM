@@ -65,7 +65,7 @@ test.describe("L.O.O.M. public site", () => {
     expect(res?.status()).toBe(200);
 await expect(page.locator("h1")).toContainText("Events we actually run");
     // The registration process must be stated on the page itself, not just
-    // behind a login â€” this is the page a prospective member judges us by.
+    // behind a login — this is the page a prospective member judges us by.
     await expect(page.getByText("How to get into an event")).toBeVisible();
   });
 
@@ -206,7 +206,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     const body = await list.json();
     const events = body?.data?.events ?? body?.events ?? [];
     if (!Array.isArray(events) || events.length === 0) {
-      // Empty calendar is an honest state, not a failure â€” nothing to assert.
+      // Empty calendar is an honest state, not a failure — nothing to assert.
       await open(page, "/events");
       await expect(page.getByText("No upcoming events right now.")).toBeVisible();
       return;
