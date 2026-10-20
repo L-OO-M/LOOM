@@ -142,6 +142,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/public/departments` | public | active departments + head names + member counts (tenant from host) |
 | GET | `/api/public/events` | public | upcoming/live events (tenant from host) |
 | GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |
+| GET | `/api/public/summary` | public | answer-engine summary: static product facts + aggregate counts only (departments, upcoming events, public builder cards, projects) |
 | GET/POST/PATCH | `/api/admin/faq` | admin | FAQ manager backing store (create / edit incl. publish flag) |
 | GET/PATCH | `/api/admin/flags` | admin | feature-flag list / toggle (incl. `github_integration` ingestion kill-switch) |
 
@@ -170,9 +171,24 @@ requester.
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET/POST | `/api/feature-requests` | user | list (status filter: members see their own + approved/built) / create (abuse-screened, lands `pending`) |
-| PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status |
+| GET/POST | `/api/feature-requests` | user | list (status filter: members see their own + approved/built) / create (abuse-screened, lands `pending`; mirrors to GitHub Issues when configured) |
+| PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status (status changes mirror to the linked issue: `built` closes completed, `rejected` closes not-planned, anything else reopens) |
 | POST | `/api/feature-requests/[id]/comments` | user | comment on a request |
+| POST | `/api/feature-requests/[id]/github` | admin | create the issue if unlinked, otherwise refresh its stored state. 400 `NOT_CONFIGURED` when `GITHUB_ISSUES_REPO`/`GITHUB_ISSUES_TOKEN` are absent; failures are stored on the row, never fatal to the request |
+
+## Auth & email verification
+
+Verification is **optional**. There is no college-domain allowlist and no account is blocked
+for being unverified; see `lib/email-verification.js` for the reasoning. When
+`RESEND_API_KEY` + `EMAIL_FROM` are set, a member can prove control of their address; the link
+is single-use, expires in 24h, and only its SHA-256 hash is stored.
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| POST | `/api/auth/register` | public, 5/hour/IP | creates the Supabase user; `confirmationRequired` is reported, but no confirmation is enforced |
+| POST | `/api/auth/login` | public, 8/10 min/IP | server-proxied so the app limiter sees attempts |
+| POST | `/api/auth/verify-email/start` | session | 3/hour/user. Mints a token and sends one email. 400 `NOT_CONFIGURED` when no provider is configured |
+| GET | `/api/auth/verify-email/confirm?token=` | public | consumes the token (once), stamps `profiles.email_verified_at/source`, 303-redirects to `/verify-email?status=verified\|expired\|invalid` |
 
 ## Health
 

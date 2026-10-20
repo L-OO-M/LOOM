@@ -19,6 +19,11 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `DEV_TENANT_DOMAIN` | no (default `localhost`) | Host treated as the local dev tenant |
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC; also fallback signing secret. **Production rejects placeholder values** (`dev-secret`, `hello`, …) and anything under 16 chars |
 | `CREDENTIAL_SECRET` | no | Credential HMAC (falls back to webhook secret) |
+| `GITHUB_ISSUES_REPO` | no | `owner/repo` that feature requests mirror into. Unset = the GitHub Issues bridge is off and submissions behave exactly as before |
+| `GITHUB_ISSUES_TOKEN` | no | Fine-grained token with **issues: write** on that repo (≥20 chars). Server-only — never `NEXT_PUBLIC_`. Missing token = bridge off, not a crash |
+| `RESEND_API_KEY` | no | Optional email-verification sender. Unset = verification is unavailable and the UI says so; accounts are never blocked |
+| `EMAIL_FROM` | no | Verified sender for `RESEND_API_KEY`, e.g. `LOOM <noreply@yourdomain>` |
+| `AEO_BLOCK_TRAINING` | no | `1` blocks training-only crawlers (GPTBot, CCBot, …) in `robots.txt` while keeping search/assistant crawlers allowed. Unset = allow all public crawling |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Search Console ownership meta tag, emitted once in `app/layout.jsx` |
 | `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET` |
 | `APP_BASE_URL` | no (recommended in prod) | Origin the SDK uses to build `/auth/callback` and logout URLs. Unset locally so the SDK infers it from the `Host` header (dev `localhost:3000` **and** Playwright `127.0.0.1:3000` both work). Set per deploy to the exact registered origin — **no `:443` suffix**. Every origin must be in the Auth0 app's Allowed Callback / Logout / Web Origins lists |
@@ -47,6 +52,22 @@ A `307` to `/login` means the middleware matcher regressed.
 | `QSTASH_TOKEN`, `UPSTASH_REDIS_REST_*` | reserved (unused) | No queue/cache integration in use — webhook processes inline, rate limits are in-memory |
 | `R2_*` | reserved (unused) | Object storage runs on **Supabase Storage** instead (`lib/storage.js`), so these R2 keys are not read |
 | `SENTRY_DSN` | reserved (unused) | SDK not installed; errors surface via logs + `app/error.jsx` |
+
+### Optional integrations
+
+`GITHUB_ISSUES_*`, `RESEND_API_KEY`/`EMAIL_FROM`, and `AEO_BLOCK_TRAINING` are
+deliberately optional and are **not** listed as required secrets in `lib/env.js`.
+The app must boot and behave correctly without them: the feature-request board
+simply hides the issue controls, the settings page reports that verification is
+unavailable (`NOT_CONFIGURED`), and `robots.txt` allows all public crawling.
+Adding one of these to the production boot guard would take the whole site down
+for a convenience feature — don't.
+
+Keep **Supabase Auth email confirmation disabled**. Signup reports
+`confirmationRequired` but never gates on it, for two reasons: the free-tier
+shared SMTP rate limit cannot sustain production signups, and many colleges
+issue no student mailbox at all. Address verification is the optional Resend
+flow in `lib/email-verification.js`, not an access requirement.
 
 > **Placeholder secrets are rejected at boot.** `lib/env.js` compares by *value*,
 > not just presence. A deploy carrying `GITHUB_WEBHOOK_SECRET=dev-secret` — the value
@@ -144,6 +165,23 @@ It is idempotent: `leadership_terms.status` moves `active → expired`, the
 holder and admins get one notification, and the handover item is deduplicated
 by title. Dry-run first after any bulk role change. `/admin/handover` also
 lists every term ending in the next 45 days.
+
+### Verified ranking
+
+The leaderboard only ranks evidence a lead has verified. Until that is turned on
+for a chapter, the board is honestly empty rather than showing provisional
+points. The switch and the recompute are one idempotent script:
+
+```
+node load/enable-verified-ranking.js                  # dry run: show flag + current rows
+node load/enable-verified-ranking.js --apply --tenant demo-college
+```
+
+It upserts `feature_flags(ranking_verified)`, calls
+`public.recompute_ranking_scores(tenant)`, and writes an `audit_logs` row with
+`actor_id = 'system'`. Re-running is safe. A zero-row recompute means the
+chapter has no verified `ranking_events` yet — the board is live but empty, not
+broken. Staff and admin accounts are never ranked (`isStaffExcluded`).
 
 ## 4. Deploy checklist
 
