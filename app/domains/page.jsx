@@ -5,7 +5,7 @@ import { resolveTenantFromHost } from "@/lib/tenant";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
-import { JsonLd, itemListSchema } from "@/components/seo/JsonLd";
+import { JsonLd, collectionPageSchema, itemListSchema } from "@/components/seo/JsonLd";
 import { absoluteUrl, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +63,12 @@ export default async function DomainsPage() {
     <main className="w-full max-w-full overflow-x-hidden">
       <JsonLd data={itemListSchema({
         name: "L.O.O.M. departments",
+        items: departments.map((d) => ({ name: d.name, url: absoluteUrl(`/domains/${d.slug}`) }))
+      })} />
+      <JsonLd data={collectionPageSchema({
+        name: "L.O.O.M. departments",
+        path: "/domains",
+        description: "Active student departments and the roadmaps they maintain.",
         items: departments.map((d) => ({ name: d.name, url: absoluteUrl(`/domains/${d.slug}`) }))
       })} />
       <PublicNav />

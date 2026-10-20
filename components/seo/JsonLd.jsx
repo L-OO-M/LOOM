@@ -94,6 +94,40 @@ export function aboutPageSchema() {
   };
 }
 
+/**
+ * A public index page (events, departments) as a CollectionPage.
+ *
+ * `items` are { name, url } and must come from rows the page already renders --
+ * this is a machine-readable echo of the visible list, not a second data source
+ * that could drift from it.
+ */
+export function collectionPageSchema({ name, path, description, items }) {
+  const list = (items || []).filter((i) => i?.name && i?.url);
+  const page = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name,
+    url: absoluteUrl(path),
+    inLanguage: "en-IN",
+    about: organizationSchema()
+  };
+  if (description) page.description = description;
+  if (list.length > 0) {
+    page.mainEntity = {
+      "@type": "ItemList",
+      name,
+      numberOfItems: list.length,
+      itemListElement: list.map((item, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: item.url,
+        name: item.name
+      }))
+    };
+  }
+  return page;
+}
+
 export function webPageSchema({ name, path, description }) {
   const page = {
     "@context": "https://schema.org",

@@ -6,7 +6,8 @@ import { collectDomains, filterEvents } from "@/lib/events";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
-import { canonicalFor } from "@/lib/seo";
+import { JsonLd, collectionPageSchema } from "@/components/seo/JsonLd";
+import { absoluteUrl, canonicalFor } from "@/lib/seo";
 import { EventCard, JoinSteps, TypePill } from "./_components/EventBits";
 import { EventBanner } from "./_components/EventBanner";
 
@@ -78,6 +79,14 @@ export default async function EventsPage({ searchParams }) {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
+      <JsonLd
+        data={collectionPageSchema({
+          name: "L.O.O.M. events",
+          path: "/events",
+          description: "Upcoming and live workshops, hackathons, talks, and contests run by the chapter.",
+          items: events.map((e) => ({ name: e.title, url: absoluteUrl(`/events/${e.id}`) })),
+        })}
+      />
       <PublicNav />
       <div className="pt-16">
         <PageHero
