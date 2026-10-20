@@ -1,59 +1,76 @@
 const { test, expect } = require("@playwright/test");
 
+// During hydration the router can briefly hold two copies of the route in the
+// DOM. "Exactly one h1" is a property of the settled page, so assertions must
+// not race the swap: wait for the loading boundary to clear and for the
+// duplicate (if any) to disappear before handing control back to the test.
+async function open(page, path) {
+  const res = await page.goto(path);
+  await page.waitForFunction(
+    () =>
+      !document.querySelector('[aria-busy="true"]') &&
+      document.querySelectorAll("h1").length <= 1,
+    undefined,
+    { timeout: 15000 }
+  );
+  return res;
+}
+
+
 test.describe("L.O.O.M. public pages", () => {
   test("home page loads with correct title", async ({ page }) => {
-    await page.goto("/");
+    await open(page, "/");
     await expect(page.locator("h1")).toContainText("Weaving the future");
   });
 
   test("login page accessible from home", async ({ page }) => {
-    await page.goto("/login");
+    await open(page, "/login");
     await expect(page.locator("h1")).toContainText("Sign in");
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
   });
 
   test("register page accessible from home", async ({ page }) => {
-    await page.goto("/register");
+    await open(page, "/register");
     await expect(page.locator("h1")).toContainText("Create account");
     await expect(page.locator('input[type="email"]')).toBeVisible();
   });
 
   test("student route redirects to login when unauthenticated", async ({ page }) => {
-    await page.goto("/student");
+    await open(page, "/student");
     await expect(page).toHaveURL(/\/login\?redirect=%2Fstudent/);
   });
 
   test("admin route redirects to login when unauthenticated", async ({ page }) => {
-    await page.goto("/admin");
+    await open(page, "/admin");
     await expect(page).toHaveURL(/\/login\?redirect=%2Fadmin/);
   });
 });
 
 test.describe("L.O.O.M. public site", () => {
   test("faq page loads with heading", async ({ page }) => {
-    const res = await page.goto("/faq");
+    const res = await open(page, "/faq");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toContainText("Frequently asked questions");
   });
 
   test("about page loads with heading", async ({ page }) => {
-    const res = await page.goto("/about");
+    const res = await open(page, "/about");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toContainText("About L.O.O.M.");
   });
 
   test("events page loads with heading", async ({ page }) => {
-    const res = await page.goto("/events");
+    const res = await open(page, "/events");
     expect(res?.status()).toBe(200);
 await expect(page.locator("h1")).toContainText("Events we actually run");
     // The registration process must be stated on the page itself, not just
-    // behind a login — this is the page a prospective member judges us by.
+    // behind a login â€” this is the page a prospective member judges us by.
     await expect(page.getByText("How to get into an event")).toBeVisible();
   });
 
   test("domains index lists every department", async ({ page }) => {
-    const res = await page.goto("/domains");
+    const res = await open(page, "/domains");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toContainText("Choose your domain.");
   });
@@ -64,14 +81,14 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
       ["/terms", "Terms of use."],
       ["/contact", "Contact the chapter."]
     ]) {
-      const res = await page.goto(path);
+      const res = await open(page, path);
       expect(res?.status()).toBe(200);
       await expect(page.locator("h1")).toContainText(heading);
     }
   });
 
   test("legal footer links point to public policies", async ({ page }) => {
-    await page.goto("/about");
+    await open(page, "/about");
     for (const [label, url] of [["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"]]) {
       const link = page.getByRole("link", { name: label, exact: true }).filter({ visible: true }).first();
       await expect(link).toBeVisible();
@@ -80,7 +97,7 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
   });
 
   test("registration discloses privacy and terms before signup", async ({ page }) => {
-    await page.goto("/register");
+    await open(page, "/register");
     const consent = page.getByText("I have read the");
     await expect(consent).toBeVisible();
     await expect(page.getByRole("link", { name: "Privacy notice", exact: true })).toHaveAttribute("href", "/privacy");
@@ -88,21 +105,21 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
   });
 
   test("unknown routes redirect logged-out visitors to login, never a blank screen", async ({ page }) => {
-    await page.goto("/this-thread-was-never-woven");
+    await open(page, "/this-thread-was-never-woven");
     // Logged-out: the auth gate redirects (signed-in users get the 404 page).
     await expect(page).toHaveURL(/\/login\?redirect=%2Fthis-thread-was-never-woven/);
     await expect(page.locator("h1")).toContainText("Sign in");
   });
 
   test("domain page loads for the web department", async ({ page }) => {
-    const res = await page.goto("/domains/web");
+    const res = await open(page, "/domains/web");
     expect(res?.status()).toBe(200);
     // Real department when seeded; honest empty state otherwise.
     await expect(page.locator("h1")).toContainText(/Web Development|Domain not found/);
   });
 
   test("landing links reach the public pages", async ({ page }) => {
-    await page.goto("/");
+    await open(page, "/");
     const menuButton = page.getByRole("button", { name: "Open menu" });
     if (await menuButton.isVisible()) await menuButton.click();
     // Every destination is one visible tap away from home.
@@ -170,7 +187,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
 
   test("public pages carry canonical + description + single h1", async ({ page }) => {
     for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
-      await page.goto(path);
+      await open(page, path);
       await expect(page.locator("h1")).toHaveCount(1);
       const canonical = page.locator('link[rel="canonical"]');
       expect(await canonical.count()).toBe(1);
@@ -189,13 +206,13 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     const body = await list.json();
     const events = body?.data?.events ?? body?.events ?? [];
     if (!Array.isArray(events) || events.length === 0) {
-      // Empty calendar is an honest state, not a failure — nothing to assert.
-      await page.goto("/events");
+      // Empty calendar is an honest state, not a failure â€” nothing to assert.
+      await open(page, "/events");
       await expect(page.getByText("No upcoming events right now.")).toBeVisible();
       return;
     }
     const first = events[0];
-    await page.goto(`/events/${first.id}`);
+    await open(page, `/events/${first.id}`);
     // toHaveCount() polls: a bare count() can run mid-stream while the route's
     // loading skeleton ("One moment." h1) is still mounted, flaking to 2.
     await expect(page.locator("h1")).toHaveCount(1);
@@ -218,21 +235,21 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   });
 
   test("private app marks noindex", async ({ page }) => {
-    await page.goto("/login");
+    await open(page, "/login");
     const robots = page.locator('meta[name="robots"]');
     expect(await robots.count()).toBe(1);
     expect(await robots.getAttribute("content")).toContain("noindex");
   });
 
   test("about ships AboutPage structured data", async ({ page }) => {
-    await page.goto("/about");
+    await open(page, "/about");
     const ld = page.locator('script[type="application/ld+json"]');
     await expect(ld.first()).toBeAttached();
     expect(await ld.first().textContent()).toContain("AboutPage");
   });
 
   test("faq ships FAQPage structured data", async ({ page }) => {
-    await page.goto("/faq");
+    await open(page, "/faq");
     const ld = page.locator('script[type="application/ld+json"]');
     // toBeAttached() polls for the node without requiring visibility -- the
     // right assertion for a <script>, which is never "visible".

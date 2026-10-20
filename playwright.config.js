@@ -10,7 +10,10 @@ import "./load/env-local.js";
 export default defineConfig({
   testDir: "./e2e",
   webServer: {
-    command: "npm run dev",
+    // E2E_PROD=1 runs the suite against the production build (`npm run build`
+    // must already have run). Default stays dev so CI's e2e job, which does not
+    // build, keeps working. Either way an already-listening server is reused.
+    command: process.env.E2E_PROD === "1" ? "npm run start" : "npm run dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: true,
     timeout: 120000
