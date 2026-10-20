@@ -15,7 +15,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/roadmap` | user | nodes + my progress |
 | POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Rate limited. |
 | GET | `/api/resources` | user | curated library |
-| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, **repoUrl (required; github.com/owner/repo, must match your linked GitHub handle, one claim per repo)**, tags. Always created `provisional` — **scores nothing** until a signed delivery proves activity in that repo, or a lead confirms it. Rate limited. |
+| GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, **`repositoryId` (preferred; a repo row from your linked GitHub account) or `repoUrl` (github.com/owner/repo)**, tags. Ownership is proven by the OAuth `github_repo_grants` row when available; otherwise the legacy owner-handle match is accepted but stays `provisional` — **scores nothing** until a signed delivery proves activity or a lead confirms it. One claim per repo. Rate limited. |
 | GET/PATCH | `/api/projects/[id]` | owner/admin | PATCH cannot set `evidence_state`/`verified_by`/`verified_at`. Changing `repoUrl` returns the claim to provisional. Archiving withdraws the standing. |
 | GET/POST | `/api/admin/ranking` | admin | the evidence review queue: GET lists provisional node/project claims; POST `{kind, id, decision:"verified"\|"rejected"}`, or `clearAllForStudent:true` to reverse every unverified claim for one student. Requires `verify_evidence` (admin/platform_admin). |
 | GET/POST | `/api/contests` | user/admin-create | register + submit flows |
@@ -26,16 +26,18 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |
-| POST | `/api/github/webhook` | service | HMAC-signed GitHub delivery: stores the event, aggregates into `student_daily_activity`, auto-verifies merged OSS PRs. Also reachable at the `/api/webhook` alias. |
+| GET/POST | `/api/github/repos` | user | OAuth repo picker: `GET ?page=1..5` lists repositories the token can push to (cached in `repositories`, marks `alreadyLinked`); `POST {name, description?, isPrivate?}` creates one on the student's account and audits `created_github_repo` (5/min) |
+| POST | `/api/github/sync` | user | refresh cached repository metadata from GitHub (up to 3 pages / 300 repos; 3/min) |
+| POST | `/api/github/webhook` | service | HMAC-signed GitHub delivery: stores the event, aggregates into `student_daily_activity`, auto-verifies merged OSS PRs and submitted `pull_request_review` claims. Also reachable at the `/api/webhook` alias. |
 
 ## Open source
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/opensource/projects` | user | global curated + own tenant; includes my counts |
-| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing |
+| GET | `/api/opensource/projects` | user | global curated + own tenant; includes my counts; metadata carries `topics`, `contributing_url`, `homepage`, `pushed_at`, `metadata_synced_at`, `is_active` |
+| POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing; upserts by canonical GitHub URL and refreshes metadata (`metadata_synced_at`) |
 | GET | `/api/opensource/contributions` | user | my claims + badges |
-| POST | `/api/opensource/contributions` | user | claim PR/issue/review URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review\|commit, audited) |
+| POST | `/api/opensource/contributions` | user | claim PR/issue URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review, audited). The server derives the type from the URL, stores a canonical URL, and rejects mismatches (`TYPE_MISMATCH`) or repo/issue combinations that cannot be verified. Duplicate canonical URLs upsert instead of inflating badges. |
 | PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — awards badges + achievements + notify |
 
 ## Chapters & network
@@ -49,11 +51,18 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/credentials` | user | achievements + share links |
+| GET | `/api/credentials` | user | achievements + share links, tenant-scoped (legacy `tenant_id IS NULL` rows still allowed) |
 | POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0–730) |
 | GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1–3) |
 | POST | `/api/admin/achievements` | admin | issue to a chapter student + notify |
 | GET | `/api/insights` | user | latest snapshot, 14-trend, peer avgs, rank, heuristic recommendation |
+
+Certificates are rendered as pages rather than JSON. `GET /verify/certificate/[code]`
+is public and shows **Verified** only when the stored HMAC signature matches the
+immutable certificate fields; tampered, unsigned, or `revoked_at` rows show
+**Unverified**/`Revoked` and are `noindex`. `GET /student/certificates/[code]`
+is restricted to the holder or an admin of the issuing chapter and returns
+`notFound()` for anyone else.
 
 ## Community
 
@@ -83,7 +92,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 ## Errors & limits
 
-Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401.
+Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503.
 Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-create 10/min, webhook 120/min per tenant).
 
 ## Org, leads & operations (added after the initial reference)

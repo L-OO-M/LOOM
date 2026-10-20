@@ -81,6 +81,19 @@ function signedInState(browser) {
       await page.fill("#password", PASSWORD);
       await page.click('button[type="submit"]');
       await page.waitForURL((u) => !u.pathname.includes("/login"), { timeout: 30_000 });
+      await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+      // Capture the state only after an authenticated API call succeeds. The
+      // first dashboard render fires /api/profile and /api/notifications from
+      // the client; if those race the cookie write they log 401s and the route
+      // audit reports a false failure.
+      //
+      // Mirror the browser exactly: run the probe inside the page. The session
+      // cookie is `Secure` in a production build, and Playwright's
+      // APIRequestContext refuses to send Secure cookies over the suite's HTTP
+      // origin, so `page.request.get()` returns 401 even though the browser is
+      // authenticated. That was a fixture false negative, not an auth bug.
+      const probeStatus = await page.evaluate(() => fetch("/api/profile").then((r) => r.status));
+      expect(probeStatus, "session is usable after sign-in").toBe(200);
       const state = await ctx.storageState();
       await ctx.close();
       return state;
@@ -98,6 +111,16 @@ test.beforeEach(async ({ context, browser }) => {
 // status, console/page errors, and any visible hard-failure text.
 async function visit(page, path) {
   const errors = [];
+  const failedResponses = [];
+  const onResponse = (r) => {
+    if (r.status() >= 400) {
+      try {
+        failedResponses.push(`${r.status()} ${new URL(r.url()).pathname}`);
+      } catch {
+        failedResponses.push(`${r.status()} ${r.url()}`);
+      }
+    }
+  };
   const onConsole = (m) => {
     if (m.type() !== "error") return;
     const t = m.text();
@@ -107,6 +130,7 @@ async function visit(page, path) {
   const onPageError = (e) => errors.push(`pageerror: ${e.message}`);
   page.on("console", onConsole);
   page.on("pageerror", onPageError);
+  page.on("response", onResponse);
 
   let status = 0;
   try {
@@ -119,15 +143,17 @@ async function visit(page, path) {
 
   page.off("console", onConsole);
   page.off("pageerror", onPageError);
+  page.off("response", onResponse);
 
   const body = await page.locator("body").innerText().catch(() => "");
-  return { status, url: page.url(), errors, body };
+  return { status, url: page.url(), errors, failedResponses, body };
 }
 
 function assertClean(label, r) {
   expect.soft(r.status, `${label} -> HTTP status`).toBeGreaterThan(0);
   expect.soft(r.status, `${label} -> HTTP status`).toBeLessThan(400);
   expect.soft(r.errors, `${label} -> console/page errors`).toEqual([]);
+  expect.soft(r.failedResponses, `${label} -> failed responses`).toEqual([]);
   expect
     .soft(r.body, `${label} -> rendered a hard failure`)
     .not.toMatch(/Application error|Unhandled Runtime Error|Internal Server Error|This page could not be found/i);

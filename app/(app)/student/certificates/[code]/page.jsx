@@ -15,23 +15,22 @@ export default async function CertificatePage({ params }) {
   const [cert] = await sql`
     SELECT c.*, p.name AS holder_name, t.name AS tenant_name, e.title AS event_title, e.starts_at
     FROM certificates c
-    LEFT JOIN profiles p ON p.user_id = c.student_id
+    LEFT JOIN profiles p ON p.user_id = c.student_id AND p.tenant_id = c.tenant_id
     LEFT JOIN tenants t ON t.id = c.tenant_id
     LEFT JOIN events e ON e.id = c.event_id
     WHERE c.verification_code = ${code}
     LIMIT 1
   `;
   if (!cert) notFound();
-  // Privacy: the holder, or any admin of the issuing chapter, may view.
-  if (cert.student_id !== user.id && profile?.role !== "admin") {
-    return (
-      <AppShell area="student" tenant={tenant} user={user}>
-        <main className="mx-auto max-w-xl px-4 py-12 text-center">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>This certificate belongs to another student.</p>
-        </main>
-      </AppShell>
-    );
-  }
+  // Privacy: the holder, or an admin of the chapter that issued it. A bare
+  // `role === "admin"` check let any chapter's admin open another chapter's
+  // certificate by guessing the code, and the refusal message confirmed the
+  // certificate existed. Treat both as not found.
+  const isHolder = cert.student_id === user.id;
+  const isIssuingAdmin = !!tenant?.id
+    && cert.tenant_id === tenant.id
+    && (profile?.role === "admin" || profile?.role === "platform_admin");
+  if (!isHolder && !isIssuingAdmin) notFound();
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>

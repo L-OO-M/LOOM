@@ -17,7 +17,7 @@ Two **separate** GitHub grants exist and must not be confused:
 |---|---|---|
 | Purpose | "who is this person" | "do they own this repo" |
 | Runs through | **Supabase** | **this app** |
-| Scopes | `read:user user:email` | `repo:public_repo read:user` |
+| Scopes | `read:user user:email` | `repo read:user` |
 | Credentials live in | Supabase dashboard | this app's env |
 | Proves a project? | **No** | Yes |
 

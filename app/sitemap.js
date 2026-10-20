@@ -32,7 +32,7 @@ async function publicUsernames(tenantId) {
       FROM user_profiles up
       JOIN profiles p ON p.user_id = up.user_id
       WHERE up.is_public = true
-        AND (p.tenant_id = ${tenantId}::uuid OR ${tenantId}::uuid IS NULL)
+        AND p.tenant_id = ${tenantId}::uuid
       ORDER BY up.updated_at DESC LIMIT 500`;
     return rows;
   } catch {
@@ -47,7 +47,23 @@ async function publicCredentialIds(tenantId) {
     const sql = getSql();
     const rows = await sql`
       SELECT id, issued_at FROM verifiable_credentials
-      WHERE (tenant_id = ${tenantId}::uuid OR ${tenantId}::uuid IS NULL)
+      WHERE tenant_id = ${tenantId}::uuid
+      ORDER BY issued_at DESC LIMIT 500`;
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+// Public certificate pages are indexable like credential pages. Revoked
+// certificates stay out: advertising a page that says "revoked" wastes a crawl
+// and tells the holder the opposite of what the sitemap implies.
+async function publicCertificateCodes(tenantId) {
+  try {
+    const sql = getSql();
+    const rows = await sql`
+      SELECT verification_code, issued_at FROM certificates
+      WHERE tenant_id = ${tenantId}::uuid AND revoked_at IS NULL
       ORDER BY issued_at DESC LIMIT 500`;
     return rows;
   } catch {
@@ -63,7 +79,7 @@ async function publicEventIds(tenantId) {
     const rows = await sql`
       SELECT id, starts_at FROM events
       WHERE status IN ('upcoming', 'live')
-        AND (tenant_id = ${tenantId}::uuid OR ${tenantId}::uuid IS NULL)
+        AND tenant_id = ${tenantId}::uuid
       ORDER BY starts_at ASC LIMIT 200`;
     return rows;
   } catch {
@@ -109,6 +125,9 @@ export default async function sitemap() {
       priority: 0.7
     });
   }
+  // Fail closed. The helpers used to accept a null tenant and match every
+  // chapter, so a transient lookup failure advertised the whole federation.
+  if (!tenantId) return entries;
   for (const u of await publicUsernames(tenantId)) {
     entries.push({
       url: absoluteUrl(`/u/${u.username}`),
@@ -128,6 +147,14 @@ export default async function sitemap() {
   for (const c of await publicCredentialIds(tenantId)) {
     entries.push({
       url: absoluteUrl(`/verify/credential/${c.id}`),
+      lastModified: c.issued_at || now,
+      changeFrequency: "monthly",
+      priority: 0.4
+    });
+  }
+  for (const c of await publicCertificateCodes(tenantId)) {
+    entries.push({
+      url: absoluteUrl(`/verify/certificate/${c.verification_code}`),
       lastModified: c.issued_at || now,
       changeFrequency: "monthly",
       priority: 0.4

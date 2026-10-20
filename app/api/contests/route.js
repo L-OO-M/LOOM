@@ -7,9 +7,11 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   const contests = await sql`
     SELECT * FROM contests
-    WHERE tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL
+    WHERE tenant_id = ${tenant.id}::uuid
+      AND status <> 'draft'
     ORDER BY starts_at NULLS LAST, created_at DESC LIMIT 50
   `;
   const regs = await sql`SELECT contest_id FROM contest_registrations WHERE student_id = ${user.id}`;
@@ -30,6 +32,7 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   const { searchParams } = new URL(request.url);
   const action = searchParams.get("action") || "register";
   const raw = await request.json().catch(() => ({}));
@@ -44,7 +47,7 @@ export async function POST(request) {
     const [contest] = await sql`
       SELECT * FROM contests
       WHERE id = ${body.contestId}
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+        AND tenant_id = ${tenant.id}::uuid
       LIMIT 1`;
     if (!contest) return fail("FORBIDDEN", "Wrong college", 403);
     if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {
@@ -74,7 +77,7 @@ export async function POST(request) {
   const [contest] = await sql`
     SELECT * FROM contests
     WHERE id = ${body.contestId}
-      AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+      AND tenant_id = ${tenant.id}::uuid
     LIMIT 1`;
   if (!contest) return fail("FORBIDDEN", "Wrong college", 403);
   if (contest.status !== "published" && contest.status !== "active" && contest.status !== "open") {

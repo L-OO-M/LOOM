@@ -29,13 +29,18 @@ export default async function ContestDetailPage({ params }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=/student/contests/${id}`);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) redirect("/student/contests");
+  // Scope in SQL, not after the read: a null on either side used to skip the
+  // comparison and render another chapter's contest (and its registration count).
   const [contest] = await sql`
     SELECT c.*,
       (SELECT COUNT(*)::int FROM contest_registrations r WHERE r.contest_id = c.id) AS registrations
-    FROM contests c WHERE c.id = ${id} LIMIT 1
+    FROM contests c
+    WHERE c.id = ${id}
+      AND c.tenant_id = ${tenant.id}::uuid
+    LIMIT 1
   `;
   if (!contest) notFound();
-  if (tenant?.id && contest.tenant_id && contest.tenant_id !== tenant.id) redirect("/student/contests");
   // Drafts are admin working state — students never see them here either.
   if (contest.status === "draft") redirect("/student/contests");
   const [reg] = await sql`SELECT id FROM contest_registrations WHERE contest_id = ${id} AND student_id = ${user.id} LIMIT 1`;

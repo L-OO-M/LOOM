@@ -14,8 +14,24 @@ describe("oss helpers", () => {
   });
 
   it("parses PR and issue URLs", () => {
-    expect(parseContributionUrl("https://github.com/facebook/react/pull/123")).toEqual({ owner: "facebook", repo: "react", kind: "pr", number: 123 });
-    expect(parseContributionUrl("https://github.com/vercel/next.js/issues/9/")).toEqual({ owner: "vercel", repo: "next.js", kind: "issue", number: 9 });
+    expect(parseContributionUrl("https://github.com/facebook/react/pull/123")).toEqual({
+      owner: "facebook",
+      repo: "react",
+      kind: "pr",
+      number: 123,
+      canonicalUrl: "https://github.com/facebook/react/pull/123"
+    });
+    expect(parseContributionUrl("https://github.com/vercel/next.js/issues/9/")).toEqual({
+      owner: "vercel",
+      repo: "next.js",
+      kind: "issue",
+      number: 9,
+      canonicalUrl: "https://github.com/vercel/next.js/issues/9"
+    });
+    // GitHub appends /files and query strings to the address bar; those are the
+    // same contribution and must collapse to one canonical URL.
+    expect(parseContributionUrl("https://github.com/Facebook/React/pull/123/files#diff").canonicalUrl)
+      .toBe("https://github.com/facebook/react/pull/123");
     expect(parseContributionUrl("https://github.com/o/r")).toBeNull();
     expect(parseContributionUrl("not a url")).toBeNull();
   });

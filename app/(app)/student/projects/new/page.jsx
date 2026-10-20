@@ -10,6 +10,10 @@ export default async function NewProjectPage() {
   if (ctx.error) redirect("/login?redirect=/student/projects/new");
   const { tenant, user, sql } = ctx;
   const milestones = await sql`SELECT id, title FROM roadmap_nodes ORDER BY sort_order ASC LIMIT 100`;
+  const [conn] = await sql`
+    SELECT github_user_id, access_token_cipher FROM github_connections WHERE user_id = ${user.id} LIMIT 1
+  `;
+  const githubConnected = conn?.github_user_id != null && Boolean(conn?.access_token_cipher);
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
@@ -21,7 +25,7 @@ export default async function NewProjectPage() {
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
           Small and real beats big and planned. You can link the repository and the roadmap milestone now — or later.
         </p>
-        <NewProjectForm milestones={milestones} />
+        <NewProjectForm milestones={milestones} githubConnected={githubConnected} />
       </main>
     </AppShell>
   );

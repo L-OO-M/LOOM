@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { signCertificate } from "@/lib/certificates";
 
 const attendSchema = z.object({
   checkInCode: z.string().min(4).max(20)
@@ -47,16 +48,30 @@ export async function POST(request, { params }) {
   // certificates_event_student_key (migration 029). The conflict target must
   // be that pair; a random verification_code can never collide, which is why
   // the previous version minted a duplicate on every re-check-in.
+  const certId = randomUUID();
+  const issuedAt = new Date();
+  const signature = signCertificate({
+    id: certId,
+    studentId: reg.student_id,
+    tenantId: tenant?.id ?? null,
+    eventId: id,
+    issuedAt
+  });
   const [cert] = await sql`
-    INSERT INTO certificates (event_id, student_id, tenant_id, title, verification_code)
+    INSERT INTO certificates (id, event_id, student_id, tenant_id, title, verification_code, issued_at, signature)
     VALUES (
+      ${certId},
       ${id},
       ${reg.student_id},
       ${tenant?.id ?? null},
       ${`Participation — ${event.title}`},
-      ${`CERT-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`}
+      ${`CERT-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`},
+      ${issuedAt},
+      ${signature}
     )
-    ON CONFLICT (event_id, student_id) DO UPDATE SET title = EXCLUDED.title
+    ON CONFLICT (event_id, student_id) DO UPDATE SET
+      title = EXCLUDED.title,
+      signature = COALESCE(certificates.signature, EXCLUDED.signature)
     RETURNING *
   `;
   const existing = cert;

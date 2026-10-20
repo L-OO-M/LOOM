@@ -47,8 +47,14 @@ export async function POST(request) {
   const url = `https://github.com/${body.owner}/${body.repo}`;
   const [project] = await sql`
     INSERT INTO open_source_projects
-      (tenant_id, github_repo_url, owner, repo_name, description, difficulty, primary_domain, language, stars, is_curated, created_by)
-    VALUES (${tenant?.id ?? null}, ${url}, ${body.owner}, ${body.repo}, ${meta.description}, ${body.difficulty}, ${body.primaryDomain}, ${meta.language}, ${meta.stars}, true, ${user.id})
+      (tenant_id, github_repo_url, owner, repo_name, description, difficulty,
+       primary_domain, language, stars, topics, homepage, contributing_url,
+       pushed_at, metadata_synced_at, is_curated, created_by)
+    VALUES (${tenant?.id ?? null}, ${url}, ${body.owner}, ${body.repo}, ${meta.description},
+      ${body.difficulty}, ${body.primaryDomain}, ${meta.language}, ${meta.stars},
+      ${meta.topics}, ${meta.homepage},
+      ${`https://github.com/${body.owner}/${body.repo}/blob/${meta.defaultBranch || "main"}/CONTRIBUTING.md`},
+      ${meta.pushedAt}, NOW(), true, ${user.id})
     ON CONFLICT (github_repo_url) DO UPDATE SET
       tenant_id = COALESCE(open_source_projects.tenant_id, EXCLUDED.tenant_id),
       difficulty = EXCLUDED.difficulty,
@@ -56,6 +62,11 @@ export async function POST(request) {
       description = EXCLUDED.description,
       language = EXCLUDED.language,
       stars = EXCLUDED.stars,
+      topics = EXCLUDED.topics,
+      homepage = EXCLUDED.homepage,
+      contributing_url = EXCLUDED.contributing_url,
+      pushed_at = EXCLUDED.pushed_at,
+      metadata_synced_at = NOW(),
       is_curated = true
     RETURNING *
   `;

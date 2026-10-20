@@ -37,6 +37,7 @@ export default async function CredentialsPage() {
     SELECT a.*, b.name AS badge_name, b.tier FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${user.id}
+      AND (a.tenant_id = ${tenant?.id ?? null}::uuid OR a.tenant_id IS NULL)
     ORDER BY a.earned_at DESC LIMIT 100
   `;
   const credentials = await sql`
@@ -45,6 +46,7 @@ export default async function CredentialsPage() {
     LEFT JOIN student_achievements a ON a.id = v.achievement_id
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE v.student_id = ${user.id}
+      AND (v.tenant_id = ${tenant?.id ?? null}::uuid OR v.tenant_id IS NULL)
     ORDER BY v.issued_at DESC LIMIT 100
   `;
   const pending = await sql`
@@ -53,10 +55,19 @@ export default async function CredentialsPage() {
     WHERE student_id = ${user.id} AND status = 'claimed'
     ORDER BY created_at DESC LIMIT 20
   `;
-  const [{ nodes = 0 } = {}] = await sql`SELECT COUNT(*)::int AS nodes FROM roadmap_nodes`;
+  // Totals follow the student's own path. Counting every chapter's nodes made
+  // "3 of 412 complete" while the roadmap page showed 3 of 18.
+  const domain = profile?.primary_domain || null;
+  const [{ nodes = 0 } = {}] = await sql`
+    SELECT COUNT(*)::int AS nodes FROM roadmap_nodes
+    WHERE (${domain}::text IS NULL OR domain = ${domain})
+  `;
   const [{ done = 0 } = {}] = await sql`
-    SELECT COUNT(*)::int AS done FROM student_roadmap_progress
-    WHERE student_id = ${user.id} AND status = 'completed'
+    SELECT COUNT(*)::int AS done
+    FROM student_roadmap_progress r
+    JOIN roadmap_nodes n ON n.id = r.node_id
+    WHERE r.student_id = ${user.id} AND r.status = 'completed'
+      AND (${domain}::text IS NULL OR n.domain = ${domain})
   `;
 
   const views = credentials.reduce((n, c) => n + (c.view_count || 0), 0);

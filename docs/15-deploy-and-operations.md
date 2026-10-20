@@ -18,7 +18,9 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `DEV_TENANT_SLUG` | no (default `demo-college`) | Fallback tenant for first-visit profiles |
 | `DEV_TENANT_DOMAIN` | no (default `localhost`) | Host treated as the local dev tenant |
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC; also fallback signing secret. **Production rejects placeholder values** (`dev-secret`, `hello`, …) and anything under 16 chars |
-| `CREDENTIAL_SECRET` | no | Credential HMAC (falls back to webhook secret) |
+| `CREDENTIAL_SECRET` | no | Credential/OAuth-state HMAC (falls back to webhook secret) |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | for repo picker | GitHub OAuth App for repository grants; callback `${NEXT_PUBLIC_APP_URL}/api/github/oauth/callback`, scopes `repo` + `read:user`. Unset = the app reports OAuth not configured; repository picking stays unavailable |
+| `GITHUB_TOKEN_ENCRYPTION_KEY` | for repo picker | 32 random bytes, base64 (AES-256-GCM key for sealed GitHub tokens). Rotating it invalidates every stored token; members must re-link. See `21-github-oauth-setup.md` |
 | `GITHUB_ISSUES_REPO` | no | `owner/repo` that feature requests mirror into. Unset = the GitHub Issues bridge is off and submissions behave exactly as before |
 | `GITHUB_ISSUES_TOKEN` | no | Fine-grained token with **issues: write** on that repo (≥20 chars). Server-only — never `NEXT_PUBLIC_`. Missing token = bridge off, not a crash |
 | `RESEND_API_KEY` | no | Optional email-verification sender. Unset = verification is unavailable and the UI says so; accounts are never blocked |
@@ -264,6 +266,8 @@ before the first production deploy):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — auth
 - `NEXT_PUBLIC_APP_URL` — metadata base, share/verify links
 - `GITHUB_WEBHOOK_SECRET` (+ `CREDENTIAL_SECRET`) — ingestion HMAC
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_TOKEN_ENCRYPTION_KEY`
+  — repository OAuth grant and repo picker (see `21-github-oauth-setup.md`)
 - `SUPABASE_SERVICE_ROLE_KEY` — admin user APIs
 - `DATABASE_URL_TARGET` / `DATABASE_URL_MUMBAI` — only if you use `db:migrate --target`
 

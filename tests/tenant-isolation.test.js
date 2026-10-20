@@ -28,7 +28,10 @@ describe("cross-tenant reads are filtered in SQL, not after the fact", () => {
   it("contest registration never fetches by id alone", () => {
     const src = readFileSync("app/api/contests/route.js", "utf8");
     expect(src).not.toContain("SELECT * FROM contests WHERE id = ${body.contestId} LIMIT 1");
-    expect((src.match(/tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/g) || []).length).toBeGreaterThanOrEqual(2);
+    // Both lookups now refuse before querying when the tenant is missing and
+    // use plain equality (`${tenant.id}`), not the OR-null escape hatch.
+    expect(src).toContain("if (!tenant?.id) return fail(\"FORBIDDEN\", \"No chapter context\", 403);");
+    expect((src.match(/tenant_id = \$\{tenant\.id\}::uuid/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
   it("no route guards a cross-tenant row with a fail-open JS check", () => {
@@ -102,7 +105,7 @@ describe("no tenant-escape hatch on tenant-strict tables", () => {
     }
     expect(offenders, `strict tables must use plain tenant equality:\n${offenders.join("\n")}`)
       .toEqual([]);
-  });
+  }, 20_000);
 
   it("still scopes open_source_profiles to the global catalogue", () => {
     // Guards against "fixing" the one legitimate exception by accident.

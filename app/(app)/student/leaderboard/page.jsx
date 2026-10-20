@@ -317,14 +317,16 @@ export default async function StandingsPage({ searchParams }) {
             <section aria-label="What moves the needle" className="mt-12">
               <Meta>What moves the needle</Meta>
               <p className="narrative mt-3 max-w-xl">
-                Standings are a reflection of visible contribution. Keep building across LOOM.
+                {verifiedOnly
+                  ? "Only verified evidence scores: GitHub-attested commits and pull requests, lead-confirmed roadmap nodes, and reviewed open-source merges. Projects and challenges show your work, but they score only when your chapter records proof."
+                  : "This chapter still uses the older self-reported board: completed nodes and published projects score without a second confirmation. An admin can switch on verified standings from Feature flags."}
               </p>
               <ol className="mt-4">
                 {[
-                  { href: "/student/roadmap", title: "Finish a roadmap node", body: "Completed nodes carry the most weight per item." },
-                  { href: "/student/projects", title: "Ship a project", body: "Published work counts toward your score." },
-                  { href: "/student/opensource", title: "Contribute to open source", body: "Pull requests move your score and your proof." },
-                  { href: "/student/contests", title: "Take on a challenge", body: "Deadlines turn practice into proof." },
+                  { href: "/student/roadmap", title: "Finish a roadmap node", body: verifiedOnly ? "Scores after a chapter lead confirms the evidence." : "Completed nodes carry the most weight per item." },
+                  { href: "/student/projects", title: "Ship a project", body: verifiedOnly ? "Builds your profile; it does not score on its own." : "Published work counts toward your score." },
+                  { href: "/student/opensource", title: "Contribute to open source", body: "Merged pull requests score automatically and become proof." },
+                  { href: "/student/contests", title: "Take on a challenge", body: verifiedOnly ? "Placements score when your chapter records the result." : "Deadlines turn practice into proof." },
                 ].map((a) => (
                   <li key={a.href} className="border-b py-4 first:border-t" style={{ borderColor: "var(--line)" }}>
                     <Link href={a.href} prefetch={false} className="row-link flex items-center gap-4 px-2 py-1">

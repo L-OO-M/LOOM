@@ -53,6 +53,10 @@ const publicPaths = [
   "/api/public/events",
   "/api/public/projects",
   "/api/public/departments",
+  // Advertised in /llms.txt as the aggregate answer-engine endpoint. It was
+  // missing from this list, so the middleware returned a machine 401 to the
+  // anonymous crawlers the file invites.
+  "/api/public/summary",
   "/api/admin/check-setup",
   "/api/admin/claim-first",
   "/api/github/webhook",

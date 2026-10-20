@@ -7,6 +7,7 @@ import { GithubLinkButton } from "@/components/actions";
 import { cryptoConfigured } from "@/lib/crypto";
 import ProjectStatusControl from "../_components/ProjectStatusControl";
 import ProjectEditForm from "../_components/ProjectEditForm";
+import RefreshRepoButton from "../_components/RefreshRepoButton";
 
 function pillTone(status) {
   if (status === "active") return "live";
@@ -91,6 +92,16 @@ export default async function ProjectDetailPage({ params }) {
         LIMIT 1`
     : [null];
   const repoVerified = Boolean(repoGrant?.verified_at);
+  // Cached, GitHub-sourced metadata. This is display-only: stars and open
+  // issues can be stale, so the page labels when it last checked instead of
+  // implying live numbers.
+  const [repoMeta] = repoFull
+    ? await sql`
+        SELECT language, stars, forks, open_issues, is_private, pushed_at, metadata_synced_at
+        FROM repositories
+        WHERE student_id = ${p.owner_id} AND lower(full_name) = lower(${repoFull})
+        LIMIT 1`
+    : [null];
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -160,6 +171,21 @@ export default async function ProjectDetailPage({ params }) {
                   <>
                     <a href={p.repo_url} target="_blank" rel="noreferrer" className="mt-2 block truncate font-mono text-sm hover:underline" style={{ color: "var(--text)" }}>{repoHost || p.repo_url} ↗</a>
                     <a href={p.repo_url} target="_blank" rel="noreferrer" className="btn-ghost mt-3 w-full justify-center !py-2 text-xs">Open repository ↗</a>
+                    {repoMeta && (
+                      <div className="mt-3 space-y-1 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                        <p className="meta">
+                          {repoMeta.is_private ? "Private" : "Public"}
+                          {repoMeta.language ? ` · ${repoMeta.language}` : ""}
+                          {` · ★ ${repoMeta.stars ?? 0}`}
+                          {` · ${repoMeta.open_issues ?? 0} open issues`}
+                        </p>
+                        <p className="meta">
+                          {repoMeta.pushed_at ? `Last push ${fmt(repoMeta.pushed_at)}` : "No push recorded"}
+                          {repoMeta.metadata_synced_at ? ` · checked ${fmt(repoMeta.metadata_synced_at)}` : " · not synced yet"}
+                        </p>
+                        {isOwner && <RefreshRepoButton />}
+                      </div>
+                    )}
                     {isOwner && repoFull && (
                       repoVerified ? (
                         <p className="mt-3 text-xs font-semibold" style={{ color: "var(--accent)" }}>

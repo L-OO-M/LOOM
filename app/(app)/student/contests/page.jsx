@@ -68,7 +68,7 @@ export default async function ContestsPage({ searchParams }) {
     SELECT c.*,
       (SELECT COUNT(*)::int FROM contest_registrations r WHERE r.contest_id = c.id) AS registrations
     FROM contests c
-    WHERE (c.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE c.tenant_id = ${tenant?.id ?? null}::uuid
       AND c.status <> 'draft'
     ORDER BY c.starts_at NULLS LAST, c.created_at DESC LIMIT 50
   `;

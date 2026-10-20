@@ -44,7 +44,8 @@ export async function GET(request) {
         (SELECT COUNT(*)::int FROM user_profiles up
           WHERE up.tenant_id = ${tid}::uuid AND up.is_public) AS public_builders,
         (SELECT COUNT(*)::int FROM projects p
-          WHERE p.tenant_id = ${tid}::uuid) AS projects
+          JOIN user_profiles up ON up.user_id = p.owner_id AND up.tenant_id = p.tenant_id
+          WHERE p.tenant_id = ${tid}::uuid AND up.is_public) AS projects
     `;
     counts = {
       departments: Number(row?.departments ?? 0),

@@ -4,10 +4,12 @@ import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseContributionUrl } from "@/lib/oss";
 
+// `commit` used to be accepted here but nothing ever verified one, so it only
+// created a claim that could never count. Claims are PRs, issues, or reviews.
 const claimSchema = z.object({
   prUrl: z.string().url().max(300),
   title: z.string().max(200).default(""),
-  contributionType: z.enum(["pr", "issue", "review", "commit"]).default("pr")
+  contributionType: z.enum(["pr", "issue", "review"]).optional()
 });
 
 export async function GET() {
@@ -42,6 +44,17 @@ export async function POST(request) {
   }
   const parsed = parseContributionUrl(body.prUrl);
   if (!parsed) return fail("INVALID_PR_URL", "URL must be a github.com pull or issue link", 400);
+  // Derive the type from the URL instead of trusting the form. An issue URL
+  // cannot be a pull request, and a review lives on a pull request. Without
+  // this an issue link could be filed as `review` and count toward the
+  // reviewer badge after admin approval.
+  const contributionType = body.contributionType || parsed.kind;
+  if (contributionType === "issue" && parsed.kind !== "issue") {
+    return fail("TYPE_MISMATCH", "That is a pull request link — claim it as a pull request or review.", 400);
+  }
+  if (contributionType !== "issue" && parsed.kind !== "pr") {
+    return fail("TYPE_MISMATCH", "That is an issue link — claim it as an issue.", 400);
+  }
   const [project] = await sql`
     SELECT * FROM open_source_projects
     WHERE lower(owner) = lower(${parsed.owner}) AND lower(repo_name) = lower(${parsed.repo})
@@ -51,10 +64,15 @@ export async function POST(request) {
   if (!project) return fail("REPO_NOT_TRACKED", "This repo is not tracked yet — ask your chapter admin to curate it", 404);
   const [row] = await sql`
     INSERT INTO student_oss_contributions
-      (student_id, tenant_id, project_id, repo_url, pr_url, pr_number, title, contribution_type, status)
-    VALUES (${user.id}, ${tenant?.id ?? null}, ${project.id}, ${project.github_repo_url}, ${body.prUrl}, ${parsed.number}, ${body.title || `Contribution #${parsed.number}`}, ${body.contributionType}, 'claimed')
-    ON CONFLICT (student_id, pr_url) DO UPDATE SET title = EXCLUDED.title, contribution_type = EXCLUDED.contribution_type RETURNING *
+      (student_id, tenant_id, project_id, repo_url, pr_url, canonical_url, pr_number, title, contribution_type, status)
+    VALUES (${user.id}, ${tenant?.id ?? null}, ${project.id}, ${project.github_repo_url}, ${parsed.canonicalUrl}, ${parsed.canonicalUrl}, ${parsed.number}, ${body.title || `Contribution #${parsed.number}`}, ${contributionType}, 'claimed')
+    ON CONFLICT (student_id, canonical_url) WHERE canonical_url IS NOT NULL
+    DO UPDATE SET
+      title = EXCLUDED.title,
+      contribution_type = EXCLUDED.contribution_type,
+      pr_url = EXCLUDED.pr_url
+    RETURNING *
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "claimed_oss_contribution", resource: "oss_contribution", resourceId: row.id, after: { prUrl: body.prUrl, contributionType: body.contributionType, projectId: project.id } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "claimed_oss_contribution", resource: "oss_contribution", resourceId: row.id, after: { prUrl: parsed.canonicalUrl, contributionType, projectId: project.id } });
   return ok({ contribution: row }, { status: 201 });
 }

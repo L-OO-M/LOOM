@@ -136,7 +136,7 @@ await expect(page.locator("h1")).toContainText("Events we actually run");
   });
 
   test("public apis return ok without auth", async ({ request }) => {
-    for (const path of ["/api/public/events", "/api/public/projects", "/api/public/departments"]) {
+    for (const path of ["/api/public/events", "/api/public/projects", "/api/public/departments", "/api/public/summary"]) {
       const res = await request.get(path);
       expect(res.ok()).toBeTruthy();
       const body = await res.json();
@@ -152,6 +152,12 @@ test.describe("L.O.O.M. SEO surfaces", () => {
     for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
       expect(xml).toContain(path);
     }
+  });
+
+  test("unknown certificate codes are not presented as verified", async ({ page }) => {
+    const res = await page.goto("/verify/certificate/CERT-NOT-A-REAL-CODE");
+    expect(res?.status()).toBe(404);
+    await expect(page.getByText("Verified — issued by L.O.O.M.")).toHaveCount(0);
   });
 
   test("llms.txt exposes the public crawl contract", async ({ request }) => {

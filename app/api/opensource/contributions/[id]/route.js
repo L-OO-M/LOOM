@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { awardOssBadges } from "@/lib/oss";
+import { recordEvidence, recomputeScore } from "@/lib/ranking";
 
 const reviewSchema = z.object({
   status: z.enum(["verified", "rejected"])
@@ -34,6 +35,23 @@ export async function PATCH(request, { params }) {
   `;
   let granted = [];
   if (body.status === "verified") {
+    // A merged PR is the only OSS claim that counts toward standing. Before
+    // this, an admin verification awarded badges but wrote no ranking event,
+    // so the highest-weight evidence in the schema was invisible unless a
+    // webhook happened to deliver the merge.
+    if (updated.contribution_type === "pr") {
+      await recordEvidence({
+        sql,
+        tenantId: updated.tenant_id,
+        userId: updated.student_id,
+        kind: "oss_verified",
+        refId: updated.canonical_url || updated.pr_url,
+        verifiedBy: `admin:${user.id}`,
+        source: "admin",
+        evidence: { repo: updated.repo_url, pr: updated.pr_url, contributionId: updated.id }
+      });
+      await recomputeScore(sql, updated.tenant_id, updated.student_id);
+    }
     granted = await awardOssBadges({ sql, studentId: updated.student_id, tenantId: updated.tenant_id, projectUrl: updated.repo_url });
     await notify({
       sql, tenantId: updated.tenant_id, userId: updated.student_id,

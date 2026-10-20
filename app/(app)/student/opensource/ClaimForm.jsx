@@ -10,7 +10,7 @@ const TYPES = [
   { value: "review", label: "Review" }
 ];
 
-export default function ClaimForm() {
+export default function ClaimForm({ initialRepo = "" }) {
   const router = useRouter();
   const [prUrl, setPrUrl] = useState("");
   const [contributionType, setContributionType] = useState("pr");
@@ -50,9 +50,27 @@ export default function ClaimForm() {
   return (
     <form onSubmit={submit} className="mt-4 space-y-4">
       <Field label="Contribution URL" hint="Must link a pull request, issue, or review in a tracked repository above.">
-        <input value={prUrl} onChange={(e) => setPrUrl(e.target.value)} required type="url" placeholder="https://github.com/owner/repo/pull/123" style={inputStyle} aria-label="Contribution URL" />
+        <input
+          value={prUrl}
+          onChange={(e) => {
+            const next = e.target.value;
+            setPrUrl(next);
+            if (/\/issues\/\d+/i.test(next)) setContributionType("issue");
+            else if (/\/pull\/\d+/i.test(next) && contributionType === "issue") setContributionType("pr");
+          }}
+          required
+          type="url"
+          placeholder={initialRepo ? `https://github.com/${initialRepo}/pull/123` : "https://github.com/owner/repo/pull/123"}
+          style={inputStyle}
+          aria-label="Contribution URL"
+        />
       </Field>
-      <Field label="Contribution type" hint="Pull requests count toward PR badges. Reviews count toward the reviewer badge. Issues are tracked as records.">
+      {initialRepo && (
+        <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+          Claiming in <span className="font-mono font-semibold" style={{ color: "var(--text)" }}>{initialRepo}</span>. The URL must be a PR or issue in this repository.
+        </p>
+      )}
+      <Field label="Contribution type" hint="The URL decides PR vs issue. Choose Review only when you reviewed someone else's pull request.">
         <select value={contributionType} onChange={(e) => setContributionType(e.target.value)} style={inputStyle} aria-label="Contribution type">
           {TYPES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>

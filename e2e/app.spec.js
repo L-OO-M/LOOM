@@ -105,6 +105,7 @@ test.describe("api authorization", () => {
     "/api/github/oauth/start",
     "/api/github/oauth/callback",
     "/api/github/oauth/callback?code=stolen&state=forged",
+    "/api/github/repos",
     "/api/admin/ranking",
     "/api/opensource/projects",
     "/api/opensource/contributions",
@@ -159,6 +160,12 @@ test.describe("api authorization", () => {
   test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
     const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
     expect(res.status()).toBe(401);
+  });
+
+  test("POST /api/github/sync returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/github/sync", { data: {} });
+    expect(res.status()).toBe(401);
+    expect((await res.json()).ok).toBe(false);
   });
 
   test("POST /api/credentials returns 401 without session", async ({ request }) => {

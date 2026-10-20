@@ -152,6 +152,11 @@ function CardBody({ card, profile, displayName, url, rep, followers, skills, ach
                   state="done"
                   title={a.badge_name || `${a.source_type} achievement`}
                   meta={new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                  action={a.credential_id ? (
+                    <a href={`/verify/credential/${a.credential_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                      Verify
+                    </a>
+                  ) : undefined}
                 />
               ))}
             </Timeline>
@@ -204,7 +209,11 @@ export default async function PublicProfilePage({ params }) {
     SELECT skill, COUNT(*)::int AS n FROM user_endorsements
     WHERE endorsee_id = ${card.user_id} GROUP BY skill ORDER BY n DESC LIMIT 8`;
   const achievements = await sql`
-    SELECT a.*, b.name AS badge_name FROM student_achievements a
+    SELECT a.*, b.name AS badge_name,
+      (SELECT v.id FROM verifiable_credentials v
+        WHERE v.achievement_id = a.id AND v.student_id = a.student_id
+        ORDER BY v.issued_at DESC LIMIT 1) AS credential_id
+    FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${card.user_id} ORDER BY a.earned_at DESC LIMIT 6`;
   const latestProject = await sql`

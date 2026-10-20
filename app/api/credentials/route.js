@@ -23,15 +23,22 @@ export async function GET() {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
-  const { user, sql } = ctx;
+  const { user, tenant, sql } = ctx;
+  // Defence in depth: the student id already scopes this to the caller, but
+  // adding the chapter stops a leftover row from a different tenant being
+  // displayed after a chapter move. NULL is allowed for pre-tenancy rows.
+  const tid = tenant?.id ?? null;
   const achievements = await sql`
     SELECT a.*, b.name AS badge_name, b.tier FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${user.id}
+      AND (a.tenant_id = ${tid}::uuid OR a.tenant_id IS NULL)
     ORDER BY a.earned_at DESC LIMIT 100
   `;
   const credentials = await sql`
-    SELECT * FROM verifiable_credentials WHERE student_id = ${user.id}
+    SELECT * FROM verifiable_credentials
+    WHERE student_id = ${user.id}
+      AND (tenant_id = ${tid}::uuid OR tenant_id IS NULL)
     ORDER BY issued_at DESC LIMIT 100
   `;
   return ok({ achievements, credentials, appUrl: env.NEXT_PUBLIC_APP_URL });
@@ -55,6 +62,7 @@ export async function POST(request) {
     SELECT a.*, b.name AS badge_name FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.id = ${body.achievementId} AND a.student_id = ${user.id}
+      AND (a.tenant_id = ${tenant?.id ?? null}::uuid OR a.tenant_id IS NULL)
     LIMIT 1
   `;
   if (!a) return fail("NOT_FOUND", "Achievement not found", 404);

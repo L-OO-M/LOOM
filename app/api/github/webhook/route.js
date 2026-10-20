@@ -121,6 +121,12 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
   } catch {
     /* ignore */
   }
+  try {
+    const reviewed = await maybeVerifyOssReview({ sql, tenantId: tenant.id, eventName, raw });
+    if (reviewed) verified = verified || reviewed;
+  } catch {
+    /* ignore */
+  }
 
   // Feature requests mirror a GitHub issue, so closing or reopening the issue
   // is a product decision the board must follow. Without this the two surfaces
@@ -360,6 +366,59 @@ async function maybeActivateProject({ sql, tenantId, eventName, raw }) {
   return { projectId: updated.id, userId: studentId, repository: fullName, event: eventName };
 }
 
+// A submitted code review is a real contribution, but unlike a merged PR it
+// leaves no artifact in the PR's state. GitHub still attests it in a signed
+// `pull_request_review` delivery, so verify it there instead of waiting for an
+// admin to take the student's word for it.
+async function maybeVerifyOssReview({ sql, tenantId, eventName, raw }) {
+  if (eventName !== "pull_request_review") return null;
+  if (raw?.action !== "submitted") return null;
+  const review = raw?.review;
+  const pr = raw?.pull_request;
+  if (!review?.user?.login || !pr?.number) return null;
+  if (review.state === "dismissed" || review.state === "pending") return null;
+  const fullName = raw?.repository?.full_name;
+  if (!fullName) return null;
+  const [owner, repo] = fullName.split("/");
+  const [project] = await sql`
+    SELECT * FROM open_source_projects
+    WHERE lower(owner) = lower(${owner}) AND lower(repo_name) = lower(${repo})
+      AND (tenant_id IS NULL OR tenant_id = ${tenantId}::uuid)
+    LIMIT 1
+  `;
+  if (!project) return null;
+  const [profile] = await sql`
+    SELECT p.user_id FROM profiles p
+    LEFT JOIN github_connections g ON g.user_id = p.user_id
+    WHERE (lower(p.github_username) = lower(${review.user.login})
+      OR lower(g.github_username) = lower(${review.user.login}))
+      AND p.tenant_id = ${tenantId}::uuid
+    LIMIT 1
+  `;
+  if (!profile) return null;
+  const canonical = `https://github.com/${fullName.toLowerCase()}/pull/${pr.number}`;
+  const [row] = await sql`
+    INSERT INTO student_oss_contributions
+      (student_id, tenant_id, project_id, repo_url, pr_url, canonical_url, pr_number, title, contribution_type, status, verified_at)
+    VALUES (${profile.user_id}, ${tenantId}, ${project.id}, ${project.github_repo_url},
+      ${pr.html_url || canonical}, ${canonical}, ${pr.number},
+      ${`Review on #${pr.number}`.slice(0, 200)}, 'review', 'verified', now())
+    ON CONFLICT (student_id, canonical_url) WHERE canonical_url IS NOT NULL DO UPDATE SET
+      status = 'verified', verified_at = now()
+      WHERE student_oss_contributions.contribution_type = 'review'
+    RETURNING *
+  `;
+  if (!row || row.contribution_type !== "review") return null;
+  const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId, projectUrl: project.github_repo_url });
+  await notify({
+    sql, tenantId, userId: profile.user_id,
+    type: "oss_verified", title: "Code review verified",
+    body: `Your review on ${fullName}#${pr.number} counts${granted.length ? ` — badge earned: ${granted.join(", ")}` : ""}.`,
+    link: "/student/opensource"
+  });
+  return { userId: profile.user_id, review: true, granted };
+}
+
 async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
   if (eventName !== "pull_request") return null;
   const pr = raw?.pull_request;
@@ -384,12 +443,13 @@ async function maybeVerifyOssMerge({ sql, tenantId, eventName, raw }) {
   `;
   if (!profile) return null;
   const prUrl = pr.html_url || `https://github.com/${fullName}/pull/${pr.number}`;
+  const canonical = `https://github.com/${fullName.toLowerCase()}/pull/${pr.number}`;
   await sql`
     INSERT INTO student_oss_contributions
-      (student_id, tenant_id, project_id, repo_url, pr_url, pr_number, title, contribution_type, status, merged_at, files_changed, lines_added, lines_deleted, verified_at)
-    VALUES (${profile.user_id}, ${tenantId}, ${project.id}, ${project.github_repo_url}, ${prUrl}, ${pr.number ?? null}, ${(pr.title || "").slice(0, 200)}, 'pr', 'verified', ${pr.merged_at || new Date().toISOString()}, ${pr.changed_files ?? 0}, ${pr.additions ?? 0}, ${pr.deletions ?? 0}, now())
-    ON CONFLICT (student_id, pr_url) DO UPDATE SET
-      status = 'verified', merged_at = EXCLUDED.merged_at,
+      (student_id, tenant_id, project_id, repo_url, pr_url, canonical_url, pr_number, title, contribution_type, status, merged_at, files_changed, lines_added, lines_deleted, verified_at)
+    VALUES (${profile.user_id}, ${tenantId}, ${project.id}, ${project.github_repo_url}, ${prUrl}, ${canonical}, ${pr.number ?? null}, ${(pr.title || "").slice(0, 200)}, 'pr', 'verified', ${pr.merged_at || new Date().toISOString()}, ${pr.changed_files ?? 0}, ${pr.additions ?? 0}, ${pr.deletions ?? 0}, now())
+    ON CONFLICT (student_id, canonical_url) WHERE canonical_url IS NOT NULL DO UPDATE SET
+      status = 'verified', contribution_type = 'pr', merged_at = EXCLUDED.merged_at,
       files_changed = EXCLUDED.files_changed, lines_added = EXCLUDED.lines_added,
       lines_deleted = EXCLUDED.lines_deleted, verified_at = now()
   `;

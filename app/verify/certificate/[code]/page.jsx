@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo";
 import { BrandMark } from "@/components/BrandMark";
+import { verifyCertificateSignature } from "@/lib/certificates";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +21,14 @@ export async function generateMetadata({ params }) {
   try {
     const sql = getSql();
     const [cert] = await sql`
-      SELECT c.title, c.issued_at, p.name AS holder_name, t.name AS tenant_name, e.title AS event_title
+      SELECT c.*, p.name AS holder_name, t.name AS tenant_name, e.title AS event_title
       FROM certificates c
       LEFT JOIN profiles p ON p.user_id = c.student_id AND p.tenant_id = c.tenant_id
       LEFT JOIN tenants t ON t.id = c.tenant_id
       LEFT JOIN events e ON e.id = c.event_id
       WHERE c.verification_code = ${code} LIMIT 1`;
     if (!cert) return { title: "Certificate not found | L.O.O.M.", alternates };
+    const authentic = !cert.revoked_at && verifyCertificateSignature(cert);
     const holder = cert.holder_name || "a L.O.O.M. member";
     const what = cert.event_title || cert.title;
     return {
@@ -34,7 +36,7 @@ export async function generateMetadata({ params }) {
       description: `Participation certificate for ${holder} — ${what}, issued by ${cert.tenant_name || "L.O.O.M."}. Verification code ${code}.`,
       alternates,
       openGraph: { title: `Certificate — ${holder}`, description: `Participation certificate from ${cert.tenant_name || "L.O.O.M."}.`, url: absoluteUrl(`/verify/certificate/${code}`) },
-      robots: { index: true, follow: true }
+      robots: authentic ? { index: true, follow: true } : { index: false, follow: false }
     };
   } catch {
     return { title: "Certificate | L.O.O.M.", alternates };
@@ -64,6 +66,8 @@ export default async function VerifyCertificatePage({ params }) {
   `;
   const cert = rows[0] || null;
   if (!cert) notFound();
+  const revoked = !!cert.revoked_at;
+  const authentic = !revoked && verifyCertificateSignature(cert);
   const issued = new Date(cert.issued_at).toLocaleDateString();
   const heldOn = cert.starts_at ? new Date(cert.starts_at).toLocaleDateString("en-IN", { dateStyle: "long" }) : null;
 

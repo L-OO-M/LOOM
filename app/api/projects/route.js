@@ -12,13 +12,23 @@ import { checkRateLimit } from "@/lib/rate-limit";
 // cap, and no requirement that any code existed. Ten requests, 250 points,
 // under a second. Requiring a repository makes the empty-registry attack
 // pointless — an unwritten repo proves nothing, so it earns nothing.
-const createSchema = z.object({
-  title: z.string().min(3).max(120),
-  description: z.string().max(2000).default(""),
-  roadmapNodeId: z.string().optional().nullable(),
-  repoUrl: z.string().url("Link the GitHub repository for this project"),
-  tags: z.array(z.string().min(1).max(30)).max(8).default([])
-});
+// Either a repository picked from the linked GitHub account (`repositoryId`)
+// or a pasted URL is required. `repositoryId` is the preferred path: it is a
+// row we wrote from an authenticated GitHub listing, not a string the client
+// chose, so it cannot point at a repository the student does not own.
+const createSchema = z
+  .object({
+    title: z.string().min(3).max(120),
+    description: z.string().max(2000).default(""),
+    roadmapNodeId: z.string().optional().nullable(),
+    repoUrl: z.string().url("Link the GitHub repository for this project").optional().nullable(),
+    repositoryId: z.string().uuid().optional().nullable(),
+    tags: z.array(z.string().min(1).max(30)).max(8).default([])
+  })
+  .refine((v) => Boolean(v.repositoryId || v.repoUrl), {
+    message: "Pick a repository or link its GitHub URL",
+    path: ["repoUrl"]
+  });
 
 export async function GET() {
   const ctx = await getRequestContext();
@@ -54,6 +64,20 @@ export async function POST(request) {
     if (!node) return fail("NODE_NOT_FOUND", "Roadmap node not found", 404);
   }
 
+  let repoUrl = body.repoUrl || null;
+  if (body.repositoryId) {
+    const [repo] = await sql`
+      SELECT id, full_name, html_url FROM repositories
+      WHERE id = ${body.repositoryId}
+        AND student_id = ${user.id}
+        AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+      LIMIT 1
+    `;
+    if (!repo) return fail("REPOSITORY_NOT_FOUND", "That repository is not in your linked GitHub account", 404);
+    repoUrl = repo.html_url || `https://github.com/${repo.full_name}`;
+  }
+  if (!repoUrl) return fail("REPO_REQUIRED", "Pick a repository or link its GitHub URL", 400);
+
   // Ownership must be PROVEN, not asserted. There are two acceptable proofs and
   // they are not equal:
   //
@@ -66,7 +90,7 @@ export async function POST(request) {
   //
   // The original bug was accepting a repo with no check at all and awarding
   // points at insert, so an empty row was worth 25.
-  const fullName = parseGitHubRepo(body.repoUrl);
+  const fullName = parseGitHubRepo(repoUrl);
   if (!fullName) {
     return fail("REPO_URL_INVALID", "Link a GitHub repository (github.com/owner/repo)", 400);
   }
@@ -127,7 +151,7 @@ export async function POST(request) {
   const verifiedAt = proven ? new Date().toISOString() : null;
   const [project] = await sql`
     INSERT INTO projects (tenant_id, owner_id, title, description, roadmap_node_id, status, repo_url, tags, repo_full_name, evidence_state, verified_at, verified_by)
-    VALUES (${tenant?.id ?? null}, ${user.id}, ${body.title}, ${body.description || ""}, ${body.roadmapNodeId || null}, 'active', ${body.repoUrl}, ${body.tags}, ${fullName}, ${proven ? "verified" : "provisional"}, ${verifiedAt}, ${proven ? `github:${fullName}` : null})
+    VALUES (${tenant?.id ?? null}, ${user.id}, ${body.title}, ${body.description || ""}, ${body.roadmapNodeId || null}, 'active', ${repoUrl}, ${body.tags}, ${fullName}, ${proven ? "verified" : "provisional"}, ${verifiedAt}, ${proven ? `github:${fullName}` : null})
     RETURNING *
   `;
   if (proven) {

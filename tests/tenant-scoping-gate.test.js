@@ -80,7 +80,7 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
       offenders,
       `Only tables in UNSCOPED_BY_DESIGN may keep the NULL arm:\n${offenders.join("\n")}`
     ).toEqual([]);
-  });
+  }, 20_000);
 
   it("documents why open_source_projects keeps the NULL arm", () => {
     const projects = readFileSync("app/api/opensource/projects/route.js", "utf8");

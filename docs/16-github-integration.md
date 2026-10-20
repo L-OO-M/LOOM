@@ -21,11 +21,17 @@ flows into the platform and becomes first-class evidence:
 
 Current scope, stated plainly:
 
-- Username linking is **manual** (students type their GitHub username;
-  `GET /api/github` reports `oauthConfigured: false`). There is no GitHub
-  App OAuth login yet, so attribution rests on the link the member claims.
+- **Identity** and **repository access** are separate grants. A student can
+  type their GitHub username (manual link), and can separately connect GitHub
+  through the app's OAuth App to prove repository ownership and use the repo
+  picker. The OAuth grant matters for projects; webhook attribution still
+  rests on the linked username.
 - The webhook writes events, aggregates daily activity, and verifies merges
-  **inline**. There is no queue and no cron: aggregation happens on delivery.
+  and submitted reviews **inline**. There is no queue and no cron:
+  aggregation happens on delivery.
+- Repositories listed or created through OAuth are cached in `repositories`
+  and `github_repo_grants`; stale metadata is refreshed with
+  `POST /api/github/sync`.
 
 ### Aggregation is inline, not scheduled
 
@@ -60,21 +66,35 @@ their own tenant, and upserted additively on `(student_id, day)`.
   the request's **Host header** (`lib/tenant.js`). Point GitHub at the
   chapter's domain (e.g. `https://loom.yourcollege.edu/api/github/webhook`),
   not a bare IP.
-- Env vars: `GITHUB_WEBHOOK_SECRET` (required), `QSTASH_TOKEN` +
-  `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` (for scheduled
-  aggregation, section 5).
+- Env vars for webhooks: `GITHUB_WEBHOOK_SECRET` (required) and
+  `CREDENTIAL_SECRET` (recommended; signs OAuth state and credentials).
+- Env vars for OAuth repository grants: `GITHUB_CLIENT_ID`,
+  `GITHUB_CLIENT_SECRET`, and `GITHUB_TOKEN_ENCRYPTION_KEY` (32 random bytes,
+  base64). The OAuth App's callback URL is
+  `NEXT_PUBLIC_APP_URL/api/github/oauth/callback`. Full operator setup:
+  [`21-github-oauth-setup.md`](21-github-oauth-setup.md).
+- `NEXT_PUBLIC_APP_URL` must be the real HTTPS origin — it builds both the
+  callback and the webhook URL.
 
-## 3. Step A — students link their username
+## 3. Step A — link identity and grant repository access
 
 1. Student opens `/student/github`.
-2. Enters their GitHub username in **Link GitHub** → `POST /api/github`
-   (`{ "githubUsername": "..." }`, validated: 1–39 chars, `[a-zA-Z0-9-]`).
-3. The link is stored in `github_connections` and mirrored to
-   `profiles.github_username`, and audited as `linked_github`.
-4. Matching everywhere is **case-insensitive** on this username.
-
-No OAuth scopes are requested today — linking is a claim of identity, and
-proof comes from merged work, not from login.
+2. **Manual identity link**: enters their GitHub username in **Link GitHub** →
+   `POST /api/github` (`{ "githubUsername": "..." }`, validated: 1–39 chars,
+   `[a-zA-Z0-9-]`). Stored in `github_connections`, mirrored to
+   `profiles.github_username`, audited as `linked_github`. Matching everywhere
+   is case-insensitive.
+3. **Repository grant**: `GET /api/github/oauth/start` redirects to GitHub with
+   scopes `repo` and `read:user`. The callback verifies the signed state and
+   single-use nonce, exchanges the code, seals the token, then stores
+   `github_connections`, `repositories`, and `github_repo_grants` for the
+   repositories the student selected. A successful grant can verify a project
+   without waiting for a webhook; an identity link alone cannot.
+4. The repo picker at `/student/projects/new` reads the cached list
+   (`GET /api/github/repos`) and can create a new repository on the student's
+   account (`POST /api/github/repos`). `POST /api/github/sync` refreshes
+   metadata. Project creation accepts `{repositoryId}` (preferred) or
+   `{repoUrl}`; the server re-checks ownership before saving.
 
 ## 4. Step B — receive webhooks from GitHub
 
@@ -101,19 +121,34 @@ Behavior per event (`app/api/github/webhook/route.js`):
 - On `pull_request` + `action: closed` + `merged: true`: looks up the repo
   in `open_source_projects` (owner/repo, case-insensitive, global or
   tenant-scoped), finds the student by linked username, upserts a `verified`
-  contribution, awards badges (`awardOssBadges`), and notifies
-  (`oss_verified` → `/student/opensource`). Best-effort — verification
-  never breaks webhook acknowledgement.
+  contribution, awards badges (`awardOssBadges`), records `oss_verified`
+  evidence, and notifies (`oss_verified` → `/student/opensource`).
+- On `pull_request_review` + `action: submitted` by the linked student: finds
+  the same tracked repo, upserts a `verified` `review` contribution keyed on
+  the canonical pull URL, awards badges, and notifies. A review is signed
+  evidence, so it does not wait for an admin to take the student's word for it.
+  Dismissed/pending reviews are ignored.
+- On pushes or opened PRs authored by the student in a repo they claimed, a
+  provisional project is promoted to `verified` with `github:<login>` as the
+  verifier.
+- All of the above are best-effort — verification never breaks webhook
+  acknowledgement.
 
 ## 5. Step C — curate repositories (admin)
 
 Proof only counts in repos the chapter trusts:
 
 1. Open `/admin/opensource` and add each repo as `owner / repo_name` with
-   its `github_repo_url`, difficulty tag, and `is_curated = true`.
+   its `github_repo_url`, difficulty tag, and `is_curated = true`. The API
+   fetches GitHub metadata live (description, language, stars, topics,
+   homepage, last push) and stores `metadata_synced_at`.
 2. Tag issues upstream with `good-first-issue` so beginners can find them.
-3. Students claim PRs on `/student/opensource` (`claimed`); merges flip
-   them to `verified` automatically. Nothing manual to judge.
+3. Students claim PRs and issues on `/student/opensource` (`claimed`); merges
+   and submitted reviews flip them to `verified` automatically. Admin review
+   remains the fallback for anything the webhook did not see.
+4. The catalogue is keyed case-insensitively on `owner/repo` (migration 052),
+   so `FreeCodeCamp/FreeCodeCamp` and `freecodecamp/freecodecamp` cannot both
+   appear.
 
 ## 6. Step D — nightly rollups (still scheduled)
 
@@ -131,12 +166,17 @@ Both are idempotent, so a missed night can simply be re-run.
 ## 7. Verify end-to-end
 
 1. Link a test username on `/student/github` → expect `connected: true`.
-2. Push a commit to any watched repo → `github_events` gains a row;
-   heatmap updates after the next aggregation run.
-3. Open a PR in a curated repo, claim it on `/student/opensource`,
+2. Complete the repository OAuth grant → `/student/projects/new` lists the
+   account's repositories; creating a project from a picked repo succeeds and
+   `POST /api/github/sync` refreshes metadata.
+3. Push a commit to any watched repo → `github_events` gains a row; the
+   heatmap updates on the same delivery (aggregation is inline).
+4. Open a PR in a curated repo, claim it on `/student/opensource`,
    merge it → status becomes `verified`, badge (if earned) + notification
    appear. Check `/student/credentials` and the mentor-bar proof count.
-4. Redeliver the merge event from GitHub → no duplicate rows, no double
+5. Submit a review on a tracked PR → a `review` contribution becomes
+   `verified` without admin action.
+6. Redeliver the merge event from GitHub → no duplicate rows, no double
    badge (idempotency).
 
 ## 8. Troubleshooting
@@ -147,7 +187,10 @@ Both are idempotent, so a missed night can simply be re-run.
 | `failed to connect to host` | Payload URL isn't reachable from the internet (localhost, `127.x`, `169.254.x`, LAN IP) → use the deployed HTTPS origin or a tunnel URL, and map that domain in `tenant_domains` |
 | Webhook `401` | Secret mismatch → compare `GITHUB_WEBHOOK_SECRET` with the webhook secret byte-for-byte |
 | Merge not auto-verified | Repo not curated, author's GitHub username not linked, or PR target outside tracked `owner/repo` |
-| Heatmaps frozen | Aggregation not scheduled → run the processor + nightly rollup, then schedule them |
+| Review not verified | Review dismissed/pending, reviewer not linked, or repo not curated |
+| Repo picker empty / `GITHUB_SCOPE_MISSING` | Token predates the `repo` scope or was revoked → re-link GitHub and approve repository access |
+| Repo picker empty / `GITHUB_NOT_LINKED` | OAuth grant never completed → use **Connect GitHub**, not just the manual username link |
+| Heatmaps frozen | Ingestion paused (`github_integration` flag) or webhook not delivering → check Recent Deliveries and the flag |
 | `429` on bursts | Per-tenant 120/min guard → spread deliveries or raise the limit in code |
 
 ## 9. Pause switch (ingestion is opt-in)
@@ -171,8 +214,12 @@ when the chapter enables ingestion. The `github_integration` feature flag
 
 ## 10. Limits & next steps
 
-- No OAuth yet: usernames are self-asserted; verification rests on merged
-  work, which is the correct trust order anyway.
+- The **identity link** remains self-asserted; the **repository grant** is what
+  proves ownership. Merged work and submitted reviews remain the strongest
+  evidence because GitHub itself attests them in signed deliveries.
+- OAuth access tokens are sealed with `GITHUB_TOKEN_ENCRYPTION_KEY`; rotating
+  that key makes every stored token unreadable and requires members to re-link
+  (see [`21-github-oauth-setup.md`](21-github-oauth-setup.md)).
 - Rate limits are in-memory per instance — use a gateway limiter for
   multi-instance production.
 - Reconciliation (polling GitHub REST/GraphQL for missed events) is
