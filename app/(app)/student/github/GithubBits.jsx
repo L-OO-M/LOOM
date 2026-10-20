@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GithubLinkButton } from "@/components/actions";
+import { DataTable } from "@/components/loom/DataTable";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { StatusPill } from "@/components/loom/primitives";
 import ExportGithubButton from "./ExportButton";
@@ -10,8 +11,17 @@ import ExportGithubButton from "./ExportButton";
 /* Client islands for the GitHub workspace. The page stays a server
    component; only the smallest interactive leaves live here. */
 
-export function GithubTabs({ items, repos }) {
+export function GithubTabs({ items, repos, daily = [] }) {
   const [tab, setTab] = useState("activity");
+  const dailyTotals = daily.reduce(
+    (acc, d) => ({
+      commits: acc.commits + d.commits,
+      pull_requests: acc.pull_requests + d.pull_requests,
+      reviews: acc.reviews + d.reviews,
+      total: acc.total + d.total,
+    }),
+    { commits: 0, pull_requests: 0, reviews: 0, total: 0 }
+  );
   return (
     <div>
       <div className="seg" role="tablist" aria-label="Building activity views">
@@ -23,6 +33,15 @@ export function GithubTabs({ items, repos }) {
           onClick={() => setTab("activity")}
         >
           Recent activity
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "daily"}
+          aria-pressed={tab === "daily"}
+          onClick={() => setTab("daily")}
+        >
+          Daily log
         </button>
         <button
           type="button"
@@ -57,6 +76,49 @@ export function GithubTabs({ items, repos }) {
               ))}
             </Timeline>
           )}
+        </div>
+      )}
+
+      {tab === "daily" && (
+        <div className="mt-5" role="tabpanel" aria-label="Daily activity">
+          {daily.length === 0 ? (
+            <p className="narrative">No daily activity recorded yet.</p>
+          ) : (
+            <>
+              <p className="meta mb-3 normal-case tracking-normal">
+                Last {daily.length} days — {dailyTotals.commits} commits · {dailyTotals.pull_requests} PRs ·{" "}
+                {dailyTotals.reviews} reviews · {dailyTotals.total} total
+              </p>
+              <DataTable
+                caption={`Recorded daily activity for the last ${daily.length} days`}
+                columns={[
+                  { key: "day", label: "Day", kind: "strong" },
+                  { key: "commits", label: "Commits", align: "right", mono: true },
+                  { key: "pull_requests", label: "PRs", align: "right", mono: true },
+                  { key: "reviews", label: "Reviews", align: "right", mono: true },
+                  { key: "total", label: "Total", align: "right", mono: true },
+                  { key: "status", label: "Recorded", align: "right" },
+                ]}
+                rows={daily.map((d) => ({
+                  id: d.day,
+                  day: new Date(`${d.day}T00:00:00`).toLocaleDateString("en-IN", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  }),
+                  commits: d.commits,
+                  pull_requests: d.pull_requests,
+                  reviews: d.reviews,
+                  total: d.total,
+                  status: d.total > 0 ? "active" : "quiet",
+                }))}
+              />
+            </>
+          )}
+          <p className="meta mt-3 normal-case tracking-normal">
+            Days with nothing recorded are shown as zero, not skipped. Counts come from signed
+            webhook deliveries and are never back-filled.
+          </p>
         </div>
       )}
 

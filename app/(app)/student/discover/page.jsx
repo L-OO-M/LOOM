@@ -6,6 +6,7 @@ import { reputationForMany } from "@/lib/reputation";
 import { Display, Meta, ActionLink, StatusPill, Rule } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
+import { inputStyle } from "@/components/ui";
 import { ClaimCard } from "./DiscoverBits";
 
 export const dynamic = "force-dynamic";
@@ -85,11 +86,14 @@ function mentorHref(m) {
   return m.public_username ? `/student/${encodeURIComponent(m.public_username)}` : "/student/mentorship";
 }
 
-export default async function DiscoverPage() {
+export default async function DiscoverPage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/discover");
   const { user, tenant, sql } = ctx;
   const tid = tenant?.id ?? null;
+  const sp = await searchParams;
+  const q = String(sp?.q ?? "").trim().slice(0, 64);
+  const like = `%${q}%`;
 
   const [myCard] = await sql`SELECT username FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
   const threads = await sql`
@@ -111,11 +115,29 @@ export default async function DiscoverPage() {
   `;
   // Deterministic candidate set: public cards in this chapter, newest first.
   // updated_at is bumped on every card save, so the order is stable.
+  //
+  // Search is resolved in SQL, not by filtering the 24 newest cards in JS --
+  // otherwise a match on page 3 of the chapter would silently "not exist".
+  // The project title is included because that is how people actually look for
+  // each other ("who built the attendance app?").
   const candidates = await sql`
     SELECT up.username, up.user_id, up.bio, up.primary_domain, up.avatar_url, up.updated_at, p.name, p.github_username
     FROM user_profiles up JOIN profiles p ON p.user_id = up.user_id
     WHERE up.tenant_id = ${tid}::uuid AND up.is_public = true AND up.user_id <> ${user.id}
-    ORDER BY up.updated_at DESC LIMIT 24
+    ${q
+      ? sql`AND (
+          p.name ILIKE ${like}
+          OR up.username ILIKE ${like}
+          OR COALESCE(up.primary_domain, '') ILIKE ${like}
+          OR COALESCE(up.bio, '') ILIKE ${like}
+          OR EXISTS (
+            SELECT 1 FROM projects pr
+            WHERE pr.owner_id = up.user_id AND pr.title ILIKE ${like}
+          )
+        )`
+      : sql``}
+    ORDER BY up.updated_at DESC
+    LIMIT ${q ? 48 : 24}
   `;
   const ids = candidates.map((c) => c.user_id);
   // Batched context: one GROUP BY per source, sequential for pooler safety.
@@ -157,6 +179,9 @@ export default async function DiscoverPage() {
   // Proof-backed builders first (by live reputation), then honest newcomers.
   const builders = enriched.filter((b) => b.score > 0).sort((a, b) => b.score - a.score).slice(0, 12);
   const newcomers = enriched.filter((b) => b.score === 0).slice(0, 6);
+  const searchResults = q
+    ? [...enriched].sort((a, b) => (b.score - a.score) || String(a.name).localeCompare(String(b.name)))
+    : [];
   // Domain groups from actual stored values; missing domain reads honestly.
   const groups = new Map();
   for (const b of builders) {
@@ -213,8 +238,50 @@ export default async function DiscoverPage() {
         <div className="mt-5"><ClaimCard hasCard={!!myCard} /></div>
         <Rule className="mt-8" />
 
+        <form action="/student/discover" method="get" role="search" className="mt-6 flex flex-wrap items-center gap-2">
+          <label htmlFor="discover-q" className="sr-only">Search public builders in your chapter</label>
+          <input
+            id="discover-q"
+            name="q"
+            type="search"
+            defaultValue={q}
+            maxLength={64}
+            placeholder="Search by name, @username, domain, or project"
+            style={{ ...inputStyle, flex: "1 1 18rem", maxWidth: "32rem" }}
+          />
+          <button type="submit" className="btn-ink !py-2">Search</button>
+          {q && (
+            <Link href="/student/discover" prefetch={false} className="btn-ghost !py-2 text-sm">
+              Clear
+            </Link>
+          )}
+        </form>
+        <p className="meta mt-2 normal-case tracking-normal">
+          Searches public builder cards in this chapter only — private profiles are never surfaced.
+        </p>
+
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.65fr_0.95fr] lg:gap-16">
           <div>
+            {q ? (
+              <section aria-labelledby="search-heading">
+                <Meta>Search</Meta>
+                <h2 id="search-heading" className="h-product mt-2">
+                  {searchResults.length} result{searchResults.length === 1 ? "" : "s"} for “{q}”
+                </h2>
+                {searchResults.length === 0 ? (
+                  <p className="narrative mt-6">
+                    No public builder card in this chapter matches that. Try a name, an
+                    @username, a domain, or a project title — only claimed public cards are
+                    searchable.
+                  </p>
+                ) : (
+                  <ol className="mt-4 divide-y border-t" style={{ borderColor: "var(--line)" }}>
+                    {searchResults.map((b) => <BuilderRow key={b.user_id} b={b} />)}
+                  </ol>
+                )}
+              </section>
+            ) : (
+              <>
             <section aria-labelledby="builders-heading">
               <Meta>Builders in your college</Meta>
               <h2 id="builders-heading" className="h-product mt-2">Builders worth knowing</h2>
@@ -290,6 +357,8 @@ export default async function DiscoverPage() {
                 </ul>
               </section>
             )}
+              </>
+            )}
           </div>
 
           <section aria-labelledby="happening-heading">
@@ -322,7 +391,7 @@ export default async function DiscoverPage() {
           </section>
         </div>
 
-        {builders.length === 0 && newcomers.length === 0 && mentors.length === 0 && (
+        {!q && builders.length === 0 && newcomers.length === 0 && mentors.length === 0 && (
           <div className="mt-8">
             <OnboardingState
               eyebrow="Discover"

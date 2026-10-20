@@ -8,6 +8,7 @@ import { Heatmap } from "@/components/loom/Heatmap";
 import { Evidence } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { eventUrlFromPayload, isGithubEnabled, nextMoveState, repoFullNameFromPayload } from "@/lib/github";
+import { dailyTable, summarizeActivity } from "@/lib/github-activity";
 import { cryptoConfigured } from "@/lib/crypto";
 import { GithubTabs, ConnectionControls } from "./GithubBits";
 import { GithubDiagnostics } from "./GithubDiagnostics";
@@ -31,9 +32,11 @@ export default async function GithubPage() {
   const paused = tenant?.id ? !(await isGithubEnabled(sql, tenant.id)) : true;
 
   const activity = await sql`SELECT day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
-  const total = activity.reduce((s, a) => s + (a.commits || 0), 0);
-  const prs = activity.reduce((s, a) => s + (a.pull_requests || 0), 0);
-  const streak = currentStreak(activity);
+  const summary = summarizeActivity(activity);
+  const daily = dailyTable(activity, 30);
+  const total = summary.commits;
+  const prs = summary.pullRequests;
+  const streak = summary.currentStreak;
 
   // Ingestion diagnostics.
   //
@@ -226,6 +229,15 @@ export default async function GithubPage() {
                 <div title="Consecutive days with recorded activity, ending today or yesterday" className="rounded-xl transition-colors">
                   <PlainStat value={streak} unit={streak === 1 ? "day" : "days"} label="current contribution streak" />
                 </div>
+                <div title="Longest run of consecutive active days in the last 120 days" className="rounded-xl transition-colors">
+                  <PlainStat value={summary.longestStreak} unit={summary.longestStreak === 1 ? "day" : "days"} label="longest streak in the window" />
+                </div>
+                <div title="Days with at least one recorded commit, pull request, or review" className="rounded-xl transition-colors">
+                  <PlainStat value={summary.activeDays} unit="days" label={`active of the last ${summary.windowDays}`} />
+                </div>
+                <div title="Total recorded contributions divided by the 120-day window, expressed per week" className="rounded-xl transition-colors">
+                  <PlainStat value={summary.weeklyAverage} unit="/ week" label="average recorded activity" />
+                </div>
               </div>
             </div>
           )}
@@ -237,7 +249,7 @@ export default async function GithubPage() {
             <span className="meta">{items.length} recent event{items.length === 1 ? "" : "s"}</span>
           </div>
           <div className="mt-4">
-            <GithubTabs items={items} repos={repoGroups} />
+            <GithubTabs items={items} repos={repoGroups} daily={daily} />
           </div>
           <div className="mt-4">
             <GithubDiagnostics diagnostics={diagnostics} />
@@ -416,25 +428,6 @@ function NextMove({ move, href, external }) {
       </div>
     </section>
   );
-}
-
-function currentStreak(activity) {
-  const byDay = new Map(activity.map((r) => [String(r.day).slice(0, 10), r]));
-  let streak = 0;
-  const d = new Date();
-  const todayIso = d.toISOString().slice(0, 10);
-  const today = byDay.get(todayIso);
-  const todayActive = today && (today.commits || 0) + (today.pull_requests || 0) + (today.reviews || 0) > 0;
-  if (!todayActive) d.setDate(d.getDate() - 1);
-  for (;;) {
-    const iso = d.toISOString().slice(0, 10);
-    const r = byDay.get(iso);
-    if (!r || (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) <= 0) break;
-    streak += 1;
-    d.setDate(d.getDate() - 1);
-    if (streak > 400) break;
-  }
-  return streak;
 }
 
 function shortRepo(url) {

@@ -8,7 +8,9 @@ import {
   STANDINGS_BOARD_SIZE,
   canLinkProfile,
   fetchBoard,
+  fetchSelfEvidenceSummary,
   fetchSelfStanding,
+  isStaffExcluded,
   isVerifiedRankingEnabled,
   normalizePeriod,
   normalizeScope,
@@ -46,7 +48,7 @@ function hrefFor(scope, period) {
 export default async function StandingsPage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/leaderboard");
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
   const sp = await searchParams;
   const scope = normalizeScope(sp?.scope);
   const period = normalizePeriod(sp?.period);
@@ -65,6 +67,8 @@ export default async function StandingsPage({ searchParams }) {
     verifiedOnly,
   });
   const self = await fetchSelfStanding(sql, { viewerId: user.id, tenantId: tid, scope, period, verifiedOnly });
+  const selfEvidence = await fetchSelfEvidenceSummary(sql, { userId: user.id, tenantId: tid });
+  const staff = isStaffExcluded(profile?.role);
 
   const rows = board.map((r) => ({
     user_id: r.user_id,
@@ -123,21 +127,83 @@ export default async function StandingsPage({ searchParams }) {
             )}
           </section>
         ) : (
-          !empty && (
-            <section aria-label="Your standing" className="mt-8 rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <Meta style={{ color: "var(--accent)" }}>Your standing</Meta>
-              <p className="h-product mt-3">Your standing isn&apos;t visible yet.</p>
-              <p className="narrative mt-3 max-w-xl">
-                {scope === "friends"
-                  ? "Circle shows you and GitHub-linked builders in this board. Link your GitHub identity and your work will appear here."
-                  : "Complete a roadmap node, ship a project, or push linked commits and your name will appear on this board."}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/student/roadmap" prefetch={false} className="btn-ink">Continue the roadmap</Link>
-                <Link href="/student/github" prefetch={false} className="btn-ghost">Connect GitHub</Link>
-              </div>
-            </section>
-          )
+          <section aria-label="Your standing" className="mt-8 rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <Meta style={{ color: "var(--accent)" }}>Your standing</Meta>
+            {staff ? (
+              <>
+                <p className="h-product mt-3">Staff accounts are not ranked.</p>
+                <p className="narrative mt-3 max-w-xl">
+                  Chapter service accounts are left off the board on purpose — an admin
+                  account that also appears in the ranking makes it hard to read, and easy
+                  to mistake for a student&apos;s. Your verified work still counts for
+                  credentials and chapter totals.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="h-product mt-3">
+                  {Number(self.pending) > 0
+                    ? "Your work is waiting on confirmation."
+                    : "Your standing isn’t visible yet."}
+                </p>
+                <p className="narrative mt-3 max-w-xl">
+                  The board only counts work somebody else can confirm. Here is everything
+                  you have done, and what each part is waiting on.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+                  <PlainStat value={selfEvidence.verifiedNodes} unit="nodes" label="verified by a lead" />
+                  <PlainStat value={Number(self.pending)} unit="claims" label="awaiting review" />
+                  <PlainStat value={selfEvidence.provisionalNodes} unit="nodes" label="complete but provisional" />
+                  <PlainStat value={Number(self.commits)} unit="commits" label={period === "30d" ? "attested, last 30 days" : "attested by GitHub"} />
+                  <PlainStat value={Number(self.prs)} unit="PRs" label={period === "30d" ? "attested, last 30 days" : "attested by GitHub"} />
+                  <PlainStat value={selfEvidence.resourceLessons} unit="lessons" label="done — learning, not scored" />
+                </div>
+                <ul className="mt-6 space-y-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+                  {selfEvidence.provisionalNodes > 0 && (
+                    <li>
+                      {selfEvidence.provisionalNodes} roadmap {selfEvidence.provisionalNodes === 1 ? "node is" : "nodes are"} complete but
+                      not yet confirmed. A chapter lead has to review the evidence before
+                      {" "}<Link href="/student/roadmap" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>the node</Link>
+                      {" "}scores.
+                    </li>
+                  )}
+                  {Number(self.pending) > 0 && (
+                    <li>
+                      {Number(self.pending)} claim{Number(self.pending) === 1 ? "" : "s"} awaiting review
+                      score nothing until a lead confirms them.
+                    </li>
+                  )}
+                  {Number(self.commits) === 0 && Number(self.prs) === 0 && (
+                    <li>
+                      No attested GitHub activity yet. Commits and pull requests only count
+                      when they come from the account you linked —
+                      {" "}<Link href="/student/github" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>connect GitHub</Link>.
+                    </li>
+                  )}
+                  {selfEvidence.resourceLessons > 0 && (
+                    <li>
+                      Lessons you mark done track your learning. They are visible here but
+                      deliberately worth no ranking points.
+                    </li>
+                  )}
+                  {selfEvidence.activeDays30 > 0 && (
+                    <li>
+                      You were active on {selfEvidence.activeDays30} of the last 30 days.
+                      Consistency is shown on your GitHub page; the board scores verified
+                      outcomes, not attendance.
+                    </li>
+                  )}
+                  {selfEvidence.verifiedNodes === 0 && Number(self.pending) === 0 && Number(self.commits) === 0 && Number(self.prs) === 0 && (
+                    <li>Nothing has been verified for your account yet. Start with a roadmap node or link GitHub.</li>
+                  )}
+                </ul>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link href="/student/roadmap" prefetch={false} className="btn-ink">Continue the roadmap</Link>
+                  <Link href="/student/github" prefetch={false} className="btn-ghost">Connect GitHub</Link>
+                </div>
+              </>
+            )}
+          </section>
         )}
 
         <details className="mt-8 border-y" style={{ borderColor: "var(--line)" }}>
