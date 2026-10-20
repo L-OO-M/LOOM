@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { listFeatureRequests, screenFeatureRequest } from "@/lib/feature-requests";
+import { syncFeatureRequestToGitHub } from "@/lib/github-issues";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const createSchema = z.object({
@@ -39,10 +40,20 @@ export async function POST(request) {
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_feature_request", resource: "feature_request", resourceId: row.id, after: { title: body.title } });
+  // Optional mirror to GitHub Issues. The request is already saved, so a
+  // GitHub failure is recorded on the row and never turns into a failed submit.
+  const synced = await syncFeatureRequestToGitHub({
+    sql,
+    row,
+    tenantId: tenant?.id ?? null,
+    tenantName: tenant?.name,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
+  });
+  const saved = synced?.row || row;
   // notify admins
   const admins = await sql`SELECT user_id FROM profiles WHERE role = 'admin' AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 10`;
   for (const a of admins) {
     await notify({ sql, tenantId: tenant?.id, userId: a.user_id, type: "feature_request", title: `New feature idea: ${body.title}`, body: `From ${ctx.profile?.name || user.id}`, link: "/admin/feature-requests" });
   }
-  return ok({ request: row }, { status: 201 });
+  return ok({ request: saved }, { status: 201 });
 }

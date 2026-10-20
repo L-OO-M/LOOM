@@ -6,7 +6,7 @@ import { postJSON } from "@/components/loom/useAction";
 
 const STATUSES = ["pending", "needs_info", "approved", "rejected", "in_progress", "built"];
 
-export default function AdminFeatureBoard({ initial }) {
+export default function AdminFeatureBoard({ initial, githubConfigured = false }) {
   const [items, setItems] = useState(initial);
   const [note, setNote] = useState({});
   const [pending, setPending] = useState({});
@@ -44,6 +44,19 @@ export default function AdminFeatureBoard({ initial }) {
     }
   }
 
+  async function syncGitHub(id) {
+    setPending((p) => ({ ...p, [id]: true }));
+    setErrors((e) => ({ ...e, [id]: "" }));
+    const data = await postJSON(`/api/feature-requests/${id}/github`, "POST", {});
+    setPending((p) => ({ ...p, [id]: false }));
+    if (data?.ok) {
+      setItems((prev) => prev.map((r) => (r.id === id ? data.data.request : r)));
+      router.refresh();
+    } else {
+      setErrors((e) => ({ ...e, [id]: data?.error?.message || "GitHub sync failed" }));
+    }
+  }
+
   return (
     <ul className="space-y-3">
       {items.map((r) => (
@@ -64,6 +77,28 @@ export default function AdminFeatureBoard({ initial }) {
               {r.implementation && <p><strong style={{ color: "var(--text)" }}>Implementation:</strong> {r.implementation}</p>}
             </div>
           </details>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            {r.github_issue_url ? (
+              <>
+                <a href={r.github_issue_url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                  GitHub #{r.github_issue_number} ↗
+                </a>
+                <span className="rounded-full border px-2 py-0.5 capitalize" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{r.github_issue_state || "open"}</span>
+                {githubConfigured && (
+                  <button type="button" disabled={!!pending[r.id]} onClick={() => syncGitHub(r.id)} className="rounded-full border px-2.5 py-0.5 font-semibold disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+                    Refresh
+                  </button>
+                )}
+              </>
+            ) : githubConfigured ? (
+              <button type="button" disabled={!!pending[r.id]} onClick={() => syncGitHub(r.id)} className="rounded-full border px-2.5 py-0.5 font-semibold disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+                Create GitHub issue
+              </button>
+            ) : (
+              <span className="meta normal-case tracking-normal">GitHub Issues not configured</span>
+            )}
+            {r.github_issue_error && <span style={{ color: "var(--danger)" }}>{r.github_issue_error}</span>}
+          </div>
           {errors[r.id] && <p role="alert" className="mt-2 text-xs" style={{ color: "var(--danger)" }}>{errors[r.id]}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {STATUSES.map((s) => (

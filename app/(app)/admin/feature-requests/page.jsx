@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
+import { issuesReady } from "@/lib/github-issues";
 import AdminFeatureBoard from "./AdminFeatureBoard";
 
 export default async function AdminFeatureRequestsPage() {
@@ -26,7 +27,7 @@ export default async function AdminFeatureRequestsPage() {
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
         <PageHeader kicker={`${rows.length} ideas · ${rows.filter((r) => r.status === "pending").length} pending`} title="Feature requests" desc="Review, ask, approve, reject, or assign back to the requester to build. Every decision is audited." />
-        <AdminFeatureBoard initial={rows} />
+        <AdminFeatureBoard initial={rows} githubConfigured={issuesReady()} />
       </main>
     </AppShell>
   );

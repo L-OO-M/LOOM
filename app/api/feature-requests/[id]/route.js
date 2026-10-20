@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { syncStatusToGitHub } from "@/lib/github-issues";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "needs_info", "approved", "rejected", "in_progress", "built"]).optional(),
@@ -54,5 +55,11 @@ export async function PATCH(request, { params }) {
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `feature_request_${status}`, resource: "feature_request", resourceId: id, after: { status, assigned_to: assigned } });
   await notify({ sql, tenantId: tenant?.id, userId: existing.requester_id, type: "feature_request", title: `Your idea "${existing.title}" is now ${status}`, body: note || "", link: `/student/feature-requests` });
-  return ok({ request: updated });
+  // Mirror the decision onto the linked GitHub issue when one exists. Best
+  // effort: the decision is already saved and audited before this runs.
+  if (body.status !== undefined) {
+    await syncStatusToGitHub({ sql, row: existing, tenantId: tenant?.id ?? null, status, note });
+  }
+  const [fresh] = await sql`SELECT * FROM feature_requests WHERE id = ${id}::uuid LIMIT 1`;
+  return ok({ request: fresh || updated });
 }
