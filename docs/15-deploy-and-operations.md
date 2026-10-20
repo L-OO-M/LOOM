@@ -69,6 +69,16 @@ shared SMTP rate limit cannot sustain production signups, and many colleges
 issue no student mailbox at all. Address verification is the optional Resend
 flow in `lib/email-verification.js`, not an access requirement.
 
+Feature-request issues are mirrored only for **new** submissions. After setting
+`GITHUB_ISSUES_REPO` + `GITHUB_ISSUES_TOKEN` and redeploying, backfill the rows
+that predate the bridge (idempotent; only unlinked rows are touched):
+
+```
+node load/sync-feature-requests.js                 # dry run
+node load/sync-feature-requests.js --apply         # create + record links
+node load/sync-feature-requests.js --apply --tenant demo-college --limit 50
+```
+
 > **Placeholder secrets are rejected at boot.** `lib/env.js` compares by *value*,
 > not just presence. A deploy carrying `GITHUB_WEBHOOK_SECRET=dev-secret` — the value
 > shipped in `.env.example` — used to pass validation while accepting a publicly
