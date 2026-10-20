@@ -13,7 +13,7 @@ export async function GET() {
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
   const repos = await sql`SELECT * FROM repositories WHERE student_id = ${user.id} ORDER BY connected_at DESC LIMIT 20`;
   // Same 120-day window the /student/github page renders.
-  const activity = await sql`SELECT day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
+  const activity = await sql`SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
   // Fail-closed: missing flag/table/error reads as paused (see lib/github.js).
   const ingestionPaused = tenant?.id ? !(await isGithubEnabled(sql, tenant.id)) : true;
   let lastEventAt = null;

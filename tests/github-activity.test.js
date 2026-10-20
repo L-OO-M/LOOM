@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { summarizeDelivery } from "@/app/api/github/webhook/route.js";
+import {
+  currentStreak,
+  dailyTable,
+  dayKey,
+  longestStreak,
+  toIsoDay,
+} from "@/lib/github-activity";
+import { statusForIssue } from "@/lib/github-issues";
 
 /**
  * Delivery -> activity delta.
@@ -54,5 +62,62 @@ describe("summarizeDelivery", () => {
       expect(Number.isInteger(d.commits)).toBe(true);
     }
     expect(summarizeDelivery(undefined, undefined)).toEqual({ commits: 0, pullRequests: 0, reviews: 0 });
+  });
+});
+/**
+ * Date handling.
+ *
+ * `student_daily_activity.day` is a Postgres `date`, which postgres.js returns
+ * as a Date at local midnight. Building keys with String(...) or toISOString()
+ * made every row invisible to the heatmap and streaks (0 active days while the
+ * commit total was non-zero). These tests pin the calendar-key rule so a
+ * timezone can never blank the page again.
+ */
+describe("activity calendar keys", () => {
+  it("reads a Date row as its local calendar day", () => {
+    const day = new Date(2026, 9, 16);
+    expect(toIsoDay(day)).toBe("2026-10-16");
+    expect(dayKey({ day })).toBe("2026-10-16");
+  });
+
+  it("leaves ISO strings untouched", () => {
+    expect(dayKey({ day: "2026-10-16" })).toBe("2026-10-16");
+    expect(dayKey({})).toBe(null);
+    expect(toIsoDay(new Date("nope"))).toBe(null);
+  });
+
+  it("fills a window newest-first and keeps missing days as zeroes", () => {
+    const now = new Date(2026, 9, 16);
+    const rows = [{ day: new Date(2026, 9, 16), commits: 3 }];
+    const table = dailyTable(rows, 3, now);
+    expect(table.map((r) => r.day)).toEqual(["2026-10-16", "2026-10-15", "2026-10-14"]);
+    expect(table.map((r) => r.total)).toEqual([3, 0, 0]);
+  });
+
+  it("counts streaks across Date rows", () => {
+    const rows = [
+      { day: new Date(2026, 9, 16), commits: 1 },
+      { day: new Date(2026, 9, 15), reviews: 1 },
+      { day: new Date(2026, 9, 13), commits: 1 },
+    ];
+    expect(currentStreak(rows, new Date(2026, 9, 16))).toBe(2);
+    expect(longestStreak(rows)).toBe(2);
+  });
+});
+
+/**
+ * GitHub -> LOOM status. Only a closed issue decides a status; a plain refresh
+ * of an open issue must not overwrite a decision an admin made by hand.
+ */
+describe("statusForIssue", () => {
+  it("maps closed issues by state_reason", () => {
+    expect(statusForIssue({ state: "closed", state_reason: "completed" })).toBe("built");
+    expect(statusForIssue({ state: "closed", state_reason: "not_planned" })).toBe("rejected");
+    expect(statusForIssue({ state: "closed", state_reason: null })).toBe("built");
+  });
+
+  it("does not decide for an open issue", () => {
+    expect(statusForIssue({ state: "open" })).toBe(null);
+    expect(statusForIssue(null)).toBe(null);
   });
 });

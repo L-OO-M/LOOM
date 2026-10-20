@@ -77,6 +77,8 @@ that predate the bridge (idempotent; only unlinked rows are touched):
 node load/sync-feature-requests.js                 # dry run
 node load/sync-feature-requests.js --apply         # create + record links
 node load/sync-feature-requests.js --apply --tenant demo-college --limit 50
+node load/sync-feature-requests.js --refresh        # pull state/status from GitHub
+node load/sync-feature-requests.js --refresh --apply
 ```
 
 > **Placeholder secrets are rejected at boot.** `lib/env.js` compares by *value*,

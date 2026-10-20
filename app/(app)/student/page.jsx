@@ -2,6 +2,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
+import { dayKey, toIsoDay } from "@/lib/github-activity";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
@@ -44,11 +45,11 @@ export default async function StudentPage() {
 
   // This week: Monday–Sunday strip from real daily activity.
   const weekRows = await sql`
-    SELECT day, commits, pull_requests, reviews FROM student_daily_activity
+    SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews FROM student_daily_activity
     WHERE student_id = ${user?.id ?? ""} AND day >= CURRENT_DATE - INTERVAL '13 days'
     ORDER BY day ASC
   `;
-  const byDay = new Map(weekRows.map((r) => [String(r.day).slice(0, 10), r]));
+  const byDay = new Map(weekRows.map((r) => [dayKey(r), r]));
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
@@ -56,13 +57,13 @@ export default async function StudentPage() {
   const weekDays = dayNames.map((label, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = toIsoDay(d);
     const r = byDay.get(iso);
     const hit = !!r && (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0;
-    return { label, hit, today: iso === new Date().toISOString().slice(0, 10) };
+    return { label, hit, today: iso === toIsoDay(now) };
   });
   const weekHits = weekRows.filter((r) => (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0);
-  const weekSessions = new Set(weekHits.map((r) => String(r.day).slice(0, 10))).size;
+  const weekSessions = new Set(weekHits.map((r) => dayKey(r))).size;
   const weekContributions = weekHits.reduce((s, r) => s + (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0), 0);
   const [weekMilestones] = await sql`
     SELECT COUNT(*)::int AS c FROM student_roadmap_progress

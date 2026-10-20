@@ -46,7 +46,8 @@ Counting rules (`summarizeDelivery`, covered by `tests/github-activity.test.js`)
 | `push` | `commits` = length of the commit array (a branch deletion is 0, not 1) |
 | `pull_request` | 1 when `action` is `opened` or `reopened` |
 | `pull_request_review` | 1 when `action` is `submitted` |
-| `ping`, `issues`, `star`, `fork`, `create`, … | nothing |
+| `ping`, `star`, `fork`, `create`, … | nothing |
+| `issues` | mirrors state onto a linked feature request (`closed` → `built`/`rejected`, `reopened` → `in_progress`); never counts as student activity |
 
 Rows are attributed to the member who linked that GitHub username, scoped to
 their own tenant, and upserted additively on `(student_id, day)`.

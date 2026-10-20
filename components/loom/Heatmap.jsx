@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { dayKey, toIsoDay } from "@/lib/github-activity";
 
 /* Contribution heatmap — honest levels from real daily activity.
    Expects rows: [{ day: "YYYY-MM-DD", commits, pull_requests, reviews }].
@@ -23,7 +24,7 @@ function fmtDay(iso) {
 
 export function Heatmap({ rows = [], weeks = 16 }) {
   const cells = useMemo(() => {
-    const byDay = new Map(rows.map((r) => [String(r.day).slice(0, 10), r]));
+    const byDay = new Map(rows.map((r) => [dayKey(r), r]));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     // Align to full weeks ending today: go back (weeks*7 - 1) days, then back to Monday.
@@ -34,7 +35,9 @@ export function Heatmap({ rows = [], weeks = 16 }) {
     const out = [];
     const cursor = new Date(start);
     for (let i = 0; i < weeks * 7; i++) {
-      const iso = cursor.toISOString().slice(0, 10);
+      // Local calendar key, not toISOString(): in IST local midnight
+      // serialises to the previous UTC day and every cell misses its row.
+      const iso = toIsoDay(cursor);
       const future = cursor > today;
       out.push({ iso, row: future ? null : byDay.get(iso), future });
       cursor.setDate(cursor.getDate() + 1);

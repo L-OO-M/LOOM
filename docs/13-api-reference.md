@@ -174,7 +174,14 @@ requester.
 | GET/POST | `/api/feature-requests` | user | list (status filter: members see their own + approved/built) / create (abuse-screened, lands `pending`; mirrors to GitHub Issues when configured) |
 | PATCH | `/api/feature-requests/[id]` | author/admin | edit title/body or change status (status changes mirror to the linked issue: `built` closes completed, `rejected` closes not-planned, anything else reopens) |
 | POST | `/api/feature-requests/[id]/comments` | user | comment on a request |
-| POST | `/api/feature-requests/[id]/github` | admin | create the issue if unlinked, otherwise refresh its stored state. 400 `NOT_CONFIGURED` when `GITHUB_ISSUES_REPO`/`GITHUB_ISSUES_TOKEN` are absent; failures are stored on the row, never fatal to the request |
+| POST | `/api/feature-requests/[id]/github` | admin | create the issue if unlinked, otherwise refresh its stored state **and status** (closed+completed → `built`, closed+not-planned → `rejected`). 400 `NOT_CONFIGURED` when `GITHUB_ISSUES_REPO`/`GITHUB_ISSUES_TOKEN` are absent; failures are stored on the row, never fatal to the request |
+
+The bridge is two-way. `POST /api/github/webhook` handles `issues` deliveries in
+addition to activity events: closing a linked issue applies the same status
+mapping, reopening one moves `built`/`rejected` back to `in_progress`, and the
+requester is notified. The repository webhook must be subscribed to **Issues**
+events for this to fire; `node load/sync-feature-requests.js --refresh` is the
+manual reconciliation path.
 
 ## Auth & email verification
 

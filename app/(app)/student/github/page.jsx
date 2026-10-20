@@ -31,7 +31,7 @@ export default async function GithubPage() {
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
   const paused = tenant?.id ? !(await isGithubEnabled(sql, tenant.id)) : true;
 
-  const activity = await sql`SELECT day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
+  const activity = await sql`SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
   const summary = summarizeActivity(activity);
   const daily = dailyTable(activity, 30);
   const total = summary.commits;

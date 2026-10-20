@@ -6,6 +6,8 @@ import { isGithubEnabled, normalizeGitHubEvent, resolveStudentIdByLogin, verifyG
 import { awardOssBadges } from "@/lib/oss";
 import { notify } from "@/lib/auth-server";
 import { recordEvidence, recomputeScore } from "@/lib/ranking";
+import { applyIssueEvent } from "@/lib/github-issues";
+import { toIsoDay } from "@/lib/github-activity";
 import { getSql } from "@/lib/db";
 
 // Weights for the daily activity row. commit/pullRequest MUST match
@@ -120,6 +122,35 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
     /* ignore */
   }
 
+  // Feature requests mirror a GitHub issue, so closing or reopening the issue
+  // is a product decision the board must follow. Without this the two surfaces
+  // drifted: an issue closed on GitHub stayed "pending" in LOOM forever because
+  // sync was outbound only. Matched by (repo, number); the request's own tenant
+  // is used, never the delivery's. Best-effort like every other side effect.
+  let featureRequest = null;
+  if (eventName === "issues" && raw?.issue) {
+    try {
+      featureRequest = await applyIssueEvent({
+        sql,
+        repo: raw.repository?.full_name,
+        issue: raw.issue,
+      });
+      if (featureRequest && (raw.action === "closed" || raw.action === "reopened")) {
+        await notify({
+          sql,
+          tenantId: featureRequest.tenant_id,
+          userId: featureRequest.requester_id,
+          type: "feature_request",
+          title: `Your idea "${featureRequest.title}" is now ${featureRequest.status}`,
+          body: raw.action === "closed" ? "Synced from GitHub." : "The GitHub issue was reopened.",
+          link: "/student/feature-requests",
+        });
+      }
+    } catch (e) {
+      console.error("[github/webhook] feature request sync failed", e?.message || e);
+    }
+  }
+
   // Project activation: a signed delivery that carries real work in a
   // repository a student has claimed is the proof that promotes that project
   // from provisional to verified. Same trust level as the merge check above and
@@ -164,7 +195,7 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
     } else if (!inserted) {
       activity = { applied: false, reason: "DUPLICATE_DELIVERY" };
     } else {
-      const day = new Date().toISOString().slice(0, 10);
+      const day = toIsoDay(new Date());
       const points =
         delta.commits * ACTIVITY_WEIGHTS.commit +
         delta.pullRequests * ACTIVITY_WEIGHTS.pullRequest +
@@ -223,7 +254,9 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
           pr_url: verified?.prUrl ?? null,
           activity_applied: activity.applied === true,
           activity_reason: activity.reason ?? null,
-          activity_student: activity.studentId ?? null
+          activity_student: activity.studentId ?? null,
+          feature_request: featureRequest?.id ?? null,
+          feature_request_status: featureRequest?.status ?? null
         })}
       )
     `;
@@ -236,7 +269,10 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
     tenantId: tenant.id,
     event: normalized,
     ossVerified: !!verified,
-    activity
+    activity,
+    featureRequest: featureRequest
+      ? { id: featureRequest.id, status: featureRequest.status, state: featureRequest.github_issue_state }
+      : null
   });
 }
 
