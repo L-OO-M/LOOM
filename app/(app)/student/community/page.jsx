@@ -4,7 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink, PlainStat, Rule } from "@/components/loom/primitives";
 import { reputationFor } from "@/lib/reputation";
-import { CommunityTabs } from "@/components/student/SectionRails";
+import { CommunityTabs, ConnectTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +49,8 @@ export default async function CommunityPage() {
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
           Three rooms, three jobs. Ask in forums, preserve in the wiki, reuse from snippets.
         </p>
+
+        <ConnectTabs active="/student/community" />
 
         <CommunityTabs
           active="/student/community"

@@ -6,6 +6,7 @@ import { Display, Meta, StatusPill, PlainStat, ActionLink } from "@/components/l
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
 import { Reveal } from "@/components/motion/Reveal";
+import { ProveTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,8 @@ export default async function ContestsPage({ searchParams }) {
             something real — then carry the result into your proof.
           </p>
         </Reveal>
+
+        <ProveTabs active="/student/contests" />
 
         <Reveal delay={0.06}>
           <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Challenge summary">

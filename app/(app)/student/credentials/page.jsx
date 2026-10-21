@@ -8,6 +8,7 @@ import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { DataTable } from "@/components/loom/DataTable";
 import { OnboardingState } from "@/components/loom/States";
 import { Reveal } from "@/components/motion/Reveal";
+import { ProveTabs } from "@/components/student/SectionRails";
 import ProofRecord from "./ProofRecord";
 import {
   labelFor,
@@ -78,6 +79,7 @@ export default async function CredentialsPage() {
     return (
       <AppShell area="student" tenant={tenant} user={user}>
         <main className="mx-auto max-w-4xl px-4 sm:px-6">
+          <ProveTabs active="/student/credentials" className="mt-4" />
           <OnboardingState
             eyebrow="Proof · portable credentials"
             title="Nothing to show — yet."
@@ -145,6 +147,8 @@ export default async function CredentialsPage() {
             Earned work becomes a signed link anyone can verify — no account needed.
           </p>
         </Reveal>
+
+        <ProveTabs active="/student/credentials" />
 
         <Reveal delay={0.06}>
           <div className={`mt-8 grid gap-8 sm:grid-cols-2 ${fourthStat ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>

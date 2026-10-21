@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
-import { CommunityTabs } from "@/components/student/SectionRails";
+import { CommunityTabs, ConnectTabs } from "@/components/student/SectionRails";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
@@ -63,6 +63,7 @@ export default async function SnippetsPage({ searchParams }) {
           <SnippetForm languages={langOptions} />
         </div>
 
+        <ConnectTabs active="/student/community" className="mt-8" />
         <CommunityTabs active="/student/community/snippets" className="mt-8" />
         <form method="get" className="mt-7 flex flex-col gap-2 sm:flex-row">
           <input name="q" defaultValue={sp?.q || ""} placeholder="Search snippets…" aria-label="Search snippets" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />

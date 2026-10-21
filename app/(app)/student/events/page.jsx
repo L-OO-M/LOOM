@@ -3,6 +3,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import { EventsExplorer } from "./EventsBits";
+import { ConnectTabs } from "@/components/student/SectionRails";
 import { resolveScope, HISTORY_STATUSES, VISIBLE_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,8 @@ export default async function EventsPage({ searchParams }) {
         <p className="narrative mt-4 max-w-2xl">
           Find something worth your evening, register, show up — then turn the evening into proof.
         </p>
+
+        <ConnectTabs active="/student/events" />
 
         <EventsExplorer
           events={events.map(serializeEvent)}

@@ -12,6 +12,7 @@ import { dailyTable, summarizeActivity } from "@/lib/github-activity";
 import { cryptoConfigured } from "@/lib/crypto";
 import { GithubTabs, ConnectionControls } from "./GithubBits";
 import { GithubDiagnostics } from "./GithubDiagnostics";
+import { BuildTabs } from "@/components/student/SectionRails";
 
 // Events that represent work a member actually did.
 //
@@ -136,6 +137,7 @@ export default async function GithubPage() {
     return (
       <AppShell area="student" tenant={tenant} user={user}>
         <main className="mx-auto max-w-6xl px-4 sm:px-6">
+          <BuildTabs active="/student/github" className="mt-4" />
           <div className="mt-4">
             {paused && (
               <section aria-label="Ingestion paused" className="rounded-2xl border border-dashed px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -186,6 +188,7 @@ export default async function GithubPage() {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
+        <BuildTabs active="/student/github" className="mt-4" />
         <Hero paused={paused} connected username={conn.github_username} profileUrl={profileUrl} lastActive={lastActive} />
 
         {paused && (

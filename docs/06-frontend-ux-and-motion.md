@@ -5,13 +5,15 @@
 Student navigation follows five verbs (source: `lib/nav.js`):
 
 - Home (`/student`)
-- Learn — Roadmap, Resources
+- Learn — Roadmap, Planner, Resources
 - Build — Projects, GitHub, Open Source
 - Prove — Proof (credentials), Challenges (contests), Standings (leaderboard)
 - Connect — Mentors, Community (forums/wiki/snippets), Events
-- Discover — People, Chapters (network)
+- Discover — People, Chapters (network), Ideas (feature requests)
 
-Secondary: Inbox (notifications), Settings. Mobile bar: Home, Learn, Build, Connect, Proof.
+The student top bar shows one link per verb (no dropdowns); sibling destinations are the real URLs in the in-page `SectionRails` (`components/student/SectionRails.jsx`), which mirror each verb's `studentNav` children. Admin and lead keep top-bar dropdowns.
+
+Secondary: Inbox (notifications), Settings. Mobile bar: Home, Learn, Build, Prove, Connect, You.
 
 Admin navigation groups: Overview; People (Students, Mentors, Departments); Content (Roadmaps, Resources, OSS, Community); Programs (Contests, Events, Projects); Trust (Proof, Data, Finance, Reports); System (Settings, Handover, Flags, FAQ, Audit).
 

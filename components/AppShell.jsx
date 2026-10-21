@@ -11,7 +11,7 @@ import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
-import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary } from "@/lib/nav";
+import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary, usesDropdowns } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
@@ -71,6 +71,8 @@ export function AppShell({ area = "student", tenant, user, children }) {
     }
   }), [activeTab, area, router]);
 
+  const showMenus = usesDropdowns(area);
+
   return (
     <TabContext.Provider value={ctx}>
       <div className="min-h-[100dvh]" style={{ background: "var(--bg)" }}>
@@ -86,7 +88,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               {tabs.map((item) => {
                 const Icon = icons[item.icon] || Home;
                 const groupActive = activeGroup?.id === item.id;
-                if (!item.children) {
+                if (!item.children || !showMenus) {
                   return (
                     <Link
                       key={item.id}

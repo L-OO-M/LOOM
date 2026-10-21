@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import FeatureRequestList from "./FeatureRequestList";
 import { listFeatureRequests } from "@/lib/feature-requests";
+import { DiscoverTabs } from "@/components/student/SectionRails";
 
 export default async function FeatureRequestsPage() {
   const ctx = await getRequestContext();
@@ -26,6 +27,7 @@ export default async function FeatureRequestsPage() {
         <Meta>Community wishlist</Meta>
         <Display size="lg" className="mt-3">What should L.O.O.M. build next?</Display>
         <p className="narrative mt-3">Ideas live here — you propose, the chapter reviews. Approved ideas can be assigned back to you to build.</p>
+        <DiscoverTabs active="/student/feature-requests" />
         <div className="mt-4 flex gap-2">
           <Link href="/student/feature-requests" className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{rows.length} ideas</Link>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>· Use the 💡 Suggest feature button →</span>

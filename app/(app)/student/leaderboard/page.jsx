@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, PlainStat, Rule } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
+import { ProveTabs } from "@/components/student/SectionRails";
 import {
   STANDINGS_BOARD_SIZE,
   canLinkProfile,
@@ -94,6 +95,7 @@ export default async function StandingsPage({ searchParams }) {
         <p className="narrative mt-4 max-w-xl">
           Standings reflect the work you keep shipping, learning, and contributing.
         </p>
+        <ProveTabs active="/student/leaderboard" />
         <Rule fade className="mt-6" />
 
         {self.ranked ? (

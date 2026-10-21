@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { OSS_BADGES } from "@/lib/oss";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
+import { BuildTabs } from "@/components/student/SectionRails";
 import { domainLabel } from "@/lib/domains";
 import {
   OSS_LEVELS,
@@ -213,6 +214,8 @@ export default async function OpenSourcePage({ searchParams }) {
             Find a repository that fits your level and domain, make one useful contribution, and let LOOM keep the proof.
           </p>
         </div>
+
+        <BuildTabs active="/student/opensource" />
 
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
           <PlainStat value={verified} unit="verified" label="contributions — merged PRs, confirmed reviews, checked issues" />

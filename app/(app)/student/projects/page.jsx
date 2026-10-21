@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink, StatusPill, PlainStat } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
+import { BuildTabs } from "@/components/student/SectionRails";
 
 const STATUSES = ["active", "completed", "archived"];
 
@@ -93,6 +94,8 @@ export default async function ProjectsPage({ searchParams }) {
             <Link href="/student/projects/new" prefetch={false} className="btn-ink">+ New project</Link>
           )}
         </div>
+
+        <BuildTabs active="/student/projects" />
 
         {viewingOther && filtered && (
           <p className="meta mt-4"><Link href={`/student/projects?owner=${ownerCard.user_id}`} prefetch={false} className="hover:underline" style={{ color: "var(--accent)" }}>Clear filters</Link></p>
