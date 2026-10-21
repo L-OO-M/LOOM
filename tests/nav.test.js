@@ -19,6 +19,7 @@ describe("five-verb navigation", () => {
     expect(pathToTab("/admin/events", "admin")).toBe("events");
     expect(pathToTab("/admin/planner", "admin")).toBe("planner");
     expect(pathToTab("/lead/planner", "lead")).toBe("planner");
+    expect(pathToTab("/lead/challenges", "lead")).toBe("challenges");
   });
 
   it("folds demoted routes into their owning verb", () => {

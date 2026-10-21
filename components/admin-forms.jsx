@@ -89,7 +89,7 @@ export function ResourceForm({ nodes = [] }) {
   );
 }
 
-export function ContestForm() {
+export function ContestForm({ endpoint = "/api/admin/contests" }) {
   const router = useRouter();
   const [f, setF] = useState({ title: "", description: "", status: "draft", startsAt: "", endsAt: "" });
   const [msg, setMsg] = useState("");
@@ -98,7 +98,7 @@ export function ContestForm() {
     e.preventDefault();
     setBusy(true);
     setMsg("");
-    const res = await fetch("/api/admin/contests", {
+    const res = await fetch(endpoint, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ title: f.title, description: f.description, status: f.status, startsAt: f.startsAt ? new Date(f.startsAt).toISOString() : null, endsAt: f.endsAt ? new Date(f.endsAt).toISOString() : null })
     });

@@ -12,13 +12,14 @@ const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vert
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
 
 describe("permissions matrix (Website Plan Section 3)", () => {
-  it("covers all 27 matrix rows", () => {
-    // 20 plan rows, verify_evidence from the ranking redesign, and the 6 lead-tool
+  it("covers all 29 matrix rows", () => {
+    // 20 plan rows, verify_evidence from the ranking redesign, the 6 lead-tool
     // actions (view_lead_tools, manage_mou, manage_leads, manage_event_ops,
-    // view_assets, manage_assets). The count is asserted rather than left open
-    // because ACTIONS is the authority for every gate in the app -- a row added
-    // without a test is a row nobody has checked.
-    expect(ACTIONS).toHaveLength(27);
+    // view_assets, manage_assets), and the chapter-wide contest/handover tools.
+    // The count is asserted rather than left open because ACTIONS is the
+    // authority for every gate in the app -- a row added without a test is a
+    // row nobody has checked.
+    expect(ACTIONS).toHaveLength(29);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {
@@ -207,6 +208,16 @@ describe("permissions matrix (Website Plan Section 3)", () => {
       const r = can(core(), a);
       expect(r.ok).toBe(true);
       expect(r.note).toBe("view_only");
+      expect(can(student(), a).ok).toBe(false);
+    }
+  });
+
+  it("chapter programs: every lead tier manages, core and students don't", () => {
+    for (const a of ["manage_contests", "manage_handover"]) {
+      expect(can(admin(), a).ok).toBe(true);
+      expect(can(vlead(), a).ok).toBe(true);
+      expect(can(lead("dept_lead"), a, { departmentId: D1 }).ok).toBe(true);
+      expect(can(core(), a).ok).toBe(false);
       expect(can(student(), a).ok).toBe(false);
     }
   });
