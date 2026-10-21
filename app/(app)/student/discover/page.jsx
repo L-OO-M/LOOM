@@ -8,41 +8,9 @@ import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { inputStyle } from "@/components/ui";
 import { ClaimCard } from "./DiscoverBits";
+import { PersonAvatar } from "@/components/loom/PersonAvatar";
 
 export const dynamic = "force-dynamic";
-
-function initialsFor(name) {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-// Deterministic, theme-safe avatar tint — var() only, no hardcoded colors.
-function avatarTint(name) {
-  const s = name || "?";
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 4;
-  return [
-    { background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" },
-    { background: "color-mix(in srgb, var(--accent) 9%, transparent)", color: "var(--text)" },
-    { background: "var(--bg-muted)", color: "var(--text)" },
-    { background: "color-mix(in srgb, var(--accent) 22%, transparent)", color: "var(--text)" }
-  ][h];
-}
-
-function PersonAvatar({ name, avatarUrl, size = 44 }) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatarUrl} alt={`Portrait of ${name}`} width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
-  }
-  const tint = avatarTint(name);
-  return (
-    <span aria-hidden="true" className="grid shrink-0 place-items-center rounded-full text-sm font-bold" style={{ width: size, height: size, ...tint }}>
-      {initialsFor(name)}
-    </span>
-  );
-}
 
 function proofSignal(b) {
   if (b.ossVerified > 0) return `${b.ossVerified} verified merge${b.ossVerified === 1 ? "" : "s"}`;

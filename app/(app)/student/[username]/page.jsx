@@ -3,44 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, PlainStat, ActionLink, StatusPill } from "@/components/loom/primitives";
-import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { reputationFor } from "@/lib/reputation";
 import { absoluteUrl } from "@/lib/seo";
 import { ProfileEditor, FollowButton, EndorseForm, EndorsementManager } from "./ProfileBits";
 import ShareButtons from "@/app/u/[username]/ShareButtons";
+import { ProfileSections } from "@/components/profile/ProfileSections";
+import { PersonAvatar } from "@/components/loom/PersonAvatar";
 
 export const dynamic = "force-dynamic";
-
-function initialsFor(name) {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function avatarTint(name) {
-  const s = name || "?";
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 4;
-  return [
-    { background: "color-mix(in srgb, var(--accent) 16%, transparent)", color: "var(--accent)" },
-    { background: "color-mix(in srgb, var(--accent) 9%, transparent)", color: "var(--text)" },
-    { background: "var(--bg-muted)", color: "var(--text)" },
-    { background: "color-mix(in srgb, var(--accent) 22%, transparent)", color: "var(--text)" }
-  ][h];
-}
-
-function PersonAvatar({ name, avatarUrl, size = 56 }) {
-  if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={avatarUrl} alt={`Portrait of ${name}`} width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
-  }
-  return (
-    <span aria-hidden="true" className="grid shrink-0 place-items-center rounded-full text-lg font-bold" style={{ width: size, height: size, ...avatarTint(name) }}>
-      {initialsFor(name)}
-    </span>
-  );
-}
 
 export default async function PublicProfilePage({ params }) {
   const ctx = await getRequestContext();
@@ -125,68 +95,27 @@ export default async function PublicProfilePage({ params }) {
 
         {/* bio rendered in header card above */}
 
-        {latestProject[0] && (
-          <section aria-labelledby="building-heading" className="mt-8">
-            <h2 id="building-heading" className="meta">Building</h2>
-            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-              Latest: <Link href={`/student/projects/${latestProject[0].id}`} prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>{latestProject[0].title}</Link>
-            </p>
-          </section>
-        )}
-
-        <div className="mt-8 grid grid-cols-3 gap-6 border-y py-6" style={{ borderColor: "var(--line)" }}>
-          <PlainStat value={rep.score} unit="" label="reputation" />
-          <PlainStat value={followers} unit="" label="followers" />
-          <PlainStat value={rep.ossVerified} unit="" label="verified merges" />
-        </div>
-
-        <div className="mt-10 grid gap-10 sm:grid-cols-2">
-          <section aria-labelledby="proof-heading">
-            <h2 id="proof-heading" className="meta">The proof</h2>
-            {achievements.length === 0 ? (
-              <p className="narrative mt-3">
-                {proofCounts.length > 0 ? `${proofCounts.join(" · ")}.` : "No proof recorded yet."}{" "}
-                Badges land here as they&apos;re earned.
-              </p>
-            ) : (
-              <Timeline className="mt-4">
-                {achievements.map((a) => (
-                  <TimelineItem
-                    key={a.id}
-                    state="done"
-                    title={a.badge_name || `${a.source_type} achievement`}
-                    meta={new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
-                  />
-                ))}
-              </Timeline>
-            )}
+        <ProfileSections
+          achievements={achievements}
+          proofCounts={proofCounts}
+          skills={skills}
+          endorsementCount={rep.endorsements}
+          latestProject={latestProject}
+          showEndorsements={showEndorsements}
+          projectHref={(p) => `/student/projects/${p.id}`}
+          proofFooter={(
             <div className="mt-4 flex flex-wrap gap-4 text-sm">
               {links.github && <a href={links.github} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>GitHub ↗</a>}
               {links.linkedin && <a href={links.linkedin} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>LinkedIn ↗</a>}
             </div>
-          </section>
-          <section aria-labelledby="known-for-heading">
-            <h2 id="known-for-heading" className="meta">{showEndorsements ? `Known for · ${rep.endorsements}` : "Known for"}</h2>
-            {!showEndorsements ? (
-              <p className="narrative mt-3">This member has hidden their endorsements.</p>
-            ) : skills.length === 0 ? (
-              <p className="narrative mt-3">No endorsements yet — vouch for a skill you&apos;ve seen in action.</p>
-            ) : (
-              <ul className="mt-4 space-y-2.5">
-                {skills.map((s) => (
-                  <li key={s.skill}>
-                    <div className="flex justify-between gap-2 text-sm"><span className="min-w-0 truncate" style={{ color: "var(--text)" }}>{s.skill}</span><span className="font-mono shrink-0" style={{ color: "var(--text-muted)" }}>×{s.n}</span></div>
-                    <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--bg-muted)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, s.n * 25)}%`, background: "var(--accent)" }} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {isSelf && <EndorsementManager endorsements={endorsements} />}
-            {!isSelf && showEndorsements && <div className="mt-4"><EndorseForm username={card.username} /></div>}
-          </section>
-        </div>
+          )}
+          endorsementFooter={(
+            <>
+              {isSelf && <EndorsementManager endorsements={endorsements} />}
+              {!isSelf && showEndorsements && <div className="mt-4"><EndorseForm username={card.username} /></div>}
+            </>
+          )}
+        />
 
         <section aria-labelledby="around-heading" className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }}>
           <h2 id="around-heading" className="meta">Around LOOM</h2>

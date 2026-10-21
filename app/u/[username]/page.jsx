@@ -7,8 +7,9 @@ import { BrandMark } from "@/components/BrandMark";
 import { AppShell } from "@/components/AppShell";
 import { getSessionIdentity } from "@/lib/auth-server";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
-import { Timeline, TimelineItem } from "@/components/loom/Timeline";
-import { initials, domainLabel } from "@/lib/builderCard";
+import { PersonAvatar } from "@/components/loom/PersonAvatar";
+import { ProfileSections } from "@/components/profile/ProfileSections";
+import { domainLabel } from "@/lib/builderCard";
 import { JsonLd, breadcrumbSchema, profilePageSchema } from "@/components/seo/JsonLd";
 import ShareButtons from "./ShareButtons";
 
@@ -68,16 +69,7 @@ function CardBody({ card, profile, displayName, url, rep, followers, skills, ach
 
       {/* Identity */}
       <div className="mt-6 flex flex-wrap items-start gap-5 sm:flex-nowrap">
-        <span
-          className="grid size-[76px] shrink-0 place-items-center rounded-full text-lg font-bold"
-          style={{
-            background: "color-mix(in srgb, var(--accent) 16%, var(--bg-muted))",
-            color: "var(--accent)",
-            boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent)"
-          }}
-        >
-          {initials(displayName)}
-        </span>
+        <PersonAvatar name={displayName} avatarUrl={card.avatar_url} size={76} variant="accent" />
         <div className="min-w-0 flex-1">
           <p className="mono-tag flex flex-wrap items-center gap-2">
             @{String(card.username).toLowerCase()}
@@ -119,74 +111,19 @@ function CardBody({ card, profile, displayName, url, rep, followers, skills, ach
         <PlainStat value={achievements.length} unit="" label="proofs" />
       </div>
 
-      {latestProject[0] && (
-        <section aria-labelledby="building-heading" className="mt-8">
-          <h2 id="building-heading" className="meta">Building</h2>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-            Latest:{" "}
-            {/* This CardBody renders for signed-out and non-owner viewers, so the
-                latest project is named but not linked. The project detail route is
-                authenticated; linking it here sent crawlers and visitors to login. */}
-            <span className="font-semibold" style={{ color: "var(--text)" }}>
-              {latestProject[0].title}
-            </span>
-          </p>
-        </section>
-      )}
-
-      <div className="mt-10 grid gap-10 sm:grid-cols-2">
-        <section aria-labelledby="proof-heading">
-          <h2 id="proof-heading" className="meta">The proof</h2>
-          {achievements.length === 0 ? (
-            <p className="narrative mt-3">
-              {proofCounts.length > 0
-                ? `${proofCounts.join(" · ")}.`
-                : "No proof recorded yet."}{" "}
-              Badges land here as they are earned.
-            </p>
-          ) : (
-            <Timeline className="mt-4">
-              {achievements.map((a) => (
-                <TimelineItem
-                  key={a.id}
-                  state="done"
-                  title={a.badge_name || `${a.source_type} achievement`}
-                  meta={new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
-                  action={a.credential_id ? (
-                    <a href={`/verify/credential/${a.credential_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                      Verify
-                    </a>
-                  ) : undefined}
-                />
-              ))}
-            </Timeline>
-          )}
-        </section>
-
-        <section aria-labelledby="known-for-heading">
-          <h2 id="known-for-heading" className="meta">{showEndorsements ? `Known for · ${rep.endorsements}` : "Known for"}</h2>
-          {!showEndorsements ? (
-            <p className="narrative mt-3">This member has hidden their endorsements.</p>
-          ) : skills.length === 0 ? (
-            <p className="narrative mt-3">No endorsements yet — vouch for a skill you have seen in action.</p>
-          ) : (
-            <ul className="mt-4 space-y-2.5">
-              {skills.map((s) => (
-                <li key={s.skill}>
-                  <div className="flex justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate" style={{ color: "var(--text)" }}>{s.skill}</span>
-                    <span className="shrink-0 font-mono" style={{ color: "var(--text-muted)" }}>×{s.n}</span>
-                  </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--bg-muted)" }}>
-                    <div className="h-full rounded-full"
-                      style={{ width: `${Math.min(100, s.n * 25)}%`, background: "var(--accent)" }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
+      <ProfileSections
+        achievements={achievements}
+        proofCounts={proofCounts}
+        skills={skills}
+        endorsementCount={rep.endorsements}
+        latestProject={latestProject}
+        showEndorsements={showEndorsements}
+        proofAction={(a) => a.credential_id ? (
+          <a href={`/verify/credential/${a.credential_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            Verify
+          </a>
+        ) : undefined}
+      />
     </div>
   );
 }
