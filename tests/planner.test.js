@@ -13,12 +13,15 @@ import {
   toIcs,
   trackLabel,
 } from "@/lib/planner";
-import { loadAssignableLeads, loadPlannerOwners } from "@/lib/planner-data";
+import { loadAssignableLeads, loadPlanner, loadPlannerOwners } from "@/lib/planner-data";
 
 function recorder(results) {
   const calls = [];
   const sql = (strings, ...values) => {
     calls.push({ text: strings.join("?"), values });
+    // Nested fragments (sql`TRUE`, sql`s.week_number = ...`) share the same
+    // recorder but are not top-level reads, so they must not consume results.
+    if (strings.length === 1 && values.length === 0) return Promise.resolve([]);
     return Promise.resolve(results.shift() ?? []);
   };
   sql.calls = calls;
@@ -171,6 +174,19 @@ describe("planner ownership", () => {
     expect(owners[1]).toMatchObject({ user_id: null, sessions: 3 });
     expect(sql.calls[0].values).toContain("tenant-1");
     expect(sql.calls[0].text).toContain("owner_user_id");
+    // profiles.user_id is text while planner_sessions.owner_user_id is uuid.
+    // Without the cast Postgres rejects the join ("operator does not exist:
+    // text = uuid") and every planner page fails to render.
+    expect(sql.calls[0].text).toContain("p.user_id = s.owner_user_id::text");
+  });
+
+  it("loads sessions with the same text-to-uuid join fix", async () => {
+    const sql = recorder([[weeks[0]], [{ ...sessions[0], owner_user_id: null, owner_name: null }], []]);
+    const data = await loadPlanner({ sql, tenantId: "tenant-1" });
+    const sessionQuery = sql.calls.find((c) => c.text.includes("LEFT JOIN profiles"));
+    expect(sessionQuery.text).toContain("p.user_id = s.owner_user_id::text");
+    expect(data.sessions).toHaveLength(1);
+    expect(data.sessions[0].owner_name).toBeNull();
   });
 
   it("offers only lead-and-above accounts in this chapter as successors", async () => {
