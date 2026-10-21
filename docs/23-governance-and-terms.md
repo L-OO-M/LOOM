@@ -1,6 +1,6 @@
 # Governance, Founder Permanence, and Annual Rotation
 
-This document is the authoritative description of **who may act, for how long, and in what domain**. It complements the permission matrix in `lib/permissions.js` (27 actions) and the tenant rules in `AGENTS.md`.
+This document is the authoritative description of **who may act, for how long, and in what domain**. It complements the permission matrix in `lib/permissions.js` (29 actions) and the tenant rules in `AGENTS.md`.
 
 ## 1. The model
 
@@ -69,6 +69,19 @@ Run it weekly (or at the end of each academic year). It is idempotent: `leadersh
 
 `/admin/handover` also shows every leadership term ending in the next 45 days, with the holder and role, so rotation is visible before it happens.
 
+### Guided seat handover
+
+A live head, vertical lead or admin can file a handover from `/lead/succession`:
+
+1. nominate a successor who already sits inside the outgoing scope (core/lead in the department, or core/lead in the vertical);
+2. write the brief — what the role owns, what is in flight, active work, risks, and contacts;
+3. choose whether planner sessions, open event-ops tasks and the Head/Co-Head slot move with the seat;
+4. submit it. An admin must approve it from `/admin/handover`; the outgoing and incoming accounts cannot approve their own transition.
+
+Approval is one transaction in `lib/handover.js`: the successor is promoted, the outgoing account falls back to `core`, `leadership_terms` closes and opens the appointment, and the selected planner/event-ops/head-slot rows move. Approval also writes `completed_handover` to the audit log and notifies both people. A lead who leads more than one department must have an admin split those seats first; one handover moves exactly one seat.
+
+`ACTIONS` gains `manage_handover` (lead tier drafts) while approval remains admin-only. `lead_handovers` has fail-closed tenant RLS and a partial unique index that permits one draft-or-submitted handover per outgoing lead.
+
 ## 5. Seeding founders
 
 The first claim (`POST /api/admin/claim-first`) creates a founder seat and closes the endpoint. To add a co-founder deliberately:
@@ -95,4 +108,4 @@ The account must have signed in once (a `profiles` row must exist). The script i
 3. Expired authority is a denial at request time — never a UI-only hint.
 4. Founder rows are never deleted or demoted by application code.
 5. `leadership_terms` is append-only; close a term, never rewrite history.
-6. `ACTIONS` stays at 27; scoping changes behaviour, not the matrix size.
+6. `ACTIONS` stays at 29; scoping changes behaviour, not the matrix size.

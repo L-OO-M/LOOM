@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
 import { HandoverBoard } from "@/app/(app)/admin/handover/_components/HandoverBoard";
+import { HandoverApprovals } from "@/app/(app)/admin/handover/_components/HandoverApprovals";
 
 export default async function AdminHandoverPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -107,6 +108,11 @@ export default async function AdminHandoverPage() {
               })}
             </ul>
           )}
+        </section>
+        <section className="mb-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Leadership handover approvals">
+          <Meta>Seat handovers · admin approval required</Meta>
+          <p className="narrative mb-3 mt-1">A lead nominates a successor and files the brief. Approving moves the role, planner sessions and open event-ops in one transaction.</p>
+          <HandoverApprovals />
         </section>
         <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Checklist">
           <Meta>Transfer checklist · audited on toggle</Meta>

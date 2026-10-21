@@ -114,6 +114,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `volunteer_slots` / `volunteer_signups` | Titled capacity slots per event + one-seat-per-member signups → `GET/POST /api/volunteers`, `POST/DELETE …/[id]/signup` (capacity enforced live) |
 | `dept_reports` | One row per (department, month): auto-compiled JSON draft → submitted → `GET/POST /api/reports`, `GET/PATCH …/[id]`, compiled from the lead console |
 | `handover_checklists` | Admin continuity items + done flags → `GET/POST /api/handover`, `PATCH …/[id]` |
+| `lead_handovers` | Guided seat transitions: outgoing/successor, brief JSON, transfer flags, draft→submitted→completed → `GET/POST /api/lead/handover`, `PATCH …/[id]`, `POST …/[id]/transfer`; transfer logic in `lib/handover.js` |
 | `budget_heads` | Budget envelopes, optional vertical (NULL = society-wide) → `GET /api/finance`, admin finance page (created directly in DB) |
 | `expenses` | Proposed→approved/rejected spend → `POST` (leads+ propose) / `PATCH` decide (admin only) `/api/finance/expenses` |
 | `sponsorships` | Sponsor pipeline→committed→received + `vertical` [048] (NULL = society-wide) → `POST/PUT /api/finance/sponsorships` (admin); a VL reads their own vertical plus society-wide rows |

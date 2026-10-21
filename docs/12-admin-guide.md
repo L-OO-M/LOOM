@@ -31,7 +31,7 @@ Only the founder seat is permanent. Every `dept_lead`, `vertical_lead`, and `adm
 - Appoint on **Students → open a person → Role management**: choose role, scope, and **term end date**.
 - A term that has ended **suspends authority immediately** (the person falls back to core). The title stays for history; reappoint or extend to restore it.
 - Heads cannot act outside their department; vertical leads cannot cross into the other domain; no lead can appoint accounts — `manage_users` is admin-only.
-- `/admin/handover` lists every leadership term ending in the next 45 days.
+- `/admin/handover` lists every leadership term ending in the next 45 days and holds the approval queue for guided seat handovers. Read the outgoing lead's brief, then **Approve and transfer** — role, Head/Co-Head slot, planner sessions and open event-ops move in one transaction. You cannot approve your own handover.
 - Founders cannot be demoted or edited by any role-change API.
 
 Full model: [Governance & terms](23-governance-and-terms.md).

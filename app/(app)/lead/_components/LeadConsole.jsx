@@ -6,6 +6,7 @@ import { Meta } from "@/components/loom/primitives";
 import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
+import { HandoverPanel } from "./HandoverPanel";
 import {
   RosterLevelBars, ContributionMix, WorkshopFill, TurnoutBars, GrowthLine, DeptHealthBars
 } from "@/components/lead/LeadCharts";
@@ -304,7 +305,8 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
     const ready = byDept.flatMap((d) => d.members.filter((m) => m.succession_ready).map((m) => ({ ...m, dept: d.name })));
     return (
       <section>
-        <Meta>Succession {isVertical ? "across your vertical" : "in your departments"}</Meta>
+        <HandoverPanel />
+        <Meta className="mt-6 block">Succession {isVertical ? "across your vertical" : "in your departments"}</Meta>
         <p className="narrative mt-1">
           A department with no succession-ready member is one tenure away from starting from zero.
         </p>

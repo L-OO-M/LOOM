@@ -110,6 +110,9 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
+| GET/POST | `/api/lead/handover` | dept_lead+ (`manage_handover`) | own handovers + eligible successors / nominate a successor and file the brief (`?all=1` = admin review queue) |
+| PATCH | `/api/lead/handover/[id]` | outgoing lead | save a draft, submit for approval, or cancel (scope re-checked server-side) |
+| POST | `/api/lead/handover/[id]/transfer` | admin (not the outgoing or incoming account) | approve and atomically move role, head slot, planner sessions and open event-ops |
 | GET | `/api/lead/assets` | dept_lead+ (`view_assets`) | creative asset library list (`?category=&kind=&q=`) |
 | POST | `/api/lead/assets` | dept_lead+ (`manage_assets`) | create an asset: multipart file upload, or JSON link-out with `externalUrl` |
 | GET | `/api/lead/assets/[id]` | dept_lead+ (`view_assets`) | one asset + its version history |
