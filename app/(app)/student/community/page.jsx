@@ -41,13 +41,6 @@ export default async function CommunityPage() {
   const [{ wikiPages = 0 } = {}] = await sql`SELECT COUNT(*)::int AS wikiPages FROM wiki_pages WHERE author_id = ${user.id} AND status = 'published'`;
   const rep = await reputationFor(sql, user.id).catch(() => ({ score: 0 }));
 
-  function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
-  const rooms = [
-    { href: "/student/community/forums", index: "01", title: "Forums", body: "Ask, answer, solve — discussion is the primary loop.", count: plural(threads, "thread", "threads"), cta: "+ New Thread" },
-    { href: "/student/community/wiki", index: "02", title: "Wiki", body: "The chapter's durable memory — curated, linked, lasting.", count: plural(pages, "page", "pages"), cta: "Browse Wiki" },
-    { href: "/student/community/snippets", index: "03", title: "Snippets", body: "Copy-paste knowledge — tiny, runnable, reusable.", count: plural(snippets, "snippet", "snippets"), cta: "Explore Snippets" }
-  ];
-
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
@@ -69,18 +62,6 @@ export default async function CommunityPage() {
         <div className="mt-6 flex justify-end">
           <Link href="/student/community/forums" prefetch={false} className="btn-ink text-sm">+ New Thread</Link>
         </div>
-        <ol className="mt-4 grid gap-4 sm:grid-cols-3">
-          {rooms.map((r) => (
-            <li key={r.href} className="rounded-xl border p-5 transition hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <Link href={r.href} prefetch={false} className="block">
-                <span className="mono-tag flex items-center justify-between"><span>{r.index}</span><span>{r.count}</span></span>
-                <span className="font-display mt-3 block text-xl font-medium" style={{ color: "var(--text)" }}>{r.title}</span>
-                <span className="mt-1.5 block text-sm leading-6" style={{ color: "var(--text-muted)" }}>{r.body}</span>
-                <span className="mono-tag mt-4 inline-block" style={{ color: "var(--accent)" }}>{r.cta} →</span>
-              </Link>
-            </li>
-          ))}
-        </ol>
         <Rule className="mt-8" fade />
 
         <section className="mt-12" aria-label="Needs help now">
