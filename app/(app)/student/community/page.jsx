@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink, PlainStat, Rule } from "@/components/loom/primitives";
 import { reputationFor } from "@/lib/reputation";
+import { CommunityTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,6 @@ export default async function CommunityPage() {
   const [{ threads = 0 } = {}] = await sql`SELECT COUNT(*)::int AS threads FROM forum_threads WHERE tenant_id = ${tid}::uuid AND status = 'visible'`;
   const [{ pages = 0 } = {}] = await sql`SELECT COUNT(*)::int AS pages FROM wiki_pages WHERE tenant_id = ${tid}::uuid AND status = 'published'`;
   const [{ snippets = 0 } = {}] = await sql`SELECT COUNT(*)::int AS snippets FROM code_snippets WHERE tenant_id = ${tid}::uuid AND status = 'visible'`;
-  const recent = await sql`
-    SELECT t.id, t.title, t.domain, t.reply_count, t.upvote_count, t.solved, t.updated_at, p.name AS author_name FROM forum_threads t
-    LEFT JOIN profiles p ON p.user_id = t.author_id
-    WHERE t.tenant_id = ${tid}::uuid AND t.status = 'visible'
-    ORDER BY t.updated_at DESC LIMIT 5
-  `;
   const domain = profile?.primary_domain || "general";
   const needsHelp = await sql`
     SELECT t.id, t.title, t.domain, t.created_at, t.upvote_count, p.name AS author_name FROM forum_threads t
@@ -61,6 +56,15 @@ export default async function CommunityPage() {
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
           Three rooms, three jobs. Ask in forums, preserve in the wiki, reuse from snippets.
         </p>
+
+        <CommunityTabs
+          active="/student/community"
+          counts={{
+            "/student/community/forums": threads,
+            "/student/community/wiki": pages,
+            "/student/community/snippets": snippets
+          }}
+        />
 
         <div className="mt-6 flex justify-end">
           <Link href="/student/community/forums" prefetch={false} className="btn-ink text-sm">+ New Thread</Link>
@@ -99,32 +103,6 @@ export default async function CommunityPage() {
                     </span>
                     <span className="meta shrink-0">{t.domain} · {t.author_name || "a student"} · {ageLabel(t.created_at)}</span>
                     <span className="shrink-0 text-sm font-semibold" style={{ color: "var(--accent)" }}>Answer →</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="mt-12" aria-label="Recently active">
-          <div className="flex items-baseline justify-between">
-            <Meta>Recently active</Meta>
-            <ActionLink href="/student/community/forums">All threads</ActionLink>
-          </div>
-          {recent.length === 0 ? (
-            <p className="narrative mt-4">
-              Silence. The good kind — waiting for a first question.{" "}
-              <Link href="/student/community/forums" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Ask it →</Link>
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
-              {recent.map((t) => (
-                <li key={t.id}>
-                  <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="row-link flex flex-wrap items-baseline gap-x-4 gap-y-1 px-2 py-3">
-                    <span className="min-w-0 flex-1 basis-48 truncate text-sm font-semibold" style={{ color: "var(--text)" }}>
-                      {t.solved ? <span style={{ color: "var(--accent)" }}>✓ </span> : null}{t.title}
-                    </span>
-                    <span className="meta shrink-0">{t.domain} · {t.solved ? "solved" : "open"} · ▲{t.upvote_count} · {t.reply_count} replies · {t.author_name || "a student"} · {ageLabel(t.updated_at)}</span>
                   </Link>
                 </li>
               ))}

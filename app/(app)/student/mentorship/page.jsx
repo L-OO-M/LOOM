@@ -7,6 +7,7 @@ import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
 import { ApplyForm } from "./ApplyForm";
 import { MentorsBrowser } from "./_components/MentorsBrowser";
+import { ConnectTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,8 @@ export default async function MentorshipPage() {
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
           Browse guides, request a session, and get notified when someone picks it up.
         </p>
+
+        <ConnectTabs active="/student/mentorship" />
 
         {sessions.length > 0 && (
           <section className="mt-10" aria-label="Your requests">

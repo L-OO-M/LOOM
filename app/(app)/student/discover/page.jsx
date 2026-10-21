@@ -9,6 +9,7 @@ import { OnboardingState } from "@/components/loom/States";
 import { inputStyle } from "@/components/ui";
 import { ClaimCard } from "./DiscoverBits";
 import { PersonAvatar } from "@/components/loom/PersonAvatar";
+import { DiscoverTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +51,6 @@ function BuilderRow({ b }) {
 
 // Link to the mentor's public username, never their raw UUID — /student/[username]
 // resolves user_profiles.username, so a UUID here was a guaranteed 404.
-function mentorHref(m) {
-  return m.public_username ? `/student/${encodeURIComponent(m.public_username)}` : "/student/mentorship";
-}
 
 export default async function DiscoverPage({ searchParams }) {
   const ctx = await getRequestContext();
@@ -203,6 +201,8 @@ export default async function DiscoverPage({ searchParams }) {
           Real builders, contributors, and guides from your chapter — surfaced through shipped
           projects, verified work, and proof, not profiles alone.
         </p>
+        <DiscoverTabs active="/student/discover" />
+
         <div className="mt-5"><ClaimCard hasCard={!!myCard} /></div>
         <Rule className="mt-8" />
 
@@ -304,26 +304,14 @@ export default async function DiscoverPage({ searchParams }) {
             )}
 
             {mentors.length > 0 && (
-              <section aria-labelledby="guides-heading" className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <div>
-                    <Meta>Guidance</Meta>
-                    <h2 id="guides-heading" className="h-product mt-2">Guides worth your time</h2>
-                    <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>Proven guides — view profile to request and review after a session.</p>
-                  </div>
-                  <ActionLink href="/student/mentorship">Explore mentors</ActionLink>
-                </div>
-                <ul className="mt-6 space-y-4">
-                  {mentors.map((m) => (
-                    <li key={m.user_id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-[var(--wash)]">
-                      <Link href={mentorHref(m)} prefetch={false} className="min-w-0">
-                        <p className="truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{m.name || "Mentor"} <span className="font-normal" style={{ color: "var(--text-muted)" }}>· {m.expertise || "general"}</span></p>
-                        <p className="mono-tag mt-0.5">{Number(m.reviews) > 0 ? `★ ${Number(m.avg_rating).toFixed(1)} · ${m.reviews} review${Number(m.reviews) === 1 ? "" : "s"}` : "new guide · no reviews yet"}</p>
-</Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <aside className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }} aria-labelledby="guides-heading">
+                <Meta>Guidance</Meta>
+                <h2 id="guides-heading" className="h-product mt-2">Learn from someone a step ahead.</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+                  {mentors.length} guide{mentors.length === 1 ? "" : "s"} open this week. Browse availability, request a session, and review it afterwards.
+                </p>
+                <div className="mt-4"><ActionLink href="/student/mentorship">Open mentorship</ActionLink></div>
+              </aside>
             )}
               </>
             )}

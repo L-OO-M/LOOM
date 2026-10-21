@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { CommunityTabs } from "@/components/student/SectionRails";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import { VoteButton } from "../CommunityBits";
@@ -99,7 +100,6 @@ export default async function ForumsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
             <Meta>Room 01 · ask, answer, solve</Meta>
@@ -110,6 +110,8 @@ export default async function ForumsPage({ searchParams }) {
           </div>
           <ThreadForm defaultOpen={wantsNew} defaultTitle={seed?.title} defaultDomain={seed?.domain} defaultBody={seed?.body} />
         </div>
+
+        <CommunityTabs active="/student/community/forums" className="mt-8" />
 
         {seed && (
           <p className="meta mt-4" role="status" style={{ color: "var(--accent)" }}>

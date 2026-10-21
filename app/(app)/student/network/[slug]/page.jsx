@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, PlainStat, StatusPill, ActionLink } from "@/components/loom/primitives";
 import { initialsFor } from "@/lib/chapters";
+import { DiscoverTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,9 @@ export default async function ChapterPage({ params }) {
           </div>
         </div>
         {chapter.mission && <p className="lede mt-4 max-w-2xl">{chapter.mission}</p>}
+
+        <DiscoverTabs active="/student/network" />
+
 
         <div className="mt-8 grid gap-8 border-y py-7 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
           <PlainStat value={members} unit="members" label="learning together" />

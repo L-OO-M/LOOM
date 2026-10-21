@@ -8,6 +8,7 @@ import { OnboardingState } from "@/components/loom/States";
 import { HelpHelperToggle } from "./_components/HelpHelperToggle";
 import { FindHelpersButton } from "./_components/FindHelpersButton";
 import { MatchDecision } from "./_components/MatchDecision";
+import { ConnectTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,8 @@ export default async function HelpPage() {
           title="Stuck on something?"
           desc="Raise it once, and the chapter's available helpers get notified. No chasing, no cold DMs."
         />
+
+        <ConnectTabs active="/student/help" className="mt-6" />
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           <div className="space-y-10">

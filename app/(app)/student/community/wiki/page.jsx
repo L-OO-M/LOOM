@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { CommunityTabs } from "@/components/student/SectionRails";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import { NewPageForm } from "./WikiBits";
@@ -32,7 +33,6 @@ export default async function WikiListPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Link href="/student/community" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Community</Link>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
           <div>
             <Meta>Room 02 · the chapter&apos;s memory</Meta>
@@ -43,6 +43,8 @@ export default async function WikiListPage({ searchParams }) {
           </div>
           <NewPageForm />
         </div>
+
+        <CommunityTabs active="/student/community/wiki" className="mt-8" />
         <form method="get" className="mt-7 flex gap-2">
           <input name="q" defaultValue={sp?.q || ""} placeholder="Search the handbook…" aria-label="Search wiki" className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} />
           <button className="btn-ink !py-2" type="submit">Search</button>

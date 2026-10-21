@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Display, Meta, PlainStat } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
 import { ChapterCard, FeaturedChapterCard } from "./_components/ChapterCard";
+import { DiscoverTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,8 @@ export default async function NetworkPage({ searchParams }) {
           Chapters are where builders learn, build, and contribute together. Each one runs its own
           domains, projects, and open-source work — discover where you fit.
         </p>
+
+        <DiscoverTabs active="/student/network" />
 
         <div className="mt-8 grid gap-8 sm:grid-cols-3">
           <PlainStat value={latest?.total_chapters ?? chapters.length} unit="chapters" label="public in the federation" />
