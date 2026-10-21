@@ -5,6 +5,7 @@ import { domainLabel } from "@/lib/domains";
 import RoadmapGraph from "./RoadmapGraph";
 import { RoadmapJourney } from "./RoadmapJourney";
 import { RoadmapDomainRail } from "./RoadmapDomainRail";
+import { LearnTabs } from "@/components/student/SectionRails";
 
 export default function RoadmapTabs({
   domain,
@@ -31,6 +32,8 @@ export default function RoadmapTabs({
           Roadmap · {domainLabel(domain)} · {doneCount} of {total} complete
         </p>
       </div>
+
+      <LearnTabs active="/student/roadmap" className="mt-4" />
 
       <RoadmapDomainRail domains={domains} active={domain} />
 

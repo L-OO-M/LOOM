@@ -7,6 +7,7 @@ import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
+import { LearnTabs } from "@/components/student/SectionRails";
 import {
   FilterLink,
   ProgressBar,
@@ -152,6 +153,8 @@ export default async function ResourcesPage({ searchParams }) {
         <p className="narrative mt-4" style={{ color: "var(--text)" }}>
           {TRACKS.length} tracks, curated by mentors — not an endless feed. Finish something and it stays on your record.
         </p>
+        <LearnTabs active="/student/resources" />
+
         <div className="mt-6 flex flex-wrap items-baseline gap-x-8 gap-y-3 border-y py-4" style={{ borderColor: "var(--line)" }} aria-label="Library progress">
           <span>
             <span className="figure figure-mono" style={{ fontSize: "1.6rem" }}>{totalResources}</span>

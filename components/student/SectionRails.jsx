@@ -1,7 +1,14 @@
 import { SectionTabs } from "@/components/loom/SectionTabs";
 
 // One definition per rail so the four community pages, the two people pages,
-// and the two help pages can never drift apart on labels or order.
+// the two help pages, and the three Learn surfaces can never drift apart on
+// labels or order.
+
+export const LEARN_TABS = [
+  { href: "/student/roadmap", label: "Roadmap" },
+  { href: "/student/planner", label: "Planner" },
+  { href: "/student/resources", label: "Resources" }
+];
 
 export const COMMUNITY_TABS = [
   { href: "/student/community", label: "Overview" },
@@ -23,6 +30,10 @@ export const CONNECT_TABS = [
 function withCounts(tabs, counts) {
   if (!counts) return tabs;
   return tabs.map((t) => ({ ...t, count: counts[t.href] }));
+}
+
+export function LearnTabs({ active, className = "mt-6" }) {
+  return <SectionTabs tabs={LEARN_TABS} active={active} label="Learn views" className={className} />;
 }
 
 export function CommunityTabs({ active, counts = null, className = "mt-8" }) {

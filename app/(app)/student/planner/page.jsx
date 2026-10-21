@@ -5,6 +5,7 @@ import { Display, Meta } from "@/components/loom/primitives";
 import { loadPlanner } from "@/lib/planner-data";
 import { PlannerBoard } from "@/components/planner/PlannerBoard";
 import { trackLabel } from "@/lib/planner";
+import { LearnTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export default async function PlannerPage() {
             ? "This opens on your own wing so it stays useful. When you want to see what else is running — or think about picking up a second domain — switch to Explore other wings. A protected relaxation window runs 20 Nov to 20 Dec 2026."
             : "Pick a domain in settings to focus this on your own wing. Until then it shows the full calendar, and you can still switch wings above. A protected relaxation window runs 20 Nov to 20 Dec 2026."}
         </p>
+
+        <LearnTabs active="/student/planner" />
 
         <PlannerBoard
           weeks={data.weeks}
