@@ -46,6 +46,7 @@ export default async function PublicProfilePage({ params }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login");
   const { user, tenant, sql } = ctx;
+  const isLeadOrAbove = ["dept_lead", "vertical_lead", "admin", "platform_admin"].includes(ctx.profile?.role);
   const { username } = await params;
 
   const [card] = await sql`SELECT * FROM user_profiles WHERE username = ${username.trim().toLowerCase()} LIMIT 1`;
@@ -201,7 +202,7 @@ export default async function PublicProfilePage({ params }) {
           <section className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }} aria-labelledby="edit-card-heading">
             <Meta>Yours to tend</Meta>
             <h2 id="edit-card-heading" className="h-product mt-2">Edit your card</h2>
-            <div className="mt-4"><ProfileEditor initial={card} /></div>
+            <div className="mt-4"><ProfileEditor initial={card} canPhoto={isLeadOrAbove} /></div>
           </section>
         )}
       </main>

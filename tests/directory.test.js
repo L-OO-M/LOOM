@@ -58,4 +58,13 @@ describe("leadership directory queries", () => {
     expect(entrySql.calls[0].text).toContain("user_profiles");
     expect(entrySql.calls[0].text).not.toMatch(/\bp\.avatar_url/);
   });
+
+  // A head or lead is shown with a portrait on the public site. The entry's own
+  // photo must come back from the list so the UI can render it (and flag a
+  // current holder who has not set one yet).
+  it("selects the entry photo alongside the account avatar", async () => {
+    const listSql = recorder([[]]);
+    await listDirectory(listSql, { tenantId: "tenant-1" });
+    expect(listSql.calls[0].text).toContain("d.photo_url");
+  });
 });

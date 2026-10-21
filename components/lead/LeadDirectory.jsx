@@ -12,12 +12,41 @@ function initials(name) {
   return String(name || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 }
 
+// The photo shown for a lead or head: the directory entry's own photo first,
+// then the linked account's avatar. One of these is what the public pages read.
+function photoOf(entry) {
+  return entry.photo_url || entry.account_avatar || null;
+}
+
 function tenure(entry) {
   const start = entry.tenure_start ? String(entry.tenure_start).slice(0, 4) : null;
   const end = entry.tenure_end ? String(entry.tenure_end).slice(0, 4) : null;
   if (!start && !end) return null;
   if (entry.is_current) return `${start || "—"} → now`;
   return `${start || "—"} → ${end || "—"}`;
+}
+
+function PhotoField({ entry, onSave }) {
+  const [value, setValue] = useState(entry.photo_url || "");
+  const [busy, setBusy] = useState(false);
+  const dirty = (entry.photo_url || "") !== value.trim();
+  return (
+    <form
+      onSubmit={async (e) => { e.preventDefault(); setBusy(true); await onSave(entry, value.trim()); setBusy(false); }}
+      className="mt-3 flex items-center gap-2"
+    >
+      <input
+        type="url" value={value} onChange={(e) => setValue(e.target.value)}
+        placeholder="Photo URL (required for current leads)"
+        aria-label={`Photo URL for ${entry.name}`}
+        className="w-full rounded-lg border px-2 py-1 text-xs outline-none"
+        style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
+      />
+      <button type="submit" disabled={busy || !dirty} className="shrink-0 text-xs underline disabled:opacity-40" style={{ color: "var(--accent)" }}>
+        {busy ? "Saving…" : "Save photo"}
+      </button>
+    </form>
+  );
 }
 
 export function LeadDirectory({ initialEntries = [], departments = [], canManage = false }) {
@@ -60,6 +89,7 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
       vertical: fd.get("vertical") || null,
       email: fd.get("email") || null,
       linkedinUrl: fd.get("linkedinUrl") || null,
+      photoUrl: fd.get("photoUrl") || null,
       bio: fd.get("bio") || "",
       tenureStart: fd.get("tenureStart") || null,
       tenureEnd: fd.get("tenureEnd") || null,
@@ -109,6 +139,19 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
       setEntries((prev) => prev.map((x) => (x.id === entry.id ? { ...x, is_current: !entry.is_current } : x)));
     } else {
       setMsg(d.error?.message || "Update failed");
+    }
+  }
+
+  async function setPhoto(entry, photoUrl) {
+    const res = await fetch(`/api/lead/directory/${entry.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ photoUrl: photoUrl || null })
+    });
+    const d = await res.json().catch(() => ({ ok: false }));
+    if (d.ok) {
+      setMsg("Photo saved ✓");
+      setEntries((prev) => prev.map((x) => (x.id === entry.id ? { ...x, photo_url: d.data.entry.photo_url } : x)));
+    } else {
+      setMsg(d.error?.message || "Could not save photo");
     }
   }
 
@@ -177,6 +220,7 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
           </select>
           <input name="email" type="email" placeholder="Email (optional)" style={input} />
           <input name="linkedinUrl" type="url" placeholder="LinkedIn URL (optional)" style={input} />
+          <input name="photoUrl" type="url" placeholder="Photo URL (required for current leads)" className="sm:col-span-2" style={input} />
           <label className="text-xs" style={{ color: "var(--text-muted)" }}>Tenure start<input name="tenureStart" type="date" style={input} /></label>
           <label className="text-xs" style={{ color: "var(--text-muted)" }}>Tenure end (blank = current)<input name="tenureEnd" type="date" style={input} /></label>
           <textarea name="bio" rows={2} maxLength={600} placeholder="Short bio (optional)" className="sm:col-span-2" style={input} />
@@ -200,9 +244,22 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
           {entries.map((entry) => (
             <li key={entry.id} className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <div className="flex items-start gap-3">
-                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
-                  {initials(entry.name)}
-                </span>
+                {photoOf(entry) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photoOf(entry)}
+                    alt={`${entry.name}, ${entry.title}`}
+                    width={40}
+                    height={40}
+                    loading="lazy"
+                    className="size-10 shrink-0 rounded-full border object-cover"
+                    style={{ borderColor: "var(--line)" }}
+                  />
+                ) : (
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                    {initials(entry.name)}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{entry.name}</p>
                   <p className="truncate text-xs" style={{ color: "var(--text-muted)" }}>{entry.title}</p>
@@ -213,6 +270,9 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
                 {!entry.is_current && (
                   <span className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>past</span>
                 )}
+                {entry.is_current && !photoOf(entry) && (
+                  <span className="rounded-full border px-2 py-0.5 text-[11px]" style={{ borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))", color: "var(--accent)" }}>photo needed</span>
+                )}
               </div>
               {entry.bio && <p className="mt-3 line-clamp-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>{entry.bio}</p>}
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -221,13 +281,16 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
                 {entry.linkedin_url && <a href={entry.linkedin_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline" style={{ color: "var(--text-muted)" }}><Linkedin size={11} /> LinkedIn</a>}
               </div>
               {canManage && (
-                <div className="mt-3 flex items-center gap-3">
-                  <button onClick={() => toggleCurrent(entry)} className="text-xs underline" style={{ color: "var(--text-muted)" }}>
-                    {entry.is_current ? "Mark past" : "Mark current"}
-                  </button>
-                  <button onClick={() => archive(entry)} className="ml-auto inline-flex items-center gap-1 text-xs" style={{ color: "var(--danger)" }}>
-                    <Archive size={12} /> Remove
-                  </button>
+                <div className="mt-3 space-y-3">
+                  <PhotoField entry={entry} onSave={setPhoto} />
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleCurrent(entry)} className="text-xs underline" style={{ color: "var(--text-muted)" }}>
+                      {entry.is_current ? "Mark past" : "Mark current"}
+                    </button>
+                    <button onClick={() => archive(entry)} className="ml-auto inline-flex items-center gap-1 text-xs" style={{ color: "var(--danger)" }}>
+                      <Archive size={12} /> Remove
+                    </button>
+                  </div>
                 </div>
               )}
             </li>

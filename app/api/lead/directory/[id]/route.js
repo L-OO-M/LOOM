@@ -18,6 +18,7 @@ const patchSchema = z.object({
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
   email: z.string().email().max(160).nullable().optional(),
   linkedinUrl: z.string().url().max(300).nullable().optional(),
+  photoUrl: z.string().url().max(500).nullable().optional(),
   bio: z.string().max(600).optional(),
   tenureStart: dateField,
   tenureEnd: dateField,
@@ -108,6 +109,7 @@ export async function PATCH(request, { params }) {
     vertical: body.vertical === undefined ? existing.vertical : body.vertical,
     email: body.email === undefined ? existing.email : body.email,
     linkedinUrl: body.linkedinUrl === undefined ? existing.linkedin_url : body.linkedinUrl,
+    photoUrl: body.photoUrl === undefined ? existing.photo_url : body.photoUrl,
     bio: body.bio ?? existing.bio,
     tenureStart: body.tenureStart === undefined ? existing.tenure_start : body.tenureStart,
     tenureEnd: body.tenureEnd === undefined ? existing.tenure_end : body.tenureEnd,
@@ -132,11 +134,11 @@ export async function PATCH(request, { params }) {
     UPDATE lead_directory SET
       name = ${next.name}, title = ${next.title}, user_id = ${next.userId},
       department_id = ${next.departmentId}, vertical = ${next.vertical}, email = ${next.email},
-      linkedin_url = ${next.linkedinUrl}, bio = ${next.bio}, tenure_start = ${next.tenureStart},
+      linkedin_url = ${next.linkedinUrl}, photo_url = ${next.photoUrl}, bio = ${next.bio}, tenure_start = ${next.tenureStart},
       tenure_end = ${next.tenureEnd}, is_current = ${next.isCurrent}, sort_order = ${next.sortOrder},
       is_active = ${next.isActive}, updated_at = NOW()
     WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
-    RETURNING id, name, title, department_id, vertical, email, linkedin_url, bio,
+    RETURNING id, name, title, department_id, vertical, email, linkedin_url, photo_url, bio,
               tenure_start, tenure_end, is_current, sort_order, is_active, created_at, updated_at
   `;
 

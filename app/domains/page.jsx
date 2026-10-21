@@ -6,6 +6,7 @@ import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { JsonLd, collectionPageSchema, itemListSchema } from "@/components/seo/JsonLd";
+import { HeadPill } from "@/components/landing/HeadBylines";
 import { absoluteUrl, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -46,11 +47,18 @@ export default async function DomainsPage() {
     departments = await sql`
       SELECT d.name, d.slug, d.vertical, d.description,
              hp.name AS head_name, cp.name AS co_head_name,
+             COALESCE(hd.photo_url, hup.avatar_url) AS head_avatar,
              (SELECT COUNT(*)::int FROM department_memberships m WHERE m.department_id = d.id) AS members,
              (SELECT COUNT(*)::int FROM events e WHERE e.department_id = d.id AND e.starts_at >= NOW() AND e.status <> 'cancelled') AS upcoming
       FROM departments d
       LEFT JOIN profiles hp ON hp.user_id = d.head_user_id
       LEFT JOIN profiles cp ON cp.user_id = d.co_head_user_id
+      LEFT JOIN user_profiles hup ON hup.user_id = d.head_user_id
+      LEFT JOIN LATERAL (
+        SELECT ld.photo_url FROM lead_directory ld
+        WHERE ld.user_id = d.head_user_id AND ld.tenant_id = d.tenant_id AND ld.is_active AND ld.photo_url IS NOT NULL
+        ORDER BY ld.is_current DESC, ld.sort_order LIMIT 1
+      ) hd ON true
       WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
         AND d.is_active
       ORDER BY d.vertical, d.name
@@ -93,7 +101,7 @@ export default async function DomainsPage() {
                   <h2 className="font-display mt-2 text-2xl font-medium group-hover:underline" style={{ color: "var(--text)" }}>{d.name}</h2>
                   {d.description && <p className="mt-2 line-clamp-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{d.description}</p>}
                   <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                    {d.head_name ? `Head: ${d.head_name}` : "Head: — not assigned yet"}
+                    <HeadPill role="Head" name={d.head_name} photo={d.head_avatar} />
                   </p>
                   <p className="mt-3 font-mono text-sm" style={{ color: "var(--text)" }}>
                     {d.members} <span className="font-sans text-xs" style={{ color: "var(--text-muted)" }}>

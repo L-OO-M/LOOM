@@ -16,6 +16,7 @@ const createSchema = z.object({
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
   email: z.string().email().max(160).nullable().optional(),
   linkedinUrl: z.string().url().max(300).nullable().optional(),
+  photoUrl: z.string().url().max(500).nullable().optional(),
   bio: z.string().max(600).default(""),
   tenureStart: dateField,
   tenureEnd: dateField,
@@ -111,13 +112,13 @@ export async function POST(request) {
 
   const [entry] = await sql`
     INSERT INTO lead_directory
-      (tenant_id, user_id, name, title, department_id, vertical, email, linkedin_url, bio,
+      (tenant_id, user_id, name, title, department_id, vertical, email, linkedin_url, photo_url, bio,
        tenure_start, tenure_end, is_current, sort_order, created_by)
     VALUES
       (${tenant.id}::uuid, ${body.userId ?? null}, ${body.name}, ${body.title}, ${body.departmentId ?? null},
-       ${vertical}, ${body.email ?? null}, ${body.linkedinUrl ?? null}, ${body.bio},
+       ${vertical}, ${body.email ?? null}, ${body.linkedinUrl ?? null}, ${body.photoUrl ?? null}, ${body.bio},
        ${body.tenureStart ?? null}, ${body.tenureEnd ?? null}, ${body.isCurrent}, ${body.sortOrder}, ${user.id})
-    RETURNING id, name, title, department_id, vertical, is_current, sort_order, created_at
+    RETURNING id, name, title, department_id, vertical, is_current, sort_order, photo_url, created_at
   `;
 
   await writeAudit({

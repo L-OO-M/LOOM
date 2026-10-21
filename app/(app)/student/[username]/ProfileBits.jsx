@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputStyle, Field } from "@/components/ui";
 
-export function ProfileEditor({ initial }) {
+export function ProfileEditor({ initial, canPhoto = false }) {
   const router = useRouter();
   const [username, setUsername] = useState(initial?.username || "");
   const [bio, setBio] = useState(initial?.bio || "");
   const [location, setLocation] = useState(initial?.location || "");
+  const [photo, setPhoto] = useState(initial?.avatar_url || "");
   const [github, setGithub] = useState(initial?.social_links?.github ? initial.social_links.github.split("/").pop() : "");
   const [linkedin, setLinkedin] = useState(initial?.social_links?.linkedin || "");
   const [isPublic, setIsPublic] = useState(initial?.is_public ?? true);
@@ -25,7 +26,7 @@ export function ProfileEditor({ initial }) {
       const res = await fetch("/api/social/profile", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements })
+        body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements, ...(canPhoto ? { avatarUrl: photo.trim() || null } : {}) })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -50,6 +51,16 @@ export function ProfileEditor({ initial }) {
         <Field label="GitHub handle (optional)"><input value={github} onChange={(e) => setGithub(e.target.value)} maxLength={60} placeholder="octocat" style={inputStyle} /></Field>
       </div>
       <Field label="LinkedIn URL (optional)"><input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} type="url" style={inputStyle} /></Field>
+      {canPhoto && (
+        <div className="space-y-1.5">
+          <Field label="Photo URL"><input value={photo} onChange={(e) => setPhoto(e.target.value)} type="url" maxLength={500} placeholder="https://…" style={inputStyle} /></Field>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Leads and heads are shown with a photo on the public site, so this is required for your role.</p>
+          {photo.trim() && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt="Your photo preview" width={48} height={48} className="size-12 rounded-full border object-cover" style={{ borderColor: "var(--line)" }} />
+          )}
+        </div>
+      )}
       <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
         <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /> Public profile
       </label>

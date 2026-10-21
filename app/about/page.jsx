@@ -6,6 +6,7 @@ import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { JsonLd, aboutPageSchema } from "@/components/seo/JsonLd";
+import { HeadBylines } from "@/components/landing/HeadBylines";
 import { SITE_DESCRIPTION, canonicalFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -85,10 +86,24 @@ export default async function AboutPage() {
     leadership = await sql`
       SELECT d.name, d.slug, d.vertical, d.description,
              hp.name AS head_name, cp.name AS co_head_name,
+             COALESCE(hd.photo_url, hup.avatar_url) AS head_avatar,
+             COALESCE(cd.photo_url, cup.avatar_url) AS co_head_avatar,
              (SELECT COUNT(*)::int FROM department_memberships m WHERE m.department_id = d.id) AS members
       FROM departments d
       LEFT JOIN profiles hp ON hp.user_id = d.head_user_id
       LEFT JOIN profiles cp ON cp.user_id = d.co_head_user_id
+      LEFT JOIN user_profiles hup ON hup.user_id = d.head_user_id
+      LEFT JOIN user_profiles cup ON cup.user_id = d.co_head_user_id
+      LEFT JOIN LATERAL (
+        SELECT ld.photo_url FROM lead_directory ld
+        WHERE ld.user_id = d.head_user_id AND ld.tenant_id = d.tenant_id AND ld.is_active AND ld.photo_url IS NOT NULL
+        ORDER BY ld.is_current DESC, ld.sort_order LIMIT 1
+      ) hd ON true
+      LEFT JOIN LATERAL (
+        SELECT ld.photo_url FROM lead_directory ld
+        WHERE ld.user_id = d.co_head_user_id AND ld.tenant_id = d.tenant_id AND ld.is_active AND ld.photo_url IS NOT NULL
+        ORDER BY ld.is_current DESC, ld.sort_order LIMIT 1
+      ) cd ON true
       WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
         AND d.is_active
       ORDER BY d.vertical, d.name
@@ -142,10 +157,7 @@ export default async function AboutPage() {
                   <Link prefetch={false} href={`/domains/${d.slug}`} className="font-display mt-2 flex min-h-[44px] items-center text-xl font-medium hover:underline" style={{ color: "var(--text)" }}>
                     {d.name}
                   </Link>
-                  <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-                    Head: <strong style={{ color: "var(--text)" }}>{d.head_name || "— not assigned yet"}</strong>
-                    {" · "}Co-Head: <strong style={{ color: "var(--text)" }}>{d.co_head_name || "— not assigned yet"}</strong>
-                  </p>
+                  <HeadBylines head={{ name: d.head_name, photo: d.head_avatar }} coHead={{ name: d.co_head_name, photo: d.co_head_avatar }} />
                   <p className="meta mt-3">{d.members} member{d.members === 1 ? "" : "s"}</p>
                 </li>
               ))}
