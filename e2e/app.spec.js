@@ -12,6 +12,7 @@ const protectedPages = [
   "/student/opensource",
   "/student/contests",
   "/student/events",
+  "/student/planner",
   "/student/mentorship",
   "/student/community",
   "/student/discover",
@@ -28,6 +29,7 @@ const protectedPages = [
   "/student/onboarding",
   "/admin",
   "/admin/events",
+  "/admin/planner",
   "/admin/students",
   "/admin/roadmaps",
   "/admin/resources",
@@ -47,6 +49,7 @@ const protectedPages = [
   "/lead/overview",
   "/lead/roster",
   "/lead/workshops",
+  "/lead/planner",
   "/lead/reports",
   "/lead/succession",
   "/lead/assets",
@@ -90,6 +93,8 @@ test.describe("api authorization", () => {
     "/api/projects",
     "/api/contests",
     "/api/events",
+    "/api/planner",
+    "/api/planner/ics",
     "/api/events?scope=past",
     "/api/events?scope=registered",
     "/api/mentorship",
@@ -159,6 +164,13 @@ test.describe("api authorization", () => {
 
   test("POST /api/roadmap/progress returns 401 without session", async ({ request }) => {
     const res = await request.post("/api/roadmap/progress", { data: { nodeId: "x", status: "completed" } });
+    expect(res.status()).toBe(401);
+  });
+
+  test("POST /api/planner returns 401 without session", async ({ request }) => {
+    const res = await request.post("/api/planner", {
+      data: { title: "Unauthorized", eventType: "talk", startsAt: "2027-01-10T10:00:00.000Z", week: 12, kind: "society" }
+    });
     expect(res.status()).toBe(401);
   });
 

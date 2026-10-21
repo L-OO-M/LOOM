@@ -82,17 +82,20 @@ is restricted to the holder or an admin of the issuing chapter and returns
 
 | Method | Route | Notes |
 |--------|-------|-------|
-| GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced) |
+| GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced). POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and **rejects any event whose start falls inside the 20 Nov – 20 Dec 2026 relaxation window** (`RELAXATION_WINDOW`, 409). |
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
+| GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. |
+| GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. |
+| PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
 | POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
-| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out |
+| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
 | GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
 ## Errors & limits
 
-Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503.
+Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
 Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-create 10/min, webhook 120/min per tenant).
 
 ## Org, leads & operations (added after the initial reference)
@@ -123,9 +126,9 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/lead/mous/[id]/documents` | dept_lead+ (`view_lead_tools`/`manage_mou`) | list signed copies / upload a new labelled version (multipart `file`, `label`); owned vertical only for writes |
 | GET | `/api/lead/mous/[id]/documents/[documentId]/download` | dept_lead+ (`view_lead_tools`) | `302` to a short-lived signed URL (raw `<a>`); non-null vertical must be owned |
 | GET | `/api/lead/directory` | dept_lead+ (`view_lead_tools`) | leadership directory (`?department=&vertical=&current=1&q=`); leads see own-domain + society-wide entries |
-| POST | `/api/lead/directory` | dept_lead+ (`manage_leads`) | add a person; entry vertical follows its department, otherwise must be owned |
+| POST | `/api/lead/directory` | dept_lead+ (`manage_leads`) | add a person; entry vertical follows its department, otherwise must be owned; `photoUrl` is the required public portrait for current leads |
 | GET | `/api/lead/directory/[id]` | dept_lead+ (`view_lead_tools`) | one directory entry (non-null vertical must be owned to read) |
-| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields / flip current ↔ past / archive; current and next vertical must be owned |
+| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields (incl. `photoUrl`) / flip current ↔ past / archive; current and next vertical must be owned |
 | DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | remove (soft delete); owned vertical only |
 | GET | `/api/lead/event-ops` | dept_lead+ (`view_lead_tools`) | operations tasks (`?event=&status=&owner=&due=soon&q=`); own tasks + own-domain events |
 | POST | `/api/lead/event-ops` | dept_lead+ (`manage_event_ops`) | add a task; event must be in an owned vertical, society-wide task is admin-only |
@@ -148,7 +151,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/finance` | VL/admin | snapshot: budget heads + approved spend + pending expenses + sponsorship pipeline (VL scoped to own vertical + society-wide) |
 | POST/PATCH | `/api/finance/expenses` | lead+/admin | propose (leads restricted to their department/vertical) / approve-or-reject `{approved\|rejected}` (admin only; VL `recommend_only`) |
 | POST/PUT | `/api/finance/sponsorships` | admin | create / update sponsor pipeline rows |
-| GET | `/api/public/departments` | public | active departments + head names + member counts (tenant from host) |
+| GET | `/api/public/departments` | public | active departments + head/co-head names and `head_avatar`/`co_head_avatar` (directory photo, else account avatar) + member counts (tenant from host) |
 | GET | `/api/public/events` | public | upcoming/live events (tenant from host) |
 | GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |
 | GET | `/api/public/summary` | public | answer-engine summary: static product facts + aggregate counts only (departments, upcoming events, public builder cards, projects) |

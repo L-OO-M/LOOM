@@ -1,0 +1,371 @@
+{
+  "academicYear": "2026-27",
+  "startDate": "2026-10-19",
+  "relaxation": { "start": "2026-11-20", "end": "2026-12-20" },
+  "weeks": [
+    {
+      "week": 1,
+      "theme": "Orientation, Git/GitHub and setup",
+      "society": "21 Oct combined kickoff; 24 Oct existing event hold (tentative)",
+      "tracks": {
+        "dsa": { "ref": "D01", "title": "Language bridge & Big O" },
+        "ai_ml": { "ref": "A01", "title": "Python & Colab workflow" },
+        "cybersecurity": { "ref": "C01", "title": "Introduction to Cybersecurity" },
+        "web": { "ref": "W01", "title": "Git & GitHub [shared kickoff pack]" },
+        "blockchain": { "ref": "B01", "title": "Ledgers, blocks & hashing [shared kickoff pack]" }
+      }
+    },
+    {
+      "week": 2,
+      "theme": "Foundations: browser, Linux and lab safety",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D02", "title": "Arrays & strings" },
+        "ai_ml": { "ref": "A02", "title": "NumPy, Pandas & cleaning" },
+        "cybersecurity": { "ref": "C02", "title": "Cybersecurity lab setup & Linux introduction" },
+        "web": { "ref": "W02", "title": "Browser, HTTP, DNS, dev tools" },
+        "embedded": { "ref": "H01", "title": "Lab orientation & safety", "kind": "lab" }
+      }
+    },
+    {
+      "week": 3,
+      "theme": "HTML/CSS, Linux security and chain architecture",
+      "society": "7 Nov launch showcase / mentor onboarding",
+      "tracks": {
+        "dsa": { "ref": "D03", "title": "Hash maps, sets & prefix sums" },
+        "ai_ml": { "ref": "A03", "title": "Guided exploratory analysis" },
+        "cybersecurity": { "ref": "C03", "title": "Linux for Cybersecurity" },
+        "web": { "ref": "W03", "title": "HTML/CSS landing page" },
+        "blockchain": { "ref": "B02", "title": "Ethereum vs Solana architecture" }
+      }
+    },
+    {
+      "week": 4,
+      "theme": "Responsive web, networking and components",
+      "society": "Weekly micro-quiz and mentor check-in; W04 operating review",
+      "tracks": {
+        "dsa": { "ref": "D04", "title": "Sorting & two pointers" },
+        "ai_ml": { "ref": "A04", "title": "Data storytelling & GitHub" },
+        "cybersecurity": { "ref": "C04", "title": "Computer networking fundamentals" },
+        "web": { "ref": "W04", "title": "Flexbox, Grid & responsive" },
+        "embedded": { "ref": "H02", "title": "Components, datasheets & DMM", "kind": "lab" }
+      }
+    },
+    {
+      "week": 5,
+      "theme": "JavaScript, Figma and testnets",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D05", "title": "Sliding window" },
+        "ai_ml": { "ref": "A05", "title": "ML workflow, splits & leakage" },
+        "cybersecurity": { "ref": "C05", "title": "How the Web Works" },
+        "web": { "ref": "W07", "title": "Figma for developers" },
+        "blockchain": { "ref": "B03", "title": "Wallet security & testnet setup" }
+      }
+    },
+    {
+      "week": 6,
+      "theme": "Async JS, ML metrics, networking and circuits",
+      "society": "Nov fundamentals checkpoint; timed DSA contest online",
+      "tracks": {
+        "dsa": { "ref": "D06", "title": "Binary search" },
+        "ai_ml": { "ref": "A06", "title": "Regression, classification & metrics" },
+        "cybersecurity": { "ref": "C06", "title": "Network security & traffic analysis" },
+        "web": { "ref": "W05", "title": "JavaScript fundamentals" },
+        "embedded": { "ref": "H03", "title": "Ohm/Kirchhoff & breadboards", "kind": "lab" }
+      }
+    },
+    {
+      "week": 7,
+      "theme": "Web mini hackathon and Solidity intro",
+      "society": "5 Dec 6h Web mini hackathon #1",
+      "tracks": {
+        "dsa": { "ref": "D07", "title": "Linked lists" },
+        "ai_ml": { "ref": "A07", "title": "Preprocessing pipeline live build" },
+        "cybersecurity": { "ref": "C07", "title": "Web architecture, authentication & authorization" },
+        "web": { "ref": "HACK1", "title": "Mini hackathon #1 (6h)", "kind": "hackathon", "day": 6, "start": "10:00:00", "end": "16:00:00", "mode": "live" },
+        "blockchain": { "ref": "B04", "title": "Solidity SPDX & locked pragma" }
+      }
+    },
+    {
+      "week": 8,
+      "theme": "Async APIs, baselines and web weaknesses",
+      "society": "DSA checkpoint 1; weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D08", "title": "Revision & checkpoint 1", "kind": "checkpoint" },
+        "ai_ml": { "ref": "A08", "title": "Baseline benchmark & error analysis", "kind": "checkpoint" },
+        "cybersecurity": { "ref": "C08", "title": "OWASP Top 10 & common web vulnerabilities" },
+        "web": { "ref": "W06", "title": "Async JS & public APIs" },
+        "embedded": { "ref": "H04", "title": "Diodes, transistors & switching", "kind": "lab" }
+      }
+    },
+    {
+      "week": 9,
+      "theme": "Relaxation — no workshops or live sessions",
+      "society": "Relaxation window (20 Nov–20 Dec). No campus sessions.",
+      "delivery": "deferred",
+      "tracks": {
+        "dsa": { "ref": "D09", "title": "Stacks & queues", "mode": "deferred" },
+        "ai_ml": { "ref": "A09", "title": "Overfitting & cross-validation", "mode": "deferred" },
+        "cybersecurity": { "ref": "C09", "title": "SQL injection, XSS & secure input handling", "mode": "deferred" },
+        "web": { "ref": "PROJECT", "title": "JS project / revision pack", "kind": "project", "mode": "deferred" }
+      }
+    },
+    {
+      "week": 10,
+      "theme": "Exam protection — async packs only",
+      "society": "Provisional exam/holiday window (14 Dec–3 Jan). No campus sessions.",
+      "delivery": "async",
+      "tracks": {
+        "dsa": { "ref": "D10", "title": "Recursion", "mode": "async" },
+        "ai_ml": { "ref": "A10", "title": "Trees, ensembles & model choice", "mode": "async" },
+        "cybersecurity": { "ref": "C10", "title": "Web security tools & beginner mini-CTF", "mode": "async" },
+        "web": { "ref": "W08", "title": "React components/state", "mode": "async" }
+      }
+    },
+    {
+      "week": 11,
+      "theme": "Relaxation — no workshops or live sessions",
+      "society": "Protected exam/holiday window. No campus sessions.",
+      "delivery": "async",
+      "tracks": {
+        "dsa": { "ref": "D11", "title": "Backtracking", "mode": "async" },
+        "ai_ml": { "ref": "A11", "title": "Tuning & imbalance lab", "mode": "async" },
+        "cybersecurity": { "ref": "C11", "title": "Reconnaissance & OSINT", "mode": "async" },
+        "web": { "ref": "W09", "title": "React hooks, routing, forms", "mode": "async" }
+      }
+    },
+    {
+      "week": 12,
+      "theme": "Restart: trees, clustering, React and logic gates",
+      "society": "Restart, diagnostic and squads; low-load week",
+      "tracks": {
+        "dsa": { "ref": "D12", "title": "Binary trees" },
+        "ai_ml": { "ref": "A12", "title": "Clustering & segment interpretation" },
+        "cybersecurity": { "ref": "C12", "title": "Port scanning & service enumeration" },
+        "web": { "ref": "STUDIO", "title": "React application studio", "kind": "project" },
+        "embedded": { "ref": "H05", "title": "Logic gates & combinational circuits", "kind": "lab" }
+      }
+    },
+    {
+      "week": 13,
+      "theme": "Tree patterns, tensors and vulnerability assessment",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D13", "title": "Tree patterns" },
+        "ai_ml": { "ref": "A13", "title": "Tensors, networks & gradients" },
+        "cybersecurity": { "ref": "C13", "title": "Vulnerability assessment & controlled exploitation" },
+        "web": { "ref": "REVIEW", "title": "React application review", "kind": "project" },
+        "blockchain": { "ref": "B05", "title": "Smart contract state & logic" }
+      }
+    },
+    {
+      "week": 14,
+      "theme": "BSTs, training controls, pentest reporting and REST APIs",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D14", "title": "Binary search trees" },
+        "ai_ml": { "ref": "A14", "title": "Training checks & regularization" },
+        "cybersecurity": { "ref": "C14", "title": "Penetration testing methodology & reporting" },
+        "web": { "ref": "W10", "title": "REST APIs with Node/Express" },
+        "embedded": { "ref": "H06", "title": "Op-amps & signal conditioning", "kind": "lab" }
+      }
+    },
+    {
+      "week": 15,
+      "theme": "Heaps, CNN lab, crypto security and databases",
+      "society": "Jan secure-systems sprint / monthly review",
+      "tracks": {
+        "dsa": { "ref": "D15", "title": "Heaps & priority queues" },
+        "ai_ml": { "ref": "A15", "title": "CNN image-classifier lab", "kind": "lab" },
+        "cybersecurity": { "ref": "C15", "title": "Cryptography & password security" },
+        "web": { "ref": "W11", "title": "SQL/MongoDB & schema" },
+        "blockchain": { "ref": "B06", "title": "Hardhat local development & tests" }
+      }
+    },
+    {
+      "week": 16,
+      "theme": "Checkpoint 2, transfer learning, forensics and MCU GPIO",
+      "society": "DSA checkpoint 2; weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D16", "title": "Revision & checkpoint 2", "kind": "checkpoint" },
+        "ai_ml": { "ref": "A16", "title": "Transfer-learning mini-project", "kind": "checkpoint" },
+        "cybersecurity": { "ref": "C16", "title": "Digital forensics & incident response" },
+        "web": { "ref": "W12", "title": "Authentication, JWT & hashing" },
+        "embedded": { "ref": "H07", "title": "MCU GPIO, ADC & PWM", "kind": "lab" }
+      }
+    },
+    {
+      "week": 17,
+      "theme": "Graphs, TF-IDF, malware analysis and testnet deployment",
+      "society": "Feb cyber incident investigation challenge (embedded)",
+      "tracks": {
+        "dsa": { "ref": "D17", "title": "Graphs, BFS & DFS" },
+        "ai_ml": { "ref": "A17", "title": "Text cleaning, TF-IDF & metrics" },
+        "cybersecurity": { "ref": "C17", "title": "Malware analysis & reverse engineering" },
+        "web": { "ref": "W19", "title": "Hackathon survival & pitching" },
+        "blockchain": { "ref": "B07", "title": "Public testnet deployment" }
+      }
+    },
+    {
+      "week": 18,
+      "theme": "Graph applications, transformers and mini hackathon #2",
+      "society": "20 Feb 6h Web mini hackathon #2",
+      "tracks": {
+        "dsa": { "ref": "D18", "title": "Cycles, topological sort & DSU" },
+        "ai_ml": { "ref": "A18", "title": "Embeddings, transformers & LLM limits" },
+        "cybersecurity": { "ref": "C18", "title": "Defensive security, SOC & threat detection" },
+        "web": { "ref": "HACK2", "title": "Mini hackathon #2 (6h)", "kind": "hackathon", "day": 6, "start": "10:00:00", "end": "16:00:00" },
+        "embedded": { "ref": "H08", "title": "UART, I2C, SPI & modules", "kind": "lab" }
+      }
+    },
+    {
+      "week": 19,
+      "theme": "Shortest paths, text classification and integration",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D19", "title": "Shortest paths & Dijkstra" },
+        "ai_ml": { "ref": "A19", "title": "Text classification live build" },
+        "cybersecurity": { "ref": "C19", "title": "Privilege escalation & OS security" },
+        "web": { "ref": "W13", "title": "Full-stack connection & deployment" },
+        "blockchain": { "ref": "B08", "title": "Web2/Web3 integration" }
+      }
+    },
+    {
+      "week": 20,
+      "theme": "Greedy, RAG, secure coding and portfolio",
+      "society": "2-week shared open-source drive starts",
+      "tracks": {
+        "dsa": { "ref": "D20", "title": "Greedy & intervals" },
+        "ai_ml": { "ref": "A20", "title": "Grounded retrieval / RAG demo", "kind": "checkpoint" },
+        "cybersecurity": { "ref": "C20", "title": "Secure coding & application security engineering" },
+        "web": { "ref": "W20", "title": "Portfolio, resume & GitHub" },
+        "embedded": { "ref": "H09", "title": "KiCad schematic to Gerbers", "kind": "lab" }
+      }
+    },
+    {
+      "week": 21,
+      "theme": "DP basics, model serving and cloud security",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D21", "title": "DP foundations" },
+        "ai_ml": { "ref": "A21", "title": "Reproducibility & model serving" },
+        "cybersecurity": { "ref": "C21", "title": "Cloud, containers & infrastructure security" },
+        "web": { "ref": "W18", "title": "First open-source PR" },
+        "blockchain": { "ref": "B09", "title": "Smart contract security & audits" }
+      }
+    },
+    {
+      "week": 22,
+      "theme": "Flagship hackathon week — labs paused",
+      "society": "20–21 Mar: 24h LOOM Web Hackathon",
+      "tracks": {
+        "dsa": { "ref": "D22", "title": "DP grids, knapsack & subsequences" },
+        "ai_ml": { "ref": "A22", "title": "Monitoring, safety & AI ethics [recorded]", "mode": "recorded" },
+        "cybersecurity": { "ref": "C22", "title": "Threat modelling & security architecture [recorded]", "mode": "recorded" },
+        "web": { "ref": "HACK24", "title": "Flagship 24h hackathon: no Thu workshop", "kind": "hackathon", "mode": "project", "day": 6, "start": "09:00:00", "end": "09:00:00" }
+      }
+    },
+    {
+      "week": 23,
+      "theme": "Tries, deployment lab, CTF basics and TypeScript",
+      "society": "Open-source PR review / demo readiness",
+      "tracks": {
+        "dsa": { "ref": "D23", "title": "Tries & bit operations" },
+        "ai_ml": { "ref": "A23", "title": "Streamlit/API deployment lab", "kind": "lab" },
+        "cybersecurity": { "ref": "C23", "title": "CTF fundamentals & methodology" },
+        "web": { "ref": "W14", "title": "TypeScript" },
+        "embedded": { "ref": "H10", "title": "Verilog/VHDL & RTL simulation", "kind": "lab" }
+      }
+    },
+    {
+      "week": 24,
+      "theme": "Checkpoint 3, capstone demos and Next.js",
+      "society": "DSA checkpoint 3; weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D24", "title": "Revision & checkpoint 3", "kind": "checkpoint" },
+        "ai_ml": { "ref": "A24", "title": "Capstone demos & peer review", "kind": "checkpoint" },
+        "cybersecurity": { "ref": "C24", "title": "CTF practice: web, Linux & forensics" },
+        "web": { "ref": "W15", "title": "Next.js & SSR" },
+        "blockchain": { "ref": "B10", "title": "Solana & Rust primitives" }
+      }
+    },
+    {
+      "week": 25,
+      "theme": "Mocks, showcase support and cyber capstone planning",
+      "society": "Weekly micro-quiz and mentor check-in",
+      "tracks": {
+        "dsa": { "ref": "D25", "title": "Mixed problems & mock interviews" },
+        "ai_ml": { "ref": "A25", "title": "Project QA / showcase support", "kind": "project" },
+        "cybersecurity": { "ref": "C25", "title": "Cyber capstone project planning", "kind": "project" },
+        "web": { "ref": "W16", "title": "Docker & GitHub CI/CD" },
+        "embedded": { "ref": "H11", "title": "Power budgets & failure modes", "kind": "lab" }
+      }
+    },
+    {
+      "week": 26,
+      "theme": "Final DSA assessment, cyber capstone and web performance",
+      "society": "DSA capstone release; no new major events",
+      "tracks": {
+        "dsa": { "ref": "D26", "title": "Final assessment & repository demos", "kind": "assessment" },
+        "ai_ml": { "ref": "A26", "title": "Project QA / showcase support", "kind": "project" },
+        "cybersecurity": { "ref": "C26", "title": "Cyber capstone development & mentoring", "kind": "project" },
+        "web": { "ref": "W17", "title": "Web performance & security" },
+        "blockchain": { "ref": "B11", "title": "Indexed Web3 data / The Graph" }
+      }
+    },
+    {
+      "week": 27,
+      "theme": "Handover, final cyber CTF and portfolio clinics",
+      "society": "24 Apr: 4–6h Cyber CTF / final competition",
+      "tracks": {
+        "dsa": { "ref": "D27", "title": "Maintenance / handover", "kind": "project" },
+        "ai_ml": { "ref": "A27", "title": "Project QA / showcase support", "kind": "project" },
+        "cybersecurity": { "ref": "C27", "title": "Final authorized cyber hackathon / CTF", "kind": "contest", "day": 6, "start": "10:00:00", "end": "16:00:00" },
+        "web": { "ref": "W21", "title": "Web interview clinic", "kind": "clinic" },
+        "blockchain": { "ref": "B12", "title": "Web3 portfolio & resume clinic", "kind": "clinic" }
+      }
+    },
+    {
+      "week": 28,
+      "theme": "Showcase week — Demo Day 29 Apr",
+      "society": "29 Apr unified society Demo Day & handover",
+      "tracks": {
+        "dsa": { "ref": "D28", "title": "Maintenance / handover", "kind": "project" },
+        "ai_ml": { "ref": "A28", "title": "Project QA / showcase support", "kind": "project" },
+        "cybersecurity": { "ref": "C28", "title": "Cyber capstone presentations & assessment", "kind": "assessment" },
+        "web": { "ref": "DEMO", "title": "Society Demo Day: deployed web projects", "kind": "showcase", "day": 4, "start": "10:00:00", "end": "13:00:00" },
+        "embedded": { "ref": "H12", "title": "Hardware demo at society showcase", "kind": "showcase", "day": 4, "start": "10:00:00", "end": "13:00:00" }
+      }
+    }
+  ],
+  "checkpoints": [
+    { "week": 4, "track": "ai_ml", "title": "AI checkpoint — EDA notebook" },
+    { "week": 8, "track": "ai_ml", "title": "AI checkpoint — baseline and error analysis" },
+    { "week": 12, "track": "ai_ml", "title": "AI checkpoint — model comparison" },
+    { "week": 16, "track": "ai_ml", "title": "AI checkpoint — neural model" },
+    { "week": 20, "track": "ai_ml", "title": "AI checkpoint — retrieval app" },
+    { "week": 24, "track": "ai_ml", "title": "AI checkpoint — capstone" },
+    { "week": 2, "track": "general", "title": "W02 milestone — enrollment, diagnostic, mentor roster" },
+    { "week": 6, "track": "general", "title": "W06 milestone — starter repos, EDA, lab safety" },
+    { "week": 8, "track": "general", "title": "W08 milestone — DSA checkpoint 1, AI baseline, deployed UI" },
+    { "week": 12, "track": "general", "title": "W12 milestone — restart status and dependency review" },
+    { "week": 16, "track": "general", "title": "W16 milestone — DSA checkpoint 2, DL prototype, MCU progress" },
+    { "week": 20, "track": "general", "title": "W20 milestone — NLP/RAG demo, secure code, Web3 integration" },
+    { "week": 24, "track": "general", "title": "W24 milestone — 24 AI packs, 12 challenges, DSA checkpoint 3" },
+    { "week": 26, "track": "general", "title": "W26 milestone — 182 DSA slots across 26 sets" },
+    { "week": 28, "track": "general", "title": "W28 milestone — all demos, handover checklist" }
+  ],
+  "societyEvents": [
+    { "ref": "KICKOFF", "week": 1, "type": "talk", "title": "Common LOOM technical kickoff", "description": "One combined kickoff instead of six induction rooms: short track introductions and setup material.", "date": "2026-10-21", "start": "17:00:00", "end": "19:00:00", "kind": "kickoff", "location": "Campus auditorium" },
+    { "ref": "HACKHOLD", "week": 1, "type": "hackathon", "title": "24 Oct hackathon hold (verify scope)", "description": "Tentative hold from earlier event context, not established by the six roadmaps. Confirm organiser before publishing.", "date": "2026-10-24", "start": "09:00:00", "end": "18:00:00", "kind": "hackathon", "status": "proposed" },
+    { "ref": "LAUNCH", "week": 3, "type": "talk", "title": "Public launch & mentor matching", "description": "Registration, skill baselines and showcase. No judging deadline.", "date": "2026-11-07", "start": "10:00:00", "end": "13:00:00", "kind": "society" },
+    { "ref": "WEBHACK1", "week": 7, "type": "hackathon", "title": "Web mini hackathon #1 (6h)", "description": "Beginner format, no additional society competition the same weekend.", "date": "2026-12-05", "start": "10:00:00", "end": "16:00:00", "kind": "hackathon" },
+    { "ref": "SECREVIEW", "week": 15, "type": "workshop", "title": "Secure systems review / cyber guided assessment", "description": "Embedded cyber and smart-contract security checks.", "date": "2027-01-30", "start": "10:00:00", "end": "13:00:00", "kind": "assessment" },
+    { "ref": "WEBHACK2", "week": 18, "type": "hackathon", "title": "Web mini hackathon #2 (6h)", "description": "One themed track; participation voluntary for other domain members.", "date": "2027-02-20", "start": "10:00:00", "end": "16:00:00", "kind": "hackathon" },
+    { "ref": "OSSDRIVE", "week": 20, "type": "contest", "title": "Open-source contribution fortnight", "description": "Coordinated issue board with Web, Web3 and DSA. No independent parallel drives.", "date": "2027-03-01", "endDate": "2027-03-14", "start": "09:00:00", "end": "18:00:00", "kind": "opendrive" },
+    { "ref": "WEBHACK24", "week": 22, "type": "hackathon", "title": "24-hour LOOM Web Hackathon", "description": "Main March event. W22 Tue–Fri sessions recorded or paused.", "date": "2027-03-20", "endDate": "2027-03-21", "start": "09:00:00", "end": "09:00:00", "kind": "hackathon" },
+    { "ref": "CYBERCTF", "week": 27, "type": "contest", "title": "Cybersecurity final CTF (4–6h)", "description": "Final safely controlled competition; project freeze for showcase teams.", "date": "2027-04-24", "start": "10:00:00", "end": "16:00:00", "kind": "ctf" },
+    { "ref": "DEMODAY", "week": 28, "type": "talk", "title": "LOOM annual Demo Day / awards / handover", "description": "One combined public demonstration across Web, AI, hardware, DSA, Web3 and Cyber.", "date": "2027-04-29", "start": "10:00:00", "end": "16:00:00", "kind": "showcase", "location": "Society showcase hall" }
+  ]
+}

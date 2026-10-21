@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
+import { PLANNER_YEAR, isoDate, isRelaxationDate } from "@/lib/planner";
 
 const createSchema = z.object({
   title: z.string().min(3).max(160),
@@ -16,7 +17,10 @@ const createSchema = z.object({
   capacity: z.number().int().min(0).nullable().optional(),
   isOnline: z.boolean().default(false),
   scope: z.enum(["society", "department"]).default("society"),
-  departmentId: z.string().uuid().nullable().optional()
+  departmentId: z.string().uuid().nullable().optional(),
+  plannerWeek: z.number().int().min(1).max(28).nullable().optional(),
+  plannerKind: z.string().max(40).nullable().optional(),
+  plannerRef: z.string().max(80).nullable().optional()
 });
 
 export async function GET(request) {
@@ -69,6 +73,19 @@ export async function POST(request) {
   const admin = isAdmin({ role: profile.role });
   const role = profile.role;
 
+  // The 20 Nov – 20 Dec 2026 relaxation window is closed to every workshop,
+  // lab and society event. The collective planner owns the calendar; a stray
+  // event booking must not reopen a slot the planner has deliberately paused.
+  const startDate = isoDate(body.startsAt);
+  const endDate = body.endsAt ? isoDate(body.endsAt) : startDate;
+  if (isRelaxationDate(startDate) || isRelaxationDate(endDate)) {
+    return fail(
+      "RELAXATION_WINDOW",
+      "20 Nov – 20 Dec 2026 is a relaxation window: no workshops, labs or society events may be scheduled.",
+      409
+    );
+  }
+
   // Who may publish what: admins and vertical leads go live; a dept lead's
   // department workshop goes live attached to its department; a dept lead's
   // society-wide post waits as 'proposed' for the approval queue.
@@ -104,8 +121,8 @@ export async function POST(request) {
   }
 
   const [event] = await sql`
-    INSERT INTO events (tenant_id, department_id, event_type, title, description, domain, speaker_name, speaker_bio, starts_at, ends_at, location, capacity, is_online, status, created_by)
-    VALUES (${tenant?.id ?? null}, ${departmentId}, ${body.eventType}, ${body.title}, ${body.description}, ${body.domain}, ${body.speakerName || null}, ${body.speakerBio || null}, ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, ${body.capacity ?? null}, ${body.isOnline}, ${status}, ${user.id})
+    INSERT INTO events (tenant_id, department_id, event_type, title, description, domain, speaker_name, speaker_bio, starts_at, ends_at, location, capacity, is_online, status, created_by, planner_year, planner_week, planner_kind, planner_ref)
+    VALUES (${tenant?.id ?? null}, ${departmentId}, ${body.eventType}, ${body.title}, ${body.description}, ${body.domain}, ${body.speakerName || null}, ${body.speakerBio || null}, ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, ${body.capacity ?? null}, ${body.isOnline}, ${status}, ${user.id}, ${body.plannerWeek != null ? PLANNER_YEAR : null}, ${body.plannerWeek ?? null}, ${body.plannerKind || null}, ${body.plannerRef || null})
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: status === "proposed" ? "proposed_event" : "created_event", resource: "event", resourceId: event.id, after: { title: body.title, status } });

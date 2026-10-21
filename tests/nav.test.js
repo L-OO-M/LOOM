@@ -5,6 +5,7 @@ describe("five-verb navigation", () => {
   it("resolves leaf destinations, not groups", () => {
     expect(pathToTab("/student", "student")).toBe("dashboard");
     expect(pathToTab("/student/roadmap", "student")).toBe("roadmap");
+    expect(pathToTab("/student/planner", "student")).toBe("planner");
     expect(pathToTab("/student/roadmap/node_1", "student")).toBe("roadmap");
     expect(pathToTab("/student/opensource", "student")).toBe("opensource");
     expect(pathToTab("/student/community/forums/abc", "student")).toBe("community");
@@ -16,6 +17,8 @@ describe("five-verb navigation", () => {
     expect(pathToTab("/student/unknown-xyz", "student")).toBe("people");
     expect(pathToTab("/admin", "admin")).toBe("overview");
     expect(pathToTab("/admin/events", "admin")).toBe("events");
+    expect(pathToTab("/admin/planner", "admin")).toBe("planner");
+    expect(pathToTab("/lead/planner", "lead")).toBe("planner");
   });
 
   it("folds demoted routes into their owning verb", () => {
@@ -31,6 +34,7 @@ describe("five-verb navigation", () => {
 
   it("maps leaves back to their verb for highlighting", () => {
     expect(groupForTab(studentNav, "resources")?.id).toBe("learn");
+    expect(groupForTab(studentNav, "planner")?.id).toBe("learn");
     expect(groupForTab(studentNav, "github")?.id).toBe("build");
     expect(groupForTab(studentNav, "opensource")?.id).toBe("build");
     expect(groupForTab(studentNav, "proof")?.id).toBe("prove");
