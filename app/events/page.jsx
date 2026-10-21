@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { headers } from "next/headers";
-import { getSql, queryTenant } from "@/lib/db";
-import { resolveTenantFromHost } from "@/lib/tenant";
+import { getSql } from "@/lib/db";
+import { resolveRequestTenant } from "@/lib/tenant";
 import { collectDomains, filterEvents } from "@/lib/events";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
@@ -19,33 +18,31 @@ export const metadata = {
   ...canonicalFor("/events"),
   openGraph: {
     title: "Events | L.O.O.M.",
-    description: "Workshops, hackathons, talks, and contests from the chapter calendar."
+    description: "Workshops, hackathons, talks, and contests from the chapter calendar.",
+    url: absoluteUrl("/events"),
+    images: [{ url: absoluteUrl("/loom-og.png"), width: 1200, height: 630, alt: "L.O.O.M. events calendar" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Events | L.O.O.M.",
+    description: "Workshops, hackathons, talks, and contests from the chapter calendar.",
+    images: [absoluteUrl("/loom-og.png")]
   }
 };
 
-async function resolvePublicTenant() {
-  try {
-    const host = (await headers()).get("host") || "";
-    const t = await resolveTenantFromHost(host);
-    if (t) return t;
-  } catch { /* fall through to default tenant */ }
-  try {
-    return await queryTenant(process.env.DEV_TENANT_SLUG || "demo-college");
-  } catch {
-    return null;
-  }
-}
-
 export default async function EventsPage({ searchParams }) {
   const params = await searchParams;
-  const tenant = await resolvePublicTenant();
+  const tenant = await resolveRequestTenant();
   const tid = tenant?.id ?? null;
   const sql = getSql();
 
   let events = [];
   let featured = null;
+  let pastCount = 0;
   try {
     // Sequential on purpose (AGENTS.md §1.5 — one pooled connection, no fan-out).
+    // Fail closed: without a resolved tenant the UUID predicate matches nothing,
+    // instead of the old `OR tenant_id IS NULL` aliasing every chapter's events.
     events = await sql`
       SELECT e.id, e.event_type, e.title, e.description, e.domain,
              e.speaker_name, e.starts_at, e.ends_at, e.location,
@@ -53,7 +50,7 @@ export default async function EventsPage({ searchParams }) {
              d.name AS department_name, d.slug AS department_slug
       FROM events e
       LEFT JOIN departments d ON d.id = e.department_id
-      WHERE (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      WHERE e.tenant_id = ${tid}::uuid
         AND e.status IN ('upcoming', 'live')
         AND e.starts_at >= NOW() - INTERVAL '2 hours'
       ORDER BY e.starts_at ASC
@@ -61,14 +58,14 @@ export default async function EventsPage({ searchParams }) {
     `;
     const past = await sql`
       SELECT COUNT(*)::int AS n FROM events e
-      WHERE (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND e.starts_at < NOW()
+      WHERE e.tenant_id = ${tid}::uuid AND e.starts_at < NOW()
     `;
     featured = events[0] || null;
     events = filterEvents(events, {
       type: params?.type || "all",
       domain: params?.domain || "all"
     });
-    var pastCount = past[0].n;
+    pastCount = past[0].n;
   } catch {
     events = [];
     pastCount = 0;
@@ -144,7 +141,9 @@ export default async function EventsPage({ searchParams }) {
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Link href={`/events/${featured.id}`} prefetch={false} className="btn-ink">Details &amp; registration →</Link>
-                  <Link href="/login" prefetch={false} className="btn-ghost">Sign in to register</Link>
+                  <Link href={`/login?redirect=${encodeURIComponent(`/student/events/${featured.id}`)}`} prefetch={false} className="btn-ghost">
+                    Sign in to register
+                  </Link>
                 </div>
               </div>
             </div>

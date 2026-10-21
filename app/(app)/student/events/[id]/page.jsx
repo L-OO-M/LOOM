@@ -19,10 +19,16 @@ function gcalUrl(e) {
 }
 
 export default async function EventDetailPage({ params }) {
-  const ctx = await getRequestContext();
-  if (ctx.error) redirect("/login?redirect=/student/events");
-  const { user, profile, tenant, sql } = ctx;
   const { id } = await params;
+  const ctx = await getRequestContext();
+  if (ctx.error) {
+    // Read the id before the auth gate: an anonymous visitor arriving from a
+    // public event page must land back on THIS event after signing in, not on
+    // the events index.
+    const next = `/student/events/${encodeURIComponent(String(id || ""))}`;
+    redirect(`/login?redirect=${encodeURIComponent(next)}`);
+  }
+  const { user, profile, tenant, sql } = ctx;
   const admin = isAdmin({ role: profile?.role });
 
   const [event] = admin

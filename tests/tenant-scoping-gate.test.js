@@ -231,7 +231,7 @@ describe("public legal pages are statically cached", () => {
       "app/events/page.jsx", "app/domains/page.jsx",
       "app/faq/page.jsx", "app/about/page.jsx"
     ]) {
-      expect(readFileSync(p, "utf8"), p).toContain("resolveTenantFromHost");
+      expect(readFileSync(p, "utf8"), p).toMatch(/resolveTenantFromHost|resolveRequestTenant/);
     }
   });
 });

@@ -156,7 +156,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `/` | Landing: living-network hero, live events/projects pulse, domain rails → `/register` |
 | `/about` | Society story + department index |
 | `/faq` | Published FAQs only |
-| `/events` | Upcoming public events; prompts sign-in to register |
+| `/events` + `/events/[id]` | Upcoming public events and per-event detail pages (canonical, Event JSON-LD, per-event OG card, sitemap); registration stays signup-only and deep-links back through `/login?redirect=` |
 | `/domains` + `/domains/[slug]` | Department catalog + per-department page (workshops, projects); unknown slugs get an empty state, not a 404 |
 | `/login` / `/register` | Supabase auth; register captures name/roll/branch/year + department picks into `user_metadata` |
 | `/setup` | First-admin claim (refuses once `platform_admins` is non-empty) |

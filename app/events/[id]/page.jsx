@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
-import { getSql, queryTenant } from "@/lib/db";
-import { resolveTenantFromHost } from "@/lib/tenant";
+import { getSql } from "@/lib/db";
+import { resolveRequestTenant } from "@/lib/tenant";
 import { canonicalFor, absoluteUrl } from "@/lib/seo";
 import { PublicNav } from "@/components/landing/PublicNav";
 import { PublicFooter } from "@/components/landing/PublicFooter";
@@ -11,19 +10,6 @@ import { JoinSteps, TypePill, seatsLeft, whenLabel } from "../_components/EventB
 import { JsonLd, breadcrumbSchema, organizationSchema } from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
-
-async function resolvePublicTenant() {
-  try {
-    const host = (await headers()).get("host") || "";
-    const t = await resolveTenantFromHost(host);
-    if (t) return t;
-  } catch { /* fall through */ }
-  try {
-    return await queryTenant(process.env.DEV_TENANT_SLUG || "demo-college");
-  } catch {
-    return null;
-  }
-}
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -40,20 +26,36 @@ export async function generateMetadata({ params }) {
   const notFound = { title: "Event not found | L.O.O.M.", alternates };
 
   try {
-    const tenant = await resolvePublicTenant();
+    const tenant = await resolveRequestTenant();
+    if (!tenant) return notFound;
     const sql = getSql();
     const [ev] = await sql`
       SELECT title, description FROM events
       WHERE id = ${id}::uuid
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${tenant.id}::uuid
+        AND status IN ('upcoming', 'live', 'past')
       LIMIT 1
     `;
     if (!ev) return notFound;
+    const image = absoluteUrl(`/events/${id}/opengraph-image`);
+    const title = `${ev.title} | L.O.O.M. Events`;
+    const description = (ev.description || "Event details, seats, and registration.").slice(0, 160);
     return {
-      title: `${ev.title} | L.O.O.M. Events`,
-      description: (ev.description || "Event details, seats, and registration.").slice(0, 160),
+      title,
+      description,
       alternates,
-      openGraph: { title: `${ev.title} | L.O.O.M.`, description: (ev.description || "").slice(0, 160) }
+      openGraph: {
+        title: `${ev.title} | L.O.O.M.`,
+        description: (ev.description || "").slice(0, 160),
+        url: absoluteUrl(`/events/${id}`),
+        images: [{ url: image, width: 1200, height: 630, alt: `${ev.title} — L.O.O.M.` }]
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: [image]
+      }
     };
   } catch {
     // Never swallow the path: a broken query must not cost the page its identity.
@@ -63,8 +65,8 @@ export async function generateMetadata({ params }) {
 
 export default async function EventDetailPage({ params }) {
   const { id } = await params;
-  const tenant = await resolvePublicTenant();
-  const tid = tenant?.id ?? null;
+  const tenant = await resolveRequestTenant();
+  if (!tenant) notFound();
   const sql = getSql();
 
   let event = null;
@@ -78,7 +80,7 @@ export default async function EventDetailPage({ params }) {
       FROM events e
       LEFT JOIN departments d ON d.id = e.department_id
       WHERE e.id = ${id}::uuid
-        AND (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+        AND e.tenant_id = ${tenant.id}::uuid
         AND e.status IN ('upcoming', 'live', 'past')
       LIMIT 1
     `;
@@ -243,7 +245,11 @@ export default async function EventDetailPage({ params }) {
               </p>
               <div className="mt-5 flex flex-col gap-2.5">
                 {!isPast && (
-                  <Link href="/login?redirect=/student/events" prefetch={false} className="btn-ink justify-center">
+                  <Link
+                    href={`/login?redirect=${encodeURIComponent(`/student/events/${event.id}`)}`}
+                    prefetch={false}
+                    className="btn-ink justify-center"
+                  >
                     Sign in to register
                   </Link>
                 )}
