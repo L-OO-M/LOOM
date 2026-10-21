@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 // Route-level error boundary for the whole app shell. Without this, a failed
 // server render during navigation can leave the loading skeleton on screen
 // forever — this surfaces the failure with a retry instead.
@@ -9,8 +12,19 @@
 // into the browser: pooler host and port, constraint and column names, and the
 // exact text of RLS denials — all of which describe the schema and the trust
 // boundary to anyone who triggers an error.
+//
+// The fallback used to hardcode /student, so an admin or lead who hit a broken
+// page was silently dumped into the member surface. The destination now follows
+// the area the failure happened in.
+function homeForPath(pathname) {
+  if (pathname.startsWith("/admin")) return { href: "/admin", label: "Back to Overview" };
+  if (pathname.startsWith("/lead")) return { href: "/lead", label: "Back to Console" };
+  return { href: "/student", label: "Back to Today" };
+}
+
 export default function AppError({ error, reset }) {
   console.error("[app] route render failed:", error);
+  const home = homeForPath(usePathname() || "");
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 pt-28 text-center sm:px-6">
@@ -28,13 +42,9 @@ export default function AppError({ error, reset }) {
         <button type="button" onClick={() => reset()} className="btn-ink">
           Try again
         </button>
-        <button
-          type="button"
-          onClick={() => { window.location.href = "/student"; }}
-          className="btn-ghost"
-        >
-          Back to Today
-        </button>
+        <Link href={home.href} prefetch={false} className="btn-ghost">
+          {home.label}
+        </Link>
       </div>
     </div>
   );
