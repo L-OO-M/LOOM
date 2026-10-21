@@ -67,6 +67,7 @@ export function BuilderCard({ data, scale = 1 }) {
   const story = format === "story";
   const square = format === "square";
   const s = (n) => Math.round(n * scale);
+  const px = (n) => `${n}px`;
 
   // Only show what is actually true. An empty stat is worse than a missing one.
   const stats = [
@@ -76,6 +77,165 @@ export function BuilderCard({ data, scale = 1 }) {
     { label: "EVENTS", value: eventsAttended, show: eventsAttended > 0 },
     { label: "FOLLOWERS", value: followers, show: followers > 0 }
   ].filter((x) => x.show);
+  const statRows = [];
+  for (let i = 0; i < stats.length; i += 2) statRows.push(stats.slice(i, i + 2));
+
+  const handle = String(username || "").toUpperCase();
+  const link = String(siteUrl || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const bioText = bio ? String(bio).slice(0, story ? 220 : 150) : "";
+  const domainText = domainLabel(domain).toUpperCase();
+
+  const Brand = (
+    <div style={{ display: "flex", alignItems: "center", gap: px(s(12)) }}>
+      <div style={{ width: s(30), height: s(2), background: P.gold }} />
+      <div style={{ fontSize: s(16), letterSpacing: s(6), fontWeight: 700, color: P.gold }}>
+        L.O.O.M.
+      </div>
+    </div>
+  );
+
+  const Handle = (
+    <div style={{
+      fontSize: s(14), color: P.muted, letterSpacing: s(2),
+      border: `1px solid ${P.hairline}`, borderRadius: s(999),
+      padding: `${px(s(7))} ${px(s(16))}`
+    }}>
+      {`@${handle}`}
+    </div>
+  );
+
+  function StatCell({ st, fill }) {
+    return (
+      <div
+        style={{
+          display: "flex", flexDirection: "column", gap: px(s(4)),
+          padding: `${px(s(13))} ${px(s(18))}`,
+          border: `1px solid ${P.hairline}`,
+          borderRadius: s(13),
+          background: "rgba(255,255,255,0.04)",
+          minWidth: s(112),
+          flexGrow: fill ? 1 : 0,
+          flexShrink: 1,
+          flexBasis: fill ? 0 : "auto"
+        }}
+      >
+        <div style={{ fontSize: s(11), letterSpacing: s(2), color: P.faint }}>{st.label}</div>
+        <div style={{ fontSize: s(30), fontWeight: 800, color: P.cream }}>{String(st.value)}</div>
+      </div>
+    );
+  }
+
+  const LinkPill = link ? (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: `${px(s(12))} ${px(s(20))}`,
+      background: P.gold, borderRadius: s(13),
+      color: "#0a1628", fontSize: s(16), fontWeight: 800,
+      maxWidth: "100%"
+    }}>
+      {link}
+    </div>
+  ) : null;
+
+  const glow = (
+    <div style={{
+      position: "absolute",
+      top: -200, right: -140, width: 700, height: 700,
+      background: `radial-gradient(circle, ${accent}38 0%, transparent 68%)`
+    }} />
+  );
+
+  const frame = (
+    <div style={{
+      position: "absolute", inset: s(14),
+      border: `1px solid ${P.hairline}`, borderRadius: s(18)
+    }} />
+  );
+
+  if (story) {
+    return (
+      <div
+        style={{
+          position: "relative", width: "100%", height: "100%",
+          display: "flex", flexDirection: "column",
+          background: `linear-gradient(160deg, ${deep} 0%, ${P.field} 48%, ${P.deep} 100%)`,
+          color: P.cream, fontFamily: "sans-serif", overflow: "hidden"
+        }}
+      >
+        {glow}
+        {frame}
+        <div style={{
+          display: "flex", flexDirection: "column", height: "100%",
+          padding: `${px(s(250))} ${px(s(80))} ${px(s(240))} ${px(s(80))}`,
+          gap: px(s(24))
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {Brand}
+            {Handle}
+          </div>
+
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            flexGrow: 1, gap: px(s(30)), textAlign: "center"
+          }}>
+            <div style={{
+              width: s(214), height: s(214), borderRadius: s(999),
+              background: `linear-gradient(150deg, ${accent}44 0%, rgba(255,255,255,0.06) 100%)`,
+              border: `3px solid ${accent}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: s(70), fontWeight: 800, color: P.cream, letterSpacing: s(1)
+            }}>
+              {initials(name)}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: px(s(16)) }}>
+              <div style={{
+                fontSize: s(80), fontWeight: 700, lineHeight: 1.04,
+                letterSpacing: s(-1), maxWidth: s(900)
+              }}>
+                {name}
+              </div>
+              <div style={{ fontSize: s(20), letterSpacing: s(5), fontWeight: 700, color: accent }}>
+                {domainText}
+              </div>
+              {bioText && (
+                <div style={{
+                  fontSize: s(28), color: P.muted, lineHeight: 1.42,
+                  maxWidth: s(860)
+                }}>
+                  {bioText}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: px(s(18)) }}>
+            {stats.length === 0 ? (
+              <div style={{
+                fontSize: s(18), color: P.faint, letterSpacing: s(4),
+                textAlign: "center", padding: `${px(s(16))} 0`
+              }}>
+                BUILDING IN PUBLIC
+              </div>
+            ) : statRows.map((row, i) => (
+              <div key={`row-${i}`} style={{ display: "flex", gap: px(s(14)) }}>
+                {row.map((st) => <StatCell key={st.label} st={st} fill />)}
+              </div>
+            ))}
+
+            {LinkPill}
+
+            <div style={{
+              fontSize: s(15), letterSpacing: s(4), color: P.faint,
+              textAlign: "center"
+            }}>
+              PROOF · PROJECTS · REPUTATION
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -85,123 +245,81 @@ export function BuilderCard({ data, scale = 1 }) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
-        padding: story ? s(56) : s(46),
         background: `linear-gradient(140deg, ${deep} 0%, ${P.field} 55%, ${P.deep} 100%)`,
         color: P.cream,
         fontFamily: "sans-serif",
         overflow: "hidden"
       }}
     >
-      {/* Glow + hairline frame. The frame is the "card" metaphor; no drop shadow
-          survives PNG flattening, so depth comes from the gradient. */}
+      {glow}
+      {frame}
+
       <div style={{
-        position: "absolute",
-        top: -180, right: -120, width: 620, height: 620,
-        background: `radial-gradient(circle, ${accent}38 0%, transparent 68%)`
-      }} />
-      <div style={{
-        position: "absolute", inset: s(14),
-        border: `1px solid ${P.hairline}`, borderRadius: s(18)
-      }} />
-
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: s(10) }}>
-          <div style={{ width: s(26), height: s(2), background: P.gold }} />
-          <div style={{ fontSize: s(15), letterSpacing: s(6), fontWeight: 700, color: P.gold }}>
-            L.O.O.M.
-          </div>
-        </div>
-        <div style={{
-          fontSize: s(14), color: P.muted, letterSpacing: s(2),
-          border: `1px solid ${P.hairline}`, borderRadius: s(999),
-          padding: `${s(7)} ${s(16)}`
-        }}>
-          @{String(username || "").toUpperCase()}
-        </div>
-      </div>
-
-      {/* Identity */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: s(18) }}>
-        <div style={{
-          width: story ? s(170) : s(126),
-          height: story ? s(170) : s(126),
-          borderRadius: s(999),
-          background: `linear-gradient(150deg, ${accent}44 0%, rgba(255,255,255,0.06) 100%)`,
-          border: `2px solid ${accent}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: story ? s(58) : s(44),
-          fontWeight: 800,
-          color: P.cream,
-          letterSpacing: s(1)
-        }}>
-          {initials(name)}
+        display: "flex", flexDirection: "column", height: "100%",
+        padding: px(s(46)), gap: px(s(18))
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {Brand}
+          {Handle}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: s(10) }}>
-          <div style={{
-            fontSize: story ? s(72) : s(58),
-            fontWeight: 700,
-            lineHeight: 1.02,
-            letterSpacing: s(-1),
-            maxWidth: story ? s(880) : s(820)
-          }}>
-            {name}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: s(12) }}>
+        <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: px(s(18)) }}>
             <div style={{
-              fontSize: s(15), letterSpacing: s(3), fontWeight: 700,
-              color: accent, textTransform: "uppercase"
+              width: s(126), height: s(126), borderRadius: s(999),
+              background: `linear-gradient(150deg, ${accent}44 0%, rgba(255,255,255,0.06) 100%)`,
+              border: `2px solid ${accent}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: s(44), fontWeight: 800, color: P.cream, letterSpacing: s(1)
             }}>
-              {domainLabel(domain)}
+              {initials(name)}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: px(s(10)) }}>
+              <div style={{
+                fontSize: s(58), fontWeight: 700, lineHeight: 1.02,
+                letterSpacing: s(-1), maxWidth: s(820)
+              }}>
+                {name}
+              </div>
+              <div style={{ fontSize: s(15), letterSpacing: s(3), fontWeight: 700, color: accent }}>
+                {domainText}
+              </div>
+              {bioText && (
+                <div style={{
+                  fontSize: s(20), color: P.muted, lineHeight: 1.45,
+                  maxWidth: s(720)
+                }}>
+                  {bioText}
+                </div>
+              )}
             </div>
           </div>
-          {bio && (
-            <div style={{
-              fontSize: s(20), color: P.muted, lineHeight: 1.45,
-              maxWidth: story ? s(760) : s(720)
-            }}>
-              {String(bio).slice(0, story ? 180 : 150)}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Proof — only real values */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: s(24) }}>
-        <div style={{ display: "flex", gap: s(10), flexWrap: "wrap", maxWidth: s(760) }}>
-          {stats.length === 0 ? (
-            <div style={{ fontSize: s(16), color: P.faint, letterSpacing: s(2) }}>
-              BUILDING IN PUBLIC
-            </div>
-          ) : stats.map((st) => (
-            <div
-              key={st.label}
-              style={{
-                display: "flex", flexDirection: "column", gap: s(4),
-                padding: `${s(12)} ${s(18)}`,
-                border: `1px solid ${P.hairline}`,
-                borderRadius: s(12),
-                background: "rgba(255,255,255,0.04)",
-                minWidth: s(112)
-              }}
-            >
-              <div style={{ fontSize: s(11), letterSpacing: s(2), color: P.faint }}>{st.label}</div>
-              <div style={{ fontSize: s(30), fontWeight: 800, color: P.cream }}>{st.value}</div>
-            </div>
-          ))}
         </div>
 
-        {siteUrl && !square ? (
-          <div style={{
-            display: "flex", alignItems: "center", gap: s(8),
-            padding: `${s(12)} ${s(20)}`,
-            background: P.gold, borderRadius: s(12),
-            color: "#0a1628", fontSize: s(16), fontWeight: 800
-          }}>
-            {String(siteUrl).replace(/^https?:\/\//, "").replace(/\/$/, "")}
+        {square ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: px(s(14)) }}>
+            <div style={{ display: "flex", gap: px(s(10)), flexWrap: "wrap" }}>
+              {stats.length === 0 ? (
+                <div style={{ fontSize: s(16), color: P.faint, letterSpacing: s(2) }}>
+                  BUILDING IN PUBLIC
+                </div>
+              ) : stats.map((st) => <StatCell key={st.label} st={st} fill={false} />)}
+            </div>
+            {LinkPill}
           </div>
-        ) : null}
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: px(s(24)) }}>
+            <div style={{ display: "flex", gap: px(s(10)), flexWrap: "wrap", maxWidth: s(760) }}>
+              {stats.length === 0 ? (
+                <div style={{ fontSize: s(16), color: P.faint, letterSpacing: s(2) }}>
+                  BUILDING IN PUBLIC
+                </div>
+              ) : stats.map((st) => <StatCell key={st.label} st={st} fill={false} />)}
+            </div>
+            {LinkPill}
+          </div>
+        )}
       </div>
     </div>
   );

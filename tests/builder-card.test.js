@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import satori from "satori";
+import { BuilderCard } from "@/lib/builderCard";
 import { loadPublicBuilderCard } from "@/app/u/[username]/cardData";
 import { scoreReputation } from "@/lib/reputation";
 
@@ -94,5 +98,126 @@ describe("public builder card", () => {
     const sql = makeSql();
     expect(await loadPublicBuilderCard("", sql)).toBeNull();
     expect(sql.__calls.length).toBe(0);
+  });
+});
+
+const FONT = readFileSync("node_modules/@vercel/og/dist/Geist-Regular.ttf");
+const CARD = {
+  name: "Ada Lovelace",
+  username: "ada",
+  domain: "web",
+  bio: "Countess of loops and analytical engines.",
+  score: 128,
+  achievements: 4,
+  ossVerified: 3,
+  eventsAttended: 2,
+  followers: 7,
+  siteUrl: "https://loom.example/u/ada"
+};
+
+function textOf(node) {
+  if (node == null || node === false || node === true) return "";
+  if (Array.isArray(node)) return node.map(textOf).join(" ");
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (typeof node !== "object") return "";
+  if (typeof node.type === "function") return textOf(node.type(node.props));
+  return textOf(node.props?.children);
+}
+
+function cardText(data) {
+  return textOf(createElement(BuilderCard, { data })).replace(/\s+/g, " ");
+}
+
+async function renderCard(data, width, height) {
+  return satori(createElement(BuilderCard, { data }), {
+    width,
+    height,
+    fonts: [{ name: "sans-serif", data: FONT, weight: 400, style: "normal" }]
+  });
+}
+
+describe("builder card content", () => {
+  it("shows only real populated stats and the public link", () => {
+    const text = cardText({ ...CARD, format: "feed" });
+    expect(text).toContain("Ada Lovelace");
+    expect(text).toContain("@ADA");
+    expect(text).toContain("loom.example/u/ada");
+    expect(text).toContain("REPUTATION");
+    expect(text).toContain("128");
+  });
+
+  it("shows the story layout's proof line and link", () => {
+    const text = cardText({ ...CARD, format: "story" });
+    expect(text).toContain("PROOF");
+    expect(text).toContain("loom.example/u/ada");
+  });
+
+  it("shows the square card's link instead of dropping it", () => {
+    const text = cardText({ ...CARD, format: "square" });
+    expect(text).toContain("loom.example/u/ada");
+  });
+
+  it("honest empty state for a new member with no stats", () => {
+    const text = cardText({
+      name: "New Member",
+      username: "a-very-long-public-handle",
+      domain: null,
+      bio: "",
+      score: 0,
+      achievements: 0,
+      ossVerified: 0,
+      eventsAttended: 0,
+      followers: 0,
+      siteUrl: "https://loom.example/u/a-very-long-public-handle",
+      format: "story"
+    });
+    expect(text).toContain("BUILDING IN PUBLIC");
+    expect(text).toContain("BUILDER");
+    expect(text).not.toContain("VERIFIED MERGES");
+    expect(text).not.toContain("FOLLOWERS");
+  });
+});
+
+describe("builder card Satori render", () => {
+  it("renders the feed card at OG size without throwing", async () => {
+    const svg = await renderCard({ ...CARD, format: "feed" }, 1200, 630);
+    expect(svg).toContain('width="1200"');
+    expect(svg).toContain('height="630"');
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("NaN");
+  });
+
+  it("renders the story card at Instagram size", async () => {
+    const svg = await renderCard({ ...CARD, format: "story" }, 1080, 1920);
+    expect(svg).toContain('width="1080"');
+    expect(svg).toContain('height="1920"');
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("NaN");
+  });
+
+  it("renders the square card at Instagram size", async () => {
+    const svg = await renderCard({ ...CARD, format: "square" }, 1080, 1080);
+    expect(svg).toContain('width="1080"');
+    expect(svg).toContain('height="1080"');
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("NaN");
+  });
+
+  it("renders a new member's empty state without throwing", async () => {
+    const svg = await renderCard({
+      name: "New Member",
+      username: "a-very-long-public-handle",
+      domain: null,
+      bio: "",
+      score: 0,
+      achievements: 0,
+      ossVerified: 0,
+      eventsAttended: 0,
+      followers: 0,
+      siteUrl: "https://loom.example/u/a-very-long-public-handle",
+      format: "story"
+    }, 1080, 1920);
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("NaN");
   });
 });
