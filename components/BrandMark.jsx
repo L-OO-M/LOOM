@@ -14,6 +14,7 @@ export function BrandMark({ size = 28, wordmark = true, href = "/", className = 
       <Image
         src="/logo.png"
         alt="L.O.O.M. logo"
+        priority
         width={size}
         height={size}
         className="shrink-0 rounded-full"
