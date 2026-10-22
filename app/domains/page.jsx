@@ -1,122 +1,19 @@
-import Link from "next/link";
-import { headers } from "next/headers";
-import { getSql, queryTenant } from "@/lib/db";
-import { listPublicDepartments } from "@/lib/departments";
-import { resolveTenantFromHost } from "@/lib/tenant";
-import { PublicNav } from "@/components/landing/PublicNav";
-import { PageHero } from "@/components/landing/PageHero";
-import { PublicFooter } from "@/components/landing/PublicFooter";
-import { JsonLd, collectionPageSchema, itemListSchema } from "@/components/seo/JsonLd";
-import { HeadPill } from "@/components/landing/HeadBylines";
-import { absoluteUrl, canonicalFor } from "@/lib/seo";
+import { canonicalFor } from "@/lib/seo";
+import DomainsContent from "./_components/DomainsContent";
 
-export const dynamic = "force-dynamic";
-
+export const dynamic = "force-static";
 export const metadata = {
-  title: "Domains",
-  // No hardcoded count. This said "Five technical tracks" while eight are
-  // active, which an answer engine reads as a direct contradiction against the
-  // ItemList schema below. The per-page copy derives the real count from the
-  // departments query; this one simply does not assert a number.
-  description: "Technical tracks with zero assumed knowledge — each department runs a real roadmap with seniors, workshops, and verifiable proof. Compare every track and pick one, or several.",
+  title: "Choose Your Domain",
+  description:
+    "From artificial intelligence to design, from writing code to organizing events — every domain at L.O.O.M. offers a different way to explore, create, and contribute.",
   ...canonicalFor("/domains"),
   openGraph: {
-    title: "Domains | L.O.O.M.",
-    description: "Every department is a door with the same handle: zero assumed knowledge, a real roadmap."
-  }
+    title: "Choose Your Domain · L.O.O.M.",
+    description:
+      "Explore technical and non-technical domains. Discover where your skills can grow.",
+  },
 };
 
-async function resolvePublicTenant() {
-  try {
-    const host = (await headers()).get("host") || "";
-    const t = await resolveTenantFromHost(host);
-    if (t) return t;
-  } catch { /* fall through to default tenant */ }
-  try {
-    return await queryTenant(process.env.DEV_TENANT_SLUG || "demo-college");
-  } catch {
-    return null;
-  }
-}
-
-export default async function DomainsPage() {
-  const tenant = await resolvePublicTenant();
-  const tid = tenant?.id ?? null;
-  const sql = getSql();
-  let departments = [];
-  try {
-    departments = await listPublicDepartments(sql, { tenantId: tid, withUpcoming: true });
-  } catch {
-    departments = [];
-  }
-
-  return (
-    <main className="w-full max-w-full overflow-x-hidden">
-      <JsonLd data={itemListSchema({
-        name: "L.O.O.M. departments",
-        items: departments.map((d) => ({ name: d.name, url: absoluteUrl(`/domains/${d.slug}`) }))
-      })} />
-      <JsonLd data={collectionPageSchema({
-        name: "L.O.O.M. departments",
-        path: "/domains",
-        description: "Active student departments and the roadmaps they maintain.",
-        items: departments.map((d) => ({ name: d.name, url: absoluteUrl(`/domains/${d.slug}`) }))
-      })} />
-      <PublicNav />
-      <div className="pt-16">
-        <PageHero
-          kicker={`${departments.length} tracks, one loop`}
-          title="Choose your domain."
-          lede="Every department is a door with the same handle: zero assumed knowledge, a real roadmap, seniors who remember the first step. Open one — or several."
-        />
-      </div>
-
-      <section className="mx-auto max-w-7xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Departments">
-        <p className="kicker">Thread 01 — The doors</p>
-        {departments.length > 0 ? (
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {departments.map((d, i) => (
-              <li key={d.slug}>
-                <Link prefetch={false} href={`/domains/${d.slug}`} className="spot-card group block h-full rounded-2xl border p-6 transition hover:-translate-y-1" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
-                    {String(i + 1).padStart(2, "0")} · {d.vertical === "non_technical" ? "Non-technical" : "Technical"}
-                  </p>
-                  <h2 className="font-display mt-2 text-2xl font-medium group-hover:underline" style={{ color: "var(--text)" }}>{d.name}</h2>
-                  {d.description && <p className="mt-2 line-clamp-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{d.description}</p>}
-                  <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                    <HeadPill role="Head" name={d.head_name} photo={d.head_avatar} />
-                  </p>
-                  <p className="mt-3 font-mono text-sm" style={{ color: "var(--text)" }}>
-                    {d.members} <span className="font-sans text-xs" style={{ color: "var(--text-muted)" }}>
-                      member{d.members === 1 ? "" : "s"}{d.upcoming > 0 ? ` · ${d.upcoming} upcoming` : ""}
-                    </span>
-                  </p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold transition group-hover:gap-2" style={{ color: "var(--accent)" }}>
-                    Open the door →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="mt-8 max-w-2xl rounded-2xl border p-6 sm:p-8" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <p className="text-base font-medium" style={{ color: "var(--text)" }}>No domains published yet.</p>
-            <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-              The chapter has not staffed its departments. Check back soon — the doors appear here the moment they open.
-            </p>
-          </div>
-        )}
-
-        <div className="mt-12 rounded-2xl border p-6 text-center sm:p-8" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
-          <p className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>Joining is instant — no approval, no interview.</p>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-            Pick one domain or all {departments.length}. Membership starts the moment you sign up.
-          </p>
-          <Link href="/register" prefetch={false} className="btn-ink mt-5">Create an account</Link>
-        </div>
-      </section>
-
-      <PublicFooter />
-    </main>
-  );
+export default function DomainsPage() {
+  return <DomainsContent />;
 }

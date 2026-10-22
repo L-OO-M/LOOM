@@ -1,0 +1,403 @@
+/* The prepared page's palette is scoped to About; shared site chrome is unchanged. */
+.loom-about {
+  --loom-ink: oklch(0.14885 0.00273 248.079);
+  --loom-charcoal: oklch(0.18946 0.00377 229.021);
+  --loom-slate: oklch(0.23172 0.00712 229.187);
+  --loom-gold: oklch(0.77838 0.11123 86.499);
+  --loom-gold-deep: oklch(0.54907 0.09963 87.381);
+  --loom-ivory: oklch(0.97403 0.01142 84.578);
+  --loom-paper: oklch(0.9942 0.00693 88.641);
+  --loom-sand: oklch(0.93494 0.02381 88.238);
+  --loom-text: oklch(0.96283 0.00285 128.493);
+  --loom-line: oklch(0.28535 0.00899 234.017);
+  --loom-muted: oklch(0.71881 0.00719 233.685);
+
+  --loom-champagne: oklch(0.88627 0.05466 87.242);
+  --loom-taupe: oklch(0.84399 0.03196 79.905);
+  --loom-bronze: oklch(0.45771 0.08294 87.449);
+  --loom-strap: oklch(0.45702 0.03959 79.835);
+  --loom-soft-line: oklch(0.84508 0.0281 83.531);
+  --loom-stone: oklch(0.53575 0.0122 106.804);
+
+  --radius: 0.625rem;
+  --background: var(--loom-ivory);
+  --foreground: var(--loom-ink);
+  --card: var(--loom-paper);
+  --card-foreground: var(--loom-ink);
+  --popover: var(--loom-paper);
+  --popover-foreground: var(--loom-ink);
+  --primary: var(--loom-bronze);
+  --primary-foreground: var(--loom-paper);
+  --secondary: var(--loom-sand);
+  --secondary-foreground: var(--loom-ink);
+  --muted: var(--loom-sand);
+  --muted-foreground: var(--loom-stone);
+  --accent: var(--loom-champagne);
+  --accent-foreground: var(--loom-ink);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: var(--loom-soft-line);
+  --input: var(--loom-soft-line);
+  --ring: var(--loom-bronze);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: var(--loom-charcoal);
+  --sidebar-foreground: var(--loom-text);
+  --sidebar-primary: var(--loom-gold);
+  --sidebar-primary-foreground: var(--loom-ink);
+  --sidebar-accent: var(--loom-slate);
+  --sidebar-accent-foreground: var(--loom-text);
+  --sidebar-border: var(--loom-line);
+  --sidebar-ring: var(--loom-gold);
+  --thread-vision: var(--loom-ivory);
+  --thread-champagne: var(--loom-champagne);
+  --thread-sand: var(--loom-sand);
+  --thread-paper: var(--loom-paper);
+  --thread-final: var(--loom-taupe);
+  --thread-card: var(--loom-paper);
+  --thread-strap: var(--loom-strap);
+  --thread-strap-ink: var(--loom-ivory);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  font-family: var(--font-sans);
+}
+
+/* Keep the prepared light palette; follow the site's active palette in dark mode. */
+[data-theme="dark"] .loom-about {
+  --loom-ink: var(--text);
+  --loom-bronze: var(--gold);
+  --loom-gold: var(--gold);
+  --loom-gold-deep: var(--gold);
+  --loom-soft-line: var(--line);
+  --loom-stone: var(--text-muted);
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-elevated);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  --primary: var(--gold);
+  --primary-foreground: var(--bg);
+  --secondary: var(--bg-muted);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--bg-muted);
+  --accent-foreground: var(--text);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--gold);
+  --thread-vision: var(--bg);
+  --thread-champagne: color-mix(in oklch, var(--bg-elevated) 85%, var(--gold));
+  --thread-sand: var(--bg-muted);
+  --thread-paper: var(--bg-elevated);
+  --thread-final: color-mix(in oklch, var(--bg) 92%, var(--gold));
+  --thread-card: var(--bg-elevated);
+  --thread-strap: var(--gold);
+  --thread-strap-ink: var(--bg);
+}
+
+.loom-about.flow-art {
+  width: 100%;
+  overflow-x: clip;
+}
+
+.loom-about .flow-section {
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.loom-about .flow-art-container {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  width: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: clamp(2rem, 5vw, 4.5rem);
+  transform-origin: bottom left;
+  --flow-grid-line: color-mix(in oklch, var(--loom-bronze) 9%, transparent);
+  background-image:
+    linear-gradient(to right, var(--flow-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--flow-grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.loom-about .flow-section--vision > .flow-art-container {
+  background-color: var(--thread-vision);
+  color: var(--loom-ink);
+}
+
+.loom-about .flow-section--difference > .flow-art-container {
+  background-color: var(--thread-champagne);
+  color: var(--loom-ink);
+}
+
+.loom-about .flow-section--ecosystem > .flow-art-container {
+  background-color: var(--thread-sand);
+  color: var(--loom-ink);
+}
+
+.loom-about .flow-section--future > .flow-art-container {
+  background-color: var(--thread-paper);
+  color: var(--loom-ink);
+}
+
+.loom-about .flow-section--join > .flow-art-container {
+  padding-top: 0;
+  background-color: var(--thread-final);
+  color: var(--loom-ink);
+}
+
+.loom-about .thread-kicker {
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.loom-about .thread-kicker::before {
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  background: currentColor;
+  content: "";
+  opacity: 0.6;
+}
+
+.loom-about .thread-heading {
+  max-width: 13ch;
+  font-family: var(--font-display);
+  font-size: 3.6rem;
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.loom-about .thread-copy {
+  max-width: 48rem;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.loom-about .thread-copy strong {
+  font-weight: 750;
+}
+
+.loom-about .loom-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.loom-about .loom-mark {
+  display: grid;
+  width: 2.1rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.7rem;
+}
+
+.loom-about .difference-grid,
+.loom-about .ecosystem-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid color-mix(in oklch, currentColor 28%, transparent);
+}
+
+.loom-about .difference-item,
+.loom-about .ecosystem-item {
+  min-width: 0;
+  padding: 1.5rem 1.25rem 1.5rem 0;
+  border-bottom: 1px solid color-mix(in oklch, currentColor 28%, transparent);
+}
+
+.loom-about .difference-item:nth-child(even),
+.loom-about .ecosystem-item:nth-child(even) {
+  padding-left: 1.25rem;
+  border-left: 1px solid color-mix(in oklch, currentColor 28%, transparent);
+}
+
+.loom-about .difference-item h3,
+.loom-about .ecosystem-item h3 {
+  margin-bottom: 0.65rem;
+  font-size: 1.2rem;
+  font-weight: 750;
+}
+
+.loom-about .difference-item p,
+.loom-about .ecosystem-item p {
+  max-width: 34rem;
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.loom-about .difference-item p + p {
+  margin-top: 0.5rem;
+}
+
+.loom-about .item-number {
+  font-family: var(--font-mono);
+  display: block;
+  margin-bottom: 0.9rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.68;
+}
+
+.loom-about .ecosystem-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.loom-about .ecosystem-item:nth-child(even) {
+  padding-left: 1rem;
+}
+
+.loom-about .ecosystem-item:not(:first-child) {
+  padding-left: 1rem;
+  border-left: 1px solid color-mix(in oklch, currentColor 28%, transparent);
+}
+
+.loom-about .future-note {
+  max-width: 56rem;
+  border-left: 3px solid var(--loom-gold-deep);
+  padding-left: 1.25rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
+.loom-about .join-layout {
+  display: grid;
+  min-height: 100svh;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.9fr);
+  align-items: center;
+  gap: 2rem;
+}
+
+.loom-about .join-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 38rem;
+  padding-block: 3rem;
+}
+
+.loom-about .join-copy .thread-heading {
+  max-width: 9ch;
+  color: var(--loom-bronze);
+}
+
+.loom-about .join-badge-wrap {
+  position: relative;
+  z-index: 3;
+  min-width: 0;
+  align-self: stretch;
+  pointer-events: none;
+}
+
+.loom-about .join-badge {
+  width: 100%;
+  overflow: visible;
+  --lanyard-strap-color: var(--thread-strap);
+  --lanyard-strap-ink: var(--thread-strap-ink);
+  --lanyard-card-color: var(--thread-card);
+  --lanyard-card-ink: var(--loom-ink);
+}
+
+.loom-about .join-badge [role="button"],
+.loom-about .join-badge button {
+  pointer-events: auto;
+}
+
+@media (min-width: 48rem) {
+  .loom-about .thread-heading {
+    font-size: 5.2rem;
+  }
+
+  .loom-about .thread-copy {
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  .loom-about .thread-heading {
+    font-size: 6.4rem;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .loom-about .flow-art-container {
+    padding: 2rem 1.25rem;
+  }
+
+  .loom-about .thread-heading {
+    font-size: 3.25rem;
+  }
+
+  .loom-about .difference-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .loom-about .difference-item:nth-child(even),
+  .loom-about .ecosystem-item:nth-child(even),
+  .loom-about .ecosystem-item:not(:first-child) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .loom-about .ecosystem-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loom-about .join-layout {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 0;
+  }
+
+  .loom-about .join-badge-wrap {
+    grid-row: 1;
+    min-height: 56svh;
+  }
+
+  .loom-about .join-copy {
+    grid-row: 2;
+    padding-block: 1rem 3rem;
+  }
+
+  .loom-about .join-copy .thread-heading {
+    font-size: 3.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loom-about *,
+  .loom-about *::before,
+  .loom-about *::after {
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { PublicNav } from "@/components/landing/PublicNav";
-import { PageHero } from "@/components/landing/PageHero";
-import { PublicFooter } from "@/components/landing/PublicFooter";
+import { PublicInformationPage } from "@/components/landing/PublicInformationPage";
 import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
@@ -33,7 +31,13 @@ const PLACEHOLDERS = {
 
 export default function TermsPage() {
   return (
-    <main className="w-full max-w-full overflow-x-hidden">
+    <PublicInformationPage
+      kicker="Terms"
+      title="Terms of use."
+      lede="The rules for accounts, acceptable conduct, submitted work, moderation, credentials, availability, and changes. These are draft terms pending chapter review."
+      published={PLACEHOLDERS.published}
+      sections={[{"id": "agreement", "title": "Agreement"}, {"id": "eligibility-and-accounts", "title": "Eligibility and accounts"}, {"id": "acceptable-use", "title": "Acceptable use"}, {"id": "submitted-work-and-moderation", "title": "Submitted work and moderation"}, {"id": "credentials-and-verification", "title": "Credentials and verification"}, {"id": "availability-changes-and-termination", "title": "Availability, changes, and termination"}, {"id": "governing-terms", "title": "Governing terms"}]}
+    >
       <JsonLd
         data={webPageSchema({
           name: "Terms",
@@ -41,19 +45,9 @@ export default function TermsPage() {
           description: "Account rules, acceptable use, submitted work, moderation, credentials, and service changes."
         })}
       />
-      <PublicNav />
-      <div className="pt-16">
-        <PageHero
-          kicker="Terms"
-          title="Terms of use."
-          lede="The rules for accounts, acceptable conduct, submitted work, moderation, credentials, availability, and changes. These are draft terms pending chapter review."
-        />
-      </div>
 
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Terms of use">
-        <p className="kicker">Published {PLACEHOLDERS.published} · chapter review pending</p>
-
-        <h2 className="font-display mt-8 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+      <section className="information-article" aria-label="Terms of use">
+        <h2 id="agreement" className="font-display mt-8 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Agreement
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -62,7 +56,7 @@ export default function TermsPage() {
           not legal advice.
         </p>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="eligibility-and-accounts" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Eligibility and accounts
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -72,7 +66,7 @@ export default function TermsPage() {
           <li>Roles are granted by chapter administrators and leads; they are not self-selected.</li>
         </ul>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="acceptable-use" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Acceptable use
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -82,7 +76,7 @@ export default function TermsPage() {
           <li>No submission of content the member does not have the right to share.</li>
         </ul>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="submitted-work-and-moderation" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Submitted work and moderation
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -92,7 +86,7 @@ export default function TermsPage() {
           community signals; chapter administrators make the final decision.
         </p>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="credentials-and-verification" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Credentials and verification
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -101,7 +95,7 @@ export default function TermsPage() {
           independently guarantee employment readiness, academic credit, or third-party acceptance.
         </p>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="availability-changes-and-termination" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Availability, changes, and termination
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -110,7 +104,7 @@ export default function TermsPage() {
           <li>Material changes will be published here with an updated publication date.</li>
         </ul>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="governing-terms" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Governing terms
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -130,7 +124,6 @@ export default function TermsPage() {
         </p>
       </section>
 
-      <PublicFooter />
-    </main>
+    </PublicInformationPage>
   );
 }

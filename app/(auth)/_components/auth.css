@@ -1,0 +1,40 @@
+/* Match the public site's orange palette; scope it to login and registration. */
+.loom-auth {
+  --bg: oklch(0.15 0.004 80);
+  --bg-elevated: oklch(0.19 0.005 80);
+  --bg-muted: oklch(0.24 0.006 80);
+  --text: oklch(0.93 0.012 85);
+  --text-muted: oklch(0.65 0.01 85);
+  --line: oklch(1 0 0 / 10%);
+  --accent: var(--story-accent, oklch(0.7 0.17 50));
+  --accent-foreground: oklch(0.15 0.004 80);
+  --wash: color-mix(in oklch, var(--accent) 7%, transparent);
+  --accent-glow: color-mix(in oklch, var(--accent) 12%, transparent);
+  color-scheme: dark;
+  color: var(--text);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+[data-theme="light"] .loom-auth {
+  --bg: oklch(0.965 0.012 85);
+  --bg-elevated: oklch(0.985 0.01 85);
+  --bg-muted: oklch(0.925 0.015 85);
+  --text: oklch(0.24 0.015 65);
+  --text-muted: oklch(0.46 0.016 65);
+  --line: oklch(0.25 0.015 65 / 14%);
+  --accent: var(--story-accent, oklch(0.55 0.16 45));
+  --accent-foreground: oklch(0.99 0.005 85);
+  color-scheme: light;
+}
+.loom-auth .font-display {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+.loom-auth .btn-ink {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.loom-auth input:focus-visible,
+.loom-auth select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.loom-auth input::placeholder { color: var(--text-muted); }

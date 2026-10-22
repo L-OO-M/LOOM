@@ -51,19 +51,19 @@ test.describe("L.O.O.M. public site", () => {
   test("faq page loads with heading", async ({ page }) => {
     const res = await open(page, "/faq");
     expect(res?.status()).toBe(200);
-    await expect(page.locator("h1")).toContainText("Frequently asked questions");
+    await expect(page.locator("h1")).toContainText("Questions, answered honestly");
   });
 
   test("about page loads with heading", async ({ page }) => {
     const res = await open(page, "/about");
     expect(res?.status()).toBe(200);
-    await expect(page.locator("h1")).toContainText("About L.O.O.M.");
+    await expect(page.locator("h1")).toContainText("More than a society. A culture of building.");
   });
 
   test("events page loads with heading", async ({ page }) => {
     const res = await open(page, "/events");
     expect(res?.status()).toBe(200);
-await expect(page.locator("h1")).toContainText("Events we actually run");
+    await expect(page.locator("h1")).toContainText(/LOOM\s*EVENTS/);
     // The registration process must be stated on the page itself, not just
     // behind a login — this is the page a prospective member judges us by.
     await expect(page.getByText("How to get into an event")).toBeVisible();

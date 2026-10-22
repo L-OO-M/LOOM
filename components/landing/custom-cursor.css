@@ -1,0 +1,42 @@
+/* A tapered trail in the site's orange and warm neutral palette. */
+.loom-cursor { display: none; }
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html[data-custom-cursor="active"],
+  html[data-custom-cursor="active"] * { cursor: none !important; }
+
+  .loom-cursor {
+    --cursor-scale: 1;
+    --cursor-head: var(--accent);
+    --cursor-tail: color-mix(in oklch, var(--cursor-head) 65%, var(--text));
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 150ms ease, visibility 150ms ease;
+  }
+  html:has(.story-home) .loom-cursor { --cursor-head: var(--story-accent); }
+  .loom-cursor[data-visible="1"] { opacity: 1; visibility: visible; }
+  .loom-cursor__segment {
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+  }
+  .loom-cursor__segment::before {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: color-mix(in oklch, var(--cursor-head) var(--cursor-tone), var(--cursor-tail));
+    transform: translate(-50%, -50%) scale(calc(var(--cursor-step) * var(--cursor-scale)));
+    transition: transform 150ms ease;
+  }
+  .loom-cursor[data-mode="link"] { --cursor-scale: 1.2; }
+  .loom-cursor[data-mode="drag"] { --cursor-scale: 1.08; }
+  .loom-cursor[data-pressed="1"] { --cursor-scale: 0.85; }
+}

@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import { ThemeProvider } from "@/lib/theme";
 import "./globals.css";
+import { PublicNav } from "@/components/landing/PublicNav";
+import CustomCursor from "@/components/landing/CustomCursor";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -73,7 +75,11 @@ export default function RootLayout({ children }) {
       <body>
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 z-[100] rounded bg-[var(--bg-elevated)] px-3 py-2 text-sm">Skip to content</a>
         <div aria-hidden="true" className="site-shader" />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <PublicNav />
+          <CustomCursor />
+          <div className="site-content">{children}</div>
+        </ThemeProvider>
       </body>
     </html>
   );

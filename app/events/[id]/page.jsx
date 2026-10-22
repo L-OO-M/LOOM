@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { canonicalFor, absoluteUrl } from "@/lib/seo";
-import { PublicNav } from "@/components/landing/PublicNav";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
 import { JoinSteps, TypePill, seatsLeft, whenLabel } from "../_components/EventBits";
@@ -157,7 +156,6 @@ export default async function EventDetailPage({ params }) {
           { name: event.title, url: absoluteUrl(`/events/${event.id}`) }
         ])}
       />
-      <PublicNav />
 
       <section className="relative">
         <EventBanner event={event} ratio="21 / 9" />

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PublicFooter } from "@/components/landing/PublicFooter";
-import { PublicNav } from "@/components/landing/PublicNav";
 import { PageHero } from "@/components/landing/PageHero";
 
 export const metadata = {
@@ -35,7 +34,6 @@ export default async function VerifyEmailPage({ searchParams }) {
 
   return (
     <main className="w-full max-w-full overflow-x-hidden">
-      <PublicNav />
       <div className="pt-16">
         <PageHero
           kicker="Account"

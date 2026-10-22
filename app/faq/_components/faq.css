@@ -1,0 +1,57 @@
+/* FAQ-only styles. No Tailwind bundle, resets, font registrations or shared theme overrides. */
+.loom-faq-exact {
+  --faq-bg: oklch(0.15 0.004 80);
+  --faq-ink: oklch(0.93 0.012 85);
+  --faq-card: oklch(0.19 0.005 80);
+  --faq-accent: oklch(0.7 0.17 50);
+  --faq-on-accent: oklch(0.15 0.004 80);
+  --faq-muted: oklch(0.65 0.01 85);
+  --faq-line: oklch(1 0 0 / 10%);
+  --faq-grid: oklch(1 0 0 / 4.5%);
+  color-scheme: dark;
+  color: var(--faq-ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+[data-theme="light"] .loom-faq-exact {
+  --faq-bg: oklch(0.965 0.012 85);
+  --faq-ink: oklch(0.24 0.015 65);
+  --faq-card: oklch(0.985 0.01 85);
+  --faq-accent: oklch(0.55 0.16 45);
+  --faq-on-accent: oklch(0.99 0.005 85);
+  --faq-muted: oklch(0.46 0.016 65);
+  --faq-line: oklch(0.25 0.015 65 / 14%);
+  --faq-grid: oklch(0.25 0.018 55 / 5%);
+  color-scheme: light;
+}
+.loom-faq-exact .faq-page-bg {
+  min-height: 100vh;
+  background-color: var(--faq-bg);
+  background-image: linear-gradient(to right, var(--faq-grid) 1px, transparent 1px), linear-gradient(to bottom, var(--faq-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.loom-faq-exact .faq-layout { position: relative; display: flex; flex-direction: column; align-items: center; gap: 48px; width: 100%; max-width: 1152px; margin-inline: auto; padding: 64px 16px; }
+.loom-faq-exact .faq-header { position: relative; z-index: 10; display: flex; max-width: 672px; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
+.loom-faq-exact .faq-header p, .loom-faq-exact .faq-header h1, .loom-faq-exact .faq-card h3, .loom-faq-exact .faq-card p { margin: 0; }
+.loom-faq-exact .faq-eyebrow, .loom-faq-exact .faq-number { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--faq-accent); }
+.loom-faq-exact .faq-eyebrow { text-transform: uppercase; letter-spacing: .35em; }
+.loom-faq-exact .faq-number { letter-spacing: .3em; }
+.loom-faq-exact .faq-title { font-family: inherit; font-size: 36px; font-weight: 600; line-height: 1.25; letter-spacing: -.025em; opacity: 0; animation: loom-faq-fade 0.7s ease-out 0.2s forwards; }
+.loom-faq-exact .faq-subtitle { font-size: 18px; line-height: 28px; color: var(--faq-muted); opacity: 0; animation: loom-faq-fade 0.7s ease-out 0.4s forwards; }
+.loom-faq-exact .faq-rows { position: relative; z-index: 10; display: flex; width: 100%; flex-direction: column; gap: 32px; }
+.loom-faq-exact .scroller-mask { position: relative; width: 100%; overflow: hidden; mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent); }
+.loom-faq-exact .faq-track { display: flex; animation: loom-faq-scroll var(--faq-duration, 40s) linear infinite; }
+.loom-faq-exact .faq-track[data-direction="right"] { animation-name: loom-faq-scroll-reverse; }
+.loom-faq-exact .faq-group { display: flex; flex-shrink: 0; align-items: stretch; gap: 24px; padding-inline: 12px; }
+.loom-faq-exact .faq-card { display: flex; width: 384px; flex-shrink: 0; flex-direction: column; align-items: flex-start; gap: 16px; padding: 24px; border: 1px solid var(--faq-line); border-radius: 16px; background-color: var(--faq-card); background-image: linear-gradient(to right, var(--faq-grid) 1px, transparent 1px), linear-gradient(to bottom, var(--faq-grid) 1px, transparent 1px); background-size: 32px 32px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 5%), 0 4px 6px -4px rgb(0 0 0 / 5%); }
+.loom-faq-exact .faq-card h3 { font-family: inherit; font-size: 20px; font-weight: 600; line-height: 1.375; letter-spacing: -.025em; color: var(--faq-ink); }
+.loom-faq-exact .faq-card p { font-size: 16px; line-height: 1.625; color: var(--faq-muted); }
+.loom-faq-exact .faq-account { display: inline-flex; align-items: center; justify-content: center; margin-top: 8px; border-radius: 9999px; background: var(--faq-accent); color: var(--faq-on-accent); padding: 10px 20px; font-size: 14px; font-weight: 600; line-height: 20px; text-decoration: none; transition: background-color .15s; }
+.loom-faq-exact .faq-account:hover { background: color-mix(in oklab, var(--faq-accent) 90%, transparent); }
+.loom-faq-exact .scroller-mask:hover .faq-track, .loom-faq-exact .scroller-mask:focus-within .faq-track { animation-play-state: paused; }
+@keyframes loom-faq-fade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes loom-faq-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes loom-faq-scroll-reverse { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+@media (min-width: 640px) { .loom-faq-exact .faq-layout { padding-block: 96px; } .loom-faq-exact .faq-title { font-size: 48px; } }
+@media (prefers-reduced-motion: reduce) { .loom-faq-exact .faq-track { animation: none; } .loom-faq-exact .faq-title, .loom-faq-exact .faq-subtitle { opacity: 1; animation: none; } }
