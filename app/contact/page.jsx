@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { PublicNav } from "@/components/landing/PublicNav";
-import { PageHero } from "@/components/landing/PageHero";
-import { PublicFooter } from "@/components/landing/PublicFooter";
+import { PublicInformationPage } from "@/components/landing/PublicInformationPage";
 import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 
@@ -32,7 +30,13 @@ const PLACEHOLDERS = {
 
 export default function ContactPage() {
   return (
-    <main className="w-full max-w-full overflow-x-hidden">
+    <PublicInformationPage
+      kicker="Contact"
+      title="Contact the chapter."
+      lede="Use the responsible chapter contact for accounts, privacy requests, credential questions, safety reports, and legal notices. Public contact details are pending publication."
+      published={PLACEHOLDERS.published}
+      sections={[{"id": "responsible-contact", "title": "Responsible contact"}, {"id": "what-to-include", "title": "What to include"}, {"id": "urgent-safety-matters", "title": "Urgent safety matters"}]}
+    >
       <JsonLd
         data={webPageSchema({
           name: "Contact",
@@ -40,19 +44,9 @@ export default function ContactPage() {
           description: "Contact the responsible L.O.O.M. chapter about accounts, privacy, credentials, or safety."
         })}
       />
-      <PublicNav />
-      <div className="pt-16">
-        <PageHero
-          kicker="Contact"
-          title="Contact the chapter."
-          lede="Use the responsible chapter contact for accounts, privacy requests, credential questions, safety reports, and legal notices. Public contact details are pending publication."
-        />
-      </div>
 
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20" aria-label="Contact">
-        <p className="kicker">Published {PLACEHOLDERS.published} · chapter review pending</p>
-
-        <h2 className="font-display mt-8 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+      <section className="information-article" aria-label="Contact">
+        <h2 id="responsible-contact" className="font-display mt-8 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Responsible contact
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -64,7 +58,7 @@ export default function ContactPage() {
           published community and notification channels.
         </p>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="what-to-include" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           What to include
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -74,7 +68,7 @@ export default function ContactPage() {
           <li>A reply address the chapter is permitted to use.</li>
         </ul>
 
-        <h2 className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+        <h2 id="urgent-safety-matters" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Urgent safety matters
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
@@ -98,7 +92,6 @@ export default function ContactPage() {
         </p>
       </section>
 
-      <PublicFooter />
-    </main>
+    </PublicInformationPage>
   );
 }

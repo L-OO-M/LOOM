@@ -102,7 +102,19 @@ describe("public loading boundaries do not claim the page h1", () => {
   it("renders the loading heading below h1", () => {
     for (const dir of publicDirs) {
       const loading = readFileSync(`${dir}/loading.jsx`, "utf8");
-      expect(loading, `${dir}/loading.jsx must pass headingLevel="h2"`).toContain('headingLevel="h2"');
+      expect(loading, `${dir}/loading.jsx must not claim the page heading`).not.toMatch(/<h1\b/);
+      if (/<(?:PageHero|FaqSection)\b/.test(loading)) {
+        expect(loading, `${dir}/loading.jsx must lower its rendered heading`).toContain('headingLevel="h2"');
+      }
+    }
+  });
+
+  it("keeps route loading free of retired heroes and duplicate catalogues", () => {
+    for (const dir of ["app/domains", "app/events"]) {
+      const loading = readFileSync(`${dir}/loading.jsx`, "utf8");
+      expect(loading).not.toMatch(/PageHero|DomainsContent|EventsCalendar/);
+      expect(loading).toContain('aria-busy="true"');
+      expect(loading).toContain('role="status"');
     }
   });
 

@@ -1,5 +1,6 @@
 import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
+import "./auth.css";
 
 /**
  * Shared frame for /login and /register.
@@ -14,7 +15,7 @@ import Link from "next/link";
  */
 export function AuthShell({ children }) {
   return (
-    <main id="main" className="min-h-[100dvh] lg:grid lg:grid-cols-[1.02fr_1fr]" style={{ background: "var(--bg)" }}>
+    <main id="main" className="loom-auth min-h-[100dvh] lg:grid lg:grid-cols-[1.02fr_1fr]" style={{ background: "var(--bg)" }}>
       <aside
         className="relative hidden flex-col justify-between overflow-hidden border-r p-10 lg:flex xl:p-14"
         style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}

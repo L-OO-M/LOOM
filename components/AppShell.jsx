@@ -76,10 +76,10 @@ export function AppShell({ area = "student", tenant, user, children }) {
   return (
     <TabContext.Provider value={ctx}>
       <div className="min-h-[100dvh]" style={{ background: "var(--bg)" }}>
-        <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-3 sm:px-6">
+        <header className="fixed inset-x-0 top-16 z-50 flex justify-center px-3 pt-3 sm:px-6">
           <nav
             className="floatbar flex max-w-full items-center gap-1 rounded-full py-1.5 pl-3 pr-1.5"
-            aria-label="Primary"
+            aria-label="Workspace"
           >
             <BrandMark size={24} href={area === "admin" ? "/admin" : area === "lead" ? "/lead" : "/student"} className="mr-1" />
             {/* No scroll container here: overflow-x would clip the dropdown
@@ -201,7 +201,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
         <div className="pt-20 pb-24 md:pb-10"><div className="shell">{children}</div></div>
 
         {area === "student" && (
-          <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Primary mobile">
+          <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Workspace mobile">
             <div className="floatbar grid grid-cols-6 rounded-3xl px-1 py-1.5">
               {mobileNav.map((item) => {
                 // The "You" slot renders the real profile control (avatar + menu)

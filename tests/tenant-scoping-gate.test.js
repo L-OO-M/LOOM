@@ -217,7 +217,7 @@ describe("auth endpoints are rate limited server-side", () => {
 
 describe("public legal pages are statically cached", () => {
   it("caches the zero-database legal pages", () => {
-    for (const p of ["app/privacy/page.jsx", "app/terms/page.jsx", "app/contact/page.jsx"]) {
+    for (const p of ["app/privacy/page.jsx", "app/terms/page.jsx", "app/contact/page.jsx", "app/about/page.jsx", "app/domains/page.jsx", "app/faq/page.jsx"]) {
       const src = readFileSync(p, "utf8");
       expect(src, p).toContain('dynamic = "force-static"');
       expect(src).not.toContain("force-dynamic");
@@ -227,10 +227,7 @@ describe("public legal pages are statically cached", () => {
   it("keeps host-resolved tenant pages dynamic", () => {
     // These pick their chapter from the Host header. A shared cache keyed by
     // path would serve one chapter's content to every other chapter.
-    for (const p of [
-      "app/events/page.jsx", "app/domains/page.jsx",
-      "app/faq/page.jsx", "app/about/page.jsx"
-    ]) {
+    for (const p of ["app/events/page.jsx"]) {
       expect(readFileSync(p, "utf8"), p).toMatch(/resolveTenantFromHost|resolveRequestTenant/);
     }
   });

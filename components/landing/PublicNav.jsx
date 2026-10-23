@@ -1,79 +1,129 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { useTheme } from "@/lib/theme";
+import { useWorkspaceLink } from "@/lib/use-workspace-link";
+import { publicNav } from "@/lib/nav";
+import "./public-nav.css";
 
-const LINKS = [
-  ["Home", "/"],
-  ["About", "/about"],
-  ["Events", "/events"],
-  ["FAQ", "/faq"],
-  ["Domains", "/domains"]
-];
-
-/* Slim sibling of the landing header: same floatbar language, route links
-   into the public pages, theme toggle, and auth actions. */
 export function PublicNav() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const button = useRef(null);
+  const pathname = usePathname();
+  const workspace = useWorkspaceLink();
+  const currentWorkspace = ["student", "lead", "admin"].find(
+    (area) => pathname === `/${area}` || pathname?.startsWith(`/${area}/`),
+  );
+  const dashboard = currentWorkspace ? `/${currentWorkspace}` : workspace;
   const { theme, toggle, mounted } = useTheme();
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    function close(event) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        button.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [menuOpen]);
+  const links = publicNav.map(([label, href]) => (
+    <Link
+      key={href}
+      href={href}
+      prefetch={false}
+      aria-current={
+        href === pathname ||
+        (href !== "/" &&
+          !href.includes("#") &&
+          pathname?.startsWith(`${href}/`))
+          ? "page"
+          : undefined
+      }
+      onClick={() => setMenuOpen(false)}
+    >
+      {label}
+    </Link>
+  ));
   return (
-    <header className="fixed top-0 z-50 h-16 w-full border-b backdrop-blur-md" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
-        {/* BrandMark already renders its own <Link href="/"> with the
-            44px tap target. Wrapping it in another Link produced nested
-            anchors, which the browser flattened into a zero-width element. */}
+    <header className="site-nav" data-site-nav>
+      <div className="site-nav-inner">
         <BrandMark size={30} />
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
-          {LINKS.map(([label, href]) => (
-            <Link key={label} href={href} prefetch={false} className="link-slide text-sm font-medium transition hover:opacity-100" style={{ color: "var(--text-muted)" }}>
-              {label}
-            </Link>
-          ))}
+        <nav className="site-nav-links" aria-label="Primary">
+          {links}
         </nav>
-        <div className="hidden items-center gap-2 lg:flex">
+        <div className="site-nav-actions">
           <button
+            type="button"
             onClick={toggle}
-            className="grid size-11 place-items-center rounded-full transition hover:opacity-80 active:scale-95"
-            style={{ color: "var(--text-muted)" }}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="site-nav-icon"
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
-            {mounted && theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            {mounted && theme === "dark" ? (
+              <Sun size={18} />
+            ) : (
+              <Moon size={18} />
+            )}
           </button>
-          <Link href="/login" prefetch={false} className="rounded-[10px] px-4 py-2 text-sm font-semibold transition hover:opacity-80" style={{ color: "var(--text)" }}>
-            Sign in
+          <Link
+            href={dashboard || "/login"}
+            prefetch={false}
+            className="site-nav-signin"
+          >
+            {dashboard ? "Dashboard" : "Sign in"}
           </Link>
-          <Link href="/register" prefetch={false} className="btn-ink !py-2">Get started</Link>
-        </div>
-        <div className="flex items-center gap-1 lg:hidden">
-          <button onClick={toggle} className="grid size-11 place-items-center rounded-lg" style={{ color: "var(--text)" }} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
-            {mounted && theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          <Link
+            href={dashboard || "/register"}
+            prefetch={false}
+            className="site-nav-cta"
+          >
+            {dashboard ? "Open workspace" : "Get started"}
+          </Link>
           <button
-            className="grid size-11 place-items-center rounded-lg"
-            style={{ color: "var(--text)" }}
+            ref={button}
+            type="button"
+            className="site-nav-icon site-nav-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
+            aria-controls="site-mobile-nav"
+            onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
       {menuOpen && (
-        <nav className="border-t px-5 py-4 lg:hidden" style={{ borderColor: "var(--line)", background: "var(--nav-bg)" }} aria-label="Mobile">
-          <div className="flex flex-col">
-            {LINKS.map(([label, href]) => (
-              <Link key={label} href={href} prefetch={false} onClick={() => setMenuOpen(false)} className="py-3 text-sm font-medium" style={{ color: "var(--text)" }}>
-                {label}
-              </Link>
-            ))}
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Link href="/login" prefetch={false} className="btn-ghost justify-center">Sign in</Link>
-            <Link href="/register" prefetch={false} className="btn-ink justify-center">Get started</Link>
+        <nav
+          id="site-mobile-nav"
+          className="site-nav-mobile"
+          aria-label="Mobile"
+        >
+          {links}
+          <div className="site-nav-mobile-actions">
+            <Link
+              href={dashboard || "/login"}
+              prefetch={false}
+              onClick={() => setMenuOpen(false)}
+            >
+              {dashboard ? "Dashboard" : "Sign in"}
+            </Link>
+            <Link
+              href={dashboard || "/register"}
+              prefetch={false}
+              className="site-nav-cta"
+              onClick={() => setMenuOpen(false)}
+            >
+              {dashboard ? "Open workspace" : "Get started"}
+            </Link>
           </div>
         </nav>
       )}

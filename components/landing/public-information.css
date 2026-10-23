@@ -1,0 +1,59 @@
+/* A quiet reading layout for Privacy, Terms, and Contact. */
+.loom-information {
+  --bg: oklch(0.15 0.004 80);
+  --bg-elevated: oklch(0.19 0.005 80);
+  --text: oklch(0.93 0.012 85);
+  --text-muted: oklch(0.65 0.01 85);
+  --line: oklch(1 0 0 / 10%);
+  --accent: var(--story-accent, oklch(0.7 0.17 50));
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+[data-theme="light"] .loom-information {
+  --bg: oklch(0.965 0.012 85);
+  --bg-elevated: oklch(0.985 0.01 85);
+  --text: oklch(0.24 0.015 65);
+  --text-muted: oklch(0.46 0.016 65);
+  --line: oklch(0.25 0.015 65 / 14%);
+  --accent: var(--story-accent, oklch(0.55 0.16 45));
+}
+.loom-information .information-wrap { width: min(1120px, calc(100% - 80px)); margin-inline: auto; }
+.loom-information .information-hero { padding-block: 80px 56px; border-bottom: 1px solid var(--line); }
+.loom-information .information-eyebrow { font-family: var(--font-geist-mono), monospace; font-size: 11px; line-height: 1.6; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.loom-information h1 { max-width: 800px; margin-top: 20px; font-family: inherit; font-size: clamp(40px, 5vw, 64px); font-weight: 500; line-height: 1.08; letter-spacing: -.05em; }
+.loom-information .information-intro { max-width: 760px; margin-top: 24px; color: var(--text-muted); font-size: 17px; line-height: 1.85; }
+.loom-information .information-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 80px; align-items: start; padding-block: 56px 96px; }
+.loom-information .information-sidebar { position: sticky; top: 96px; }
+.loom-information .information-published { padding-left: 14px; border-left: 2px solid var(--accent); max-width: 220px; color: var(--text-muted); font-size: 12px; line-height: 1.8; }
+.loom-information .information-sidebar nav { margin-top: 28px; }
+.loom-information .information-sidebar ol { list-style: none; margin: 0; padding: 0; }
+.loom-information .information-sidebar a { display: block; padding-block: 10px; color: var(--text-muted); font-size: 13px; line-height: 1.6; text-decoration: none; }
+.loom-information .information-sidebar a:hover { color: var(--accent); }
+.loom-information .information-copy { min-width: 0; max-width: 760px; }
+.loom-information .information-article h2 { margin: 36px 0 0; padding-top: 28px; border-top: 1px solid var(--line); font-family: inherit; font-size: 24px; font-weight: 600; line-height: 1.35; letter-spacing: -.03em; scroll-margin-top: 96px; }
+.loom-information .information-article h2:first-child { margin-top: 0; padding-top: 0; border: 0; }
+.loom-information .information-article p,
+.loom-information .information-article ul { margin-top: 14px; font-size: 15px; line-height: 1.9; }
+.loom-information .information-article li { padding-left: 4px; }
+.loom-information .information-article li::marker { color: var(--accent); }
+.loom-information .information-article > p:last-child { margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 14px; }
+.loom-information .information-article a { text-underline-offset: 4px; }
+.loom-information a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@media (max-width: 900px) {
+  .loom-information .information-wrap { width: calc(100% - 48px); }
+  .loom-information .information-layout { grid-template-columns: 1fr; gap: 32px; padding-block: 32px 64px; }
+  .loom-information .information-sidebar { position: static; }
+  .loom-information .information-published { max-width: none; }
+  .loom-information .information-sidebar nav { display: none; }
+  .loom-information .information-copy { max-width: none; }
+}
+@media (max-width: 600px) {
+  .loom-information .information-hero { padding-block: 48px 32px; }
+  .loom-information h1 { font-size: 40px; }
+  .loom-information .information-intro { font-size: 15px; line-height: 1.8; margin-top: 20px; }
+  .loom-information .information-article h2 { font-size: 21px; }
+  .loom-information .information-article p,
+  .loom-information .information-article ul { font-size: 14px; }
+}
