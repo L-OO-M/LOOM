@@ -68,11 +68,12 @@
 .loom-events .events-section-heading p { max-width: 576px; margin-top: 16px; font-size: 16px; font-weight: 500; color: var(--events-muted); }
 .loom-events .events-filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
 .loom-events .events-filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.loom-events .events-filter { display: inline-flex; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--events-line); color: var(--events-muted); font-size: 12px; font-weight: 600; }
+.loom-events .events-filter { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--events-line); color: var(--events-muted); font-size: 12px; font-weight: 600; }
 .loom-events .events-filter:hover { background: var(--events-soft); color: var(--events-ink); }
 .loom-events .events-filter.is-active { background: var(--events-accent); border-color: var(--events-accent); color: var(--events-paper); }
 .loom-events .events-calendar-count { margin-left: auto; color: var(--events-muted); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .loom-events .events-domain-filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 20px; color: var(--events-muted); font-size: 12px; }
+.loom-events .events-domain-filters a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .loom-events .events-domain-filters a[aria-current] { color: var(--events-accent); text-decoration: underline; }
 .loom-events .events-card-grid { margin-top: 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
 .loom-events .events-card { border-radius: 16px; padding: 32px; overflow: hidden; min-height: 360px; border: 1px solid var(--events-line); background: linear-gradient(135deg, color-mix(in srgb, var(--card-tone) 8%, var(--bg-elevated)), color-mix(in srgb, var(--card-tone) 16%, var(--bg))); transition: transform .3s, box-shadow .3s; }
@@ -91,7 +92,7 @@
 .loom-events .events-card-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; margin-top: 20px; font-size: 12px; max-width: 85%; }
 .loom-events .events-card-facts dt { font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--events-muted); }
 .loom-events .events-card-facts dd { font-weight: 600; overflow-wrap: anywhere; }
-.loom-events .events-card-cta { display: inline-flex; align-items: center; gap: 8px; margin-top: 24px; font-size: 14px; font-weight: 600; }
+.loom-events .events-card-cta { display: inline-flex; align-items: center; min-height: 44px; gap: 8px; margin-top: 24px; font-size: 14px; font-weight: 600; }
 .loom-events .events-empty { margin-top: 40px; padding: 64px 32px; border: 2px dashed var(--events-line); border-radius: 32px; text-align: center; }
 .loom-events .events-empty > svg { margin: 0 auto 16px; color: var(--events-accent); }
 .loom-events .events-empty h3 { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 500; letter-spacing: -.025em; }
@@ -107,7 +108,7 @@
 .loom-events .events-steps p { margin-top: 8px; font-size: 14px; font-weight: 500; color: var(--events-muted); }
 .loom-events .events-closing { --surface-grid-line: var(--events-grid); display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 48px; padding: 32px; border: 1px solid var(--events-line); background: var(--bg-elevated); color: var(--events-ink); border-radius: 32px; }
 .loom-events .events-closing p { font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 500; letter-spacing: -.025em; line-height: 1.25; }
-.loom-events .events-closing a { padding: 10px 24px; border-radius: 999px; border: 1px solid currentColor; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.loom-events .events-closing a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 24px; border-radius: 999px; border: 1px solid currentColor; font-size: 14px; font-weight: 600; white-space: nowrap; }
 .loom-events .events-closing a:hover { color: var(--events-accent); background: var(--events-paper); }
 @keyframes events-float { 50% { translate: 0 -15px; } }
 @keyframes events-spin { to { transform: rotate(360deg); } }

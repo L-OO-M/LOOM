@@ -33,7 +33,9 @@ export default function FlowArt({
     if (!container) return;
     // Revert pins and transforms immediately when motion preferences change.
     const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
+    media.add(
+      "(prefers-reduced-motion: no-preference) and (min-width: 768px)",
+      () => {
       const sections = Array.from(
         container.querySelectorAll("[data-flow-section]"),
       );

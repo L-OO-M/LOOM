@@ -148,6 +148,12 @@
 [data-theme="dark"] .loom-domains .loom-domain-card .opacity-25 {
   opacity: 0.3;
 }
+@media (max-width: 639px) {
+  .loom-domains .domain-ticker { display: block; overflow: visible; white-space: normal; }
+  .loom-domains .domain-ticker > div { display: block; transform: none !important; }
+  .loom-domains .domain-ticker > div > span { display: block; white-space: normal; }
+  .loom-domains .domain-ticker > div > span:nth-child(n + 2) { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .loom-domains *,
   .loom-domains *::before,

@@ -148,16 +148,21 @@ function makeStrap(length, width, dpr, opts) {
   ctx.stroke();
   return c;
 }
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = React.useState(false);
+function useMediaQuery(query) {
+  const [matches, setMatches] = React.useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia(query).matches
+  );
   React.useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const h = (e) => setReduced(e.matches);
+    const mq = window.matchMedia(query);
+    setMatches(mq.matches);
+    const h = (e) => setMatches(e.matches);
     mq.addEventListener("change", h);
     return () => mq.removeEventListener("change", h);
-  }, []);
-  return reduced;
+  }, [query]);
+  return matches;
+}
+function usePrefersReducedMotion() {
+  return useMediaQuery("(prefers-reduced-motion: reduce)");
 }
 function Ornament({ className = "", style }) {
   const ring = Array.from({ length: 16 }, (_, i) => i * 22.5);
@@ -243,7 +248,11 @@ export default function LanyardBadge({
   const canvasRef = React.useRef(null);
   const cardRef = React.useRef(null);
   const innerRef = React.useRef(null);
-  const reduced = usePrefersReducedMotion();
+  const reducedMotion = usePrefersReducedMotion();
+  const narrow = useMediaQuery("(max-width: 47.99rem)");
+  const reduced = reducedMotion || narrow;
+  const narrowRef = React.useRef(narrow);
+  narrowRef.current = narrow;
   const flipRef = React.useRef(() => {});
   // which face is turned toward the viewer; the effect owns the physics, this
   // mirrors it for the button label and survives the effect rebuilding
@@ -463,7 +472,11 @@ export default function LanyardBadge({
     const place = () => {
       const T = pts[iT];
       const C = pts[iC];
-      const swing = swingAngle(T, C);
+      if (narrowRef.current) {
+        T.x = W / 2;
+        T.px = W / 2;
+      }
+      const swing = narrowRef.current ? 0 : swingAngle(T, C);
       card.style.transform =
         "translate3d(" +
         (T.x - cw / 2).toFixed(2) +
@@ -650,7 +663,7 @@ export default function LanyardBadge({
       }}
     >
       <Ornament
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
           width: 300 * s,
           right: -130 * s,
@@ -659,7 +672,7 @@ export default function LanyardBadge({
         }}
       />
       <Ornament
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
           width: 210 * s,
           left: -40 * s,
@@ -669,7 +682,7 @@ export default function LanyardBadge({
         }}
       />
       <Arrow
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
           width: 14 * s,
           height: 250 * s,
@@ -680,7 +693,7 @@ export default function LanyardBadge({
         }}
       />
       <div
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{ left: 22 * s, top: 34 * s, right: 22 * s }}
       >
         <div
@@ -697,7 +710,7 @@ export default function LanyardBadge({
         </div>
         <div
           style={{
-            fontSize: 6.5 * s,
+            fontSize: Math.max(10, 6.5 * s),
             marginTop: 6 * s,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
@@ -712,7 +725,7 @@ export default function LanyardBadge({
   const defaultBack = (
     <div className="relative h-full w-full" style={{ background: cardColor }}>
       <Ornament
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
           width: 150 * s,
           right: -30 * s,
@@ -723,7 +736,7 @@ export default function LanyardBadge({
         }}
       />
       <div
-        className="absolute"
+        className="absolute pointer-events-none"
         style={{
           left: 22 * s,
           top: 70 * s,
@@ -752,7 +765,7 @@ export default function LanyardBadge({
         </div>
         <div
           style={{
-            fontSize: 7 * s,
+            fontSize: Math.max(10, 7 * s),
             marginTop: 3 * s,
             letterSpacing: "0.14em",
             textTransform: "uppercase",
@@ -763,7 +776,7 @@ export default function LanyardBadge({
         </div>
       </div>
       <div
-        className="absolute overflow-hidden"
+        className="absolute pointer-events-none overflow-hidden"
         style={{
           left: 0,
           right: 0,
@@ -775,7 +788,7 @@ export default function LanyardBadge({
         }}
       >
         <Ornament
-          className="absolute"
+          className="absolute pointer-events-none"
           style={{
             width: 230 * s,
             left: -20 * s,
@@ -785,7 +798,7 @@ export default function LanyardBadge({
           }}
         />
         <Arrow
-          className="absolute"
+          className="absolute pointer-events-none"
           style={{
             width: 12 * s,
             height: 220 * s,

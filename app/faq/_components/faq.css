@@ -54,4 +54,12 @@
 @keyframes loom-faq-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes loom-faq-scroll-reverse { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 @media (min-width: 640px) { .loom-faq-exact .faq-layout { padding-block: 96px; } .loom-faq-exact .faq-title { font-size: 48px; } }
+@media (max-width: 639px) {
+  .loom-faq-exact .scroller-mask { overflow: visible; mask-image: none; -webkit-mask-image: none; }
+  .loom-faq-exact .faq-rows { gap: 24px; }
+  .loom-faq-exact .faq-track { flex-direction: column; gap: 24px; animation: none; transform: none; }
+  .loom-faq-exact .faq-group { flex-direction: column; padding-inline: 0; gap: 16px; }
+  .loom-faq-exact .faq-group[aria-hidden="true"] { display: none; }
+  .loom-faq-exact .faq-card { width: 100%; padding: 20px; }
+}
 @media (prefers-reduced-motion: reduce) { .loom-faq-exact .faq-track { animation: none; } .loom-faq-exact .faq-title, .loom-faq-exact .faq-subtitle { opacity: 1; animation: none; } }

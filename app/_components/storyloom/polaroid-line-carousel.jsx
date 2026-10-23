@@ -246,7 +246,7 @@ export default function PolaroidLineCarousel({ slides = DEFAULT_SLIDES, height =
     const srcs = useSlideImages(slides);
     const [active, setActive] = React.useState(0);
     const [dragging, setDragging] = React.useState(false);
-    const [size, setSize] = React.useState({ w: 1200, h: 800, cw: cardWidth });
+    const [size, setSize] = React.useState({ w: 0, h: 0, cw: cardWidth });
     const rootRef = React.useRef(null);
     const pathRef = React.useRef(null);
     const cards = React.useRef([]);
@@ -300,6 +300,10 @@ export default function PolaroidLineCarousel({ slides = DEFAULT_SLIDES, height =
             const dt = Math.min(0.033, (now - prev) / 1000);
             prev = now;
             const { w, h, cw } = size;
+            if (!w || !h) {
+                raf = requestAnimationFrame(frame);
+                return;
+            }
             const y0 = Math.max(40, h * 0.14);
             const d = drag.current;
             let lineVel;
@@ -323,7 +327,10 @@ export default function PolaroidLineCarousel({ slides = DEFAULT_SLIDES, height =
                 if (!el)
                     continue;
                 const x = w / 2 + i * spacing - S.off;
-                if (x < -cw * 1.5 || x > w + cw * 1.5) {
+                const offscreen = w <= 640
+                    ? x - cw / 2 < 0 || x + cw / 2 > w
+                    : x < -cw * 1.5 || x > w + cw * 1.5;
+                if (offscreen) {
                     el.style.visibility = "hidden";
                     continue;
                 }

@@ -321,7 +321,7 @@
 
 .loom-about .join-badge {
   width: 100%;
-  overflow: visible;
+  overflow: hidden;
   --lanyard-strap-color: var(--thread-strap);
   --lanyard-strap-ink: var(--thread-strap-ink);
   --lanyard-card-color: var(--thread-card);
@@ -331,6 +331,10 @@
 .loom-about .join-badge [role="button"],
 .loom-about .join-badge button {
   pointer-events: auto;
+}
+
+.loom-about .join-badge button {
+  min-height: 44px;
 }
 
 @media (min-width: 48rem) {
