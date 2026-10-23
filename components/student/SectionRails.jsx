@@ -1,4 +1,5 @@
 import { SectionTabs } from "@/components/loom/SectionTabs";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 
 // One definition per rail so every page in a verb shares the same labels and
 // order. Rails mirror studentNav children; tests/section-rails.test.js enforces
@@ -6,7 +7,7 @@ import { SectionTabs } from "@/components/loom/SectionTabs";
 
 export const LEARN_TABS = [
   { href: "/student/roadmap", label: "Roadmap" },
-  { href: "/student/planner", label: "Planner" },
+  ...(PLANNER_ENABLED ? [{ href: "/student/planner", label: "Planner" }] : []),
   { href: "/student/resources", label: "Resources" }
 ];
 

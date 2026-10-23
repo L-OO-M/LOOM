@@ -1,9 +1,11 @@
 import { fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { loadPlanner } from "@/lib/planner-data";
 import { toIcs } from "@/lib/planner";
 
 export async function GET(request) {
+  if (!PLANNER_ENABLED) return fail("NOT_FOUND", "Planner is disabled", 404);
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);

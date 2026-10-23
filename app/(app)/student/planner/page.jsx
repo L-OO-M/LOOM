@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta } from "@/components/loom/primitives";
 import { loadPlanner } from "@/lib/planner-data";
@@ -10,6 +11,7 @@ import { LearnTabs } from "@/components/student/SectionRails";
 export const dynamic = "force-dynamic";
 
 export default async function PlannerPage() {
+  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/planner");
   const { user, profile, tenant, sql } = ctx;

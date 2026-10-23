@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { PLANNER_YEAR, isoDate, isRelaxationDate } from "@/lib/planner";
 import { loadPlanner } from "@/lib/planner-data";
 
@@ -24,6 +25,7 @@ const reassignSchema = z.object({
 });
 
 export async function GET(request) {
+  if (!PLANNER_ENABLED) return fail("NOT_FOUND", "Planner is disabled", 404);
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
@@ -43,6 +45,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  if (!PLANNER_ENABLED) return fail("NOT_FOUND", "Planner is disabled", 404);
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
@@ -102,6 +105,7 @@ export async function POST(request) {
  * this chapter. Audited, and the successor is notified when it is not the actor.
  */
 export async function PATCH(request) {
+  if (!PLANNER_ENABLED) return fail("NOT_FOUND", "Planner is disabled", 404);
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);

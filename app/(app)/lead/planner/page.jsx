@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 const LEAD_ROLES = ["dept_lead", "vertical_lead", "admin"];
 
 export default async function LeadPlannerPage() {
+  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/lead/planner");
   const { user, profile, tenant, sql } = ctx;

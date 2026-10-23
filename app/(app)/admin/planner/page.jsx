@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/ui";
 import { Meta } from "@/components/loom/primitives";
@@ -12,6 +13,7 @@ import { PlannerOwners } from "@/components/planner/PlannerOwners";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPlannerPage() {
+  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/admin/planner");
   if (ctx.error === "FORBIDDEN") redirect("/student");

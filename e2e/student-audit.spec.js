@@ -28,7 +28,6 @@ const PEER = "gameryash";
 const STATIC_ROUTES = [
   "/student",
   "/student/roadmap",
-  "/student/planner",
   "/student/resources",
   "/student/projects",
   "/student/projects/new",

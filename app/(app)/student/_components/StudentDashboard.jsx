@@ -5,6 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { Display, Meta, ActionLink, StatusPill } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
 import { DepartmentsSection } from "@/components/student/OrgPanels";
+import { PLANNER_ENABLED } from "@/lib/feature-flags";
 
 function relDay(iso) {
   if (!iso) return "";
@@ -56,7 +57,7 @@ export function StudentDashboard({
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href={`/student/roadmap/${nextNode.id}`} prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue →</Link>
                 <Link href="/student/roadmap" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">View roadmap</Link>
-                <Link href="/student/planner" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Weekly planner</Link>
+                {PLANNER_ENABLED ? <Link href="/student/planner" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Weekly planner</Link> : null}
               </div>
             </>
           ) : (
@@ -66,7 +67,7 @@ export function StudentDashboard({
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/student/credentials" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Share proof →</Link>
                 <Link href="/student/opensource" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Find an OSS issue</Link>
-                <Link href="/student/planner" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Open planner</Link>
+                {PLANNER_ENABLED ? <Link href="/student/planner" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Open planner</Link> : null}
               </div>
             </>
           )}
