@@ -18,7 +18,8 @@
         { "from_id": "web_javascript_core", "to_id": "web_git_github", "kind": "required" },
         { "from_id": "web_git_github", "to_id": "web_dev_tools_fundamentals", "kind": "required" },
 { "from_id": "web_html5", "to_id": "web_git_github", "kind": "required" },
-          { "from_id": "web_css3", "to_id": "web_css_frameworks", "kind": "optional" }
+          { "from_id": "web_css3", "to_id": "web_css_frameworks", "kind": "optional" },
+        { "from_id": "web_dev_tools_fundamentals", "to_id": "web_css_frameworks", "kind": "required" }
         ]
     },
     {
@@ -33,88 +34,95 @@
         { "from_id": "web_css_frameworks", "to_id": "web_react_fundamentals", "kind": "required" },
         { "from_id": "web_react_fundamentals", "to_id": "web_react_intermediate", "kind": "required" },
 { "from_id": "web_react_intermediate", "to_id": "web_react_advanced", "kind": "required" },
-          { "from_id": "web_react_advanced", "to_id": "web_mern_portfolio_projects", "kind": "optional" }
+          { "from_id": "web_react_advanced", "to_id": "web_mern_portfolio_projects", "kind": "optional" },
+          { "from_id": "web_react_advanced", "to_id": "web_nodejs", "kind": "required" }
         ]
     },
     {
       "title": "3. Node.js, Express & MongoDB",
       "nodes": [
-        { "id": "web_nodejs", "title": "Node.js", "description": "Node runtime, CommonJS vs ES modules, npm ecosystem, file system module, event loop, environment variables (.env), process management.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_expressjs", "title": "Express.js", "description": "Routing, middleware, request/response cycle, route params, query params, body parsing, error-handling middleware, CORS, and a clean REST API folder structure (MVC).", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_mongodb_mongoose", "title": "MongoDB & Mongoose", "description": "NoSQL concepts, documents vs collections, MongoDB Atlas setup, Mongoose schemas/models/validation, CRUD operations, querying, population, indexing basics, aggregation pipeline.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_authentication_security", "title": "Authentication & Security", "description": "Password hashing with bcrypt, JWT-based authentication with access and refresh tokens, protected routes with auth middleware, and basic security (input validation, rate limiting, helmet.js).", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+        { "id": "web_nodejs", "title": "Node.js", "description": "Node runtime, CommonJS vs ES modules, npm ecosystem, file system module, event loop, environment variables (.env), process management.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_expressjs", "title": "Express.js", "description": "Routing, middleware, request/response cycle, route params, query params, body parsing, error-handling middleware, CORS, and a clean REST API folder structure (MVC).", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_mongodb_mongoose", "title": "MongoDB & Mongoose", "description": "NoSQL concepts, documents vs collections, MongoDB Atlas setup, Mongoose schemas/models/validation, CRUD operations, querying, population, indexing basics, aggregation pipeline.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_authentication_security", "title": "Authentication & Security", "description": "Password hashing with bcrypt, JWT-based authentication with access and refresh tokens, protected routes with auth middleware, and basic security (input validation, rate limiting, helmet.js).", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_nodejs", "to_id": "web_expressjs", "kind": "required" },
         { "from_id": "web_expressjs", "to_id": "web_mongodb_mongoose", "kind": "required" },
-        { "from_id": "web_mongodb_mongoose", "to_id": "web_authentication_security", "kind": "required" }
+        { "from_id": "web_mongodb_mongoose", "to_id": "web_authentication_security", "kind": "required" },
+        { "from_id": "web_authentication_security", "to_id": "web_connecting_frontend_backend", "kind": "required" }
       ]
     },
     {
       "title": "4. Full MERN Integration & Deployment",
       "nodes": [
-        { "id": "web_connecting_frontend_backend", "title": "Connecting Frontend + Backend", "description": "Axios instance setup, interceptors for auth tokens, loading/error states, file/image uploads (Multer, Cloudinary/S3), and real-time features with Socket.io.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_deployment", "title": "Deployment", "description": "Frontend on Vercel or Netlify, backend on Render/Railway/VPS, MongoDB Atlas, production environment variables and CORS, custom domains.", "domain": "devops", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_connecting_frontend_backend", "title": "Connecting Frontend + Backend", "description": "Axios instance setup, interceptors for auth tokens, loading/error states, file/image uploads (Multer, Cloudinary/S3), and real-time features with Socket.io.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_deployment", "title": "Deployment", "description": "Frontend on Vercel or Netlify, backend on Render/Railway/VPS, MongoDB Atlas, production environment variables and CORS, custom domains.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
         { "id": "web_mern_portfolio_projects", "title": "MERN Portfolio Projects (pick 2–3 to actually finish)", "description": "Full stack blog/CMS with auth and image uploads, e-commerce app with cart and checkout, real-time chat app with Socket.io, or a social media clone.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_connecting_frontend_backend", "to_id": "web_deployment", "kind": "required" },
           { "from_id": "web_deployment", "to_id": "web_java_deployment", "kind": "optional" },
-        { "from_id": "web_deployment", "to_id": "web_mern_portfolio_projects", "kind": "required" }
+        { "from_id": "web_deployment", "to_id": "web_mern_portfolio_projects", "kind": "required" },
+        { "from_id": "web_deployment", "to_id": "web_java_basics", "kind": "required" }
       ]
     },
     {
       "title": "5. Core Java & OOP",
       "nodes": [
-        { "id": "web_java_basics", "title": "Java Basics", "description": "Variables, data types, operators, control flow, arrays, methods, overloading, static vs instance members, input/output, exception handling.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_oop", "title": "Object-Oriented Programming", "description": "Classes, objects, constructors, this keyword, inheritance, polymorphism, abstraction, encapsulation, interfaces vs abstract classes, access modifiers, packages.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_collections_generics", "title": "Collections & Generics", "description": "List, Set, Map implementations, Iterator, Comparator vs Comparable, generics basics, and Java 8+ features (Lambdas, Streams API, Optional, method references).", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_multithreading_exception_handling", "title": "Multithreading & Exception Handling", "description": "Thread creation, synchronization basics, checked vs unchecked exceptions, try-with-resources, and basic concurrency utilities (ExecutorService).", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_build_tools_jvm", "title": "Build Tools & JVM Basics", "description": "Maven (pom.xml, dependencies, build lifecycle) with Gradle as alternative, plus JDK vs JRE vs JVM and how Java compiles and runs.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false }
+        { "id": "web_java_basics", "title": "Java Basics", "description": "Variables, data types, operators, control flow, arrays, methods, overloading, static vs instance members, input/output, exception handling.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_oop", "title": "Object-Oriented Programming", "description": "Classes, objects, constructors, this keyword, inheritance, polymorphism, abstraction, encapsulation, interfaces vs abstract classes, access modifiers, packages.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_collections_generics", "title": "Collections & Generics", "description": "List, Set, Map implementations, Iterator, Comparator vs Comparable, generics basics, and Java 8+ features (Lambdas, Streams API, Optional, method references).", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_multithreading_exception_handling", "title": "Multithreading & Exception Handling", "description": "Thread creation, synchronization basics, checked vs unchecked exceptions, try-with-resources, and basic concurrency utilities (ExecutorService).", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_build_tools_jvm", "title": "Build Tools & JVM Basics", "description": "Maven (pom.xml, dependencies, build lifecycle) with Gradle as alternative, plus JDK vs JRE vs JVM and how Java compiles and runs.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_java_basics", "to_id": "web_oop", "kind": "required" },
         { "from_id": "web_oop", "to_id": "web_collections_generics", "kind": "required" },
         { "from_id": "web_collections_generics", "to_id": "web_multithreading_exception_handling", "kind": "required" },
-        { "from_id": "web_oop", "to_id": "web_build_tools_jvm", "kind": "required" }
+        { "from_id": "web_oop", "to_id": "web_build_tools_jvm", "kind": "required" },
+        { "from_id": "web_multithreading_exception_handling", "to_id": "web_java_web_fundamentals", "kind": "required" },
+        { "from_id": "web_build_tools_jvm", "to_id": "web_java_web_fundamentals", "kind": "required" }
       ]
     },
     {
       "title": "6. Spring & Spring Boot",
       "nodes": [
-        { "id": "web_java_web_fundamentals", "title": "Web Fundamentals (Java side)", "description": "JDBC for connecting Java to MySQL directly, Servlets & JSP basics conceptually, and the MVC architecture pattern.", "domain": "backend", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
-        { "id": "web_spring_framework_core", "title": "Spring Framework Core", "description": "Inversion of Control and Dependency Injection, Spring Beans, ApplicationContext, annotations (@Component, @Autowired, @Bean), and Spring MVC basics.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_spring_boot", "title": "Spring Boot", "description": "Auto-configuration, starters, embedded Tomcat, application.properties/yml, building REST APIs, exception handling, validation, DTOs vs Entities, and layered Controller → Service → Repository architecture.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_spring_data_jpa_hibernate", "title": "Spring Data JPA & Hibernate", "description": "Entity mapping, relationships, JpaRepository, query methods, @Query (JPQL/native), pagination and sorting, connecting to MySQL, database migrations basics.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_spring_security_jwt", "title": "Spring Security & JWT", "description": "Authentication vs authorization, SecurityFilterChain, BCrypt password encoding, custom UserDetailsService, JWT generation/validation/filters, role-based access control, OAuth2 login.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
+        { "id": "web_java_web_fundamentals", "title": "Web Fundamentals (Java side)", "description": "JDBC for connecting Java to MySQL directly, Servlets & JSP basics conceptually, and the MVC architecture pattern.", "domain": "web", "difficulty_level": "beginner", "is_highlighted": true, "is_optional": false },
+        { "id": "web_spring_framework_core", "title": "Spring Framework Core", "description": "Inversion of Control and Dependency Injection, Spring Beans, ApplicationContext, annotations (@Component, @Autowired, @Bean), and Spring MVC basics.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_spring_boot", "title": "Spring Boot", "description": "Auto-configuration, starters, embedded Tomcat, application.properties/yml, building REST APIs, exception handling, validation, DTOs vs Entities, and layered Controller → Service → Repository architecture.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_spring_data_jpa_hibernate", "title": "Spring Data JPA & Hibernate", "description": "Entity mapping, relationships, JpaRepository, query methods, @Query (JPQL/native), pagination and sorting, connecting to MySQL, database migrations basics.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_spring_security_jwt", "title": "Spring Security & JWT", "description": "Authentication vs authorization, SecurityFilterChain, BCrypt password encoding, custom UserDetailsService, JWT generation/validation/filters, role-based access control, OAuth2 login.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_java_web_fundamentals", "to_id": "web_spring_framework_core", "kind": "required" },
         { "from_id": "web_spring_framework_core", "to_id": "web_spring_boot", "kind": "required" },
         { "from_id": "web_spring_boot", "to_id": "web_spring_data_jpa_hibernate", "kind": "required" },
-        { "from_id": "web_spring_data_jpa_hibernate", "to_id": "web_spring_security_jwt", "kind": "required" }
+        { "from_id": "web_spring_data_jpa_hibernate", "to_id": "web_spring_security_jwt", "kind": "required" },
+        { "from_id": "web_spring_security_jwt", "to_id": "web_connecting_spring_react", "kind": "required" }
       ]
     },
     {
       "title": "7. Spring Boot + React Integration & Beyond",
       "nodes": [
-        { "id": "web_connecting_spring_react", "title": "Connecting Spring Boot + React", "description": "CORS configuration in Spring Boot, Axios calls from React to Spring Boot REST endpoints, storing JWT on the frontend via Axios interceptors, and file uploads with multipart/form-data.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_testing", "title": "Testing", "description": "JUnit 5 + Mockito basics for service-layer unit tests, and testing REST endpoints with MockMvc or Postman/Newman.", "domain": "backend", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
-        { "id": "web_microservices_cloud_native", "title": "Microservices & Cloud-Native", "description": "Monolith vs microservices trade-offs, Spring Cloud service discovery (Eureka) and API Gateway, message queues (Kafka/RabbitMQ), Docker containerization, and conceptual Kubernetes.", "domain": "devops", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "web_java_deployment", "title": "Deployment", "description": "Backend on Railway, Render, or AWS EC2/Elastic Beanstalk; frontend on Vercel/Netlify; database on Railway MySQL / AWS RDS / PlanetScale.", "domain": "devops", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
+        { "id": "web_connecting_spring_react", "title": "Connecting Spring Boot + React", "description": "CORS configuration in Spring Boot, Axios calls from React to Spring Boot REST endpoints, storing JWT on the frontend via Axios interceptors, and file uploads with multipart/form-data.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_testing", "title": "Testing", "description": "JUnit 5 + Mockito basics for service-layer unit tests, and testing REST endpoints with MockMvc or Postman/Newman.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "web_microservices_cloud_native", "title": "Microservices & Cloud-Native", "description": "Monolith vs microservices trade-offs, Spring Cloud service discovery (Eureka) and API Gateway, message queues (Kafka/RabbitMQ), Docker containerization, and conceptual Kubernetes.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "web_java_deployment", "title": "Deployment", "description": "Backend on Railway, Render, or AWS EC2/Elastic Beanstalk; frontend on Vercel/Netlify; database on Railway MySQL / AWS RDS / PlanetScale.", "domain": "web", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_connecting_spring_react", "to_id": "web_testing", "kind": "required" },
         { "from_id": "web_connecting_spring_react", "to_id": "web_microservices_cloud_native", "kind": "optional" },
-        { "from_id": "web_microservices_cloud_native", "to_id": "web_java_deployment", "kind": "alternative" }
+        { "from_id": "web_microservices_cloud_native", "to_id": "web_java_deployment", "kind": "alternative" },
+        { "from_id": "web_testing", "to_id": "web_low_level_design", "kind": "required" }
       ]
     },
     {
       "title": "8. System Design (LLD + HLD)",
       "nodes": [
-        { "id": "web_dsa_track", "title": "DSA", "description": "Arrays, strings, recursion, backtracking, trees, graphs, dynamic programming, greedy, and time/space complexity analysis — run in parallel throughout, not just Phase 8.", "domain": "dsa", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "web_low_level_design", "title": "Low-Level Design (LLD)", "description": "SOLID principles, design patterns (Factory, Singleton, Strategy, Observer, Builder), UML basics, and classic LLD problems like Parking Lot, Elevator System, Splitwise, Tic-Tac-Toe, BookMyShow.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "web_high_level_design", "title": "High-Level Design (HLD)", "description": "Scalability, caching (Redis), CDNs, database sharding and replication, CAP theorem, SQL vs NoSQL trade-offs, message queues, and classic HLD problems.", "domain": "backend", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
+        { "id": "web_dsa_track", "title": "DSA", "description": "Arrays, strings, recursion, backtracking, trees, graphs, dynamic programming, greedy, and time/space complexity analysis — run in parallel throughout, not just Phase 8.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "web_low_level_design", "title": "Low-Level Design (LLD)", "description": "SOLID principles, design patterns (Factory, Singleton, Strategy, Observer, Builder), UML basics, and classic LLD problems like Parking Lot, Elevator System, Splitwise, Tic-Tac-Toe, BookMyShow.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
+        { "id": "web_high_level_design", "title": "High-Level Design (HLD)", "description": "Scalability, caching (Redis), CDNs, database sharding and replication, CAP theorem, SQL vs NoSQL trade-offs, message queues, and classic HLD problems.", "domain": "web", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false }
       ],
       "edges": [
         { "from_id": "web_low_level_design", "to_id": "web_high_level_design", "kind": "required" },
