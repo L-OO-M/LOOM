@@ -111,6 +111,9 @@
 .site-content {
   padding-top: 64px;
 }
+.site-content.is-workspace {
+  padding-top: 0;
+}
 .site-content .story-home .sh-root {
   padding-top: 0;
   min-height: calc(100svh - 64px);

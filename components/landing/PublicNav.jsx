@@ -7,7 +7,7 @@ import { Menu, Moon, Sun, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { useTheme } from "@/lib/theme";
 import { useWorkspaceLink } from "@/lib/use-workspace-link";
-import { publicNav } from "@/lib/nav";
+import { publicNav, workspaceForPath } from "@/lib/nav";
 import "./public-nav.css";
 
 export function PublicNav() {
@@ -15,9 +15,7 @@ export function PublicNav() {
   const button = useRef(null);
   const pathname = usePathname();
   const workspace = useWorkspaceLink();
-  const currentWorkspace = ["student", "lead", "admin"].find(
-    (area) => pathname === `/${area}` || pathname?.startsWith(`/${area}/`),
-  );
+  const currentWorkspace = workspaceForPath(pathname);
   const dashboard = currentWorkspace ? `/${currentWorkspace}` : workspace;
   const { theme, toggle, mounted } = useTheme();
   useEffect(() => {

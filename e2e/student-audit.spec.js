@@ -107,6 +107,13 @@ test.beforeEach(async ({ context, browser }) => {
   if (state.cookies?.length) await context.addCookies(state.cookies);
 });
 
+test("workspace owns the top chrome", async ({ page }) => {
+  await page.goto("/student");
+  await expect(page.locator(".site-nav")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Workspace", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".site-content")).paddingTop))).toBe(0);
+});
+
 // Visit a route and collect everything a student would judge it by: HTTP
 // status, console/page errors, and any visible hard-failure text.
 async function visit(page, path) {

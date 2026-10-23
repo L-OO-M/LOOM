@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { adminNav, groupForTab, mobileNav, pathToTab, studentAliases, studentNav, studentSecondary } from "@/lib/nav";
+import { adminNav, groupForTab, mobileNav, pathToTab, studentAliases, studentNav, studentSecondary, workspaceForPath } from "@/lib/nav";
+
+describe("workspace chrome ownership", () => {
+  it("claims only student, lead, and admin routes", () => {
+    expect(workspaceForPath("/student")).toBe("student");
+    expect(workspaceForPath("/student/roadmap")).toBe("student");
+    expect(workspaceForPath("/lead/challenges")).toBe("lead");
+    expect(workspaceForPath("/admin")).toBe("admin");
+    expect(workspaceForPath("/admin/students/abc")).toBe("admin");
+  });
+
+  it("leaves public routes on the site header", () => {
+    expect(workspaceForPath("/")).toBeNull();
+    expect(workspaceForPath("/about")).toBeNull();
+    expect(workspaceForPath("/u/aarav")).toBeNull();
+    expect(workspaceForPath("/studentish")).toBeNull();
+    expect(workspaceForPath(null)).toBeNull();
+  });
+});
 
 describe("five-verb navigation", () => {
   it("resolves leaf destinations, not groups", () => {

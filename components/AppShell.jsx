@@ -11,7 +11,7 @@ import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
-import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary, usesDropdowns } from "@/lib/nav";
+import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary, usesDropdowns, workspaceForPath } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
@@ -35,6 +35,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const { theme, toggle, mounted } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+  const ownsChrome = workspaceForPath(pathname) === area;
   const tabs = area === "admin" ? adminNav : area === "lead" ? leadNav : studentNav;
   const activeTab = pathToTab(pathname || "", area);
   const activeGroup = groupForTab(tabs, activeTab);
@@ -76,7 +77,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
   return (
     <TabContext.Provider value={ctx}>
       <div className="min-h-[100dvh]" style={{ background: "var(--bg)" }}>
-        <header className="fixed inset-x-0 top-16 z-50 flex justify-center px-3 pt-3 sm:px-6">
+        <header className={`fixed inset-x-0 ${ownsChrome ? "top-0" : "top-16"} z-50 flex justify-center px-3 pt-3 sm:px-6`}>
           <nav
             className="floatbar flex max-w-full items-center gap-1 rounded-full py-1.5 pl-3 pr-1.5"
             aria-label="Workspace"
