@@ -228,10 +228,14 @@ the server by `isZenModeEnabled()` (`lib/feature-flags.js`) and passed to the
 client as a prop, so the server HTML and the hydrated tree always agree. With
 no row — or any error reading it — it stays off.
 
-**Development is the one exception:** under `next dev`,
-`isZenModeEnabled()` returns true so the overlay is available locally without
-writing the shared `zen_mode` row. Production is **hard-off** for now — the
-persisted row is ignored there until the feature is cleared for real chapters.
+**Only live Vercel production is hard-off; other runtimes follow the row.**
+Under `next dev` `isZenModeEnabled()` returns true so the overlay is available
+locally without writing the shared `zen_mode` row, and a local production build
+(`next start`, which carries no `VERCEL` marker) is likewise enabled so the
+feature can be built and reviewed. Live Vercel production
+(`VERCEL_ENV === "production"`) is hard-off — the persisted row is ignored
+there until the feature is cleared for real chapters. Vercel previews and the
+test runtime follow the row.
 
 Enable it per chapter at `/admin/flags`. While it is off, study resources are
 ordinary links: external resources open natively in a new tab, and the overlay
