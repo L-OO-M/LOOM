@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Download, Clock3, Building2 } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
+import "../_components/admin-ledger.css";
 
 export default async function AdminReportsPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -35,63 +35,66 @@ export default async function AdminReportsPage() {
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
-        <p className="meta"><Link href="/admin" prefetch={false} className="hover:underline" style={{ color: "var(--accent)" }}>← Back to overview</Link></p>
-        <PageHeader kicker={`Reports · ${stats?.submitted ?? 0} submitted · ${stats?.drafts ?? 0} drafts`} title="Department reports" desc="Submitted monthly documents — coverage, submissions, and growth. Draft until a Head submits; then immutable." />
-        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-bold tracking-widest" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-          <span>DRAFT</span><span aria-hidden="true">→</span><span>SUBMITTED</span><span aria-hidden="true">→</span><span>EXPORTED</span><span className="ml-auto meta normal-case tracking-normal">document generation</span>
-        </div>
+        <WorkspaceMasthead
+          kicker={`Reports / ${stats?.submitted ?? 0} submitted / ${stats?.drafts ?? 0} drafts`}
+          title="Department reports"
+          lede="Submitted monthly documents — coverage, submissions, and growth. Draft until a Head submits; then immutable."
+          meta={`${stats?.depts ?? 0} reporting departments / ${reports.length} submitted on file / newest first`}
+          tone="ledger"
+          art="/storyloom/learning.png"
+          artAlt=""
+          stats={[
+            { value: stats?.submitted ?? 0, label: "submitted" },
+            { value: stats?.drafts ?? 0, label: "drafts unsubmitted" },
+            { value: stats?.depts ?? 0, label: "departments reporting" }
+          ]}
+          actions={
+            <Link href="/admin" prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+              ← Back to overview
+            </Link>
+          }
+        />
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Submitted", value: stats?.submitted ?? 0, icon: FileText, sub: "this chapter" },
-            { label: "Drafts", value: stats?.drafts ?? 0, icon: Clock3, sub: "unsubmitted" },
-            { label: "Departments", value: stats?.depts ?? 0, icon: Building2, sub: "reporting" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}><s.icon size={14} /></span>
-              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
-            </div>
-          ))}
-        </div>
-
-        <section className="flex flex-wrap items-center gap-3 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Export">
-          <span className="meta flex items-center gap-1.5"><Download size={12} style={{ color: "var(--accent)" }} /> Export JSON · submitted only</span>
-          <span className="ml-auto flex gap-2">
-            <a href="/api/reports/export?scope=semester" className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold" style={{ background: "var(--text)", color: "var(--bg)" }}><Download size={12} /> Semester</a>
-            <a href="/api/reports/export?scope=annual" className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", color: "var(--text)" }}><Download size={12} /> Annual</a>
-          </span>
-        </section>
-
-        <section className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Submitted reports">
-          <div className="flex items-baseline justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><FileText size={14} /> Submitted · {reports.length}</h2>
-            <span className="meta">newest first · cap 100</span>
+        <WorkspaceSection index="01" title="Export" note="Draft → submitted → exported. Exports include submitted reports only." action={<span className="aled-meta">JSON</span>}>
+          <div className="aled-panel" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem" }}>
+            <span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
+              <Download size={12} style={{ color: "var(--accent)" }} aria-hidden="true" /> Export submitted reports
+            </span>
+            <span className="aled-actions" style={{ marginLeft: "auto" }}>
+              <a href="/api/reports/export?scope=semester" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
+                <Download size={12} aria-hidden="true" /> Semester
+              </a>
+              <a href="/api/reports/export?scope=annual" className="aled-tag aled-tag--accent" style={{ padding: "0.4rem 0.6rem" }}>
+                <Download size={12} aria-hidden="true" /> Annual
+              </a>
+            </span>
           </div>
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Submitted reports" note="Each row shows the department, month, and the headline numbers recorded at submission." action={<span className="aled-meta">{reports.length} shown · cap 100</span>}>
           {reports.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="narrative">No submitted reports yet. Once department Heads submit from the lead console, they appear here ready to export.</p>
-            </div>
+            <WorkspaceEmpty title="No submitted reports yet" body="Once department Heads submit from the lead console, they appear here ready to export." />
           ) : (
-            <ul className="mt-4 divide-y overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
               {reports.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3.5">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>
+                <li key={r.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title">
                       {r.department_name} · {new Date(`${r.month}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })}
                     </span>
-                    <span className="meta flex flex-wrap gap-2">
-                      <span>{r.draft?.contributions_total ?? 0} contributions</span>
-                      <span>· {r.draft?.events_held ?? 0} events</span>
-                      <span>· {r.draft?.new_members ?? 0} new members</span>
-                      {r.submitted_by_name && <span>· by {r.submitted_by_name}</span>}
-                    </span>
+                    <p className="aled-sub">
+                      {r.draft?.contributions_total ?? 0} contributions · {r.draft?.events_held ?? 0} events · {r.draft?.new_members ?? 0} new members
+                      {r.submitted_by_name ? ` · by ${r.submitted_by_name}` : ""}
+                    </p>
+                  </div>
+                  <span className="aled-tag aled-tag--success">
+                    <FileText size={10} aria-hidden="true" /> Submitted
                   </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium" style={{ borderColor: "color-mix(in srgb, #16a34a 18%, transparent)", background: "color-mix(in srgb, #16a34a 10%, var(--bg))", color: "#16a34a" }}>Submitted</span>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
