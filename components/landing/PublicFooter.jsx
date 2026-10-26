@@ -29,7 +29,7 @@ export function PublicFooter() {
           ─── the thread continues ───
         </p>
         <div className="mt-6 flex flex-col gap-3 border-t pt-6 text-xs sm:flex-row sm:justify-between" style={{ borderColor: "rgba(242,243,241,0.15)", color: "rgba(242,243,241,0.5)" }}>
-          <p>© 2026 LOOM Technical Society</p>
+          <p>© 2026 LOOM </p>
           <p>Beginner-friendly. Contribution-driven.</p>
         </div>
       </div>

@@ -130,7 +130,7 @@ export default function StoryHome() {
 
       <>
         <Suspense fallback={null}>
-          <HalftoneFooter wordmark="loom" label="LOOM Technical Society" meta={`Beginner-friendly. Contribution-driven. © ${new Date().getFullYear()}`} preset={theme === "dark" ? "night" : "paper"} palette={{
+          <HalftoneFooter wordmark="loom" label="LOOM " meta={`Beginner-friendly. Contribution-driven. © ${new Date().getFullYear()}`} preset={theme === "dark" ? "night" : "paper"} palette={{
             background: theme === "dark" ? sculpturePalette.dark : sculpturePalette.light,
             ink: theme === "dark" ? "#ede9df" : "#29251f",
             warm: theme === "dark" ? sculpturePalette.warmDark : sculpturePalette.warmLight,
