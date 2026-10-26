@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { eligibilityFor } from "@/lib/mentorship";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, ActionLink, StatusPill } from "@/components/loom/primitives";
+import { ActionLink, StatusPill } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
 import { ApplyForm } from "./ApplyForm";
@@ -111,17 +112,25 @@ export default async function MentorshipPage() {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Meta>Connect · guidance from seniors</Meta>
-        <Display size="lg" className="mt-3">Learn from someone who remembers the first step.</Display>
-        <p className="narrative mt-4" style={{ color: "var(--text)" }}>
-          Browse guides, request a session, and get notified when someone picks it up.
-        </p>
+        <WorkspaceMasthead
+          kicker="Mentorship / guidance from seniors"
+          title="Learn from someone who remembers the first step."
+          lede="Browse guides, request a session, and get notified when someone picks it up."
+          meta={`${mentors.length} available ${mentors.length === 1 ? "guide" : "guides"} / ${sessions.length} ${sessions.length === 1 ? "request" : "requests"} in your history`}
+          tone="paper"
+          art="/storyloom/mentorship.png"
+          artAlt=""
+          stats={[
+            { value: mentors.length, label: "guides available" },
+            { value: sessions.length, label: "your requests" },
+            { value: pct, unit: "%", label: "of the path walked" }
+          ]}
+        />
 
         <ConnectTabs active="/student/mentorship" />
 
         {sessions.length > 0 && (
-          <section className="mt-10" aria-label="Your requests">
-            <Meta>Your requests · {sessions.length}</Meta>
+          <WorkspaceSection index="01" title="Your requests" note={`${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} on record.`}>
             <Timeline className="mt-5">
               {sessions.map((s) => {
                 const c = sessionCopy(s);
@@ -138,15 +147,14 @@ export default async function MentorshipPage() {
                 );
               })}
             </Timeline>
-          </section>
+          </WorkspaceSection>
         )}
 
-        <section className="mt-12" aria-label="Find a guide">
-          <Meta>Available guides · {mentors.length}</Meta>
-          <h2 className="h-product mt-2">Find a guide</h2>
-          <p className="narrative mt-3" style={{ color: "var(--text)" }}>
-            People who are already walking the path you want to explore.
-          </p>
+        <WorkspaceSection
+          index="02"
+          title="Find a guide"
+          note={`People who are already walking the path you want to explore. ${mentors.length} available.`}
+        >
           {mentors.length === 0 ? (
             <OnboardingState
               eyebrow="Mentors"
@@ -156,14 +164,13 @@ export default async function MentorshipPage() {
           ) : (
             <MentorsBrowser mentors={mentors} />
           )}
-        </section>
+        </WorkspaceSection>
 
-        <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Become a guide">
-          <Meta>The generational cycle</Meta>
-          <h2 className="h-product mt-2">Become a guide</h2>
-          <p className="narrative mt-3" style={{ color: "var(--text)" }}>
-            The next person you help may be where you were a year ago.
-          </p>
+        <WorkspaceSection
+          index="03"
+          title="Become a guide"
+          note="The next person you help may be where you were a year ago."
+        >
           {mentorRow ? (
             <p className="narrative mt-4" style={{ color: "var(--text)" }}>
               You already mentor. Juniors find you here — keep your expertise honest and your door open.
@@ -232,10 +239,9 @@ export default async function MentorshipPage() {
               </div>
             </div>
           )}
-        </section>
+        </WorkspaceSection>
 
-        <section className="mt-12 border-t pt-10" style={{ borderColor: "var(--line)" }} aria-label="Where next">
-          <Meta>Connect · keep going</Meta>
+        <WorkspaceSection index="04" title="Keep going" note="Three places the loop continues after a session.">
           <ol className="mt-2">
             <li className="border-b py-5 first:border-t" style={{ borderColor: "var(--line)" }}>
               <div className="flex flex-wrap items-baseline justify-between gap-2 px-2">
@@ -273,7 +279,7 @@ export default async function MentorshipPage() {
               </div>
             </li>
           </ol>
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
