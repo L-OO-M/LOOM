@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { OSS_BADGES } from "@/lib/oss";
-import { Display, Meta, PlainStat } from "@/components/loom/primitives";
+import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { BuildTabs } from "@/components/student/SectionRails";
 import { domainLabel } from "@/lib/domains";
 import {
@@ -206,26 +207,27 @@ export default async function OpenSourcePage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-        {/* HERO — contribute with purpose */}
-        <div className="animate-in">
-          <Meta>Build · Contribute · Prove</Meta>
-          <Display size="lg" className="mt-3">Open source, without the guesswork.</Display>
-          <p className="narrative mt-4 max-w-2xl">
-            Find a repository that fits your level and domain, make one useful contribution, and let LOOM keep the proof.
-          </p>
-        </div>
+        <WorkspaceMasthead
+          kicker="Open source / build · contribute · prove"
+          title="Open source, without the guesswork."
+          lede="Find a repository that fits your level and domain, make one useful contribution, and let LOOM keep the proof."
+          meta={`${catalogueCount} curated ${catalogueCount === 1 ? "repository" : "repositories"}${lastSynced ? ` / metadata synced ${lastSynced}` : " / metadata as curated"}`}
+          tone="field"
+          art="/storyloom/opensource.png"
+          artAlt=""
+          stats={[
+            { value: verified, label: "verified contributions" },
+            { value: mine.length, unit: mine.length === 1 ? "claim" : "claims", label: "put your name on" },
+            { value: `${earned.size}/${OSS_BADGES.length}`, label: "badges earned" },
+            { value: levelLabel(levelInfo.level), label: "starting level" }
+          ]}
+        />
 
         <BuildTabs active="/student/opensource" />
 
-        <div className="mt-8 grid gap-8 sm:grid-cols-3">
-          <PlainStat value={verified} unit="verified" label="contributions — merged PRs, confirmed reviews, checked issues" />
-          <PlainStat value={mine.length} unit={mine.length === 1 ? "claim" : "claims"} label="contributions you have put your name on" />
-          <PlainStat value={`${earned.size}/${OSS_BADGES.length}`} unit="badges" label="earned in your badge journal" />
-        </div>
-
         {/* JOURNEY — Discover → Contribute → Verify → Prove (real state, no scores) */}
-        <section aria-label="Contribution journey" className="mt-10 border-y py-6" style={{ borderColor: "var(--line)" }}>
-          <ol className="grid gap-5 sm:grid-cols-4">
+        <WorkspaceSection title="The contribution loop" note="Four honest states, read straight from your record.">
+          <ol className="grid gap-5 pt-4 sm:grid-cols-4">
             <li>
               <p className="index-num">01</p>
               <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>Discover</p>
@@ -257,7 +259,7 @@ export default async function OpenSourcePage({ searchParams }) {
               </p>
             </li>
           </ol>
-        </section>
+        </WorkspaceSection>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
           <div className="min-w-0">
@@ -289,12 +291,11 @@ export default async function OpenSourcePage({ searchParams }) {
             </section>
 
             {recommended.length > 0 && (
-              <section aria-label="Recommended for you" className="mt-10">
-                <Meta>Discover · recommended for you</Meta>
-                <h2 className="h-product mt-2">Three places to start</h2>
-                <p className="narrative mt-2">
-                  Chosen for {primaryDomain ? domainLabel(primaryDomain) : "your profile"} at {levelLabel(levelInfo.level).toLowerCase()} level.
-                </p>
+              <WorkspaceSection
+                index="02"
+                title="Three places to start"
+                note={`Chosen for ${primaryDomain ? domainLabel(primaryDomain) : "your profile"} at ${levelLabel(levelInfo.level).toLowerCase()} level.`}
+              >
                 <ul className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {recommended.map((p) => (
                     <RepoCard
@@ -305,15 +306,15 @@ export default async function OpenSourcePage({ searchParams }) {
                     />
                   ))}
                 </ul>
-              </section>
+              </WorkspaceSection>
             )}
 
             {/* FIND */}
-            <section aria-label="Find a repository" className="mt-10">
-              <Meta>Discover · find</Meta>
-              <h2 className="h-product mt-2">The catalogue</h2>
-              <p className="narrative mt-2">Filter by what you can commit this week, not by what sounds impressive.</p>
-
+            <WorkspaceSection
+              index="03"
+              title="The catalogue"
+              note="Filter by what you can commit this week, not by what sounds impressive."
+            >
               <form
                 method="get"
                 className="mt-4 rounded-[var(--radius-lg)] border p-2 lg:sticky lg:top-4 lg:z-20"
@@ -423,22 +424,21 @@ export default async function OpenSourcePage({ searchParams }) {
                   )}
                 </nav>
               )}
-            </section>
+            </WorkspaceSection>
 
             {/* GUIDE */}
-            <section aria-label="How to contribute" className="mt-12">
-              <Meta>Understand · before you contribute</Meta>
-              <h2 className="h-product mt-2">Pick → prepare → ship → claim</h2>
-              <p className="narrative mt-2">A contribution is one issue, one small pull request, and a clear description of what you tested.</p>
+            <WorkspaceSection
+              index="04"
+              title="Pick → prepare → ship → claim"
+              note="A contribution is one issue, one small pull request, and a clear description of what you tested."
+            >
               <GuideTabs />
-            </section>
+            </WorkspaceSection>
 
             {/* TRACK */}
-            <section className="mt-12" aria-label="Your contribution trail">
-              <Meta>Track · your trail</Meta>
-              <h2 className="h-product mt-2">Your contribution trail</h2>
+            <WorkspaceSection index="05" title="Your contribution trail" note="Everything you have claimed, newest first.">
               <div className="mt-4"><TrailClient items={mine} /></div>
-            </section>
+            </WorkspaceSection>
           </div>
 
           {/* SIDEBAR — persistent contribution panel */}
