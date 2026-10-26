@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { BarChart3, Users, TrendingUp, GraduationCap } from "lucide-react";
-import { PageHeader, Card } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { DomainBars, ActivityLine, BottleneckBars } from "@/components/admin/AnalyticsCharts";
+import "../_components/admin-ledger.css";
 
 export const dynamic = "force-dynamic";
 
@@ -55,82 +54,97 @@ export default async function AdminAnalyticsPage() {
     completed: b.total_completed,
   }));
 
+  const snapshot = health ? new Date(health.cohort_date).toLocaleDateString("en-IN") : "no snapshot yet";
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`Data · ${health ? new Date(health.cohort_date).toLocaleDateString("en-IN") : "no snapshot yet"} · rolled up nightly`} title="Chapter analytics" desc="Cohort health, bottlenecks, mentors, and contests — real rollups, not live aggregates." />
-        <div className="mb-6 grid gap-3 sm:grid-cols-4">
-          {[
-            { label: "Students", value: health?.total_students ?? 0, icon: Users, sub: "cohort" },
-            { label: "Active 7d", value: health?.active_students_7d ?? 0, icon: TrendingUp, sub: "weekly" },
-            { label: "Consistency", value: `${Number(health?.avg_consistency || 0)}%`, icon: BarChart3, sub: "avg" },
-            { label: "Roadmap", value: `${Number(health?.avg_roadmap_pct || 0)}%`, icon: GraduationCap, sub: "avg" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}><s.icon size={14} /></span>
-              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
+        <WorkspaceMasthead
+          kicker={`Data / ${snapshot} / rolled up nightly`}
+          title="Chapter analytics"
+          lede="Cohort health, bottlenecks, mentors, and contests — real nightly rollups, not live aggregates."
+          meta={`${history.length} days of history / ${bottlenecks.length} nodes with funnel data`}
+          tone="ledger"
+          art="/domains-art/domain-web.png"
+          artAlt=""
+          stats={[
+            { value: health?.total_students ?? 0, label: "students in cohort" },
+            { value: health?.active_students_7d ?? 0, label: "active in 7 days" },
+            { value: Number(health?.avg_consistency || 0), unit: "%", label: "avg consistency" },
+            { value: Number(health?.avg_roadmap_pct || 0), unit: "%", label: "avg roadmap" }
+          ]}
+        />
+
+        <WorkspaceSection index="01" title="Distribution & activity" note="Domain membership and the last 30 days of engagement, straight from cohort snapshots.">
+          <div className="adminx-chart-grid">
+            <div className="adminx-chart"><DomainBars data={domainData} /></div>
+            <div className="adminx-chart"><ActivityLine data={activityData} /></div>
+          </div>
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Funnel bottlenecks" note="Nodes ranked by drop-off — hue marks the danger threshold above 50%.">
+          <div className="adminx-chart"><BottleneckBars data={bottleneckData} /></div>
+        </WorkspaceSection>
+
+        <WorkspaceSection index="03" title="Detail ledger" note="The rows behind the charts: funnel loss, mentor load, and contest conversion.">
+          <div className="aled-cols-3">
+            <div>
+              <h3 className="aled-panel-title">Bottleneck details</h3>
+              {bottlenecks.length === 0 ? (
+                <WorkspaceEmpty title="No funnel data yet" body="Nodes appear once students start them." />
+              ) : (
+                <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0 }}>
+                  {bottlenecks.map((b) => (
+                    <li key={b.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                      <div className="aled-copy">
+                        <span className="aled-title">{b.title || b.node_id}</span>
+                        <p className="aled-sub">{b.total_completed} of {b.total_started} complete</p>
+                      </div>
+                      <span className={`aled-value${Number(b.drop_off_pct) > 50 ? " is-danger" : ""}`}>{b.drop_off_pct}%</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <DomainBars data={domainData} />
-          <ActivityLine data={activityData} />
-        </div>
+            <div>
+              <h3 className="aled-panel-title">Mentor effectiveness</h3>
+              {mentors.length === 0 ? (
+                <WorkspaceEmpty title="No mentor sessions yet" body="Mentors appear once they have logged a session." />
+              ) : (
+                <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0 }}>
+                  {mentors.map((m) => (
+                    <li key={m.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                      <div className="aled-copy">
+                        <span className="aled-title">{m.mentor_name || m.mentor_id}</span>
+                        <p className="aled-sub">{m.mentees || m.mentee_count} mentees / {m.session_count} sessions</p>
+                      </div>
+                      <span className="aled-value">{Number(m.avg_mentee_roadmap_pct || 0)}%</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        <div className="mt-6">
-          <BottleneckBars data={bottleneckData} />
-        </div>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Bottleneck details</h2>
-            {bottlenecks.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No funnel data yet. Nodes appear once students start them.</p>
-            ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {bottlenecks.map((b) => (
-                  <li key={b.id} className="flex justify-between gap-2">
-                    <span className="min-w-0 truncate" style={{ color: "var(--text)" }}>{b.title || b.node_id} <span style={{ color: "var(--text-muted)" }}>· {b.total_completed}/{b.total_started}</span></span>
-                    <span className="shrink-0 font-mono" style={{ color: Number(b.drop_off_pct) > 50 ? "var(--danger)" : "var(--text-muted)" }}>{b.drop_off_pct}% drop</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Mentor effectiveness</h2>
-            {mentors.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No mentors with sessions yet.</p>
-            ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {mentors.map((m) => (
-                  <li key={m.id} className="flex justify-between gap-2">
-                    <span style={{ color: "var(--text)" }}>{m.mentor_name || m.mentor_id}</span>
-                    <span style={{ color: "var(--text-muted)" }}>{m.mentees || m.mentee_count} mentees · {m.session_count} sessions · {Number(m.avg_mentee_roadmap_pct || 0)}% avg</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="font-medium" style={{ color: "var(--text)" }}>Contest insights</h2>
-            {contests.length === 0 ? (
-              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>No contests yet.</p>
-            ) : (
-              <ul className="mt-3 space-y-2 text-sm">
-                {contests.map((c, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span className="min-w-0 truncate" style={{ color: "var(--text)" }}>{c.title}</span>
-                    <span className="shrink-0" style={{ color: "var(--text-muted)" }}>{c.regs} reg · {c.subs} subs{c.regs > 0 ? ` · ${Math.round((c.subs / c.regs) * 100)}% submit` : ""}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
+            <div>
+              <h3 className="aled-panel-title">Contest insights</h3>
+              {contests.length === 0 ? (
+                <WorkspaceEmpty title="No contests yet" body="Contest registration and submission totals appear here." />
+              ) : (
+                <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0 }}>
+                  {contests.map((c, i) => (
+                    <li key={i} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                      <div className="aled-copy">
+                        <span className="aled-title">{c.title}</span>
+                        <p className="aled-sub">{c.regs} registered / {c.subs} submitted{c.regs > 0 ? ` / ${Math.round((c.subs / c.regs) * 100)}% submit rate` : ""}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
