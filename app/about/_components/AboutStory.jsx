@@ -6,7 +6,7 @@ import "./about-story.css";
 
 export default function AboutStory() {
   return (
-    <FlowArt aria-label="The L.O.O.M. story">
+    <FlowArt aria-label="The LOOM story">
       <FlowSection className="flow-section--vision" aria-label="The vision">
         <p className="thread-kicker">01 — The vision</p>
         <div>
@@ -14,7 +14,7 @@ export default function AboutStory() {
             <span className="loom-mark" aria-hidden="true">
               L
             </span>
-            <span>L.O.O.M. / Student-led technical community</span>
+            <span>LOOM / Student-led technical community</span>
           </div>
           <h1 className="thread-heading">
             More than a society. A culture of building.
@@ -22,7 +22,7 @@ export default function AboutStory() {
         </div>
         <p className="thread-copy mt-auto max-w-3xl">
           <strong>
-            L.O.O.M. — Learning, Opportunity, Open Source, and Mentorship.
+            LOOM — Learning, Opportunity, Open Source, and Mentorship.
           </strong>{" "}
           A place to learn new skills, build meaningful projects, share
           knowledge, and guide the next generation.
@@ -31,13 +31,13 @@ export default function AboutStory() {
 
       <FlowSection
         className="flow-section--difference"
-        aria-label="What makes L.O.O.M. different"
+        aria-label="What makes LOOM different"
       >
         <p className="thread-kicker">02 — Built to do the opposite</p>
         <h2 className="thread-heading">A better way in.</h2>
         <div
           className="difference-grid"
-          aria-label="Four ways L.O.O.M. supports students"
+          aria-label="Four ways LOOM supports students"
         >
           <article className="difference-item">
             <span className="item-number">01 — Accessibility</span>
@@ -73,7 +73,7 @@ export default function AboutStory() {
 
       <FlowSection
         className="flow-section--ecosystem"
-        aria-label="The L.O.O.M. ecosystem"
+        aria-label="The LOOM ecosystem"
       >
         <p className="thread-kicker">03 — The ecosystem</p>
         <div>
@@ -84,7 +84,7 @@ export default function AboutStory() {
         </div>
         <div
           className="ecosystem-grid"
-          aria-label="Four stages of the L.O.O.M. community"
+          aria-label="Four stages of the LOOM community"
         >
           <article className="ecosystem-item">
             <span className="item-number">01</span>
@@ -122,7 +122,7 @@ export default function AboutStory() {
           The people may change. The culture continues.
         </h2>
         <p className="thread-copy max-w-4xl">
-          L.O.O.M. is built to last beyond a single event, semester, or
+          LOOM is built to last beyond a single event, semester, or
           leadership team. Each generation can inherit more opportunities—and
           leave something valuable for the next.
         </p>
@@ -131,27 +131,27 @@ export default function AboutStory() {
         </p>
       </FlowSection>
 
-      <FlowSection className="flow-section--join" aria-label="Join L.O.O.M.">
+      <FlowSection className="flow-section--join" aria-label="Join LOOM">
         <div className="join-layout">
           <div className="join-badge-wrap">
             <LanyardBadge
               className="join-badge"
               height="min(100svh, 820px)"
               cardWidth={246}
-              title="Join L.O.O.M."
+              title="Join LOOM"
               subtitle="LEARNING · OPEN SOURCE · OPPORTUNITY · MENTORSHIP"
               name="Your Story"
               role="STARTS HERE"
               strapText="learn · build · share · mentor"
-              strapLabel="L.O.O.M. COMMUNITY"
+              strapLabel="LOOM COMMUNITY"
               strapColor="var(--lanyard-strap-color)"
               inkColor="var(--lanyard-strap-ink)"
               cardColor="var(--lanyard-card-color)"
-              ariaLabel="L.O.O.M. membership badge. Drag to swing, press to flip."
+              ariaLabel="LOOM membership badge. Drag to swing, press to flip."
             />
           </div>
           <div className="join-copy">
-            <p className="thread-kicker">05 — Join L.O.O.M.</p>
+            <p className="thread-kicker">05 — Join LOOM</p>
             <h2 className="thread-heading mt-8">Your thread starts here.</h2>
             <p className="thread-copy mt-8">
               Whether you are writing your first line of code or building your

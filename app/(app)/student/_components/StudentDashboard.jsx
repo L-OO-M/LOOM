@@ -84,7 +84,7 @@ export function StudentDashboard({
             <OnboardingState
               eyebrow="Your first week"
               title="Three small steps unlock everything."
-              why="L.O.O.M. reads your real activity — roadmap progress, commits, shipped projects — and turns it into proof."
+              why="LOOM reads your real activity — roadmap progress, commits, shipped projects — and turns it into proof."
               steps={[
                 { title: "Set your direction", body: "Pick a track in onboarding so recommendations point correctly." },
                 { title: "Finish your first node", body: "Open the roadmap and complete milestone one. The next unlocks itself." },

@@ -3,7 +3,7 @@ import { BuilderCard } from "@/lib/builderCard";
 import { loadPublicBuilderCard } from "./cardData";
 
 export const revalidate = 300;
-export const alt = "L.O.O.M. builder card";
+export const alt = "LOOM builder card";
 export const contentType = "image/png";
 
 export const size = { width: 1200, height: 630 };
@@ -28,7 +28,7 @@ export default async function Image({ params }) {
           width: 1200, height: 630, display: "flex", alignItems: "center", justifyContent: "center",
           background: "#0a1628", color: "rgba(244,241,232,0.6)", fontSize: 30, letterSpacing: 4
         }}>
-          L.O.O.M. — BUILDER NOT FOUND
+          LOOM — BUILDER NOT FOUND
         </div>
       ),
       { width: 1200, height: 630 }

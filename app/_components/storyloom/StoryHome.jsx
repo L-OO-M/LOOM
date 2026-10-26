@@ -55,18 +55,18 @@ export default function StoryHome() {
       {/* 1 — Hero */}
       <>
         <Suspense fallback={<div className="bg-background" style={{ height: "calc(100svh - 64px)" }}/>}>
-          <SculptureHero height="calc(100svh - 64px)" sculptureScale={0.85} mobileSculptureScale={0.9} theme={theme} showNav={false} showCredit={false} loadFonts={false} src="/storyloom/hero-light.webp" darkSrc="/storyloom/hero-dark.webp" mobileSrc="/storyloom/hero-mobile-light.webp" mobileDarkSrc="/storyloom/hero-mobile-dark.webp" headingFont="var(--font-geist-sans)" bodyFont="var(--font-geist-sans)" accentFont="var(--font-display)" themeToggle={false}  brand="L.O.O.M." navLinks={[
+          <SculptureHero height="calc(100svh - 64px)" sculptureScale={0.85} mobileSculptureScale={0.9} theme={theme} showNav={false} showCredit={false} loadFonts={false} src="/storyloom/hero-light.webp" darkSrc="/storyloom/hero-dark.webp" mobileSrc="/storyloom/hero-mobile-light.webp" mobileDarkSrc="/storyloom/hero-mobile-dark.webp" headingFont="var(--font-geist-sans)" bodyFont="var(--font-geist-sans)" accentFont="var(--font-display)" themeToggle={false}  brand="LOOM" navLinks={[
             { label: "About", href: "#about" },
             { label: "Domains", href: "#domains" },
             { label: "Community", href: "#community" },
             { label: "Join", href: "#join" },
-        ]} navCta={{ label: "Join", href: "#join" }} eyebrow="Learning · Opportunity · Open Source · Mentorship" headline={"Weaving the future\nof technical culture."} headlineAccent="technical culture." body="A student-led technical community where beginners become builders, contributors, and future mentors. We don't just organize events — we build a culture of continuous learning, collaboration, and real-world impact." primaryCta={{ label: workspace ? "Open Your Workspace" : "Start Your Journey", href: workspace || "/register" }} secondaryCta={{ label: "Explore L.O.O.M.", href: "#about" }} hint="Move across the thread" hintTouch="Touch the thread" backdropText="loom" darkBackground={sculpturePalette.dark} background={sculpturePalette.light} accentColor={theme === "dark" ? sculpturePalette.warmDark : sculpturePalette.warmLight}/>
+        ]} navCta={{ label: "Join", href: "#join" }} eyebrow="Learning · Opportunity · Open Source · Mentorship" headline={"Weaving the future\nof technical culture."} headlineAccent="technical culture." body="A student-led technical community where beginners become builders, contributors, and future mentors. We don't just organize events — we build a culture of continuous learning, collaboration, and real-world impact." primaryCta={{ label: workspace ? "Open Your Workspace" : "Start Your Journey", href: workspace || "/register" }} secondaryCta={{ label: "Explore LOOM", href: "#about" }} hint="Move across the thread" hintTouch="Touch the thread" backdropText="loom" darkBackground={sculpturePalette.dark} background={sculpturePalette.light} accentColor={theme === "dark" ? sculpturePalette.warmDark : sculpturePalette.warmLight}/>
         </Suspense>
       </>
 
       {/* 2 — About */}
       <section id="about" className="pt-32">
-        <SectionIntro eyebrow="Our philosophy" title="Four pillars. One ecosystem." body="L.O.O.M. connects four essential elements of technical growth to create an inclusive, self-sustaining student community."/>
+        <SectionIntro eyebrow="Our philosophy" title="Four pillars. One ecosystem." body="LOOM connects four essential elements of technical growth to create an inclusive, self-sustaining student community."/>
         <StackingCards projects={pillars}/>
       </section>
 
@@ -107,7 +107,7 @@ export default function StoryHome() {
 
       {/* 5 — Join */}
       <section id="join" className="py-32">
-        <SectionIntro eyebrow="Get involved" title="Your journey. Your community. Your impact." body="Whether you're writing your first line of code or building your next big project, there's a place for you at L.O.O.M."/>
+        <SectionIntro eyebrow="Get involved" title="Your journey. Your community. Your impact." body="Whether you're writing your first line of code or building your next big project, there's a place for you at LOOM"/>
         <ol className="mx-auto mt-16 grid max-w-6xl gap-px overflow-hidden rounded-2xl border border-border bg-border px-0 sm:grid-cols-2 lg:grid-cols-4">
           {journey.map((j, i) => (<li key={j.step} className="bg-card p-8 transition-colors hover:bg-secondary">
               <span className="font-mono text-xs text-primary">0{i + 1}</span>
@@ -130,7 +130,7 @@ export default function StoryHome() {
 
       <>
         <Suspense fallback={null}>
-          <HalftoneFooter wordmark="loom" label="L.O.O.M. Technical Society" meta={`Beginner-friendly. Contribution-driven. © ${new Date().getFullYear()}`} preset={theme === "dark" ? "night" : "paper"} palette={{
+          <HalftoneFooter wordmark="loom" label="LOOM Technical Society" meta={`Beginner-friendly. Contribution-driven. © ${new Date().getFullYear()}`} preset={theme === "dark" ? "night" : "paper"} palette={{
             background: theme === "dark" ? sculpturePalette.dark : sculpturePalette.light,
             ink: theme === "dark" ? "#ede9df" : "#29251f",
             warm: theme === "dark" ? sculpturePalette.warmDark : sculpturePalette.warmLight,

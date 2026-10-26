@@ -47,7 +47,7 @@ export function MergeChain() {
           <em className="font-light text-shader">to merging code.</em>
         </h2>
         <p className="mt-6 max-w-md leading-7" style={{ color: "var(--text-muted)" }}>
-          The classroom makes passive consumers of knowledge. L.O.O.M. measures
+          The classroom makes passive consumers of knowledge. LOOM measures
           something else — follow the thread down.
         </p>
         <div className="mt-7 hidden lg:block">

@@ -6,7 +6,7 @@ export default function Loading() {
       aria-busy="true"
       aria-live="polite"
     >
-      <span className="sr-only">Loading About L.O.O.M.…</span>
+      <span className="sr-only">Loading About LOOM…</span>
     </div>
   );
 }

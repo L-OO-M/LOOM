@@ -14,10 +14,10 @@ export const revalidate = 86400;
 export const metadata = {
   title: "Terms",
   description:
-    "The rules for L.O.O.M. accounts, acceptable use, submitted work, moderation, credentials, availability, and changes. Draft terms pending chapter review.",
+    "The rules for LOOM accounts, acceptable use, submitted work, moderation, credentials, availability, and changes. Draft terms pending chapter review.",
   ...canonicalFor("/terms"),
   openGraph: {
-    title: "Terms | L.O.O.M.",
+    title: "Terms | LOOM",
     description: "Account rules, acceptable use, submitted work, moderation, credentials, and service changes."
   }
 };
@@ -81,7 +81,7 @@ export default function TermsPage() {
         </h2>
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
           Members retain ownership of work they submit, subject to licenses already granted to third-party repositories
-          or publishers. By submitting material to L.O.O.M., the member permits the chapter to display, organize,
+          or publishers. By submitting material to LOOM, the member permits the chapter to display, organize,
           review, verify, moderate, hide, or remove that material for operating the service. Moderation flags are
           community signals; chapter administrators make the final decision.
         </p>

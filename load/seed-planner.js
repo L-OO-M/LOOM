@@ -1,4 +1,4 @@
-// Seed the L.O.O.M. 2026-27 Collective Master Planner.
+// Seed the LOOM 2026-27 Collective Master Planner.
 //
 // Idempotent: weeks, sessions and planner-linked society events are upserted
 // per tenant, so re-running is safe and never duplicates a row.

@@ -62,7 +62,7 @@ function isPastEvent(event) {
 export function EventCard({ event }) {
   const { pal, nodes } = bannerFor(event);
   const type = String(TYPE_LABEL[event?.event_type] || event?.event_type || "Event").toUpperCase();
-  const title = clip(event?.title) || "L.O.O.M. event";
+  const title = clip(event?.title) || "LOOM event";
   const when = eventDateLine(event?.starts_at);
   const place = clip(event?.is_online ? "Online" : event?.location || "Venue announced soon", 38);
   const seats = seatsLine(event);
@@ -115,7 +115,7 @@ export function EventCard({ event }) {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 34, height: 3, background: GOLD }} />
             <div style={{ fontSize: 18, letterSpacing: 7, fontWeight: 700, color: GOLD }}>
-              L.O.O.M.
+              LOOM
             </div>
           </div>
           <div
@@ -185,7 +185,7 @@ export function EventCardNotFound() {
         letterSpacing: 4
       }}
     >
-      L.O.O.M. — EVENT NOT FOUND
+      LOOM — EVENT NOT FOUND
     </div>
   );
 }

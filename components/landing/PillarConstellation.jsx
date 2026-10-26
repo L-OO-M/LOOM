@@ -21,7 +21,7 @@ export function PillarConstellation() {
     <div>
       {/* Desktop / tablet constellation */}
       <div className="mt-12 hidden items-stretch gap-10 md:grid md:grid-cols-[1.1fr_1fr]">
-        <svg viewBox="0 0 400 400" className="w-full" role="group" aria-label="L.O.O.M. constellation diagram">
+        <svg viewBox="0 0 400 400" className="w-full" role="group" aria-label="LOOM constellation diagram">
           {RING.map(([x1, y1], i) => {
             const [x2, y2] = RING[(i + 1) % RING.length];
             const lit = active === i || active === (i + 1) % RING.length;

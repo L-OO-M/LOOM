@@ -15,14 +15,14 @@ export const metadata = {
   description: "Workshops, hackathons, talks, and contests the chapter actually runs — dates, venues, seats, and how to register.",
   ...canonicalFor("/events"),
   openGraph: {
-    title: "Events | L.O.O.M.",
+    title: "Events | LOOM",
     description: "Workshops, hackathons, talks, and contests from the chapter calendar.",
     url: absoluteUrl("/events"),
-    images: [{ url: absoluteUrl("/loom-og.png"), width: 1200, height: 630, alt: "L.O.O.M. events calendar" }]
+    images: [{ url: absoluteUrl("/loom-og.png"), width: 1200, height: 630, alt: "LOOM events calendar" }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Events | L.O.O.M.",
+    title: "Events | LOOM",
     description: "Workshops, hackathons, talks, and contests from the chapter calendar.",
     images: [absoluteUrl("/loom-og.png")]
   }
@@ -74,7 +74,7 @@ export default async function EventsPage({ searchParams }) {
   return (
     <>
       <JsonLd data={collectionPageSchema({
-        name: "L.O.O.M. events", path: "/events",
+        name: "LOOM events", path: "/events",
         description: "Upcoming and live workshops, hackathons, talks, and contests run by the chapter.",
         items: events.map((event) => ({ name: event.title, url: absoluteUrl(`/events/${event.id}`) }))
       })} />

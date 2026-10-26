@@ -17,7 +17,7 @@ async function open(page, path) {
 }
 
 
-test.describe("L.O.O.M. public pages", () => {
+test.describe("LOOM public pages", () => {
   test("home page loads with correct title", async ({ page }) => {
     await open(page, "/");
     await expect(page.locator("h1")).toContainText("Weaving the future");
@@ -47,7 +47,7 @@ test.describe("L.O.O.M. public pages", () => {
   });
 });
 
-test.describe("L.O.O.M. public site", () => {
+test.describe("LOOM public site", () => {
   test("faq page loads with heading", async ({ page }) => {
     const res = await open(page, "/faq");
     expect(res?.status()).toBe(200);
@@ -144,7 +144,7 @@ test.describe("L.O.O.M. public site", () => {
     }
   });
 });
-test.describe("L.O.O.M. SEO surfaces", () => {
+test.describe("LOOM SEO surfaces", () => {
   test("sitemap lists public routes + departments", async ({ request }) => {
     const res = await request.get("/sitemap.xml");
     expect(res.ok()).toBeTruthy();
@@ -157,7 +157,7 @@ test.describe("L.O.O.M. SEO surfaces", () => {
   test("unknown certificate codes are not presented as verified", async ({ page }) => {
     const res = await page.goto("/verify/certificate/CERT-NOT-A-REAL-CODE");
     expect(res?.status()).toBe(404);
-    await expect(page.getByText("Verified — issued by L.O.O.M.")).toHaveCount(0);
+    await expect(page.getByText("Verified — issued by LOOM")).toHaveCount(0);
   });
 
   test("llms.txt exposes the public crawl contract", async ({ request }) => {

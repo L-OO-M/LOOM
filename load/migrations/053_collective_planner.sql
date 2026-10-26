@@ -1,4 +1,4 @@
--- 053_collective_planner: the L.O.O.M. 2026-27 collective master planner.
+-- 053_collective_planner: the LOOM 2026-27 collective master planner.
 --
 -- One shared society calendar across six technical wings. Curriculum sessions
 -- (DSA, AI/ML, Cyber, Web, Hardware, Web3) live in `planner_sessions`; society

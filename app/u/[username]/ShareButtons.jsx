@@ -25,7 +25,7 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
   // same 1200x630 file.
   const cardBase = `${url.replace(/\/$/, "")}/card`;
   const ogUrl = `${cardBase}/${format}`;
-  const text = `${name} on L.O.O.M. — proof, projects and reputation. ${url}`;
+  const text = `${name} on LOOM — proof, projects and reputation. ${url}`;
 
   function flash(msg) {
     setCopied(msg);
@@ -72,7 +72,7 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
   async function share() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${name} — L.O.O.M.`, text, url });
+        await navigator.share({ title: `${name} — LOOM`, text, url });
         return;
       } catch {
         /* user dismissed, or unsupported payload: fall through to link */

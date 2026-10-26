@@ -27,7 +27,7 @@ try {
     CREATE INDEX IF NOT EXISTS roadmap_edges_to_idx ON public.roadmap_edges(to_id);
   `);
 
-  // Rich canary: Android-inspired but mapped to L.O.O.M. web/mobile track
+  // Rich canary: Android-inspired but mapped to LOOM web/mobile track
   // Yellow = is_highlighted true (recommended path), beige = normal
   const nodes = [
     // spine

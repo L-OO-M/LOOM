@@ -27,19 +27,19 @@ export async function generateMetadata({ params }) {
       LEFT JOIN tenants t ON t.id = c.tenant_id
       LEFT JOIN events e ON e.id = c.event_id
       WHERE c.verification_code = ${code} LIMIT 1`;
-    if (!cert) return { title: "Certificate not found | L.O.O.M.", alternates };
+    if (!cert) return { title: "Certificate not found | LOOM", alternates };
     const authentic = !cert.revoked_at && verifyCertificateSignature(cert);
-    const holder = cert.holder_name || "a L.O.O.M. member";
+    const holder = cert.holder_name || "a LOOM member";
     const what = cert.event_title || cert.title;
     return {
       title: `Certificate — ${holder}`,
-      description: `Participation certificate for ${holder} — ${what}, issued by ${cert.tenant_name || "L.O.O.M."}. Verification code ${code}.`,
+      description: `Participation certificate for ${holder} — ${what}, issued by ${cert.tenant_name || "LOOM"}. Verification code ${code}.`,
       alternates,
-      openGraph: { title: `Certificate — ${holder}`, description: `Participation certificate from ${cert.tenant_name || "L.O.O.M."}.`, url: absoluteUrl(`/verify/certificate/${code}`) },
+      openGraph: { title: `Certificate — ${holder}`, description: `Participation certificate from ${cert.tenant_name || "LOOM"}.`, url: absoluteUrl(`/verify/certificate/${code}`) },
       robots: authentic ? { index: true, follow: true } : { index: false, follow: false }
     };
   } catch {
-    return { title: "Certificate | L.O.O.M.", alternates };
+    return { title: "Certificate | LOOM", alternates };
   }
 }
 
@@ -81,7 +81,7 @@ export default async function VerifyCertificatePage({ params }) {
       />
       <BrandMark size={28} />
       <p className="kicker mt-8">Certificate of participation</p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight" style={{ color: "var(--text)" }}>{cert.holder_name || "L.O.O.M. student"}</h1>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight" style={{ color: "var(--text)" }}>{cert.holder_name || "LOOM student"}</h1>
       <div className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
         <dl className="space-y-3 text-sm">
           <Row label="Event">{cert.event_title || cert.title}</Row>
@@ -91,11 +91,11 @@ export default async function VerifyCertificatePage({ params }) {
           <Row label="Code"><span className="font-mono text-xs">{cert.verification_code}</span></Row>
         </dl>
         <p className="mt-5 rounded-xl border px-3 py-2 text-center text-sm font-medium" style={{ borderColor: "var(--line)", color: "var(--accent)", background: "var(--bg-muted)" }}>
-          Verified — issued by L.O.O.M.
+          Verified — issued by LOOM
         </p>
       </div>
       <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-        Verify any certificate at <Link href="/" style={{ color: "var(--accent)" }}>L.O.O.M.</Link> · {cert.verification_code}
+        Verify any certificate at <Link href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cert.verification_code}
       </p>
     </main>
   );

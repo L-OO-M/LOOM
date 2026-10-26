@@ -64,7 +64,7 @@ export function AuthShell({ children }) {
         <p className="relative text-xs leading-5" style={{ color: "var(--text-muted)" }}>
           Access is earned or granted — never self-selected.{" "}
           <Link prefetch={false} href="/about" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            How L.O.O.M. works
+            How LOOM works
           </Link>
         </p>
       </aside>

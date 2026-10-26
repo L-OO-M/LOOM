@@ -24,7 +24,7 @@ export function FlowSection({
 export default function FlowArt({
   children,
   className = "",
-  "aria-label": ariaLabel = "L.O.O.M. story",
+  "aria-label": ariaLabel = "LOOM story",
 }) {
   const containerRef = useRef(null);
   const childCount = Children.count(children);

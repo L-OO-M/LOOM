@@ -1,4 +1,4 @@
-# L.O.O.M. — Colleague Handoff
+# LOOM — Colleague Handoff
 
 > **Read this first.** Everything a new maintainer needs: what the project is, how to run it, how it is built, what is done, and — in detail — what work remains. Last updated after `e9eecc5` (SEO + co-location pass). Verified state at handoff: `lint` 0 errors · `build` clean · `vitest` 46/46 · Playwright 160/160.
 
@@ -6,7 +6,7 @@
 
 ## 1. What this project is
 
-**L.O.O.M.** (Learn · Build · Prove · Connect — plus Discover) is a learning operating system for college developer communities. One Next.js app serves:
+**LOOM** (Learn · Build · Prove · Connect — plus Discover) is a learning operating system for college developer communities. One Next.js app serves:
 
 - A **public site** (landing, About, FAQ, Events, Domains) that recruits students,
 - A **student workspace** (`/student`) with roadmaps, resources, projects, GitHub proof, contests, mentorship, community, credentials, and social discovery,

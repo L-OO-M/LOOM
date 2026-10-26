@@ -1,4 +1,4 @@
-# Contributing to L.O.O.M.
+# Contributing to LOOM
 
 Read `AGENTS.md` before touching code — it is the binding playbook.
 This file is the short contributor path; `AGENTS.md` wins on conflicts.

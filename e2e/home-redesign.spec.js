@@ -69,7 +69,7 @@ for (const theme of ["dark", "light"]) {
         await expect(image).toHaveJSProperty("complete", true);
         expect(await image.evaluate(node => node.naturalWidth)).toBeGreaterThan(0);
       }
-      await page.getByRole("link", { name: "L.O.O.M. home" }).scrollIntoViewIfNeeded();
+      await page.getByRole("link", { name: "LOOM home" }).scrollIntoViewIfNeeded();
       await mkdir(".screenshots", { recursive: true });
       await page.screenshot({ path: `.screenshots/storyloom-${theme}-${width}.png`, fullPage: true, style: "nextjs-portal { display: none; }" });
       expect(errors).toEqual([]);

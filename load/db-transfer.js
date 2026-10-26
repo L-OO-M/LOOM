@@ -1,4 +1,4 @@
-// Logical export/import for a L.O.O.M. database.
+// Logical export/import for a LOOM database.
 //
 // Used to move a development database between Supabase projects (e.g. when a
 // project must be recreated in another region). Schema is NOT transferred here

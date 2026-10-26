@@ -4,7 +4,7 @@ import { PageHero } from "@/components/landing/PageHero";
 
 export const metadata = {
   title: "Confirm your email",
-  description: "Confirm the email address on your L.O.O.M. account.",
+  description: "Confirm the email address on your LOOM account.",
   robots: { index: false, follow: false },
 };
 
@@ -47,7 +47,7 @@ export default async function VerifyEmailPage({ searchParams }) {
       <section className="mx-auto max-w-2xl px-5 py-12 sm:px-6">
         <div className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           <p className="text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-            L.O.O.M. does not collect college email addresses as a gate. Many colleges never
+            LOOM does not collect college email addresses as a gate. Many colleges never
             issue one, and a chapter is a community, not a domain. If you want the address on
             your account marked as confirmed, sign in and send yourself a link from Settings.
           </p>

@@ -11,7 +11,7 @@ export const Card = ({ i, letter, title, description, url, color, progress, rang
       <motion.div style={{ backgroundColor: color, scale, top: `calc(-5vh + ${i * 25}px)` }} className="stack-card flex flex-col relative -top-[25%] h-[480px] w-[90%] md:w-[68%] max-w-[900px] rounded-2xl p-6 md:p-10 origin-top">
         <div className="flex items-baseline justify-between">
           <span className="font-mono text-xs uppercase tracking-[0.3em] opacity-70">Pillar 0{i + 1} / 04</span>
-          <span className="font-mono text-xs uppercase tracking-[0.3em] opacity-70">L·O·O·M</span>
+          <span className="font-mono text-xs uppercase tracking-[0.3em] opacity-70">LOOM</span>
         </div>
         <div className="flex flex-col md:flex-row h-full mt-5 gap-6 md:gap-10 min-h-0">
           <div className="md:w-[40%] flex flex-col justify-end">

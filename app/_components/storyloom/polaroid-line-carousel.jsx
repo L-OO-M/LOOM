@@ -480,7 +480,7 @@ export default function PolaroidLineCarousel({ slides = DEFAULT_SLIDES, height =
           <div className="pl-print">
             <div className="pl-shot">
               {sl.artwork ? (<div className="pl-art" style={{ "--pl-tint": sl.tint || "var(--primary)" }} aria-hidden="true">
-                  <span className="pl-art-label">L.O.O.M. / {pad2(i + 1)}</span>
+                  <span className="pl-art-label">LOOM / {pad2(i + 1)}</span>
                   {sl.artwork}
                 </div>) : srcs[i] ? (<NextImage src={srcs[i]} alt={sl.alt || sl.title || ""} width={1600} height={1600} unoptimized draggable={false}/>) : null}
             </div>

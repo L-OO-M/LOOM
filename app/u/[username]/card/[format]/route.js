@@ -36,7 +36,7 @@ export async function GET(_request, { params }) {
           width: w, height: h, display: "flex", alignItems: "center", justifyContent: "center",
           background: "#0a1628", color: "rgba(244,241,232,0.6)", fontSize: w > h ? 30 : 44, letterSpacing: 4
         }}>
-          L.O.O.M. — BUILDER NOT FOUND
+          LOOM — BUILDER NOT FOUND
         </div>
       ),
       { width: w, height: h }

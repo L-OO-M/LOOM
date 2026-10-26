@@ -37,7 +37,7 @@ export default async function CertificatePage({ params }) {
       <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         <div className="rounded-2xl border p-10 text-center" style={{ borderColor: "var(--accent)", background: "var(--bg-elevated)" }}>
           <p className="kicker">Certificate of participation</p>
-          <h1 className="font-display mt-4 text-3xl font-medium" style={{ color: "var(--text)" }}>{cert.holder_name || "L.O.O.M. student"}</h1>
+          <h1 className="font-display mt-4 text-3xl font-medium" style={{ color: "var(--text)" }}>{cert.holder_name || "LOOM student"}</h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6" style={{ color: "var(--text-muted)" }}>
             attended <span style={{ color: "var(--text)" }}>{cert.event_title || cert.title}</span>
             {cert.tenant_name ? <> at <span style={{ color: "var(--text)" }}>{cert.tenant_name}</span></> : null}

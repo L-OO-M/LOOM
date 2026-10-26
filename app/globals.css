@@ -313,7 +313,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   }
 }
 
-/* React Flow roadmap graph — themed to L.O.O.M. tokens */
+/* React Flow roadmap graph — themed to LOOM tokens */
 .loom-flow-node {
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -357,7 +357,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 /* ============================================================
-   L.O.O.M. design system — second edition
+   LOOM design system — second edition
    Type-led, data-appropriate, motion with restraint.
    ============================================================ */
 

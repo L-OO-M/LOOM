@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputStyle, Field } from "@/components/ui";
 
-export function ProfileEditor({ initial, canPhoto = false }) {
+function previewInitials(name) {
+  return String(name || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
+}
+
+export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   const router = useRouter();
   const [username, setUsername] = useState(initial?.username || "");
   const [bio, setBio] = useState(initial?.bio || "");
@@ -43,32 +47,63 @@ export function ProfileEditor({ initial, canPhoto = false }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 space-y-3">
-      <Field label="Username (your public URL)"><input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={2} maxLength={30} style={inputStyle} /></Field>
-      <Field label="Bio"><textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={2} maxLength={300} style={inputStyle} /></Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Location (optional)"><input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={100} style={inputStyle} /></Field>
-        <Field label="GitHub handle (optional)"><input value={github} onChange={(e) => setGithub(e.target.value)} maxLength={60} placeholder="octocat" style={inputStyle} /></Field>
+    <form onSubmit={submit} className="folio-editor-grid">
+      <div className="space-y-3">
+        <Field label="Username (your public URL)">
+          <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={2} maxLength={30} style={inputStyle} />
+        </Field>
+        <div>
+          <Field label="Bio">
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} maxLength={300} style={inputStyle} aria-describedby="bio-count" />
+          </Field>
+          <span className="folio-counter" id="bio-count">{bio.length}/300</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Location (optional)">
+            <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={100} style={inputStyle} />
+          </Field>
+          <Field label="GitHub handle (optional)">
+            <input value={github} onChange={(e) => setGithub(e.target.value)} maxLength={60} placeholder="octocat" style={inputStyle} />
+          </Field>
+        </div>
+        <Field label="LinkedIn URL (optional)">
+          <input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} type="url" style={inputStyle} />
+        </Field>
+        {canPhoto && (
+          <div className="space-y-1.5">
+            <Field label="Photo URL">
+              <input value={photo} onChange={(e) => setPhoto(e.target.value)} type="url" maxLength={500} placeholder="https://…" style={inputStyle} />
+            </Field>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Leads and heads are shown with a photo on the public site, so this is required for your role.</p>
+          </div>
+        )}
+        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+          <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /> Public profile
+        </label>
+        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
+          <input type="checkbox" checked={showEndorsements} onChange={(e) => setShowEndorsements(e.target.checked)} /> Show endorsements on my profile
+        </label>
+        {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
+        <div className="folio-editor-actions">
+          <button disabled={busy} className="btn-ink disabled:opacity-50">{busy ? "Saving…" : initial ? "Save card" : "Claim username"}</button>
+          <span className="folio-section-note">Changes are audited and go live immediately.</span>
+        </div>
       </div>
-      <Field label="LinkedIn URL (optional)"><input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} type="url" style={inputStyle} /></Field>
-      {canPhoto && (
-        <div className="space-y-1.5">
-          <Field label="Photo URL"><input value={photo} onChange={(e) => setPhoto(e.target.value)} type="url" maxLength={500} placeholder="https://…" style={inputStyle} /></Field>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Leads and heads are shown with a photo on the public site, so this is required for your role.</p>
-          {photo.trim() && (
+
+      <aside className="folio-editor-preview" aria-label="Live preview of your cover">
+        <span className="folio-preview-label">Live cover preview</span>
+        <div className="folio-preview-avatar">
+          {canPhoto && photo.trim() ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="Your photo preview" width={48} height={48} className="size-12 rounded-full border object-cover" style={{ borderColor: "var(--line)" }} />
+            <img src={photo} alt="" />
+          ) : (
+            <span aria-hidden="true">{previewInitials(name || username)}</span>
           )}
         </div>
-      )}
-      <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
-        <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /> Public profile
-      </label>
-      <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text)" }}>
-        <input type="checkbox" checked={showEndorsements} onChange={(e) => setShowEndorsements(e.target.checked)} /> Show endorsements on my profile
-      </label>
-      {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
-      <button disabled={busy} className="btn-ink disabled:opacity-50">{busy ? "Saving…" : initial ? "Save card" : "Claim username"}</button>
+        <p className="folio-preview-name">{name || username || "Your name"}</p>
+        <span className="folio-preview-handle">@{username || "handle"}</span>
+        <p className="folio-preview-bio">{bio || "Your bio will appear here."}</p>
+      </aside>
     </form>
   );
 }
@@ -105,9 +140,15 @@ export function FollowButton({ username, initial }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button disabled={busy} onClick={toggle} aria-pressed={following} aria-label={following ? `Unfollow ${username}` : `Follow ${username}`} className={following ? "rounded-xl border px-4 py-2 text-sm disabled:opacity-50" : "btn-ink disabled:opacity-50"}
-        style={following ? { borderColor: "var(--line)", color: "var(--text-muted)" } : undefined}>
-        {busy ? "…" : following ? "Following ✓" : "Follow"}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={toggle}
+        aria-pressed={following}
+        aria-label={following ? `Unfollow ${username}` : `Follow ${username}`}
+        className="folio-follow disabled:opacity-50"
+      >
+        {busy ? "…" : following ? "Following" : "Follow"}
       </button>
       {err && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{err}</p>}
     </div>
@@ -137,12 +178,12 @@ export function EndorseForm({ username }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 flex flex-wrap items-end gap-2">
+    <form onSubmit={submit} className="folio-endorse">
       <Field label="Endorse a skill">
-        <input value={skill} onChange={(e) => setSkill(e.target.value)} required minLength={2} maxLength={40} placeholder="React" style={{ ...inputStyle, minWidth: 140 }} />
+        <input value={skill} onChange={(e) => setSkill(e.target.value)} required minLength={2} maxLength={40} placeholder="React" style={{ ...inputStyle, minWidth: 160 }} />
       </Field>
       <button className="btn-ink">Endorse</button>
-      {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
+      {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
     </form>
   );
 }
@@ -173,7 +214,7 @@ export function EndorsementManager({ endorsements = [] }) {
   if (items.length === 0) return null;
   return (
     <div className="mt-4">
-      <p className="meta">Endorsements you received</p>
+      <p className="folio-section-note">Endorsements you received</p>
       <ul className="mt-2 space-y-1.5">
         {items.map((e) => (
           <li key={e.id} className="flex items-center justify-between gap-3 text-sm" style={{ color: "var(--text)" }}>

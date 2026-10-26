@@ -21,7 +21,7 @@ export function LoomLetters() {
           width, and the last item was `flex-none`, so the row overflowed and the
           final letter was pushed off-screen. Wrap to 2x2 on narrow screens and
           hide the connectors there; from `sm` up it is the original single row. */}
-      <div className="flex flex-wrap items-stretch gap-x-1 gap-y-3 sm:flex-nowrap sm:gap-2" role="group" aria-label="The four letters of L.O.O.M.">
+      <div className="flex flex-wrap items-stretch gap-x-1 gap-y-3 sm:flex-nowrap sm:gap-2" role="group" aria-label="The four letters of LOOM">
         {LETTERS.map((l, i) => {
           const on = i === active;
           return (

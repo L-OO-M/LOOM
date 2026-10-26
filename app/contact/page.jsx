@@ -14,11 +14,11 @@ export const revalidate = 86400;
 export const metadata = {
   title: "Contact",
   description:
-    "How to contact the L.O.O.M. chapter responsible for an account, privacy request, credential question, or safety report. Public contact details are pending publication.",
+    "How to contact the LOOM chapter responsible for an account, privacy request, credential question, or safety report. Public contact details are pending publication.",
   ...canonicalFor("/contact"),
   openGraph: {
-    title: "Contact | L.O.O.M.",
-    description: "Contact the responsible L.O.O.M. chapter about accounts, privacy, credentials, or safety."
+    title: "Contact | LOOM",
+    description: "Contact the responsible LOOM chapter about accounts, privacy, credentials, or safety."
   }
 };
 
@@ -41,7 +41,7 @@ export default function ContactPage() {
         data={webPageSchema({
           name: "Contact",
           path: "/contact",
-          description: "Contact the responsible L.O.O.M. chapter about accounts, privacy, credentials, or safety."
+          description: "Contact the responsible LOOM chapter about accounts, privacy, credentials, or safety."
         })}
       />
 

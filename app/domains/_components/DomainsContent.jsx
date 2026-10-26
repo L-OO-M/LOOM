@@ -105,7 +105,7 @@ const nonTechnicalDomains = [
     badgeColor: "var(--pillar-o2)",
     title: "Design",
     description:
-      "Give ideas a visual identity. Shape how L.O.O.M. looks, feels, and communicates through thoughtful visual design.",
+      "Give ideas a visual identity. Shape how LOOM looks, feels, and communicates through thoughtful visual design.",
     ctaText: "Explore Design",
     slug: "design",
     imageUrl: domainCreative,
@@ -171,7 +171,7 @@ export default function DomainsContent() {
       >
         <JsonLd
           data={itemListSchema({
-            name: "L.O.O.M. departments",
+            name: "LOOM departments",
             items: departments.map((d) => ({
               name: d.name,
               url: absoluteUrl(`/domains/${d.slug}`),
@@ -182,7 +182,7 @@ export default function DomainsContent() {
           {/* Hero */}
           <section className="mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-8 sm:pt-28">
             <p className="mb-4 font-mono text-xs uppercase tracking-[0.25em] text-primary">
-              L.O.O.M.
+              LOOM
             </p>
             <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight sm:text-7xl">
               Choose your{" "}
@@ -192,7 +192,7 @@ export default function DomainsContent() {
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               From artificial intelligence to design, from writing code to
-              organizing events, every domain at L.O.O.M. offers a different way
+              organizing events, every domain at LOOM offers a different way
               to explore, create, and contribute.
             </p>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">

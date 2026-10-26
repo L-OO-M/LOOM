@@ -88,7 +88,7 @@ describe("event card content", () => {
 
   it("renders honest fallbacks for an event with no venue or title", () => {
     const text = cardText({ ...EVENT, title: "", location: null, capacity: null });
-    expect(text).toContain("L.O.O.M. event");
+    expect(text).toContain("LOOM event");
     expect(text).toContain("Venue announced soon");
     expect(text).toContain("Open registration");
   });

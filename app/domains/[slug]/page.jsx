@@ -39,7 +39,7 @@ export async function generateMetadata({ params }) {
     description: description || `Join the ${name} department — roadmap, workshops, seniors, and real proof of work.`,
     ...canonicalFor(`/domains/${slug}`),
     openGraph: {
-      title: `${name} Department | L.O.O.M.`,
+      title: `${name} Department | LOOM`,
       description: description || `Join the ${name} department.`
     }
   };

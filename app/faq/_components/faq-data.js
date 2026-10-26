@@ -12,7 +12,7 @@ export const faqData = {
         {
           id: "q1",
           number: "01",
-          question: "How do I join L.O.O.M.?",
+          question: "How do I join LOOM?",
           answer:
             "Create an account on the register page and pick the departments that interest you. Joining as a General Member is instant and approval-free — you can start on a learning roadmap the same day. Core membership, which comes with ownership of real work, is granted later by department leads based on sustained contribution.",
         },

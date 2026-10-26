@@ -1,4 +1,4 @@
-# AGENTS.md — AI/colleague playbook for L.O.O.M.
+# AGENTS.md — AI/colleague playbook for LOOM
 
 > **Who this is for:** any colleague (human or AI-assisted) who will audit, restyle, or extend pages. **Read this whole file before touching code.** Its only job: let you improve any tab/page/button **without breaking the rest of the site**, and prove it before you push.
 >

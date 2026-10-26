@@ -1,8 +1,8 @@
-# L.O.O.M. Product Brief
+# LOOM Product Brief
 
 ## Purpose
 
-L.O.O.M. is a learning operating system for college developer communities. It turns student activity, roadmap progress, GitHub evidence, contests, resources, and mentorship into one clear growth path.
+LOOM is a learning operating system for college developer communities. It turns student activity, roadmap progress, GitHub evidence, contests, resources, and mentorship into one clear growth path.
 
 The product serves two primary audiences:
 

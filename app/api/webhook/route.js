@@ -27,7 +27,7 @@ export async function GET() {
   return Response.json(
     {
       ok: true,
-      service: "L.O.O.M. GitHub webhook",
+      service: "LOOM GitHub webhook",
       canonical: "/api/github/webhook",
       accepts: "POST",
       note: "Deliveries are POSTed by GitHub with x-hub-signature-256."

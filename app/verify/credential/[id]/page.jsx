@@ -23,17 +23,17 @@ export async function generateMetadata({ params }) {
       LEFT JOIN profiles p ON p.user_id = v.student_id
       LEFT JOIN tenants t ON t.id = v.tenant_id
       WHERE v.id = ${id} LIMIT 1`;
-    if (!cred) return { title: "Credential not found | L.O.O.M.", alternates };
-    const holder = cred.holder_name || "a L.O.O.M. member";
+    if (!cred) return { title: "Credential not found | LOOM", alternates };
+    const holder = cred.holder_name || "a LOOM member";
     return {
       title: `${cred.title} — ${holder}`,
-      description: `Verifiable credential issued by ${cred.tenant_name || "L.O.O.M."} to ${holder} on ${new Date(cred.issued_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Signature checked on this page.`,
+      description: `Verifiable credential issued by ${cred.tenant_name || "LOOM"} to ${holder} on ${new Date(cred.issued_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}. Signature checked on this page.`,
       alternates,
-      openGraph: { title: `${cred.title} — ${holder}`, description: `Verifiable credential from ${cred.tenant_name || "L.O.O.M."}.`, url: absoluteUrl(`/verify/credential/${id}`) },
+      openGraph: { title: `${cred.title} — ${holder}`, description: `Verifiable credential from ${cred.tenant_name || "LOOM"}.`, url: absoluteUrl(`/verify/credential/${id}`) },
       robots: { index: true, follow: true }
     };
   } catch {
-    return { title: "Verifiable credential | L.O.O.M.", alternates };
+    return { title: "Verifiable credential | LOOM", alternates };
   }
 }
 
@@ -80,7 +80,7 @@ export default async function VerifyCredentialPage({ params }) {
   } catch (e) {
     console.warn("credential view log failed", e ? String(e).slice(0, 120) : e);
   }
-  const status = !valid ? "Invalid signature" : expired ? "Expired credential" : "Verified — issued by L.O.O.M.";
+  const status = !valid ? "Invalid signature" : expired ? "Expired credential" : "Verified — issued by LOOM";
   const statusColor = valid && !expired ? "var(--accent)" : "var(--danger)";
   const issued = new Date(cred.issued_at).toLocaleDateString();
   const expires = cred.expires_at ? new Date(cred.expires_at).toLocaleDateString() : null;
@@ -99,7 +99,7 @@ export default async function VerifyCredentialPage({ params }) {
       <h1 className="mt-2 text-2xl font-semibold tracking-tight" style={{ color: "var(--text)" }}>{cred.title}</h1>
       <div className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
         <dl className="space-y-3 text-sm">
-          <Row label="Holder">{meta.holder || cred.holder_name || "L.O.O.M. student"}</Row>
+          <Row label="Holder">{meta.holder || cred.holder_name || "LOOM student"}</Row>
           {cred.tenant_name ? <Row label="Chapter">{cred.tenant_name}</Row> : null}
           {meta.level ? <Row label="Level"><span className="capitalize">{meta.level}</span></Row> : null}
           <Row label="Issued">{issued}</Row>
@@ -115,7 +115,7 @@ export default async function VerifyCredentialPage({ params }) {
         </p>
       </div>
       <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-        Verify any credential at <Link href="/" style={{ color: "var(--accent)" }}>L.O.O.M.</Link> · {cred.id} · viewed {views} times
+        Verify any credential at <Link href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cred.id} · viewed {views} times
       </p>
     </main>
   );

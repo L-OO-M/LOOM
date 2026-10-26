@@ -22,7 +22,7 @@ export async function generateMetadata({ params }) {
   // so it can be assigned to the `alternates` key directly. Assigning the whole
   // helper result nests it one level too deep and Next emits no link tag at all.
   const { alternates } = canonicalFor(`/events/${id}`);
-  const notFound = { title: "Event not found | L.O.O.M.", alternates };
+  const notFound = { title: "Event not found | LOOM", alternates };
 
   try {
     const tenant = await resolveRequestTenant();
@@ -37,17 +37,17 @@ export async function generateMetadata({ params }) {
     `;
     if (!ev) return notFound;
     const image = absoluteUrl(`/events/${id}/opengraph-image`);
-    const title = `${ev.title} | L.O.O.M. Events`;
+    const title = `${ev.title} | LOOM Events`;
     const description = (ev.description || "Event details, seats, and registration.").slice(0, 160);
     return {
       title,
       description,
       alternates,
       openGraph: {
-        title: `${ev.title} | L.O.O.M.`,
+        title: `${ev.title} | LOOM`,
         description: (ev.description || "").slice(0, 160),
         url: absoluteUrl(`/events/${id}`),
-        images: [{ url: image, width: 1200, height: 630, alt: `${ev.title} — L.O.O.M.` }]
+        images: [{ url: image, width: 1200, height: 630, alt: `${ev.title} — LOOM` }]
       },
       twitter: {
         card: "summary_large_image",
@@ -58,7 +58,7 @@ export async function generateMetadata({ params }) {
     };
   } catch {
     // Never swallow the path: a broken query must not cost the page its identity.
-    return { title: "Event | L.O.O.M.", alternates };
+    return { title: "Event | LOOM", alternates };
   }
 }
 

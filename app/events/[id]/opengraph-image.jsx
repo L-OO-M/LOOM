@@ -5,7 +5,7 @@ import { absoluteUrl } from "@/lib/seo";
 import { EVENT_CARD_SIZE, EventCard, EventCardNotFound } from "@/lib/eventCard";
 
 export const revalidate = 300;
-export const alt = "L.O.O.M. event";
+export const alt = "LOOM event";
 export const contentType = "image/png";
 export const size = EVENT_CARD_SIZE;
 

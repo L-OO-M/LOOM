@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Timeline, TimelineItem } from "@/components/loom/Timeline";
+import { monthYear } from "@/lib/profileFolio";
 
 /**
- * The three sections every profile surface shows: what they are building, the
- * proof they have earned, and what people vouch for. The public share card and
- * the in-app profile render this same block; only the "latest project" link and
- * the per-proof action differ, so those come in as props.
+ * The three records every profile surface shows: what they are building, the
+ * proof they have earned, and what people vouch for. Server component — the
+ * public page must stay crawlable and the in-app page should not ship a client
+ * bundle just to draw a list.
  *
- * Server component — no client hooks, so the public card stays crawlable.
+ * `proofAction` and the two footers are the only per-surface differences.
  */
 export function ProfileSections({
   achievements = [],
+  ossMerges = [],
   proofCounts = [],
   skills = [],
   endorsementCount = null,
@@ -19,77 +20,112 @@ export function ProfileSections({
   proofAction = null,
   proofFooter = null,
   endorsementFooter = null,
-  showEndorsements = true,
+  showEndorsements = true
 }) {
   const project = latestProject?.[0] || null;
+  const ledgerCount = achievements.length + ossMerges.length;
+  const endorsementTotal = endorsementCount ?? skills.length;
+
   return (
     <>
-      {project ? (
-        <section aria-labelledby="building-heading" className="mt-8">
-          <h2 id="building-heading" className="meta">Building</h2>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
-            Latest:{" "}
+      <section aria-labelledby="building-heading" className="folio-section">
+        <div className="folio-section-head">
+          <h2 id="building-heading">Building</h2>
+          <span className="folio-section-note">Latest project</span>
+        </div>
+        {project ? (
+          <div className="folio-project">
             {projectHref ? (
-              <Link href={projectHref(project)} prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>
+              <Link href={projectHref(project)} prefetch={false} className="folio-project-title">
                 {project.title}
               </Link>
             ) : (
-              // The public card renders for signed-out viewers; the project
-              // detail route is authenticated, so the name is shown unlinked.
-              <span className="font-semibold" style={{ color: "var(--text)" }}>{project.title}</span>
+              <span className="folio-project-title">{project.title}</span>
             )}
+          </div>
+        ) : (
+          <p className="folio-empty">
+            No project on the board yet — the work here is still in progress.
           </p>
-        </section>
-      ) : null}
+        )}
+      </section>
 
-      <div className="mt-10 grid gap-10 sm:grid-cols-2">
-        <section aria-labelledby="proof-heading">
-          <h2 id="proof-heading" className="meta">The proof</h2>
-          {achievements.length === 0 ? (
-            <p className="narrative mt-3">
-              {proofCounts.length > 0 ? `${proofCounts.join(" · ")}.` : "No proof recorded yet."}{" "}
-              Badges land here as they are earned.
-            </p>
-          ) : (
-            <Timeline className="mt-4">
-              {achievements.map((a) => (
-                <TimelineItem
-                  key={a.id}
-                  state="done"
-                  title={a.badge_name || `${a.source_type} achievement`}
-                  meta={new Date(a.earned_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
-                  action={proofAction ? proofAction(a) : undefined}
-                />
-              ))}
-            </Timeline>
+      <section aria-labelledby="proof-heading" className="folio-section">
+        <div className="folio-section-head">
+          <h2 id="proof-heading">The proof</h2>
+          {proofCounts.length > 0 && (
+            <span className="folio-section-note">{proofCounts.join(" · ")}</span>
           )}
-          {proofFooter}
-        </section>
+        </div>
 
-        <section aria-labelledby="known-for-heading">
-          <h2 id="known-for-heading" className="meta">{showEndorsements ? `Known for · ${endorsementCount ?? skills.length}` : "Known for"}</h2>
-          {!showEndorsements ? (
-            <p className="narrative mt-3">This member has hidden their endorsements.</p>
-          ) : skills.length === 0 ? (
-            <p className="narrative mt-3">No endorsements yet — vouch for a skill you have seen in action.</p>
-          ) : (
-            <ul className="mt-4 space-y-2.5">
-              {skills.map((s) => (
-                <li key={s.skill}>
-                  <div className="flex justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate" style={{ color: "var(--text)" }}>{s.skill}</span>
-                    <span className="shrink-0 font-mono" style={{ color: "var(--text-muted)" }}>×{s.n}</span>
+        {ledgerCount === 0 ? (
+          <p className="folio-empty">
+            No badges or verified merges yet. Proof lands here when it is earned,
+            not when it is claimed.
+          </p>
+        ) : (
+          <ol className="folio-ledger">
+            {achievements.map((a) => (
+              <li key={`achievement-${a.id}`} className="folio-ledger-row">
+                <span className="folio-ledger-date">{monthYear(a.earned_at)}</span>
+                <div>
+                  <p className="folio-ledger-title">
+                    {a.badge_name || (a.source_type ? `${a.source_type} achievement` : "Achievement")}
+                  </p>
+                  <div className="folio-ledger-meta">
+                    <span>Achievement</span>
+                    {proofAction && <span className="folio-ledger-action">{proofAction(a)}</span>}
                   </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--bg-muted)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, s.n * 25)}%`, background: "var(--accent)" }} />
+                </div>
+              </li>
+            ))}
+            {ossMerges.map((m) => (
+              <li key={`merge-${m.id}`} className="folio-ledger-row">
+                <span className="folio-ledger-date">{monthYear(m.merged_at || m.created_at)}</span>
+                <div>
+                  <p className="folio-ledger-title">{m.title || m.repo || "Verified contribution"}</p>
+                  <div className="folio-ledger-meta">
+                    <span>Verified merge</span>
+                    {m.url && (
+                      <a href={m.url} target="_blank" rel="noreferrer" className="folio-ledger-action">
+                        View PR ↗
+                      </a>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {endorsementFooter}
-        </section>
-      </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+        {proofFooter}
+      </section>
+
+      <section aria-labelledby="known-for-heading" className="folio-section">
+        <div className="folio-section-head">
+          <h2 id="known-for-heading">Known for</h2>
+          <span className="folio-section-note">
+            {showEndorsements ? `${endorsementTotal} endorsement${endorsementTotal === 1 ? "" : "s"}` : "Hidden by member"}
+          </span>
+        </div>
+
+        {!showEndorsements ? (
+          <p className="folio-empty">This member has hidden their endorsements.</p>
+        ) : skills.length === 0 ? (
+          <p className="folio-empty">
+            No endorsements yet — vouch for a skill you have seen in action.
+          </p>
+        ) : (
+          <ul className="folio-skills">
+            {skills.map((s, i) => (
+              <li key={s.skill} className="folio-skill" data-top={i < 3 ? "true" : "false"}>
+                <span>{s.skill}</span>
+                <strong>×{s.n}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
+        {endorsementFooter}
+      </section>
     </>
   );
 }

@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 
 export const metadata = {
   title: "Questions, answered honestly",
-  description: "How joining L.O.O.M. works, who it is for, and what happens after you sign up.",
+  description: "How joining LOOM works, who it is for, and what happens after you sign up.",
   ...canonicalFor("/faq"),
 };
 

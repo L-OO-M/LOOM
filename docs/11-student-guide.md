@@ -1,6 +1,6 @@
 # Student Guide
 
-Everything a student can do on L.O.O.M., in the order it unlocks.
+Everything a student can do on LOOM, in the order it unlocks.
 
 ## 1. Getting in
 

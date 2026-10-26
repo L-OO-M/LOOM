@@ -367,7 +367,7 @@ export default function HalftoneWordmarkFooter({ wordmark = "halden", label = "H
       <style>{HWF_CSS}</style>
       <canvas ref={canvasRef} aria-hidden="true"/>
       <span className="hwf-sr">{wordmark}</span>
-      <h2 className="hwf-sr">Explore L.O.O.M.</h2>
+      <h2 className="hwf-sr">Explore LOOM</h2>
       <div className="hwf-top">
         <div className="hwf-brand">
           <strong>{label}</strong>

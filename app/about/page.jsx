@@ -8,10 +8,10 @@ export const dynamic = "force-static";
 export const metadata = {
   title: "About",
   description:
-    "What L.O.O.M. is: a beginner-first developer loop — learn, practice, build, collaborate, mentor — run by student departments, measured on accessibility, readiness, excellence, and network.",
+    "What LOOM is: a beginner-first developer loop — learn, practice, build, collaborate, mentor — run by student departments, measured on accessibility, readiness, excellence, and network.",
   ...canonicalFor("/about"),
   openGraph: {
-    title: "About | L.O.O.M.",
+    title: "About | LOOM",
     description: SITE_DESCRIPTION,
   },
 };

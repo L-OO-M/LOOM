@@ -1,6 +1,6 @@
-# L.O.O.M.
+# LOOM
 
-L.O.O.M. is a multi-tenant developer-growth platform for colleges. It helps students see their learning path, connect GitHub activity to progress, find resources, join contests, and receive mentorship while admins manage roadmaps, analytics, and institutional settings.
+LOOM is a multi-tenant developer-growth platform for colleges. It helps students see their learning path, connect GitHub activity to progress, find resources, join contests, and receive mentorship while admins manage roadmaps, analytics, and institutional settings.
 
 The project follows a documentation-first rule: product and architecture docs define the contracts before implementation expands them.
 
@@ -94,4 +94,4 @@ Start here:
 
 ## Design Principle
 
-L.O.O.M. should feel computationally simple even when the product is sophisticated. Students see progress, next step, action, and feedback. Admins see data, pattern, decision, and action. Infrastructure sees event, queue, aggregate, and cache.
+LOOM should feel computationally simple even when the product is sophisticated. Students see progress, next step, action, and feedback. Admins see data, pattern, decision, and action. Infrastructure sees event, queue, aggregate, and cache.

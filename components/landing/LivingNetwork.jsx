@@ -224,7 +224,7 @@ export function LivingNetwork() {
           One society, many campuses. Every node below is live data — hover the map or pick a chapter.
         </p>
         <Link href="/register" className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--accent)" }}>
-          Bring L.O.O.M. to your college <ArrowRight size={14} />
+          Bring LOOM to your college <ArrowRight size={14} />
         </Link>
       </div>
     </div>

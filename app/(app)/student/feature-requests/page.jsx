@@ -25,7 +25,7 @@ export default async function FeatureRequestsPage() {
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
         <Meta>Community wishlist</Meta>
-        <Display size="lg" className="mt-3">What should L.O.O.M. build next?</Display>
+        <Display size="lg" className="mt-3">What should LOOM build next?</Display>
         <p className="narrative mt-3">Ideas live here — you propose, the chapter reviews. Approved ideas can be assigned back to you to build.</p>
         <DiscoverTabs active="/student/feature-requests" />
         <div className="mt-4 flex gap-2">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const STOPS = [
   ["ecosystem", "The thesis"],
-  ["pillars", "L·O·O·M"],
+  ["pillars", "LOOM],
   ["journey", "The loop"],
   ["network", "Living network"],
   ["cadence", "Calendar"],

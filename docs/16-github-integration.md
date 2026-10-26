@@ -1,6 +1,6 @@
 # GitHub Integration Guide
 
-How GitHub activity becomes proof inside L.O.O.M. — what is built, how to
+How GitHub activity becomes proof inside LOOM — what is built, how to
 connect it, and how to operate it. (Supersedes the retired
 `04-github-pipeline.md` design note; runbook lives in
 `15-deploy-and-operations.md`.)

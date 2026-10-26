@@ -93,7 +93,7 @@ export default function SetupPage() {
     <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="max-w-sm text-center">
         <ShieldCheck size={32} style={{ color: "var(--accent)" }} className="mx-auto" strokeWidth={1.5} />
-        <h1 className="mt-4 text-xl font-semibold" style={{ color: "var(--text)" }}>Initialize L.O.O.M.</h1>
+        <h1 className="mt-4 text-xl font-semibold" style={{ color: "var(--text)" }}>Initialize LOOM</h1>
         <p className="mt-3 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
           No platform admin exists yet. Claim admin to set up your college. This can only be
           done once, by the account that is signed in now.

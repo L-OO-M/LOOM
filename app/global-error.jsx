@@ -39,7 +39,7 @@ export default function GlobalError({ error, reset }) {
               margin: 0
             }}
           >
-            L.O.O.M.
+            LOOM
           </p>
           <h1 style={{ fontSize: "1.75rem", margin: "1rem 0 0.5rem", fontWeight: 700 }}>
             Something broke on our side

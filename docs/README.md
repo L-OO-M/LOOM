@@ -1,4 +1,4 @@
-# L.O.O.M. Documentation
+# LOOM Documentation
 
 Learning, Opportunity, Open source, Mentorship — one student journey per chapter.
 
