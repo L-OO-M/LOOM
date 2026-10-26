@@ -1,0 +1,415 @@
+.reading-room {
+  --room-paper: color-mix(in srgb, var(--bg-elevated) 84%, var(--bg));
+  --room-deep: color-mix(in srgb, var(--bg-elevated) 68%, var(--bg));
+  --room-rule: var(--line);
+  --room-thread: var(--accent);
+  --room-muted: var(--text-muted);
+}
+
+.reading-room-hero .desk-title {
+  max-width: 14ch;
+}
+
+.reading-room-pass {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--room-thread) 4%, transparent), transparent 48%),
+    color-mix(in srgb, var(--room-deep) 92%, transparent);
+}
+
+.reading-room-tabs {
+  margin-top: 0.35rem;
+}
+
+.room-index {
+  margin-top: 1.6rem;
+}
+
+.room-index-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--room-rule);
+}
+
+.room-index-label {
+  margin: 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.room-index-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--room-muted);
+}
+
+.room-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  margin-top: 0;
+  border-bottom: 1px solid var(--room-rule);
+  background: var(--room-rule);
+}
+
+@media (min-width: 760px) {
+  .room-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.room-card {
+  position: relative;
+  display: flex;
+  min-height: 19rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.25rem 1.2rem 1.1rem;
+  background: var(--room-paper);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  transition: background 180ms ease;
+}
+
+.room-card::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--room-thread), transparent 70%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 240ms ease;
+}
+
+.room-card:hover {
+  background: color-mix(in srgb, var(--room-paper) 74%, var(--wash));
+}
+
+.room-card:hover::after {
+  transform: scaleX(1);
+}
+
+.room-number {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.14em;
+  color: var(--room-thread);
+}
+
+.room-label {
+  margin-top: 0.15rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.room-title {
+  margin-top: 1.7rem;
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-size: clamp(1.55rem, 3.2vw, 2.1rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.room-copy {
+  max-width: 30ch;
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  line-height: 1.58;
+  color: var(--room-muted);
+}
+
+.room-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  padding-top: 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--room-rule) 76%, transparent);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.room-foot span:last-child {
+  color: var(--room-thread);
+  transition: transform 180ms ease;
+}
+
+.room-card:hover .room-foot span:last-child {
+  transform: translateX(3px);
+}
+
+.reading-help {
+  margin-top: 2.4rem;
+  border-top: 1px solid var(--room-rule);
+  padding-top: 1.2rem;
+}
+
+.reading-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.reading-section-kicker {
+  margin: 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.reading-section-title {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.6rem, 3.5vw, 2.35rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.reading-section-lede {
+  max-width: 58ch;
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--room-muted);
+}
+
+.reading-empty {
+  margin: 1.2rem 0 0;
+  padding: 1rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--room-rule) 70%, transparent);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--room-muted);
+}
+
+.reading-help-list {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-help-list li {
+  border-top: 1px solid color-mix(in srgb, var(--room-rule) 70%, transparent);
+}
+
+.reading-help-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding: 0.95rem 0.25rem;
+  text-decoration: none;
+  transition: background 160ms ease, padding 160ms ease;
+}
+
+@media (min-width: 640px) {
+  .reading-help-row {
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    gap: 1.1rem;
+    padding-inline: 0.5rem;
+  }
+}
+
+.reading-help-row:hover {
+  background: color-mix(in srgb, var(--wash) 72%, transparent);
+  padding-inline: 0.75rem;
+}
+
+.reading-help-index {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--room-muted);
+}
+
+.reading-help-main {
+  min-width: 0;
+}
+
+.reading-help-title {
+  display: block;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+.reading-help-meta {
+  display: block;
+  margin-top: 0.25rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.61rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.reading-help-answer {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--room-thread);
+  white-space: nowrap;
+}
+
+.reading-help-answer span {
+  display: inline-block;
+  margin-left: 0.2rem;
+  transition: transform 160ms ease;
+}
+
+.reading-help-row:hover .reading-help-answer span {
+  transform: translateX(3px);
+}
+
+.reading-margin {
+  margin-top: 2.2rem;
+  border-top: 1px solid var(--room-rule);
+  padding-top: 1.2rem;
+}
+
+.reading-margin-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+
+.reading-margin-title {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.reading-margin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  border-block: 1px solid color-mix(in srgb, var(--room-rule) 70%, transparent);
+  padding-block: 1rem;
+}
+
+.reading-margin-stat {
+  min-width: 0;
+}
+
+.reading-margin-value {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.9rem, 4.2vw, 2.9rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.reading-margin-label {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--room-muted);
+}
+
+.reading-margin-copy {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--room-muted);
+}
+
+.reading-margin-copy a {
+  font-weight: 600;
+  color: var(--room-thread);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+@media (max-width: 639px) {
+  .room-card {
+    min-height: 15rem;
+  }
+
+  .room-title {
+    margin-top: 1.1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .reading-margin-grid {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .reading-margin-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+  }
+
+  .reading-margin-value {
+    min-width: 2.4rem;
+    font-size: 2rem;
+  }
+
+  .reading-margin-label {
+    margin: 0;
+  }
+
+  .reading-help-row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .reading-help-answer {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 0.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-card,
+  .room-card::after,
+  .room-foot span:last-child,
+  .reading-help-row,
+  .reading-help-answer span {
+    transition: none;
+  }
+}
