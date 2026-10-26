@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Search, Users, Shield, Crown, GraduationCap, Filter, ArrowUpRight, X } from "lucide-react";
+import { Search, Users, Filter, ArrowUpRight, X } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
 import { RoleDistributionDonut, DeptMembershipBars } from "@/components/admin/StudentsCharts";
 import { classifyMany } from "@/lib/tiers";
+import "./students.css";
 
 function roleTone(role) {
   switch (role) {
@@ -41,7 +41,7 @@ export default async function AdminStudentsPage({ searchParams }) {
     ORDER BY name
   `;
 
-  // Stats in one round-trip — avoids separate counts per role.
+  // Stats in one round-trip, avoids separate counts per role.
   const [stats] = await sql`
     SELECT
       COUNT(*)::int AS total,
@@ -67,7 +67,7 @@ export default async function AdminStudentsPage({ searchParams }) {
     ORDER BY p.updated_at DESC LIMIT 50
   `;
 
-  // Tier segregation — computed live, never stored, not shown as public tags
+  // Tier segregation is computed live, never stored, never shown as public tags.
   let tierMap = new Map();
   let tierCounts = { beginner: 0, intermediate: 0, advanced: 0 };
   if (rows.length > 0) {
@@ -84,7 +84,7 @@ export default async function AdminStudentsPage({ searchParams }) {
     } catch { /* tier must never break roster */ }
   }
 
-  // Charts — sequential tenant-scoped aggregates (pooler-safe).
+  // Charts use sequential tenant-scoped aggregates (pooler-safe).
   const deptCounts = await sql`
     SELECT d.name, COUNT(*)::int AS c FROM department_memberships m
     JOIN departments d ON d.id = m.department_id
@@ -94,84 +94,102 @@ export default async function AdminStudentsPage({ searchParams }) {
 
   const activeFilters = [q && `search: ${q}`, role && `role: ${role}`, dept && `dept: ${dept}`, tierFilter && `tier: ${tierFilter}`].filter(Boolean);
   const clearHref = "/admin/students";
+  const tierRows = [
+    { id: "beginner", label: "Beginner", count: tierCounts.beginner, desc: "needs support" },
+    { id: "intermediate", label: "Intermediate", count: tierCounts.intermediate, desc: "needs guidance" },
+    { id: "advanced", label: "Advanced", count: tierCounts.advanced, desc: "ready to build" },
+  ];
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader
-          kicker={`College · ${stats?.total ?? rows.length} enrolled · ${rows.length} shown`}
-          title="Students"
-          desc="Search, inspect, and manage roles. Every role change is audited and scoped to this chapter."
-          action={
-            <Link href="/admin/students" prefetch={false} className="hidden sm:inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-              <Users size={12} /> Roster
-            </Link>
-          }
-        />
-
-        {/* Stats strip — mirrors real admin consoles: total + distribution at a glance */}
-        <div className="mb-6 grid gap-3 sm:grid-cols-4">
-          {[
-            { label: "Total", value: stats?.total ?? 0, icon: Users },
-            { label: "Students", value: stats?.students ?? 0, icon: GraduationCap },
-            { label: "Core + Leads", value: (stats?.core ?? 0) + (stats?.leads ?? 0), icon: Crown },
-            { label: "Admins", value: stats?.admins ?? 0, icon: Shield },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full" style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--text-muted)" }}>
-                <s.icon size={14} />
-              </span>
-              <div>
-                <p className="font-mono text-sm font-semibold leading-none" style={{ color: "var(--text)" }}>{s.value}</p>
-                <p className="meta">{s.label}</p>
-              </div>
+      <main className="rosterx mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+        <header className="adminx-masthead">
+          <div className="adminx-masthead-bar">
+            <span className="adminx-seal"><Users size={12} /> Roster</span>
+            <span>People / chapter ledger</span>
+            {tenant?.name && <span>/ {tenant.name}</span>}
+          </div>
+          <div className="adminx-masthead-grid">
+            <div className="adminx-masthead-copy">
+              <p className="adminx-kicker">People / chapter</p>
+              <h1 className="adminx-title">The chapter, <span>by name.</span></h1>
+              <p className="adminx-desc">
+                Search, inspect, and manage roles. Every role change is audited and scoped to this chapter.
+              </p>
+              <p className="adst-meta-line">
+                {stats?.total ?? 0} enrolled &middot; {rows.length} shown &middot; server cap 50
+              </p>
             </div>
-          ))}
-        </div>
+            <div className="adminx-glance" aria-label="Chapter roster at a glance">
+              {[
+                { label: "Total", value: stats?.total ?? 0 },
+                { label: "Students", value: stats?.students ?? 0 },
+                { label: "Core + leads", value: (stats?.core ?? 0) + (stats?.leads ?? 0) },
+                { label: "Admins", value: stats?.admins ?? 0 },
+              ].map((s) => (
+                <div key={s.label} className="adminx-glance-item">
+                  <strong>{s.value}</strong>
+                  <span>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </header>
 
-        {/* Tier segregation — for heads to distribute work (not shown as public tags) */}
-        <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <span className="meta mr-2">Tiers (internal):</span>
-          {[
-            { id: "beginner", label: "Beginner", count: tierCounts.beginner, color: "#64748b", desc: "needs support" },
-            { id: "intermediate", label: "Intermediate", count: tierCounts.intermediate, color: "#d97706", desc: "needs guidance" },
-            { id: "advanced", label: "Advanced", count: tierCounts.advanced, color: "#16a34a", desc: "ready to build" },
-          ].map((t) => (
-            <Link key={t.id} href={tierFilter === t.id ? clearHref : `/admin/students?tier=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${role ? `&role=${role}` : ""}${dept ? `&dept=${dept}` : ""}`} prefetch={false} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: tierFilter === t.id ? t.color : "var(--line)", background: tierFilter === t.id ? t.color : "transparent", color: tierFilter === t.id ? "white" : "var(--text-muted)" }}>
-              <span className="size-2 rounded-full" style={{ background: t.color }} /> {t.label} · {t.count} <span className="hidden sm:inline opacity-60">· {t.desc}</span>
-            </Link>
-          ))}
-          <span className="meta ml-auto hidden sm:inline">Hidden from student UI · for distribution only</span>
-        </div>
-
-        <section className="grid gap-4 lg:grid-cols-2" aria-label="Distribution visuals">
-          <RoleDistributionDonut data={[
-            { name: "Student", value: stats?.students ?? 0 },
-            { name: "Core", value: stats?.core ?? 0 },
-            { name: "Leads", value: stats?.leads ?? 0 },
-            { name: "Admin", value: stats?.admins ?? 0 },
-          ]} />
-          <DeptMembershipBars data={deptCounts.map((r) => ({ name: r.name, value: r.c }))} />
+        <section className="adst-tier-band" aria-labelledby="adst-tier-title">
+          <div className="adst-tier-head">
+            <p id="adst-tier-title" className="adst-band-label">Tiers / internal</p>
+            <p className="adst-band-note">For distribution only, hidden from student UI</p>
+          </div>
+          <div className="adst-tier-row">
+            {tierRows.map((t) => (
+              <Link
+                key={t.id}
+                href={tierFilter === t.id ? clearHref : `/admin/students?tier=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${role ? `&role=${role}` : ""}${dept ? `&dept=${dept}` : ""}`}
+                prefetch={false}
+                aria-pressed={tierFilter === t.id}
+                className="adst-tier"
+              >
+                <span className="adst-tier-count">{t.count}</span>
+                <span className="adst-tier-copy">
+                  <span className="adst-tier-label">{t.label}</span>
+                  <span className="adst-tier-desc">{t.desc}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
         </section>
 
-        {/* Filters — professional filter bar: search + selects + pills, like Linear/Notion directories */}
-        <form method="get" className="mb-4 mt-4 rounded-2xl border p-3 sm:p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+        <section className="adst-charts" aria-label="Distribution visuals">
+          <div className="adst-chart-cell">
+            <RoleDistributionDonut data={[
+              { name: "Student", value: stats?.students ?? 0 },
+              { name: "Core", value: stats?.core ?? 0 },
+              { name: "Leads", value: stats?.leads ?? 0 },
+              { name: "Admin", value: stats?.admins ?? 0 },
+            ]} />
+          </div>
+          <div className="adst-chart-cell">
+            <DeptMembershipBars data={deptCounts.map((r) => ({ name: r.name, value: r.c }))} />
+          </div>
+        </section>
+
+        <form method="get" className="adst-filter" role="search">
+          <div className="adst-filter-main">
+            <div className="adst-search">
+              <Search size={14} className="adst-search-icon" aria-hidden="true" />
               <input
                 name="q"
                 defaultValue={q}
-                placeholder="Search name, user id, or GitHub…"
+                placeholder="Search name, user id, or GitHub"
                 aria-label="Search students"
-                className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_16%,transparent)]"
-                style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
+                className="adst-search-input"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Filter size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-                <select name="role" defaultValue={role} aria-label="Filter by role" className="rounded-xl border py-2.5 pl-7 pr-8 text-sm outline-none" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
+            <div className="adst-selects">
+              <div className="adst-select-wrap">
+                <Filter size={12} className="adst-select-icon" aria-hidden="true" />
+                <select name="role" defaultValue={role} aria-label="Filter by role" className="adst-select">
                   <option value="">All roles</option>
                   <option value="student">Student</option>
                   <option value="core">Core</option>
@@ -180,19 +198,19 @@ export default async function AdminStudentsPage({ searchParams }) {
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <select name="dept" defaultValue={dept} aria-label="Filter by department" className="rounded-xl border py-2.5 pl-3 pr-8 text-sm outline-none" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
+              <select name="dept" defaultValue={dept} aria-label="Filter by department" className="adst-select">
                 <option value="">All departments</option>
                 {departments.map((d) => <option key={d.slug} value={d.slug}>{d.name}</option>)}
               </select>
-              <select name="tier" defaultValue={tierFilter} aria-label="Filter by tier" className="rounded-xl border py-2.5 pl-3 pr-8 text-sm outline-none" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
+              <select name="tier" defaultValue={tierFilter} aria-label="Filter by tier" className="adst-select">
                 <option value="">All tiers</option>
-                <option value="beginner">Beginner — needs support</option>
-                <option value="intermediate">Intermediate — needs guidance</option>
-                <option value="advanced">Advanced — ready to build</option>
+                <option value="beginner">Beginner / needs support</option>
+                <option value="intermediate">Intermediate / needs guidance</option>
+                <option value="advanced">Advanced / ready to build</option>
               </select>
               <button className="btn-ink !py-2.5 !px-5 text-sm">Search</button>
               {(q || role || dept) && (
-                <Link href={clearHref} prefetch={false} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium hover:bg-[var(--bg)]" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
+                <Link href={clearHref} prefetch={false} className="adst-clear">
                   <X size={12} /> Clear
                 </Link>
               )}
@@ -200,81 +218,88 @@ export default async function AdminStudentsPage({ searchParams }) {
           </div>
 
           {activeFilters.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="meta mr-1">Active:</span>
+            <div className="adst-active-filters">
+              <span className="adst-band-label">Active</span>
               {activeFilters.map((f) => (
-                <span key={f} className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}>{f}</span>
+                <span key={f} className="adst-active-filter">{f}</span>
               ))}
-              <span className="meta ml-1">{rows.length} result{rows.length === 1 ? "" : "s"} · capped at 50</span>
+              <span className="adst-active-count">
+                {rows.length} result{rows.length === 1 ? "" : "s"} &middot; capped at 50
+              </span>
             </div>
           )}
         </form>
 
-        {/* Roster — dense, scannable table with avatar + role + dept tags; row hover lifts slightly */}
-        <div className="overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <div className="adst-roster">
           {rows.length === 0 ? (
-            <div className="py-14 text-center">
-              <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No students found</p>
-              <p className="narrative mx-auto mt-2 max-w-md">Try broadening the search or clearing the department filter. New sign-ups appear here after their first login.</p>
+            <div className="adst-empty">
+              <p className="adst-empty-title">No students found.</p>
+              <p className="adst-empty-copy">Try broadening the search or clearing the department filter. New sign-ups appear here after their first login.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="adst-table-wrap">
+              <table className="adst-table">
                 <thead>
-                  <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--bg)" }}>
-                    <th className="whitespace-nowrap px-4 py-3 font-medium">Student</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Role</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Term ends</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Tier</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Track</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Departments</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Year</th>
-                    <th className="whitespace-nowrap px-3 py-3 font-medium">Updated</th>
-                    <th className="px-3 py-3 text-right font-medium"></th>
+                  <tr>
+                    <th>Student</th>
+                    <th>Role</th>
+                    <th>Term ends</th>
+                    <th>Tier</th>
+                    <th>Track</th>
+                    <th>Departments</th>
+                    <th>Year</th>
+                    <th>Updated</th>
+                    <th aria-label="Actions"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y" style={{ borderColor: "var(--line)" }}>
-                  {rows.map((r) => {
+                <tbody>
+                  {rows.map((r, i) => {
                     const tone = roleTone(r.role);
                     const mems = Array.isArray(r.departments) ? r.departments : [];
                     const tier = tierMap.get(r.user_id);
-                    const tierColor = tier?.tier === "advanced" ? "#16a34a" : tier?.tier === "intermediate" ? "#d97706" : "#64748b";
+                    const expired = r.role_term_end && new Date(r.role_term_end) < new Date();
                     return (
-                      <tr key={r.user_id} className="group transition hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)]">
-                        <td className="px-4 py-3">
-                          <Link href={`/admin/students/${r.user_id}`} prefetch={false} className="flex items-center gap-3">
-                            <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>{initials(r.name)}</span>
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium group-hover:underline" style={{ color: "var(--text)" }}>{r.name || "—"}</span>
-                              <span className="block truncate font-mono text-xs" style={{ color: "var(--text-muted)" }}>{r.github_username ? `@${r.github_username}` : r.user_id.slice(0, 8)}</span>
+                      <tr key={r.user_id}>
+                        <td className="adst-person">
+                          <span className="adst-row-num" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                          <Link href={`/admin/students/${r.user_id}`} prefetch={false} className="adst-person-link">
+                            <span className="adst-avatar">{initials(r.name)}</span>
+                            <span className="adst-person-copy">
+                              <span className="adst-person-name">{r.name || "—"}</span>
+                              <span className="adst-person-handle">{r.github_username ? `@${r.github_username}` : r.user_id.slice(0, 8)}</span>
                             </span>
                           </Link>
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>{tone.label}</span>
+                        <td>
+                          <span className="adst-role" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>
+                            {tone.label}
+                          </span>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs" style={{ color: r.role_term_end && new Date(r.role_term_end) < new Date() ? "var(--danger)" : "var(--text-muted)" }}>
+                        <td className={`adst-term ${expired ? "is-expired" : ""}`}>
                           {r.role_term_end ? new Date(r.role_term_end).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "—"}
-                          {r.role_term_end && new Date(r.role_term_end) < new Date() && <span className="ml-1.5 font-sans">expired</span>}
+                          {expired && <span className="adst-term-note">expired</span>}
                         </td>
-                        <td className="px-3 py-3">
-                          <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: tierColor }} title={tier?.need || ""}>
-                            <span className="size-2 rounded-full" style={{ background: tierColor }} />{tier?.tier || "beginner"}
+                        <td>
+                          <span className="adst-tier-pill" data-tier={tier?.tier || "beginner"} title={tier?.need || ""}>
+                            <span className="adst-tier-dot" aria-hidden="true" />
+                            {tier?.tier || "beginner"}
                           </span>
                         </td>
-                        <td className="px-3 py-3"><span className="meta rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)" }}>{r.primary_domain || "—"}</span></td>
-                        <td className="px-3 py-3">
-                          <span className="flex max-w-[22ch] flex-wrap gap-1">
-                            {mems.length === 0 ? <span className="meta">—</span> : mems.slice(0, 2).map((d) => (
-                              <span key={`${r.user_id}-${d.slug}`} className="inline-flex rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}>{d.name || d.slug}<span className="ml-1 opacity-60">· {d.level}</span></span>
+                        <td><span className="adst-track">{r.primary_domain || "—"}</span></td>
+                        <td>
+                          <span className="adst-depts">
+                            {mems.length === 0 ? <span className="adst-muted">—</span> : mems.slice(0, 2).map((d) => (
+                              <span key={`${r.user_id}-${d.slug}`} className="adst-dept">
+                                {d.name || d.slug}<span className="adst-dept-level">{d.level}</span>
+                              </span>
                             ))}
-                            {mems.length > 2 && <span className="meta">+{mems.length - 2}</span>}
+                            {mems.length > 2 && <span className="adst-muted">+{mems.length - 2}</span>}
                           </span>
                         </td>
-                        <td className="px-3 py-3 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{r.year ?? "—"}</td>
-                        <td className="px-3 py-3 whitespace-nowrap text-xs" style={{ color: "var(--text-muted)" }}>{r.updated_at ? new Date(r.updated_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—"}</td>
-                        <td className="px-3 py-3 text-right">
-                          <Link href={`/admin/students/${r.user_id}`} prefetch={false} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold opacity-70 transition group-hover:opacity-100 hover:border-[var(--accent)]" style={{ borderColor: "var(--line)", color: "var(--accent)" }}>
+                        <td className="adst-year">{r.year ?? "—"}</td>
+                        <td className="adst-updated">{r.updated_at ? new Date(r.updated_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "—"}</td>
+                        <td className="adst-actions">
+                          <Link href={`/admin/students/${r.user_id}`} prefetch={false} className="adst-open">
                             Open <ArrowUpRight size={12} />
                           </Link>
                         </td>
@@ -285,9 +310,9 @@ export default async function AdminStudentsPage({ searchParams }) {
               </table>
             </div>
           )}
-          <div className="flex items-center justify-between border-t px-4 py-3 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}>
-            <span>{rows.length} shown · server cap 50 · use search + filters to narrow</span>
-            <Link href="/admin/students" prefetch={false} className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Clear filters</Link>
+          <div className="adst-foot">
+            <span>{rows.length} shown &middot; server cap 50 &middot; use search + filters to narrow</span>
+            <Link href={clearHref} prefetch={false}>Clear filters</Link>
           </div>
         </div>
       </main>
