@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Trophy, Users, FileCheck, Clock3, Download } from "lucide-react";
+import { Users, Clock3, Download } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { can } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ContestForm } from "@/components/admin-forms";
 import { ChallengeStatus } from "./_components/ChallengeStatus";
 
@@ -41,77 +40,76 @@ export default async function LeadChallengesPage() {
   return (
     <AppShell area="lead" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-        <PageHeader
-          kicker={`Programs · ${contests.length} challenges · ${live} live`}
+        <WorkspaceMasthead
+          kicker={`Programs / ${contests.length} challenges / ${live} live`}
           title="Challenges"
-          desc="Create chapter-wide challenges, open them for registration, and export who signed up. Students see them under Prove → Challenges."
+          lede="Create chapter-wide challenges, open them for registration, and export who signed up. Students see them under Prove → Challenges."
+          meta={`${registered} registrations / ${entries} entries submitted`}
+          tone="field"
+          art="/storyloom/hackathon.png"
+          artAlt=""
+          stats={[
+            { value: live, label: "live now" },
+            { value: registered, label: "registered" },
+            { value: entries, label: "entries" },
+            { value: contests.length - live, label: "draft or closed" }
+          ]}
         />
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Live now", value: live, sub: "published / open / active", icon: Trophy },
-            { label: "Registered", value: registered, sub: "across all challenges", icon: Users },
-            { label: "Entries", value: entries, sub: "submitted work", icon: FileCheck }
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text-muted)" }}>
-                <s.icon size={14} />
-              </span>
-              <div>
-                <p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p>
-                <p className="meta">{s.label} · {s.sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <section aria-label="Chapter challenges">
-            <Meta>Newest first</Meta>
-            {contests.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No challenges yet</p>
-                <p className="narrative mx-auto mt-2 max-w-md">Create a draft on the right. Publish it when the brief and dates are ready, and students can register from their Challenges page.</p>
-              </div>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {contests.map((c) => (
-                  <li key={c.id} className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link href={`/student/contests/${c.id}`} prefetch={false} className="truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>
-                            {c.title}
-                          </Link>
-                          <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: LIVE.has(c.status) ? "var(--accent)" : "var(--line)", color: LIVE.has(c.status) ? "var(--accent)" : "var(--text-muted)" }}>
-                            {c.status}
-                          </span>
-                        </div>
-                        {c.description && <p className="narrative mt-1 line-clamp-1 text-xs leading-5">{c.description}</p>}
-                        <p className="meta mt-1 flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1"><Users size={11} /> {c.registrations} registered</span>
-                          <span>· {c.submissions} entries</span>
-                          <span className="inline-flex items-center gap-1"><Clock3 size={11} /> {when(c.starts_at)} → {c.ends_at ? when(c.ends_at) : "no close"}</span>
-                        </p>
+        <WorkspaceSection
+          index="01"
+          title="Chapter challenges"
+          note="Newest first. Publish a challenge when the brief and dates are ready, then export the registration list."
+        >
+          {contests.length === 0 ? (
+            <WorkspaceEmpty
+              title="No challenges yet"
+              body="Create a draft in the next section. Publish it when the brief and dates are ready, and students can register from their Challenges page."
+            />
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {contests.map((c) => (
+                <li key={c.id} className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/student/contests/${c.id}`} prefetch={false} className="truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>
+                          {c.title}
+                        </Link>
+                        <span className="mono-tag rounded-full border px-2 py-0.5" style={{ borderColor: LIVE.has(c.status) ? "var(--accent)" : "var(--line)", color: LIVE.has(c.status) ? "var(--accent)" : "var(--text-muted)" }}>
+                          {c.status}
+                        </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <ChallengeStatus id={c.id} status={c.status} />
-                        <a
-                          href={`/api/contests/export?contestId=${c.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold hover:underline"
-                          style={{ color: "var(--accent)" }}
-                        >
-                          <Download size={12} /> CSV
-                        </a>
-                      </div>
+                      {c.description && <p className="narrative mt-1 line-clamp-1 text-xs leading-5">{c.description}</p>}
+                      <p className="meta mt-1 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1"><Users size={11} /> {c.registrations} registered</span>
+                        <span>· {c.submissions} entries</span>
+                        <span className="inline-flex items-center gap-1"><Clock3 size={11} /> {when(c.starts_at)} → {c.ends_at ? when(c.ends_at) : "no close"}</span>
+                      </p>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <ChallengeStatus id={c.id} status={c.status} />
+                      <a
+                        href={`/api/contests/export?contestId=${c.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold hover:underline"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        <Download size={12} /> CSV
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
 
-          <aside className="space-y-4">
+        <WorkspaceSection
+          index="02"
+          title="Open a challenge"
+          note="Every lead tier can create and publish chapter challenges. Deleting or judging entries stays in the admin contest workspace."
+        >
+          <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_360px]">
             <ContestForm endpoint="/api/contests/manage" />
             <div className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
               <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>Who can do what</p>
@@ -121,8 +119,8 @@ export default async function LeadChallengesPage() {
                 <li>· Deleting or judging entries stays in the admin contest workspace.</li>
               </ul>
             </div>
-          </aside>
-        </div>
+          </div>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
