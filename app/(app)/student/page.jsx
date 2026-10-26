@@ -104,7 +104,7 @@ export default async function StudentPage() {
     ORDER BY r.completed_at DESC NULLS LAST LIMIT 3
   `;
   const recentOss = await sql`
-    SELECT pr_url, title, verified_at, status FROM student_oss_contributions
+    SELECT pr_url, title, verified_at, status, created_at FROM student_oss_contributions
     WHERE student_id = ${user?.id ?? ""}
     ORDER BY created_at DESC LIMIT 2
   `;
@@ -115,24 +115,32 @@ export default async function StudentPage() {
   `;
   const proof = [
     ...recentNodes.map((r) => ({
+      at: r.completed_at,
+      when: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
       text: `completed ${r.title}`,
-      meta: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) + " · roadmap" : "roadmap",
+      meta: "Roadmap",
       href: "/student/roadmap",
       hot: true
     })),
     ...recentOss.map((o) => ({
+      at: o.verified_at || o.created_at,
+      when: new Date(o.verified_at || o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
       text: o.status === "merged" || o.verified_at ? `merged ${o.title || "a pull request"}` : `claimed ${o.title || "a pull request"}`,
-      meta: "open source",
+      meta: "Open source",
       href: o.pr_url || "/student/opensource",
       hot: !!(o.verified_at || o.status === "merged")
     })),
     ...recentProjects.map((p) => ({
+      at: p.created_at,
+      when: p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
       text: `published ${p.title}`,
-      meta: "project",
+      meta: "Project",
       href: `/student/projects/${p.id}`,
       hot: false
     }))
-  ].slice(0, 5);
+  ].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
+    .slice(0, 5)
+    .map(({ at, ...item }) => item);
 
   // Notifications preview: unread first, then newest. Mark-read stays in the
   // inbox drawer + notifications page — home only links.
