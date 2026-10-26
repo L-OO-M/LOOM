@@ -3,7 +3,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { can } from "@/lib/permissions";
 import { listDirectory } from "@/lib/directory";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { LeadDirectory } from "@/components/lead/LeadDirectory";
 
 export const dynamic = "force-dynamic";
@@ -24,16 +24,33 @@ export default async function Page() {
   const entries = await listDirectory(sql, { tenantId: tenant.id });
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   const canManage = can(me, "manage_leads").ok;
+  const current = entries.filter((e) => e.is_current).length;
 
   return (
     <AppShell area="lead" tenant={tenant} user={user}>
       <main className="animate-in mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-        <PageHeader
-          kicker={`Chapter · ${entries.length} ${entries.length === 1 ? "person" : "people"}`}
+        <WorkspaceMasthead
+          kicker={`Chapter / ${entries.length} ${entries.length === 1 ? "person" : "people"} / ${departments.length} departments`}
           title="Leadership directory."
-          desc="Who leads what — current leads and the past holders still worth calling during a handover."
+          lede="Who leads what — current leads and the past holders still worth calling during a handover."
+          meta={canManage ? "You can add and edit entries for this chapter." : "Read-only view of the chapter's leadership record."}
+          tone="field"
+          art="/storyloom/mentorship.png"
+          artAlt=""
+          stats={[
+            { value: entries.length, label: "people listed" },
+            { value: current, label: "current holders" },
+            { value: entries.length - current, label: "past holders" },
+            { value: departments.length, label: "departments" }
+          ]}
         />
-        <LeadDirectory initialEntries={entries} departments={departments} canManage={canManage} />
+        <WorkspaceSection
+          index="01"
+          title="The directory"
+          note="Current leads first, then past holders. Filter by department or vertical to trace a handover."
+        >
+          <LeadDirectory initialEntries={entries} departments={departments} canManage={canManage} />
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
