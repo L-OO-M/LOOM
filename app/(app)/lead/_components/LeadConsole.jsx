@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "motion/react";
 import { Meta } from "@/components/loom/primitives";
-import { StatTile, TileGrid } from "@/components/loom/StatTiles";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
 import { HandoverPanel } from "./HandoverPanel";
@@ -57,98 +56,133 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
     : ["Grant Core in own dept", "Publish dept workshops", "Propose society events (needs approval)", "Mark succession-ready", "Compile dept reports"];
 
   const StatusBar = (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <span className="mono-tag">Live</span>
-      <span className="size-2 rounded-full animate-pulse" style={{ background: loading ? "var(--warn)" : "var(--success)" }} />
-      <span className="mono-tag">{loading ? "syncing…" : `synced ${new Date(liveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} · poll 15s`}</span>
+    <div className="leadx-telemetry">
+      <span className="leadx-live">
+        <span className="leadx-live-dot" style={{ background: loading ? "var(--warn)" : "var(--success)" }} />
+        Live feed
+      </span>
+      <span className="leadx-telemetry-item">
+        {loading ? "Syncing" : `Synced ${new Date(liveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}
+        <span> / 15s poll</span>
+      </span>
       {termEnd && (
-        <span
-          className="mono-tag rounded-full border px-2.5 py-1"
-          style={{
-            borderColor: new Date(termEnd) < new Date() ? "var(--danger)" : "var(--line)",
-            color: new Date(termEnd) < new Date() ? "var(--danger)" : "var(--text-muted)"
-          }}
-        >
+        <span className={`leadx-term ${new Date(termEnd) < new Date() ? "is-expired" : ""}`}>
           Term {new Date(termEnd) < new Date() ? "ended" : "ends"}{" "}
           {new Date(termEnd).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
         </span>
       )}
-      <button onClick={fetchLive} className="ml-auto btn-ghost !py-1.5 !text-xs">Refresh</button>
+      <button onClick={fetchLive} className="leadx-refresh">Refresh</button>
     </div>
   );
 
   const Capability = (
-    <section className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--accent) 5%, var(--bg-elevated))" }}>
-      <Meta>What you can do — {isVertical ? "Vertical Lead" : "Dept Lead"} · scoped, audited, no self-escalation</Meta>
-      <ul className="mt-2 flex flex-wrap gap-2">
-        {cap.map((c) => <li key={c} className="mono-tag rounded-full border px-2.5 py-1" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>{c}</li>)}
+    <section className="leadx-note leadx-canon">
+      <p className="leadx-note-kicker">Rules of engagement</p>
+      <h2 className="leadx-note-title">{isVertical ? "Vertical command" : "Department command"}</h2>
+      <ul className="leadx-rule-list">
+        {cap.map((c) => <li key={c}>{c}</li>)}
       </ul>
-      <p className="mono-tag mt-2">All writes are tenant-scoped, audit-logged, and upward-only — see <span style={{ color: "var(--text)" }}>/admin/audit</span>.</p>
+      <p className="leadx-note-foot">
+        Tenant-scoped / audit-logged / upward-only. Review the trail at <span>/admin/audit</span>.
+      </p>
     </section>
   );
 
   function Overview() {
+    const signals = [
+      { value: data.roster.length, unit: "members", label: isVertical ? "Across your vertical" : "Across your departments" },
+      { value: pendingRequests.length, unit: "requests", label: "Core requests waiting on a human" },
+      { value: data.workshops.length, unit: "events", label: "Gatherings on the horizon" },
+      { value: charts.turnoutPct ?? "-", unit: charts.turnoutPct == null ? "" : "%", label: "Turnout across past events" }
+    ];
+    const quiet = pendingRequests.length === 0;
+
     return (
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }} className="space-y-6">
-        {Capability}
-        <TileGrid cols={4}>
-          <motion.div whileHover={{ y: -1 }} transition={{ type: "spring", stiffness: 380 }}>
-            <StatTile value={data.roster.length} unit="members" label={isVertical ? "members across your vertical" : "members across your departments"} />
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }}>
-            <StatTile value={pendingRequests.length} unit="waiting" label="Core requests needing a human" tone={pendingRequests.length > 0 ? "var(--accent)" : undefined} />
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }}>
-            <StatTile value={data.workshops.length} unit="soon" label="events on the horizon" />
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }}>
-            <StatTile value={charts.turnoutPct ?? "—"} unit={charts.turnoutPct == null ? "" : "%"} label="turnout on past events" />
-          </motion.div>
-        </TileGrid>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <RosterLevelBars data={charts.rosterLevels} />
-          <ContributionMix data={charts.contributionKinds} />
-          <GrowthLine data={charts.growth} />
-          <DeptHealthBars data={charts.deptHealth} />
-        </div>
-
-        {pendingRequests.length > 0 && (
-          <section className="rounded-2xl border p-5" style={{ borderColor: "var(--accent)", background: "color-mix(in srgb, var(--accent) 6%, var(--bg-elevated))" }}>
-            <Meta style={{ color: "var(--accent)" }}>{pendingRequests.length} Core request{pendingRequests.length === 1 ? "" : "s"} waiting</Meta>
-            <ul className="mt-3 space-y-3">
-              {pendingRequests.map((r) => {
-                const dept = data.departments.find((d) => d.id === r.department_id);
-                return (
-                  <li key={`${r.department_id}-${r.user_id}`} className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-sm" style={{ color: "var(--text)" }}><strong>{r.name}</strong> <span style={{ color: "var(--text-muted)" }}>wants Core in {dept?.name}</span></span>
-                    <GrantCoreButton departmentId={r.department_id} userId={r.user_id} name={r.name || "member"} />
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-
-        {isVertical && data.proposed.length > 0 && (
-          <section aria-label="Approval queue">
-            <Meta>Society events awaiting your cross-check</Meta>
-            <ul className="mt-3 divide-y rounded-2xl border" style={{ borderColor: "var(--line)" }}>
-              {data.proposed.map((e) => (
-                <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 p-4 hover:bg-[var(--wash)] transition">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{e.title}</span>
-                    <span className="mono-tag">by {e.author_name || "a dept lead"} · {e.starts_at ? new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "unscheduled"}</span>
-                  </span>
-                  <span className="flex gap-2">
-                    <ApproveEventButton id={e.id} approve label="Approve" />
-                    <ApproveEventButton id={e.id} approve={false} label="Send back" />
-                  </span>
-                </li>
+      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }} className="leadx-overview">
+        <div className="leadx-brief">
+          <div className="leadx-main">
+            <section className="leadx-signals" aria-label="Vertical signals">
+              {signals.map((s) => (
+                <div key={s.label} className="leadx-signal">
+                  <p className="leadx-signal-value">
+                    {s.value}
+                    {s.unit && <span>{s.unit}</span>}
+                  </p>
+                  <p className="leadx-signal-label">{s.label}</p>
+                </div>
               ))}
-            </ul>
-          </section>
-        )}
+            </section>
+
+            <div className="leadx-instruments" aria-label="Operational signals">
+              <div className="leadx-instrument is-wide"><RosterLevelBars data={charts.rosterLevels} /></div>
+              <div className="leadx-instrument"><ContributionMix data={charts.contributionKinds} /></div>
+              <div className="leadx-instrument"><GrowthLine data={charts.growth} /></div>
+              <div className="leadx-instrument is-wide"><DeptHealthBars data={charts.deptHealth} /></div>
+            </div>
+          </div>
+
+          <aside className="leadx-rail" aria-label="Decisions">
+            {Capability}
+
+            <section className="leadx-note leadx-orders">
+              <div className="leadx-note-head">
+                <div>
+                  <p className="leadx-note-kicker">On your desk</p>
+                  <h2 className="leadx-note-title">Core requests</h2>
+                </div>
+                <span className={`leadx-count ${quiet ? "is-clear" : ""}`}>{pendingRequests.length}</span>
+              </div>
+              {quiet ? (
+                <p className="leadx-empty">No Core requests waiting. The roster is settled.</p>
+              ) : (
+                <ul className="leadx-order-list">
+                  {pendingRequests.map((r) => {
+                    const dept = data.departments.find((d) => d.id === r.department_id);
+                    return (
+                      <li key={`${r.department_id}-${r.user_id}`} className="leadx-order">
+                        <span className="leadx-order-copy">
+                          <strong>{r.name}</strong>
+                          <small>wants Core in {dept?.name || "your scope"}</small>
+                        </span>
+                        <GrantCoreButton departmentId={r.department_id} userId={r.user_id} name={r.name || "member"} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            {isVertical && (
+              <section className="leadx-note leadx-orders">
+                <div className="leadx-note-head">
+                  <div>
+                    <p className="leadx-note-kicker">Cross-check</p>
+                    <h2 className="leadx-note-title">Society events</h2>
+                  </div>
+                  <span className={`leadx-count ${data.proposed.length === 0 ? "is-clear" : ""}`}>{data.proposed.length}</span>
+                </div>
+                {data.proposed.length === 0 ? (
+                  <p className="leadx-empty">Nothing awaiting approval.</p>
+                ) : (
+                  <ul className="leadx-order-list">
+                    {data.proposed.map((e) => (
+                      <li key={e.id} className="leadx-order leadx-order-stack">
+                        <span className="leadx-order-copy">
+                          <strong>{e.title}</strong>
+                          <small>by {e.author_name || "a dept lead"} / {e.starts_at ? new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "unscheduled"}</small>
+                        </span>
+                        <span className="leadx-order-actions">
+                          <ApproveEventButton id={e.id} approve label="Approve" />
+                          <ApproveEventButton id={e.id} approve={false} label="Send back" />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+          </aside>
+        </div>
       </motion.div>
     );
   }

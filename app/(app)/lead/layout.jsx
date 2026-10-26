@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import "./_components/lead-console.css";
 
 // Private workspace — never indexed.
 export const metadata = {

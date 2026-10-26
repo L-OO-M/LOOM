@@ -3,7 +3,6 @@ import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { getLeadOverview } from "@/lib/lead";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
 import { LeadConsole } from "./LeadConsole";
 
 /**
@@ -58,12 +57,19 @@ export async function LeadSection({ section = "overview" }) {
 
   return (
     <AppShell area="lead" tenant={tenant} user={user}>
-      <main className="animate-in mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-        <PageHeader
-          kicker={`${meta.kicker} · ${isVertical ? "Vertical Lead" : "Department Lead"}`}
-          title={meta.title}
-          desc={meta.desc}
-        />
+      <main className="leadx-shell animate-in mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+        <header className="leadx-masthead">
+          <div className="leadx-masthead-copy">
+            <p className="leadx-kicker">{meta.kicker} <span aria-hidden="true">/</span> Field console</p>
+            <h1 className="leadx-title">{meta.title}</h1>
+            <p className="leadx-desc">{meta.desc}</p>
+          </div>
+          <div className="leadx-stamp" aria-label="Access scope">
+            <span>{isVertical ? "Vertical" : "Department"}</span>
+            <strong>{isVertical ? "Cross-vertical command" : "Scoped command"}</strong>
+            <small>Audited · upward-only</small>
+          </div>
+        </header>
         <LeadConsole initialData={data} userId={user.id} isVertical={isVertical} section={section} termEnd={profile.roleTermEnd} />
       </main>
     </AppShell>
