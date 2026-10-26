@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { MarkNotificationRead } from "@/components/actions";
-import { Display, Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { OnboardingState } from "@/components/loom/States";
 import { SectionTabs } from "@/components/loom/SectionTabs";
 
@@ -26,8 +26,17 @@ export default async function NotificationsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Meta>History · day-to-day lives in the inbox above</Meta>
-        <Display size="lg" className="mt-3">Everything, in order.</Display>
+        <WorkspaceMasthead
+          kicker="Notifications / history"
+          title="Everything, in order."
+          lede="Roadmap completions, contest changes, and mentor responses — newest first, with unread ones leading."
+          meta={`${unread} unread / ${rows.length} shown`}
+          tone="ledger"
+          stats={[
+            { value: unread, label: "unread" },
+            { value: rows.length, label: onlyUnread ? "unread shown" : "shown here" }
+          ]}
+        />
 
         <SectionTabs
           className="mt-6"
@@ -39,6 +48,11 @@ export default async function NotificationsPage({ searchParams }) {
           ]}
         />
 
+        <WorkspaceSection
+          index="01"
+          title={onlyUnread ? "Unread notifications" : "All notifications"}
+          note={unread > 0 ? `${unread} unread of ${rows.length} shown.` : `${rows.length} shown, all read.`}
+        >
         {rows.length === 0 ? (
           <OnboardingState
             eyebrow="History"
@@ -47,7 +61,6 @@ export default async function NotificationsPage({ searchParams }) {
           />
         ) : (
           <>
-            <p className="meta mt-4">{unread > 0 ? `${unread} unread · ${rows.length} shown` : `${rows.length} total · all read`}</p>
             <ul className="mt-3 divide-y" style={{ borderColor: "var(--line)" }}>
               {rows.map((n) => (
                 <li key={n.id} className="flex items-start justify-between gap-4 py-4" style={{ opacity: n.read_at ? 0.6 : 1 }}>
@@ -73,6 +86,7 @@ export default async function NotificationsPage({ searchParams }) {
             </ul>
           </>
         )}
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
