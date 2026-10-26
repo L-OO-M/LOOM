@@ -6,12 +6,12 @@ import { Display } from "./primitives";
 /* Onboarding state — every empty state answers: why empty, what next,
    why care. Never a bare "No data" sentence. */
 
-export function OnboardingState({ eyebrow = "Just starting", title, why, steps = [], action }) {
+export function OnboardingState({ eyebrow = "Just starting", title, why, steps = [], action, showIntro = true }) {
   return (
-    <div className="mx-auto max-w-2xl py-10 text-center sm:py-14">
-      <p className="meta" style={{ color: "var(--accent)" }}>{eyebrow}</p>
-      <Display size="md" className="mt-3">{title}</Display>
-      {why && <p className="narrative mx-auto mt-4 text-center">{why}</p>}
+    <div className={`mx-auto max-w-2xl text-center ${showIntro ? "py-10 sm:py-14" : "py-4"}`}>
+      {showIntro && <p className="meta" style={{ color: "var(--accent)" }}>{eyebrow}</p>}
+      {showIntro && <Display size="md" className="mt-3">{title}</Display>}
+      {showIntro && why && <p className="narrative mx-auto mt-4 text-center">{why}</p>}
       {steps.length > 0 && (
         <ol className="mx-auto mt-8 max-w-md space-y-0 text-left">
           {steps.map((s, i) => (

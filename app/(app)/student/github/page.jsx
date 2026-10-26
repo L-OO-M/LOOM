@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { GithubLinkButton } from "@/components/actions";
-import { Display, Meta, PlainStat, ActionLink, StatusPill } from "@/components/loom/primitives";
+import { PlainStat, ActionLink, StatusPill } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { Heatmap } from "@/components/loom/Heatmap";
 import { Evidence } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
@@ -138,6 +139,15 @@ export default async function GithubPage() {
       <AppShell area="student" tenant={tenant} user={user}>
         <main className="mx-auto max-w-6xl px-4 sm:px-6">
           <BuildTabs active="/student/github" className="mt-4" />
+          <WorkspaceMasthead
+            kicker="GitHub / proof of building"
+            title="Your work, becoming visible."
+            lede="Turn real GitHub activity into a record of what you build, contribute, and ship."
+            meta={paused ? "Ingestion is paused for your chapter" : "Link your GitHub account to begin"}
+            tone="ledger"
+            art="/domains-art/domain-infra.png"
+            artAlt=""
+          />
           <div className="mt-4">
             {paused && (
               <section aria-label="Ingestion paused" className="rounded-2xl border border-dashed px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -146,9 +156,7 @@ export default async function GithubPage() {
               </section>
             )}
             <OnboardingState
-              eyebrow="GitHub · proof of building"
-              title="Your work, becoming visible."
-              why="Link your GitHub username and every push, pull request, and review flows in through webhooks — attributed to you, rolled into your growth story, and eligible as open-source evidence."
+              showIntro={false}
               steps={[
                 { title: "GitHub confirms who you are", body: "One click through GitHub — no plugins, and no typing a handle someone else could also type." },
                 { title: "Push like normal", body: "Activity lands here on its own once your chapter enables ingestion." },
@@ -189,7 +197,29 @@ export default async function GithubPage() {
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         <BuildTabs active="/student/github" className="mt-4" />
-        <Hero paused={paused} connected username={conn.github_username} profileUrl={profileUrl} lastActive={lastActive} />
+        <WorkspaceMasthead
+          kicker="GitHub / proof of building"
+          title="Your work, becoming visible."
+          lede="Turn real GitHub activity into a record of what you build, contribute, and ship."
+          meta={`Linked as @${conn.github_username}${lastActive ? ` / last activity ${lastActive}` : ""}`}
+          tone="ledger"
+          art="/domains-art/domain-infra.png"
+          artAlt=""
+          stats={[
+            { value: total, label: "commits recorded" },
+            { value: prs, label: "pull requests opened" },
+            { value: streak, unit: streak === 1 ? "day" : "days", label: "current streak" },
+            { value: summary.activeDays, label: `active of ${summary.windowDays} days` }
+          ]}
+          actions={
+            <>
+              <StatusPill tone={paused ? "" : "live"}>{paused ? "Paused" : "Live"}</StatusPill>
+              <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+                Open GitHub ↗
+              </a>
+            </>
+          }
+        />
 
         {paused && (
           <section aria-label="Ingestion paused" className="mt-6 rounded-2xl border border-dashed px-5 py-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -198,11 +228,7 @@ export default async function GithubPage() {
           </section>
         )}
 
-        <section className="mt-10" aria-label="Activity overview">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="h-product">Activity overview</h2>
-            <span className="meta">last 120 days</span>
-          </div>
+        <WorkspaceSection index="01" title="Activity overview" note="Recorded over the last 120 days.">
           {activity.length === 0 && items.length === 0 ? (
             <div className="mt-4 rounded-2xl border px-5 py-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <p className="text-[1.05rem] font-semibold" style={{ color: "var(--text)" }}>No GitHub activity has reached LOOM yet.</p>
@@ -244,26 +270,23 @@ export default async function GithubPage() {
               </div>
             </div>
           )}
-        </section>
+        </WorkspaceSection>
 
-        <section className="mt-12" aria-label="Building activity">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="h-product">Your building activity</h2>
-            <span className="meta">{items.length} recent event{items.length === 1 ? "" : "s"}</span>
-          </div>
+        <WorkspaceSection index="02" title="Your building activity" note={`${items.length} recent event${items.length === 1 ? "" : "s"} attributed to you.`}>
           <div className="mt-4">
             <GithubTabs items={items} repos={repoGroups} daily={daily} />
           </div>
           <div className="mt-4">
             <GithubDiagnostics diagnostics={diagnostics} />
           </div>
-        </section>
+        </WorkspaceSection>
 
-        <section className="mt-12" aria-label="Verified and pending work">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="h-product">Verified work</h2>
-            <ActionLink href="/student/opensource">Open source portal</ActionLink>
-          </div>
+        <WorkspaceSection
+          index="03"
+          title="Verified work"
+          note="Merged pull requests become LOOM evidence."
+          action={<ActionLink href="/student/opensource">Open source portal</ActionLink>}
+        >
           {verified.length === 0 && pending.length === 0 ? (
             <div className="mt-4 rounded-2xl border px-5 py-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <p className="text-[1.05rem] font-semibold" style={{ color: "var(--text)" }}>Your verified contributions will appear here.</p>
@@ -315,15 +338,14 @@ export default async function GithubPage() {
               )}
             </>
           )}
-        </section>
+        </WorkspaceSection>
 
         <Bridge eventCount={items.length} claimCount={contributions.length} verifiedCount={verified.length} badgeCount={badgeCount} />
 
         <NextMove move={move} href={moveHref} external={moveExternal} />
 
-        <section id="github-connection" aria-label="Connected account" className="mt-12 scroll-mt-24">
-          <h2 className="h-product">Connected account</h2>
-          <div className="mt-4 rounded-2xl border px-5 py-5 sm:px-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+        <WorkspaceSection index="05" title="Connected account" note="Webhook events are matched to you by this username.">
+          <div id="github-connection" className="mt-4 scroll-mt-24 rounded-2xl border px-5 py-5 sm:px-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
             <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-3">
               <div>
                 <dt className="meta">GitHub</dt>
@@ -347,40 +369,9 @@ export default async function GithubPage() {
               tokenStorageReady={cryptoConfigured()}
             />
           </div>
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
-  );
-}
-
-function Hero({ paused, connected, username, profileUrl, lastActive, title = "Your work, becoming visible." }) {
-  return (
-    <header className="hero-field rounded-2xl border px-5 py-8 sm:px-8 sm:py-10" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0 max-w-2xl">
-          <Meta>GitHub · proof of building</Meta>
-          {title && <Display size="lg" className="mt-3">{title}</Display>}
-          <p className="narrative mt-4">Turn real GitHub activity into a record of what you build, contribute, and ship.</p>
-          {connected && (
-            <p className="mt-4 text-sm" style={{ color: "var(--text-muted)" }}>
-              Linked as{" "}
-              <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="font-mono font-semibold hover:underline" style={{ color: "var(--text)" }}>
-                @{username} ↗
-              </a>
-              {lastActive && <span className="meta ml-3 normal-case tracking-normal">last activity · {lastActive}</span>}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-          <StatusPill tone={!connected ? "" : paused ? "" : "live"}>
-            {!connected ? "Not connected" : paused ? "Paused" : "Live"}
-          </StatusPill>
-          {connected && (
-            <span className="meta normal-case tracking-normal">{paused ? "link kept · ingestion off" : "ingesting pushes · PRs · reviews"}</span>
-          )}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -392,8 +383,7 @@ function Bridge({ eventCount, claimCount, verifiedCount, badgeCount }) {
     { n: "04", title: "Prove", body: "Badges and credentials travel beyond the chapter.", meta: `${badgeCount} badge${badgeCount === 1 ? "" : "s"}` }
   ];
   return (
-    <section className="mt-12" aria-label="How GitHub becomes proof">
-      <h2 className="h-product">How activity becomes proof</h2>
+    <WorkspaceSection index="04" title="How activity becomes proof" note="Every step is backed by recorded data, not a score.">
       <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s) => (
           <li key={s.n} className="row-link rounded-2xl border px-4 py-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -404,7 +394,7 @@ function Bridge({ eventCount, claimCount, verifiedCount, badgeCount }) {
           </li>
         ))}
       </ol>
-    </section>
+    </WorkspaceSection>
   );
 }
 
