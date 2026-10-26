@@ -9,6 +9,8 @@ import { authCallbackMessage, homeForRole, safeRedirectPath } from "@/lib/auth";
 import { AuthField, AuthShell, authInputClass } from "@/app/(auth)/_components/AuthShell";
 import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
 
+const AUTH0_ONLY = process.env.NEXT_PUBLIC_AUTH0_ONLY === "1";
+
 // Auth0 owns the front door. `returnTo` carries the same sanitized destination
 // the email form honours, so an Auth0 login deep-links to the page that sent the
 // user here instead of dumping them on the default home. The SDK validates
@@ -136,23 +138,32 @@ export default function LoginPage() {
         </Suspense>
       </div>
 
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>or use email and password</span>
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-      </div>
+      {!AUTH0_ONLY && (
+        <>
+          <div className="my-6 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>or use a legacy email/password account</span>
+            <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+          </div>
 
-      <Suspense fallback={<p className="mt-7 text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>}>
-        <LoginForm />
-      </Suspense>
+          <Suspense fallback={<p className="mt-7 text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>}>
+            <LoginForm />
+          </Suspense>
 
-      <Suspense fallback={null}>
-        <GitHubSignInButton />
-      </Suspense>
+          <Suspense fallback={null}>
+            <GitHubSignInButton />
+          </Suspense>
+        </>
+      )}
 
       <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
         New here?{" "}
-        <Link prefetch={false} href="/register" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+        <Link
+          prefetch={false}
+          href={AUTH0_ONLY ? "/auth/login?screen_hint=signup&returnTo=%2Fstudent%2Fonboarding" : "/register"}
+          className="font-semibold hover:underline"
+          style={{ color: "var(--accent)" }}
+        >
           Create an account
         </Link>
       </p>

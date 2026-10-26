@@ -28,7 +28,25 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `AEO_BLOCK_TRAINING` | no | `1` blocks training-only crawlers (GPTBot, CCBot, …) in `robots.txt` while keeping search/assistant crawlers allowed. Unset = allow all public crawling |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Search Console ownership meta tag, emitted once in `app/layout.jsx` |
 | `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET` |
+| `NEXT_PUBLIC_AUTH0_ONLY` | no (default `0`) | `1` hides the legacy Supabase email/password and GitHub forms on `/login` and `/register`. Enable only after existing accounts can sign in through Auth0 |
+| `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` | no (password onboarding) | Machine-to-Machine app authorized for the Auth0 Management API with `read:users`, `create:users`, `update:users`, `delete:users`. Used only by `lib/auth0-management.js` to add a database identity/password to social accounts. Unset = the UI reports password setup unavailable and keeps social sign-in usable |
+| `AUTH0_DB_CONNECTION` | no (default `Username-Password-Authentication`) | Auth0 database connection used when creating the password identity |
+| `AUTH0_DB_CONNECTION_ID` | migration only | `con_...` ID for `load/auth0-migrate.mjs`; avoids needing `read:connections`. See `24-auth0-migration.md` |
+| `AUTH0_MIGRATION_SCOPES` | no | Optional token scopes for migration; use `read:users create:users read:connections` only if those scopes are granted to the M2M app |
 | `APP_BASE_URL` | no (recommended in prod) | Origin the SDK uses to build `/auth/callback` and logout URLs. Unset locally so the SDK infers it from the `Host` header (dev `localhost:3000` **and** Playwright `127.0.0.1:3000` both work). Set per deploy to the exact registered origin — **no `:443` suffix**. Every origin must be in the Auth0 app's Allowed Callback / Logout / Web Origins lists |
+
+### Auth0 password onboarding (Management API)
+
+Password setup for social accounts is optional. To enable it:
+
+1. Auth0 Dashboard → Applications → **Create Application** → Machine-to-Machine.
+2. Authorize it for the **Auth0 Management API** with `read:users`, `create:users`, `update:users`, `delete:users`.
+3. Add the app's client ID/secret as `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` locally and in Vercel.
+4. Redeploy, sign in through Auth0, and open `/student/settings`. The password fields appear only when the signed-in user has a verified email and no database identity yet.
+
+The existing Auth0 application client is not authorized for the Management API; a separate M2M grant is required. If the variables are absent, `/api/auth/security` reports `managementConfigured: false` and the UI keeps social sign-in only.
+
+For moving existing Supabase accounts, including password-hash export and bulk import, see [24-auth0-migration.md](24-auth0-migration.md).
 
 ### Search Console verification
 

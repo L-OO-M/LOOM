@@ -21,6 +21,7 @@ coverage/
 
 # Database exports contain live PII and auth hashes — never commit
 load/snapshots/
+.auth0-migration/
 
 # OS / editor
 .DS_Store

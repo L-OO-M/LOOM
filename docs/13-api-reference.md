@@ -1,7 +1,7 @@
 # API Reference
 
 Base: same origin. Envelope: `{ ok: true, data }` / `{ ok: false, error: { code, message } }`.
-Auth: Supabase session cookie. Pages redirect to `/login`; `/api/*` returns `401 UNAUTHORIZED`.
+Auth: Auth0 session cookie (primary) or Supabase session cookie (legacy/E2E fallback). Pages redirect to `/login`; `/api/*` returns `401 UNAUTHORIZED`.
 Tenant: derived server-side from the caller's profile. `adminOnly` routes return `403 FORBIDDEN` for students.
 Governance: non-founder leadership is term-bound; an ended term is treated as `core` at request time. Scoped routes require the record's vertical/department to be owned by the caller (see [Governance](23-governance-and-terms.md)).
 
@@ -209,6 +209,8 @@ is single-use, expires in 24h, and only its SHA-256 hash is stored.
 |--------|-------|------|-------|
 | POST | `/api/auth/register` | public, 5/hour/IP | creates the Supabase user; `confirmationRequired` is reported, but no confirmation is enforced |
 | POST | `/api/auth/login` | public, 8/10 min/IP | server-proxied so the app limiter sees attempts |
+| GET | `/api/auth/security` | session | Auth0 sign-in methods and whether a database password is linked. `managementConfigured:false` means the deployment cannot add a password yet |
+| POST | `/api/auth/password` | session, 5/hour/user | adds or updates an Auth0 database password for the signed-in account. Body `{password}` (8–200 chars); 400 `EMAIL_UNVERIFIED` / `PASSWORD_REJECTED`, 409 `PASSWORD_IDENTITY_CONFLICT`, 503 `PASSWORD_SETUP_UNAVAILABLE` |
 | POST | `/api/auth/verify-email/start` | session | 3/hour/user. Mints a token and sends one email. 400 `NOT_CONFIGURED` when no provider is configured |
 | GET | `/api/auth/verify-email/confirm?token=` | public | consumes the token (once), stamps `profiles.email_verified_at/source`, 303-redirects to `/verify-email?status=verified\|expired\|invalid` |
 

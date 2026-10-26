@@ -11,6 +11,7 @@ import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 // This list had drifted: it was missing `embedded`, so a student on the biggest
 // roadmap in the catalogue (144 nodes) could not pick their own track at signup.
 const DOMAINS = PRIMARY_DOMAINS.map((slug) => [slug, domainLabel(slug)]);
+const AUTH0_ONLY = process.env.NEXT_PUBLIC_AUTH0_ONLY === "1";
 
 function ConsentBox({ checked, onChange, error }) {
   return (
@@ -102,6 +103,43 @@ export default function RegisterPage() {
     setLoading(false);
   }
 
+  if (AUTH0_ONLY) {
+    return (
+      <AuthShell>
+        <p className="kicker">Join the chapter</p>
+        <h1 className="font-display mt-3 text-3xl font-medium tracking-tight" style={{ color: "var(--text)" }}>
+          Create account
+        </h1>
+        <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+          Create your account once, then link GitHub or another provider from the same identity.
+        </p>
+        <a
+          href="/auth/login?screen_hint=signup&returnTo=%2Fstudent%2Fonboarding"
+          className="btn-ink mt-6 w-full justify-center"
+        >
+          Continue with Auth0
+        </a>
+        <p className="mt-5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+          By continuing you agree to LOOM&apos;s{" "}
+          <Link prefetch={false} href="/terms" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            Terms
+          </Link>{" "}
+          and acknowledge the{" "}
+          <Link prefetch={false} href="/privacy" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            Privacy notice
+          </Link>
+          .
+        </p>
+        <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          Already registered?{" "}
+          <Link prefetch={false} href="/login" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            Sign in
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
   if (sent) {
     return (
       <AuthShell>
@@ -140,7 +178,20 @@ export default function RegisterPage() {
         Register with your college email. Every domain is open to join instantly.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+      <a
+        href="/auth/login?screen_hint=signup&returnTo=%2Fstudent%2Fonboarding"
+        className="btn-ink mt-6 w-full justify-center"
+      >
+        Continue with Auth0
+      </a>
+
+      <div className="my-6 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>or create an email/password account</span>
+        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
         <AuthField id="name" label="Full name">
           <input id="name" type="text" required autoComplete="name" value={name} onChange={(e) => setName(e.target.value)}
             className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
