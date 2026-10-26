@@ -6,6 +6,7 @@ import { getCachedResourceCounts, getCachedResourceLevels, getCachedResourceTota
 import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { OnboardingState } from "@/components/loom/States";
 import { LearnTabs } from "@/components/student/SectionRails";
 import {
@@ -147,28 +148,22 @@ export default async function ResourcesPage({ searchParams }) {
         }
       `}</style>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        {/* HERO — compact, real progress only */}
-        <Meta>Resources · the curated library</Meta>
-        <Display size="lg" className="mt-3">Learn with intention.</Display>
-        <p className="narrative mt-4" style={{ color: "var(--text)" }}>
-          {TRACKS.length} tracks, curated by mentors — not an endless feed. Finish something and it stays on your record.
-        </p>
+        <WorkspaceMasthead
+          kicker="Resources / the curated shelf"
+          title={primaryTrack ? `Read for ${primaryTrack.label}.` : "Learn with intention."}
+          lede={`${TRACKS.length} tracks, curated by mentors — not an endless feed. Every finished piece stays on your record and becomes evidence you can point to.`}
+          meta={`${totalResources} pieces in the catalogue / ${completedTotal} finished`}
+          tone="field"
+          art="/storyloom/learning.png"
+          artAlt=""
+          stats={[
+            { value: totalResources, label: "pieces on the shelf" },
+            { value: completedTotal, label: "finished by you" },
+            { value: percent, unit: "%", label: "catalogue complete" },
+            { value: TRACKS.length, label: "curated tracks" }
+          ]}
+        />
         <LearnTabs active="/student/resources" />
-
-        <div className="mt-6 flex flex-wrap items-baseline gap-x-8 gap-y-3 border-y py-4" style={{ borderColor: "var(--line)" }} aria-label="Library progress">
-          <span>
-            <span className="figure figure-mono" style={{ fontSize: "1.6rem" }}>{totalResources}</span>
-            <span className="meta ml-2">pieces</span>
-          </span>
-          <span>
-            <span className="figure figure-mono" style={{ fontSize: "1.6rem" }}>{completedTotal}</span>
-            <span className="meta ml-2">finished</span>
-          </span>
-          <span>
-            <span className="figure figure-mono" style={{ fontSize: "1.6rem" }}>{percent}%</span>
-            <span className="meta ml-2">complete</span>
-          </span>
-        </div>
 
         {/* CONTINUE LEARNING — only from real progress data */}
         {showContinue && (
