@@ -67,8 +67,9 @@ jobs:
     name: E2E (chromium + mobile)
     runs-on: ubuntu-latest
     # Skipped, not failed, when the database secrets are unavailable — so a fork
-    # or a new contributor still gets lint/test/build signal.
-    if: ${{ github.event_name == 'push' || secrets.DATABASE_URL != '' }}
+    # or a new contributor still gets lint/test/build signal. The secrets context
+    # is not available in a job-level `if`, so detect same-repo PRs instead.
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
