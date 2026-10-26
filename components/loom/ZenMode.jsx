@@ -6,17 +6,17 @@ import { X, Maximize2, Minimize2, ExternalLink, ChevronLeft, ChevronRight } from
 import { ZEN_EMBED_LOAD_TIMEOUT_MS, zenHostOf, zenLearningSummary, zenResourceFacts, zenSiteFallback, zenUnsupportedFallback } from "@/lib/zen-embed";
 import { ZEN_OUTCOME, zenStageInit, zenStageNext, zenStageOutcome, zenStageView } from "@/lib/zen-stage";
 
-/* Zen Learning Mode â€” distraction-free overlay for supported resources.
+/* Zen Learning Mode — distraction-free overlay for supported resources.
    Dark canvas by spec (works identically in both themes). One concern:
    show the thing, offer fullscreen + external open, never trap the user.
    Cross-origin iframe blocks often fire no error at all, so the fallback
-   below is timeout-based and worded as a possibility â€” not a diagnosis.
+   below is timeout-based and worded as a possibility — not a diagnosis.
 
    GATED OFF BY DEFAULT. `zenEnabled` comes from the per-chapter zen_mode
    feature flag (lib/feature-flags.js), read on the server and passed down as a
    prop so the server HTML and the hydrated tree can never disagree. The prop
-   defaults to false, so mounting this component directly â€” bypassing the
-   click path entirely â€” still renders nothing. The guard sits after every
+   defaults to false, so mounting this component directly — bypassing the
+   click path entirely — still renders nothing. The guard sits after every
    hook, so hook order is identical in both states. */
 
 /* Every classification has exactly one stage. "unsupported" is the branch that
@@ -42,14 +42,14 @@ function iframeAllow(status) {
 /* Shared context block for every panel that cannot show the material itself.
    Without it those panels are a few grey lines on a black rectangle and read
    as a broken screen. Everything here is a stored fact about the resource or
-   its roadmap node â€” never generated copy. */
+   its roadmap node — never generated copy. */
 function ZenContext({ summary, facts }) {
   if (!summary && facts.length === 0) return null;
   return (
     <>
       {summary ? (
         <div className="zen-context">
-          <p className="zen-context-label">{summary.source || "What youâ€™ll learn here"}</p>
+          <p className="zen-context-label">{summary.source || "What you’ll learn here"}</p>
           <p className="zen-context-text">{summary.text}</p>
         </div>
       ) : null}
@@ -69,8 +69,8 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
   const containerRef = useRef(null);
   const closeRef = useRef(null);
   const restoredRef = useRef(null);
-  // Iframe/fallback stage machine (lib/zen-stage.js): a load event â€” which
-  // browsers also fire for their own refusal pages â€” can never dismiss the
+  // Iframe/fallback stage machine (lib/zen-stage.js): a load event — which
+  // browsers also fire for their own refusal pages — can never dismiss the
   // fallback, and a late timer can never undo the user's manual choice.
   const [stage, dispatchStage] = useReducer(zenStageNext, undefined, zenStageInit);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -91,14 +91,14 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
   const unsupportedPanel = outcome === ZEN_OUTCOME.UNSUPPORTED ? zenUnsupportedFallback(Boolean(originUrl)) : null;
   // A fallback panel that can only say "open it elsewhere" reads as a broken
   // screen. These are the real, stored facts about what the learner was about
-  // to study â€” never invented copy.
+  // to study — never invented copy.
   const summary = zenLearningSummary(resource, node);
   const facts = zenResourceFacts(resource);
   // Show where the material actually lives (never a raw/unsafe string).
   const host = zenHostOf(originUrl);
   // Identity of the selected resource. The overlay stays mounted while the
   // selection changes, so loading/error state and the iframe itself must
-  // reset on this â€” not just on embedUrl, which two resources can share.
+  // reset on this — not just on embedUrl, which two resources can share.
   const resourceKey = resource?.id ?? title;
 
   // Scroll lock + focus: autofocus close, restore focus on unmount.
@@ -171,31 +171,31 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
     if (document.fullscreenElement === el) {
       const exit = document.exitFullscreen?.bind(document);
       if (!exit) {
-        setFsNote("Fullscreen isn't available here â€” Zen Mode works inline.");
+        setFsNote("Fullscreen isn't available here — Zen Mode works inline.");
         return;
       }
       Promise.resolve(exit()).catch(() => {
-        setFsNote("Couldn't leave fullscreen â€” press Esc.");
+        setFsNote("Couldn't leave fullscreen — press Esc.");
       });
       return;
     }
     const request = el.requestFullscreen?.bind(el);
     if (!request) {
-      setFsNote("Fullscreen isn't available here â€” Zen Mode works inline.");
+      setFsNote("Fullscreen isn't available here — Zen Mode works inline.");
       return;
     }
     // Called inside the click handler (real user gesture). Denial is
-    // fine â€” the overlay keeps working. Both sync throws (older
+    // fine — the overlay keeps working. Both sync throws (older
     // implementations) and async rejections land on the same note.
     let pending;
     try {
       pending = request();
     } catch {
-      setFsNote("Fullscreen isn't available here â€” Zen Mode works inline.");
+      setFsNote("Fullscreen isn't available here — Zen Mode works inline.");
       return;
     }
     Promise.resolve(pending).catch(() => {
-      setFsNote("Fullscreen was blocked â€” Zen Mode works inline.");
+      setFsNote("Fullscreen was blocked — Zen Mode works inline.");
     });
   }, []);
 
@@ -247,7 +247,7 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
       >
         <header className="zen-head">
           <div className="zen-title-wrap">
-            <p className="zen-eyebrow">Zen Learning Mode{STATUS_LABEL[status] ? ` Â· ${STATUS_LABEL[status]}` : ""}</p>
+            <p className="zen-eyebrow">Zen Learning Mode{STATUS_LABEL[status] ? ` · ${STATUS_LABEL[status]}` : ""}</p>
             <p className="zen-title">{title}</p>
           </div>
           <div className="zen-actions">
@@ -316,7 +316,7 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
         <div className="zen-stage">
           {outcome === ZEN_OUTCOME.UNSUPPORTED ? (
             <div className="zen-pdf" role="note" aria-label={`${title} cannot be previewed inline`}>
-              <p className="zen-pdf-eyebrow">{unsupportedPanel.eyebrow}{host ? ` Â· ${host}` : ""}</p>
+              <p className="zen-pdf-eyebrow">{unsupportedPanel.eyebrow}{host ? ` · ${host}` : ""}</p>
               <p className="zen-pdf-title">{unsupportedPanel.title}</p>
               <ZenContext summary={summary} facts={facts} />
               <p className="zen-pdf-body">{unsupportedPanel.body}</p>
@@ -339,11 +339,11 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
             </div>
           ) : outcome === ZEN_OUTCOME.EXTERNAL ? (
             <div className="zen-pdf" role="note" aria-label={`Open ${title} externally`}>
-              <p className="zen-pdf-eyebrow">External Â· opens in a new tab{host ? ` Â· ${host}` : ""}</p>
+              <p className="zen-pdf-eyebrow">External · opens in a new tab{host ? ` · ${host}` : ""}</p>
               <p className="zen-pdf-title">{title}</p>
               <ZenContext summary={summary} facts={facts} />
               <p className="zen-pdf-body">
-                This site doesn&apos;t allow embedding, so Zen Mode won&apos;t frame it â€” no bypass,
+                This site doesn&apos;t allow embedding, so Zen Mode won&apos;t frame it — no bypass,
                 no broken preview. Open it externally; your place here is kept.
               </p>
               <div className="zen-pdf-actions">
@@ -365,13 +365,13 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
             </div>
           ) : outcome === ZEN_OUTCOME.PDF ? (
             <div className="zen-pdf" role="note" aria-label={`Open ${title} externally`}>
-              <p className="zen-pdf-eyebrow">PDF Â· opens in your browser{host ? ` Â· ${host}` : ""}</p>
+              <p className="zen-pdf-eyebrow">PDF · opens in your browser{host ? ` · ${host}` : ""}</p>
               <p className="zen-pdf-title">{title}</p>
               <ZenContext summary={summary} facts={facts} />
               <p className="zen-pdf-body">
                 Browsers block their built-in PDF viewer inside sandboxed frames, and an
-                unsandboxed frame would run anything a mislabelled â€œ.pdfâ€ URL serves â€” so Zen
-                Mode doesnâ€™t preview PDFs inline. Your browserâ€™s own viewer is the safe seat.
+                unsandboxed frame would run anything a mislabelled “.pdf” URL serves — so Zen
+                Mode doesn’t preview PDFs inline. Your browser’s own viewer is the safe seat.
               </p>
               <div className="zen-pdf-actions">
                 {originUrl ? (
@@ -396,7 +396,7 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
                 <div className="zen-loading" role="status" aria-label={`Loading ${title}`}>
                   <div className="skel" style={{ height: 14, width: "38%" }} aria-hidden="true" />
                   <div className="skel mt-3" style={{ height: 14, width: "62%" }} aria-hidden="true" />
-                  <p className="zen-loading-text">Preparing a quiet place to learnâ€¦</p>
+                  <p className="zen-loading-text">Preparing a quiet place to learn…</p>
                   {status === "site" ? (
                     <button
                       type="button"
@@ -431,7 +431,7 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
           )}
           {view.showSitePanel && siteFallback ? (
             <div className="zen-site-fallback" role="note" aria-label={`${title} unavailable inline`}>
-              <p className="zen-pdf-eyebrow">{siteFallback.eyebrow}{host ? ` Â· ${host}` : ""}</p>
+              <p className="zen-pdf-eyebrow">{siteFallback.eyebrow}{host ? ` · ${host}` : ""}</p>
               <p className="zen-pdf-title">{siteFallback.title}</p>
               <ZenContext summary={summary} facts={facts} />
               <p className="zen-pdf-body">{siteFallback.body}</p>
@@ -461,7 +461,7 @@ export function ZenMode({ resource, embed, node, onClose, onNext, onPrev, positi
               <p className="zen-fallback-title">Still loading?</p>
               <p className="zen-fallback-body">
                 Some sites block embedding, and slow connections look the same from here. Zen Mode can&apos;t
-                tell the difference â€” opening externally always works.
+                tell the difference — opening externally always works.
               </p>
               <div className="zen-fallback-actions">
                 {originUrl ? (

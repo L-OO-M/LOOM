@@ -1,11 +1,11 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { LINKS, NEW_RESOURCES, UNCOVERED_NODES } from "@/load/seed-node-resources";
 import { toZenModel } from "@/lib/zen-embed";
 
-// Integrity of the nodeâ†’resource mapping (036 / seed-node-resources.js).
-// Every pair must reference real canonical catalogue ids â€” nothing invented â€”
+// Integrity of the node→resource mapping (036 / seed-node-resources.js).
+// Every pair must reference real canonical catalogue ids — nothing invented —
 // nodes without a genuine match must be named rather than filler-filled, and
 // YouTube playlist links must never become video embeds.
 // Fixtures are read-only snapshots of the canonical data (verified in loom_test).
@@ -17,7 +17,7 @@ const WEB_NODE_IDS = new Set([
   "web_dsa_track",
 ]);
 
-// Name-identity pairs: the catalogue's own nodeâ†”resource naming.
+// Name-identity pairs: the catalogue's own node↔resource naming.
 const NAME_IDENTITY = new Map([
   ["bc_patrick_collins", "res_bc_patrick_collins"],
   ["bc_daulat_hussain", "res_bc_daulat_hussain"],
@@ -615,7 +615,7 @@ describe("seed-node-resources canonical mapping", () => {
       .filter((id) => LINKS.some(([, r]) => r === id));
     expect(playlistIds.length).toBeGreaterThan(0);
     for (const id of playlistIds) {
-      // No video id in a playlist URL â†’ must NOT classify as an embed.
+      // No video id in a playlist URL → must NOT classify as an embed.
       expect(toZenModel({ id, url: RESOURCE_URLS[id] }).status).toBe("unsupported");
     }
   });
