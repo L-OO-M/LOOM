@@ -1,5 +1,8 @@
 # TODO
 
+> The full security, backend, workflow, coupling, and department-integration
+> register lives in [`docs/25-hardening-and-integration-plan.md`](docs/25-hardening-and-integration-plan.md).
+
 ## Auth0 popup sign-in (planned, not started)
 
 Goal: clicking "Continue with Auth0" must not replace the current page with the

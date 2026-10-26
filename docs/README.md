@@ -20,6 +20,7 @@ Learning, Opportunity, Open source, Mentorship — one student journey per chapt
 | [**Security findings — deferred**](22-security-findings-todo.md) | Developers | The two security-report items left **unfixed** (username-change takeover, temp-email spam) with exact locations + proposed fixes, and a table of what was fixed |
 | [**Governance & terms**](23-governance-and-terms.md) | Admins, developers | Founder permanence, annual rotation, term expiry, domain non-interference, seeding founders |
 | [**Auth0 migration**](24-auth0-migration.md) | Operators, developers | Dry-run, export, import, verification, cutover, and rollback for existing Supabase accounts |
+| [**Hardening and integration plan**](25-hardening-and-integration-plan.md) | Operators, developers, product | P0 security/data fixes, backend and workflow hardening, coupling cleanup, department integrations, and phased execution |
 | [**RLS rollout runbook**](rls-rollout-runbook.md) | Operators | Enabling database-level tenant isolation, verifying it, rolling it back |
 
 ## Read this before deploying
