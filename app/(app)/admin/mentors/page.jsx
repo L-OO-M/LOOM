@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, Clock3, Award, MessageCircle, Inbox, Check, X, Search, Sparkles } from "lucide-react";
+import { Clock3, Award, MessageCircle, Inbox, Check, X, Sparkles } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { MentorForm } from "@/components/admin-forms";
 import { ReviewButtons } from "./ReviewButtons";
+import "../_components/admin-ledger.css";
 
 export default async function AdminMentorsPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -51,147 +51,171 @@ export default async function AdminMentorsPage() {
     LIMIT 20
   `;
   const pending = applications.filter((a) => a.status === "pending");
+  const availability = stats?.available && stats?.mentors ? Math.round((stats.available / stats.mentors) * 100) : null;
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader
-          kicker={`Guidance · ${stats?.mentors ?? 0} mentors · ${pending.length} candidacies pending`}
+        <WorkspaceMasthead
+          kicker={`Guidance / ${stats?.mentors ?? 0} mentors / ${pending.length} candidacies pending`}
           title="Mentors"
-          desc="Review candidacies on evidence, manage the roster, and track sessions. Mentorship is a capability, not a role."
+          lede="Review candidacies on evidence, manage the roster, and track sessions. Mentorship is a capability, not a role."
+          meta={`${stats?.available ?? 0} available / ${stats?.sessions ?? 0} sessions all time / ${applications.length} applications on file`}
+          tone="field"
+          art="/storyloom/mentorship.png"
+          artAlt=""
+          stats={[
+            { value: stats?.mentors ?? 0, label: "mentors" },
+            { value: stats?.available ?? 0, label: "available now" },
+            { value: pending.length, label: "pending review" },
+            { value: stats?.sessions ?? 0, label: "sessions all time" }
+          ]}
         />
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-4">
-          {[
-            { label: "Mentors", value: stats?.mentors ?? 0, icon: Users, sub: `${stats?.available ?? 0} available` },
-            { label: "Pending", value: pending.length, icon: Inbox, sub: "awaiting review" },
-            { label: "Sessions", value: stats?.sessions ?? 0, icon: MessageCircle, sub: "all time" },
-            { label: "Capacity", value: stats?.available ? `${Math.round(((stats?.mentors ?? 0) ? (stats.available / stats.mentors) * 100 : 0))}%` : "—", icon: Sparkles, sub: "available ratio" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: s.label === "Pending" && pending.length > 0 ? "var(--accent)" : "var(--text-muted)" }}><s.icon size={14} /></span>
-              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          {/* Roster */}
-          <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <div className="flex items-baseline justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Users size={14} /> Roster · {mentors.length}</h2>
-              <Link href="/admin/students" prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Find students →</Link>
-            </div>
-
-            {mentors.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No mentors yet</p>
-                <p className="narrative mx-auto mt-2 max-w-md">Add a mentor from an enrolled student, or approve a candidacy below. Mentors guide juniors — they don&apos;t replace Heads.</p>
-              </div>
-            ) : (
-              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                {mentors.map((m) => (
-                  <li key={m.id} className="group flex items-start gap-3 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-sm" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text)" }}>{(m.mentor_name || m.user_id).slice(0, 2).toUpperCase()}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{m.mentor_name || m.user_id}</p>
-                      <p className="meta truncate">{m.expertise || "General"} · {m.github_username ? `@${m.github_username}` : m.user_id.slice(0, 8)}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: m.available ? "color-mix(in srgb, #16a34a 18%, transparent)" : "var(--line)", background: m.available ? "color-mix(in srgb, #16a34a 10%, var(--bg))" : "var(--bg-elevated)", color: m.available ? "#16a34a" : "var(--text-muted)" }}>
-                          {m.available ? <Check size={10} /> : <X size={10} />} {m.available ? "Available" : "Paused"}
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}><MessageCircle size={10} /> {m.session_count ?? 0} sessions</span>
-                      </div>
-                      {m.bio && <p className="narrative mt-2 line-clamp-2 text-xs leading-5">{m.bio}</p>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <h3 className="mt-8 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Clock3 size={14} /> Recent sessions</h3>
-            {sessions.length === 0 ? (
-              <p className="narrative mt-2">No sessions yet. They appear once a student requests a mentor.</p>
-            ) : (
-              <ul className="mt-3 divide-y overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                {sessions.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
-                    <span className="min-w-0 truncate" style={{ color: "var(--text)" }}><span className="font-medium">{s.student_name || s.student_id.slice(0, 8)}</span> <span style={{ color: "var(--text-muted)" }}>→ {s.mentor_name || s.mentor_id.slice(0, 8)}</span></span>
-                    <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] capitalize" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{s.status}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Create */}
-          <div className="space-y-6">
-            <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Add mentor</h2>
-              <p className="narrative mt-1">Promotes a student to mentor. Prefer approving a candidacy below — it carries evidence.</p>
-              <div className="mt-4"><MentorForm /></div>
-              <p className="meta mt-3">Tip: copy <span className="font-mono">user_id</span> from the Students roster.</p>
-            </section>
-
-            <div className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>How candidacies work</p>
-              <ul className="mt-2 space-y-1.5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                <li className="flex gap-1.5"><Award size={12} className="mt-0.5 shrink-0" /> Eligibility is computed from path %, merges, solutions, projects.</li>
-                <li className="flex gap-1.5"><Check size={12} className="mt-0.5 shrink-0" /> Approval creates a mentor row immediately.</li>
-                <li className="flex gap-1.5"><MessageCircle size={12} className="mt-0.5 shrink-0" /> Declines notify the applicant.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <section className="mt-8 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Mentor applications">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Inbox size={14} /> Candidacies · {pending.length} awaiting review</h2>
-            <span className="meta">{applications.length} total · pending first</span>
-          </div>
-
-          {applications.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No applications yet</p>
-              <p className="narrative mx-auto mt-2 max-w-md">When students prove themselves, their candidacies land here with the evidence attached — path completion, merges, and projects at the time of application.</p>
-            </div>
+        <WorkspaceSection
+          index="01"
+          title="Roster"
+          note="Available mentors sort first. Sessions count only activity logged against this chapter."
+          action={<Link href="/admin/students" prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">Find students →</Link>}
+        >
+          {mentors.length === 0 ? (
+            <WorkspaceEmpty
+              title="No mentors yet"
+              body="Add a mentor from an enrolled student, or approve a candidacy below. Mentors guide juniors — they don't replace Heads."
+            />
           ) : (
-            <div className="mt-4 space-y-3">
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {mentors.map((m) => (
+                <li key={m.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title">{m.mentor_name || m.user_id}</span>
+                    <p className="aled-sub">
+                      {m.expertise || "General"} · {m.github_username ? `@${m.github_username}` : m.user_id.slice(0, 8)}
+                    </p>
+                    {m.bio && <p className="aled-sub" style={{ color: "var(--text)" }}>{m.bio}</p>}
+                  </div>
+                  <div className="aled-actions">
+                    <span className={`aled-tag ${m.available ? "aled-tag--success" : ""}`}>
+                      {m.available ? <Check size={10} aria-hidden="true" /> : <X size={10} aria-hidden="true" />} {m.available ? "Available" : "Paused"}
+                    </span>
+                    <span className="aled-tag"><MessageCircle size={10} aria-hidden="true" /> {m.session_count ?? 0} sessions</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Recent sessions" note="Newest first, cap 20. Sessions appear once a student requests a mentor." action={<Clock3 size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
+          {sessions.length === 0 ? (
+            <WorkspaceEmpty title="No sessions yet" body="They appear once a student requests a mentor." />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {sessions.map((s) => (
+                <li key={s.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title">{s.student_name || s.student_id.slice(0, 8)}</span>
+                    <p className="aled-sub">→ {s.mentor_name || s.mentor_id.slice(0, 8)}</p>
+                  </div>
+                  <span className="aled-tag" style={{ textTransform: "capitalize" }}>{s.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <div className="aled-split">
+          <WorkspaceSection index="03" title="Add mentor" note="Promotes a student to mentor. Prefer approving a candidacy below — it carries evidence.">
+            <div className="aled-panel">
+              <MentorForm />
+              <p className="aled-meta" style={{ marginTop: "0.8rem" }}>
+                Tip: copy <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>user_id</span> from the Students roster.
+              </p>
+            </div>
+          </WorkspaceSection>
+
+          <WorkspaceSection index="04" title="How candidacies work" note="Reviewed with the evidence attached at the time of application.">
+            <div className="aled-panel">
+              <ul className="aled-notes">
+                <li><span><Award size={12} aria-hidden="true" /> Eligibility is computed from path %, merges, solutions, projects.</span></li>
+                <li><span><Check size={12} aria-hidden="true" /> Approval creates a mentor row immediately.</span></li>
+                <li><span><MessageCircle size={12} aria-hidden="true" /> Declines notify the applicant.</span></li>
+                <li><span><Sparkles size={12} aria-hidden="true" /> Availability ratio: {availability == null ? "—" : `${availability}%`} of the roster.</span></li>
+              </ul>
+            </div>
+          </WorkspaceSection>
+        </div>
+
+        <WorkspaceSection
+          index="05"
+          title="Candidacies"
+          note="Pending first. Path, merges, solutions, and projects are the evidence at application time."
+          action={<span className="aled-meta">{pending.length} awaiting / {applications.length} total</span>}
+        >
+          {applications.length === 0 ? (
+            <WorkspaceEmpty
+              title="No applications yet"
+              body="When students prove themselves, their candidacies land here with the evidence attached — path completion, merges, and projects at the time of application."
+            />
+          ) : (
+            <div className="aled-stack" style={{ marginTop: "0.9rem" }}>
               {applications.map((a) => {
                 const el = a.eligibility || {};
                 const st = el.stats || {};
                 const pct = typeof st.pct === "number" ? st.pct : null;
+                const isPending = a.status === "pending";
                 return (
-                  <div key={a.id} className="rounded-2xl border p-4 transition hover:shadow-sm" style={{ borderColor: a.status === "pending" ? "color-mix(in srgb, var(--accent) 22%, transparent)" : "var(--line)", background: a.status === "pending" ? "color-mix(in srgb, var(--accent) 4%, var(--bg-elevated))" : "var(--bg-elevated)" }}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-sm font-medium" style={{ color: "var(--text)" }}>
+                  <div key={a.id} className="aled-panel" style={{ borderColor: isPending ? "color-mix(in srgb, var(--accent) 30%, var(--line))" : "var(--line)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "0.75rem" }}>
+                      <div className="aled-copy">
+                        <p className="aled-panel-title" style={{ marginBottom: "0.2rem" }}>
                           {a.applicant_name || a.student_id}
-                          <span className="inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs capitalize" style={{ borderColor: a.status === "pending" ? "color-mix(in srgb, var(--accent) 22%, transparent)" : "var(--line)", background: a.status === "pending" ? "color-mix(in srgb, var(--accent) 10%, var(--bg))" : "var(--bg)", color: a.status === "pending" ? "var(--accent)" : "var(--text-muted)" }}>{a.status}</span>
-                          <span className="meta">{a.primary_domain || "—"} {a.branch ? `· ${a.branch}` : ""} {a.year ? `· Year ${a.year}` : ""}</span>
+                          <span className={`aled-tag ${isPending ? "aled-tag--accent" : ""}`} style={{ marginLeft: "0.45rem" }}>{a.status}</span>
                         </p>
-                        <p className="meta mt-0.5">{new Date(a.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })} · {a.student_id.slice(0, 8)}</p>
+                        <p className="aled-sub" style={{ margin: 0 }}>
+                          {a.primary_domain || "—"}{a.branch ? ` · ${a.branch}` : ""}{a.year ? ` · Year ${a.year}` : ""}
+                        </p>
+                        <p className="aled-meta" style={{ marginTop: "0.25rem" }}>
+                          {new Date(a.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })} · {a.student_id.slice(0, 8)}
+                        </p>
                       </div>
-                      {a.status === "pending" && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "var(--accent)", color: "white" }}><Inbox size={12} /> Needs review</span>}
+                      {isPending && <span className="aled-tag aled-tag--accent"><Inbox size={12} aria-hidden="true" /> Needs review</span>}
                     </div>
 
-                    {a.expertise && <p className="mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--accent)" }}>{a.expertise}</p>}
-                    {a.statement && <p className="mt-2 rounded-xl border p-3 text-sm leading-6" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>“{a.statement}”</p>}
+                    {a.expertise && <p style={{ margin: "0.6rem 0 0" }}><span className="aled-tag aled-tag--accent">{a.expertise}</span></p>}
+                    {a.statement && <p className="aled-sub" style={{ marginTop: "0.6rem", color: "var(--text)" }}>“{a.statement}”</p>}
 
-                    <div className="mt-3 grid gap-2 rounded-xl border p-3 sm:grid-cols-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                      <div><p className="meta">Path</p><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{pct != null ? `${pct}%` : "—"}</p>{pct != null && <div className="mt-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--line)" }}><div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: "var(--accent)" }} /></div>}</div>
-                      <div><p className="meta">Merges</p><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{st.oss ?? 0}</p></div>
-                      <div><p className="meta">Solutions</p><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{st.solutions ?? 0}</p></div>
-                      <div><p className="meta">Projects</p><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{st.projects ?? 0}</p></div>
-                    </div>
+                    <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+                      <li className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                        <div className="aled-copy">
+                          <span className="aled-title">Path completion</span>
+                          <span className="aled-meter" aria-hidden="true">
+                            <span style={{ width: `${pct != null ? Math.min(100, pct) : 0}%` }} />
+                          </span>
+                        </div>
+                        <span className="aled-value">{pct != null ? `${pct}%` : "—"}</span>
+                      </li>
+                      <li className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                        <span className="aled-title">Merges</span>
+                        <span className="aled-value">{st.oss ?? 0}</span>
+                      </li>
+                      <li className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                        <span className="aled-title">Solutions</span>
+                        <span className="aled-value">{st.solutions ?? 0}</span>
+                      </li>
+                      <li className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                        <span className="aled-title">Projects</span>
+                        <span className="aled-value">{st.projects ?? 0}</span>
+                      </li>
+                    </ul>
 
-                    {a.status === "pending" && <div className="mt-3"><ReviewButtons applicationId={a.id} /></div>}
+                    {isPending && <div style={{ marginTop: "0.9rem" }}><ReviewButtons applicationId={a.id} /></div>}
                   </div>
                 );
               })}
             </div>
           )}
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
