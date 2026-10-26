@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, StatusPill, PlainStat, ActionLink } from "@/components/loom/primitives";
+import { Meta, StatusPill, ActionLink } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
-import { Reveal } from "@/components/motion/Reveal";
 import { ProveTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
@@ -92,24 +92,23 @@ export default async function ContestsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Reveal>
-          <Meta>Prove · challenges with deadlines</Meta>
-          <Display size="lg" className="mt-3">Earn it under pressure.</Display>
-          <p className="narrative mt-4">
-            Timed builds give your work a deadline. Discover a challenge, register, ship
-            something real — then carry the result into your proof.
-          </p>
-        </Reveal>
+        <WorkspaceMasthead
+          kicker="Prove / challenges with deadlines"
+          title="Earn it under pressure."
+          lede="Timed builds give your work a deadline. Discover a challenge, register, ship something real — then carry the result into your proof."
+          meta={`${openNow} open · ${youreIn} registered · ${shipped} shipped`}
+          tone="field"
+          art="/events/event-contest.png"
+          artAlt=""
+          stats={[
+            { value: openNow, label: "open now" },
+            { value: youreIn, label: "you're in" },
+            { value: shipped, label: "entries shipped" },
+            { value: contests.length - openNow, label: "announced or closed" }
+          ]}
+        />
 
         <ProveTabs active="/student/contests" />
-
-        <Reveal delay={0.06}>
-          <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Challenge summary">
-            <span className="text-center"><PlainStat value={openNow} unit={openNow === 1 ? "challenge" : "challenges"} label="open now" /></span>
-            <span className="text-center"><PlainStat value={youreIn} unit={youreIn === 1 ? "challenge" : "challenges"} label="you're in" /></span>
-            <span className="text-center"><PlainStat value={shipped} unit={shipped === 1 ? "entry" : "entries"} label="shipped" /></span>
-          </div>
-        </Reveal>
 
         {mine.length > 0 && (
           <section className="mt-12" aria-label="Your challenges">
