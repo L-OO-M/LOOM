@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFrameCspViolation,
   isZenSupported,
   parseYouTubeId,
   toYouTubeEmbedUrl,
@@ -223,9 +224,19 @@ describe("zenSiteFallback", () => {
       "https://web.dev/learn",
       "https://javascript.info/",
       "https://developers.google.com/machine-learning/crash-course",
+      "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+      "https://learn.sparkfun.com/tutorials/i2c",
+      "https://magazine.raspberrypi.com/articles/chord-assist",
+      "https://owasp.org/www-project-top-ten/",
+      "https://store.arduino.cc/",
+      "https://vercel.com/docs",
+      "https://www.freertos.org/",
+      "https://www.gnu.org/software/",
+      "https://www.tensorflow.org/tutorials",
+      "https://www.wireshark.org/",
     ]) {
       const m = toZenModel({ id: "a", url });
-      expect(m.status).toBe("external");
+      expect(m.status, url).toBe("external");
       expect(m.embedUrl).toBeNull();
       expect(m.originUrl).toBe(url);
     }
@@ -262,8 +273,37 @@ describe("zenSiteFallback", () => {
       "https://visualgo.net/en",
       "https://cp-algorithms.com/",
       "https://neetcode.io/",
+      "https://cheatsheetseries.owasp.org/",
+      "https://colah.github.io/posts/2015-08-Understanding-LSTMs/",
+      "https://cryptopals.com/",
+      "https://cs231n.github.io/",
+      "https://d2l.ai/",
+      "https://docs.arduino.cc/language-reference/",
+      "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/gpio.html",
+      "https://docs.kicad.org/",
+      "https://en.cppreference.com/w/",
+      "https://everycircuit.com/",
+      "https://getbootstrap.com/docs/5.3/",
+      "https://jalammar.github.io/illustrated-transformer/",
+      "https://man7.org/linux/man-pages/",
+      "https://mqtt.org/",
+      "https://nmap.org/",
+      "https://numpy.org/doc/stable/",
+      "https://ocw.mit.edu/",
+      "https://optuna.readthedocs.io/en/stable/",
+      "https://pandas.pydata.org/docs/user_guide/10min.html",
+      "https://projects.raspberrypi.org/en",
+      "https://pytorch.org/tutorials/",
+      "https://scikit-learn.org/stable/user_guide.html",
+      "https://tailwindcss.com/docs",
+      "https://www.3blue1brown.com/topics/neural-networks",
+      "https://www.electronics-notes.com/",
+      "https://www.keil.com/",
+      "https://www.khanacademy.org/science/electrical-engineering",
+      "https://www.openocd.org/",
+      "https://xgboost.readthedocs.io/en/stable/",
     ]) {
-      expect(toZenModel({ id: "a", url }).status).toBe("site");
+      expect(toZenModel({ id: "a", url }).status, url).toBe("site");
     }
   });
 
@@ -274,3 +314,20 @@ describe("zenSiteFallback", () => {
     );
     expect(toZenModel({ id: "a", url: "https://neetcode.io:8443/" }).status).toBe("unsupported");
   });
+
+describe("isFrameCspViolation", () => {
+  it("recognises a refused frame via frame-src or its child-src fallback", () => {
+    expect(isFrameCspViolation({ effectiveDirective: "frame-src" })).toBe(true);
+    expect(isFrameCspViolation({ violatedDirective: "frame-src" })).toBe(true);
+    expect(isFrameCspViolation({ effectiveDirective: "child-src" })).toBe(true);
+    expect(isFrameCspViolation({ violatedDirective: "FRAME-SRC" })).toBe(true);
+  });
+
+  it("ignores unrelated CSP violations and missing events", () => {
+    expect(isFrameCspViolation({ effectiveDirective: "script-src" })).toBe(false);
+    expect(isFrameCspViolation({ effectiveDirective: "img-src" })).toBe(false);
+    expect(isFrameCspViolation({})).toBe(false);
+    expect(isFrameCspViolation(null)).toBe(false);
+    expect(isFrameCspViolation(undefined)).toBe(false);
+  });
+});
