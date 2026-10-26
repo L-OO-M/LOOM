@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShieldCheck, Flag, BookOpen, Pin, EyeOff, Clock3 } from "lucide-react";
+import { Flag, BookOpen, Pin, EyeOff, Clock3 } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { HideButton, PinButton, WikiReviewButtons } from "./AdminCommunity";
+import "../_components/admin-ledger.css";
 
 export default async function AdminCommunityPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -66,136 +66,129 @@ export default async function AdminCommunityPage() {
     ORDER BY s.created_at DESC LIMIT 20
   `;
 
+  const hiddenTotal = hiddenThreads.length + hiddenReplies.length + hiddenSnippets.length;
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`Trust · ${stats?.flagged_threads ?? 0} flagged threads · ${stats?.pending_edits ?? 0} wiki edits pending`} title="Community moderation" desc="Triage flags, curate featured threads, and review wiki suggestions. Every hide/pin is audited." />
+        <WorkspaceMasthead
+          kicker={`Trust / ${stats?.flagged_threads ?? 0} flagged threads / ${stats?.pending_edits ?? 0} wiki edits pending`}
+          title="Community moderation"
+          lede="Triage flags, curate featured threads, and review wiki suggestions. Every hide and pin is audited."
+          meta={`${flaggedThreads.length} flagged threads in view / ${pendingEdits.length} pending suggestions / ${hiddenTotal} hidden items`}
+          tone="field"
+          art="/domains-art/domain-creative.png"
+          artAlt=""
+          stats={[
+            { value: stats?.flagged_threads ?? 0, label: "flagged threads" },
+            { value: stats?.flagged_replies ?? 0, label: "flagged replies" },
+            { value: stats?.pending_edits ?? 0, label: "wiki suggestions" },
+            { value: stats?.pinned ?? 0, label: "pinned threads" }
+          ]}
+        />
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-4">
-          {[
-            { label: "Flagged threads", value: stats?.flagged_threads ?? 0, icon: Flag, sub: "visible" },
-            { label: "Flagged replies", value: stats?.flagged_replies ?? 0, icon: EyeOff, sub: "visible" },
-            { label: "Wiki pending", value: stats?.pending_edits ?? 0, icon: BookOpen, sub: "suggestions" },
-            { label: "Pinned", value: stats?.pinned ?? 0, icon: Pin, sub: "featured" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: s.label.includes("Flagged") && (s.value > 0) ? "color-mix(in srgb, var(--danger) 22%, transparent)" : "var(--line)", background: s.label.includes("Flagged") && s.value > 0 ? "color-mix(in srgb, var(--danger) 10%, var(--bg))" : "var(--bg)", color: s.label.includes("Flagged") && s.value > 0 ? "var(--danger)" : "var(--text-muted)" }}><s.icon size={14} /></span>
-              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Flag size={14} /> Flagged threads · {flaggedThreads.length}</h2>
-            {flaggedThreads.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <p className="narrative">Queue clear. {stats?.pinned ?? 0} pinned thread{(stats?.pinned ?? 0) === 1 ? "" : "s"} live — pin the best discussions to surface them.</p>
-              </div>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {flaggedThreads.map((t) => (
-                  <li key={t.id} className="group flex items-start justify-between gap-3 rounded-xl border p-3 transition hover:shadow-sm" style={{ borderColor: "color-mix(in srgb, var(--danger) 14%, var(--line))", background: "var(--bg)" }}>
-                    <div className="min-w-0 flex-1">
-                      <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="block truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>{t.title}</Link>
-                      <p className="meta mt-1 flex flex-wrap items-center gap-1.5">
-                        <span>{t.author_name || "a student"}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5" style={{ borderColor: "color-mix(in srgb, var(--danger) 18%, transparent)", background: "color-mix(in srgb, var(--danger) 10%, var(--bg))", color: "var(--danger)" }}><Flag size={10} /> {t.flag_count} flags</span>
-                        <span className="inline-flex items-center gap-1"><Clock3 size={10} /> {new Date(t.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
-                        {t.pinned && <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--accent)" }}><Pin size={10} /> Pinned</span>}
-                      </p>
-                    </div>
-                    <span className="flex shrink-0 items-center gap-1.5"><PinButton threadId={t.id} pinned={t.pinned} /><HideButton targetType="thread" targetId={t.id} /></span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <h2 className="mt-8 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><EyeOff size={14} /> Flagged replies · {flaggedReplies.length}</h2>
-            {flaggedReplies.length === 0 ? (
-              <p className="narrative mt-3">No flagged replies.</p>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {flaggedReplies.map((r) => (
-                  <li key={r.id} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-sm leading-5" style={{ color: "var(--text)" }}>{r.body}</p>
-                      <p className="meta mt-1">{r.author_name || "a student"} · {r.flag_count} flags · <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false} style={{ color: "var(--accent)" }} className="hover:underline">thread →</Link></p>
-                    </div>
-                    <HideButton targetType="reply" targetId={r.id} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><BookOpen size={14} /> Wiki review queue · {pendingEdits.length}</h2>
-            <p className="narrative mt-1">Approve to publish — the edit becomes the new version and the requester is credited.</p>
-            {pendingEdits.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <p className="narrative">No pending suggestions. Wiki edits from students land here.</p>
-              </div>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {pendingEdits.map((e) => (
-                  <li key={e.id} className="rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                    <p className="text-sm" style={{ color: "var(--text)" }}>
-                      <Link href={`/student/community/wiki/${e.slug}`} prefetch={false} className="font-medium hover:underline">{e.page_title}</Link>
-                      <span style={{ color: "var(--text-muted)" }}> — {e.requester_name || "a student"}{e.reason ? `: ${e.reason}` : ""}</span>
-                    </p>
-                    <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>{e.proposed_content.slice(0, 600)}</pre>
-                    <div className="mt-2"><WikiReviewButtons slug={e.slug} editId={e.id} /></div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <section className="mt-6 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}>
-            <EyeOff size={14} /> Hidden content · {hiddenThreads.length + hiddenReplies.length + hiddenSnippets.length}
-          </h2>
-          <p className="narrative mt-1">
-            Everything you have hidden, with the control to bring it back. Moderation is reversible — nothing is deleted.
-          </p>
-          {hiddenThreads.length + hiddenReplies.length + hiddenSnippets.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="narrative">Nothing is currently hidden.</p>
-            </div>
+        <WorkspaceSection index="01" title="Flagged threads" note="Newest signal first — pin the best discussions or hide content that breaks the code." action={<span className="aled-meta">{flaggedThreads.length} in view</span>}>
+          {flaggedThreads.length === 0 ? (
+            <WorkspaceEmpty
+              title="Queue clear"
+              body={`${stats?.pinned ?? 0} pinned thread${(stats?.pinned ?? 0) === 1 ? "" : "s"} live — pin the best discussions to surface them.`}
+            />
           ) : (
-            <ul className="mt-4 space-y-2">
-              {hiddenThreads.map((t) => (
-                <li key={`t-${t.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium" style={{ color: "var(--text-muted)" }}>{t.title}</p>
-                    <p className="meta mt-1">Hidden thread · {t.author_name || "a student"}</p>
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {flaggedThreads.map((t) => (
+                <li key={t.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <Link href={`/student/community/forums/${t.id}`} prefetch={false} className="aled-title">{t.title}</Link>
+                    <p className="aled-sub" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.4rem 0.65rem" }}>
+                      <span>{t.author_name || "a student"}</span>
+                      <span className="aled-tag aled-tag--danger"><Flag size={10} aria-hidden="true" /> {t.flag_count} flags</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Clock3 size={10} aria-hidden="true" /> {new Date(t.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
+                      {t.pinned && <span className="aled-tag aled-tag--accent"><Pin size={10} aria-hidden="true" /> Pinned</span>}
+                    </p>
                   </div>
-                  <HideButton targetType="thread" targetId={t.id} status="visible" />
-                </li>
-              ))}
-              {hiddenReplies.map((r) => (
-                <li key={`r-${r.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                  <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 text-sm" style={{ color: "var(--text-muted)" }}>{r.body}</p>
-                    <p className="meta mt-1">Hidden reply · {r.author_name || "a student"} · <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false} style={{ color: "var(--accent)" }} className="hover:underline">thread →</Link></p>
-                  </div>
-                  <HideButton targetType="reply" targetId={r.id} status="visible" />
-                </li>
-              ))}
-              {hiddenSnippets.map((s) => (
-                <li key={`s-${s.id}`} className="flex items-start justify-between gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm" style={{ color: "var(--text-muted)" }}>{s.title || "Untitled snippet"}</p>
-                    <p className="meta mt-1">Hidden snippet · {s.language || "text"}</p>
-                  </div>
-                  <HideButton targetType="snippet" targetId={s.id} status="visible" />
+                  <span className="aled-actions"><PinButton threadId={t.id} pinned={t.pinned} /><HideButton targetType="thread" targetId={t.id} /></span>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Flagged replies" note="Reply-level flags stay visible until a moderator makes a decision." action={<span className="aled-meta">{flaggedReplies.length} in view</span>}>
+          {flaggedReplies.length === 0 ? (
+            <WorkspaceEmpty title="No flagged replies" body="Replies flagged by students will appear here." />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {flaggedReplies.map((r) => (
+                <li key={r.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <p className="aled-body">{r.body}</p>
+                    <p className="aled-sub">
+                      {r.author_name || "a student"} / {r.flag_count} flags / <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false}>thread →</Link>
+                    </p>
+                  </div>
+                  <span className="aled-actions"><HideButton targetType="reply" targetId={r.id} /></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="03" title="Wiki review queue" note="Approve to publish — the edit becomes the new version and the requester is credited." action={<span className="aled-meta">{pendingEdits.length} pending</span>}>
+          {pendingEdits.length === 0 ? (
+            <WorkspaceEmpty title="No pending suggestions" body="Wiki edits from students land here for review." />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {pendingEdits.map((e) => (
+                <li key={e.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr)" }}>
+                  <div className="aled-copy">
+                    <p className="aled-body">
+                      <Link href={`/student/community/wiki/${e.slug}`} prefetch={false}>{e.page_title}</Link>
+                      <span style={{ color: "var(--text-muted)" }}> — {e.requester_name || "a student"}{e.reason ? `: ${e.reason}` : ""}</span>
+                    </p>
+                    <pre className="aled-code">{e.proposed_content.slice(0, 600)}</pre>
+                    <div className="aled-actions" style={{ justifyContent: "flex-start", marginTop: "0.65rem" }}><WikiReviewButtons slug={e.slug} editId={e.id} /></div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="04" title="Hidden content" note="Everything you have hidden, with the control to bring it back. Moderation is reversible — nothing is deleted." action={<span className="aled-meta">{hiddenTotal} hidden</span>}>
+          {hiddenTotal === 0 ? (
+            <WorkspaceEmpty title="Nothing is currently hidden" body="Hidden threads, replies, and snippets will be listed here for restoration." />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {hiddenThreads.map((t) => (
+                <li key={`t-${t.id}`} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title" style={{ color: "var(--text-muted)" }}>{t.title}</span>
+                    <p className="aled-sub">Hidden thread / {t.author_name || "a student"}</p>
+                  </div>
+                  <span className="aled-actions"><HideButton targetType="thread" targetId={t.id} status="visible" /></span>
+                </li>
+              ))}
+              {hiddenReplies.map((r) => (
+                <li key={`r-${r.id}`} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <p className="aled-body" style={{ color: "var(--text-muted)" }}>{r.body}</p>
+                    <p className="aled-sub">Hidden reply / {r.author_name || "a student"} / <Link href={`/student/community/forums/${r.thread_id}`} prefetch={false}>thread →</Link></p>
+                  </div>
+                  <span className="aled-actions"><HideButton targetType="reply" targetId={r.id} status="visible" /></span>
+                </li>
+              ))}
+              {hiddenSnippets.map((s) => (
+                <li key={`s-${s.id}`} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title" style={{ color: "var(--text-muted)" }}>{s.title || "Untitled snippet"}</span>
+                    <p className="aled-sub">Hidden snippet / {s.language || "text"}</p>
+                  </div>
+                  <span className="aled-actions"><HideButton targetType="snippet" targetId={s.id} status="visible" /></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
