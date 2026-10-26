@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { env } from "@/lib/env";
-import { Display, Meta, PlainStat, ActionLink } from "@/components/loom/primitives";
-import { Timeline, TimelineItem } from "@/components/loom/Timeline";
+import { ActionLink } from "@/components/loom/primitives";
 import { DataTable } from "@/components/loom/DataTable";
 import { OnboardingState } from "@/components/loom/States";
 import { Reveal } from "@/components/motion/Reveal";
@@ -20,6 +19,8 @@ import {
   nextMilestone,
   formatShortDate
 } from "./proof-format";
+import "../_components/student-folio.css";
+import "./credentials.css";
 
 export const dynamic = "force-dynamic";
 
@@ -78,25 +79,27 @@ export default async function CredentialsPage() {
   if (achievements.length === 0) {
     return (
       <AppShell area="student" tenant={tenant} user={user}>
-        <main className="mx-auto max-w-4xl px-4 sm:px-6">
+        <main className="desk proof-archive mx-auto max-w-4xl px-4 pb-4 sm:px-6">
           <ProveTabs active="/student/credentials" className="mt-4" />
-          <OnboardingState
-            eyebrow="Proof · portable credentials"
-            title="Nothing to show — yet."
-            why="Proof is issued for real work: merged pull requests, contest placements, roadmap milestones your chapter verifies. Each piece becomes a signed link any recruiter can check, no login required."
-            steps={[
-              { title: "Merge a PR", body: "Claim it in the open-source portal; verification is automatic." },
-              { title: "Place in a challenge", body: "Contests with deadlines produce the sharpest proof." },
-              { title: "Finish the path", body: "Roadmap milestones compound into chapter-issued achievements." }
-            ]}
-            action={<Link href="/student/opensource" prefetch={false} className="btn-ink">Start with open source →</Link>}
-          />
+          <div className="proof-empty">
+            <OnboardingState
+              eyebrow="Proof / portable credentials"
+              title="Nothing to show, yet."
+              why="Proof is issued for real work: merged pull requests, contest placements, roadmap milestones your chapter verifies. Each piece becomes a signed link any recruiter can check, no login required."
+              steps={[
+                { title: "Merge a PR", body: "Claim it in the open-source portal; verification is automatic." },
+                { title: "Place in a challenge", body: "Contests with deadlines produce the sharpest proof." },
+                { title: "Finish the path", body: "Roadmap milestones compound into chapter-issued achievements." }
+              ]}
+              action={<Link href="/student/opensource" prefetch={false} className="btn-ink">Start with open source</Link>}
+            />
+          </div>
         </main>
       </AppShell>
     );
   }
 
-  // Records carry everything the client island needs — plain and serializable.
+  // Records carry everything the client island needs, plain and serializable.
   const records = achievements.map((a) => ({
     id: a.id,
     title: labelFor(a),
@@ -128,85 +131,151 @@ export default async function CredentialsPage() {
   });
 
   const next = nextMilestone(done, nodes);
-  const fourthStat = pending.length > 0
+  const registerNote = pending.length > 0
     ? { value: pending.length, unit: pending.length === 1 ? "claim" : "claims", label: "awaiting merge verification" }
     : next
-      ? { value: next.remaining, unit: next.remaining === 1 ? "node" : "nodes", label: `to “${next.label}” — keep walking the roadmap` }
+      ? { value: next.remaining, unit: next.remaining === 1 ? "node" : "nodes", label: `to “${next.label}”` }
       : null;
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+      <main className="desk proof-archive mx-auto max-w-6xl px-4 pb-4 sm:px-6">
         <Reveal>
-          <Meta>Prove · credentials that travel</Meta>
-          <Display size="lg" className="mt-3">
-            {profile?.name || "Student"},<br /><em>documented.</em>
-          </Display>
-          <p className="narrative mt-4">
-            {issuer} vouches for {achievements.length} earned achievement{achievements.length === 1 ? "" : "s"}.
-            Earned work becomes a signed link anyone can verify — no account needed.
-          </p>
+          <section className="desk-hero proof-hero" aria-labelledby="proof-title">
+            <div className="desk-hero-inner">
+              <div className="desk-hero-main">
+                <p className="desk-kicker">
+                  <span>Prove</span>
+                  <span>Credentials that travel</span>
+                </p>
+                <h1 id="proof-title" className="desk-title">
+                  {profile?.name || "Student"},<br /><em>documented.</em>
+                </h1>
+                <p className="desk-lede">
+                  {issuer} vouches for {achievements.length} earned achievement{achievements.length === 1 ? "" : "s"}.
+                  Earned work becomes a signed link anyone can verify, no account needed.
+                </p>
+                <p className="desk-meta-line">
+                  {achievements.length} achievements &middot; {credentials.length} signed links &middot; {views} views
+                </p>
+                <div className="desk-actions">
+                  <a href="#proof-record" className="btn-ink">Open the record</a>
+                  {next ? (
+                    <Link href="/student/roadmap" prefetch={false} className="btn-ghost">
+                      Earn the next one
+                    </Link>
+                  ) : (
+                    <Link href="/student/contests" prefetch={false} className="btn-ghost">
+                      Enter a challenge
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <aside className="desk-pass proof-pass" aria-label="Archive register">
+                <p className="desk-label">Archive register</p>
+                <p className="desk-pass-value">
+                  {achievements.length}
+                  <span>earned</span>
+                </p>
+                <p className="desk-pass-note">
+                  {credentials.length === 0
+                    ? "No signed links yet. Issue one from any record."
+                    : `${credentials.length} signed link${credentials.length === 1 ? "" : "s"} in the world.`}
+                </p>
+                <dl className="desk-pass-list">
+                  <div>
+                    <dt>Links</dt>
+                    <dd>{credentials.length} signed</dd>
+                  </div>
+                  <div>
+                    <dt>Views</dt>
+                    <dd>{views} opened</dd>
+                  </div>
+                  <div>
+                    <dt>{pending.length > 0 ? "Pending" : "Next"}</dt>
+                    <dd>{registerNote ? `${registerNote.value} ${registerNote.unit}` : "Track complete"}</dd>
+                  </div>
+                </dl>
+              </aside>
+            </div>
+          </section>
         </Reveal>
 
-        <ProveTabs active="/student/credentials" />
+        <div className="proof-tabs">
+          <ProveTabs active="/student/credentials" />
+        </div>
 
-        <Reveal delay={0.06}>
-          <div className={`mt-8 grid gap-8 sm:grid-cols-2 ${fourthStat ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-            <PlainStat value={achievements.length} unit="earned" label="achievements on your record" />
-            <PlainStat value={credentials.length} unit="signed" label="public share links in the wild" />
-            <PlainStat value={views} unit="views" label="times your proof was opened" />
-            {fourthStat && (
-              <PlainStat value={fourthStat.value} unit={fourthStat.unit} label={fourthStat.label} />
-            )}
+        <section id="proof-record" className="proof-section" aria-labelledby="proof-record-title">
+          <div className="proof-section-head">
+            <div>
+              <p className="proof-section-kicker">The record</p>
+              <h2 id="proof-record-title" className="proof-section-title">
+                {achievements.length} earned achievement{achievements.length === 1 ? "" : "s"}.
+              </h2>
+            </div>
+            <p className="proof-section-aside">Issued by {issuer}</p>
           </div>
-        </Reveal>
-
-        <section className="mt-12" aria-label="Achievements">
-          <Meta>The record · {achievements.length} earned</Meta>
           <ProofRecord records={records} issuer={issuer} />
         </section>
 
         {pending.length > 0 && (
-          <section className="mt-12" aria-label="Pending proof">
-            <Meta style={{ color: "var(--accent)" }}>Pending proof · {pending.length} awaiting verification</Meta>
-            <p className="narrative mt-3">
-              Claimed open-source work that hasn&apos;t merged yet. This is not proof — it becomes
-              proof the moment verification lands.
+          <section className="proof-section" aria-labelledby="proof-pending-title">
+            <div className="proof-section-head">
+              <div>
+                <p className="proof-section-kicker is-accent">Pending proof</p>
+                <h2 id="proof-pending-title" className="proof-section-title">
+                  {pending.length} claim{pending.length === 1 ? "" : "s"} awaiting verification.
+                </h2>
+              </div>
+              <p className="proof-section-aside">Not proof until it merges</p>
+            </div>
+            <p className="proof-section-lede">
+              Claimed open-source work that hasn&apos;t merged yet. It becomes proof the moment verification lands.
             </p>
-            <Timeline className="mt-5">
-              {pending.map((c) => (
-                <TimelineItem
-                  key={c.id}
-                  state="now"
-                  title={c.title || (c.pr_number ? `Pull request #${c.pr_number}` : "Contribution")}
-                  meta={formatShortDate(c.created_at) || "claimed"}
-                  body={`Awaiting merge verification${c.repo_url ? ` · ${shortRepo(c.repo_url)}` : ""}`}
-                  action={
-                    <span className="flex flex-wrap items-center gap-4">
-                      {c.pr_url && (
-                        <a href={c.pr_url} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                          Open pull request ↗
-                        </a>
-                      )}
-                      <Link href="/student/opensource" prefetch={false} className="text-xs font-semibold hover:underline" style={{ color: "var(--text-muted)" }}>
-                        Open source portal →
-                      </Link>
+            <ol className="proof-pending-list">
+              {pending.map((c, i) => (
+                <li key={c.id} className="proof-pending-row">
+                  <span className="proof-row-index">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="proof-row-main">
+                    <span className="proof-row-title">
+                      {c.title || (c.pr_number ? `Pull request #${c.pr_number}` : "Contribution")}
                     </span>
-                  }
-                />
+                    <span className="proof-row-meta">
+                      {formatShortDate(c.created_at) || "claimed"}
+                      {c.repo_url ? ` · ${shortRepo(c.repo_url)}` : ""}
+                      {" · "}awaiting merge verification
+                    </span>
+                  </span>
+                  <span className="proof-row-actions">
+                    {c.pr_url && (
+                      <a href={c.pr_url} target="_blank" rel="noreferrer">
+                        Pull request <span aria-hidden="true">&nearr;</span>
+                      </a>
+                    )}
+                    <Link href="/student/opensource" prefetch={false}>Open source portal</Link>
+                  </span>
+                </li>
               ))}
-            </Timeline>
+            </ol>
           </section>
         )}
 
         {credentials.length > 0 && (
-          <section className="mt-12" aria-label="Share links">
-            <Meta>Out in the world · {credentials.length} signed link{credentials.length === 1 ? "" : "s"}</Meta>
-            <p className="narrative mt-3">
-              Each link below opens the exact public page a recruiter sees — proof name, issuer,
-              dates, and signature status.
+          <section className="proof-section" aria-labelledby="proof-links-title">
+            <div className="proof-section-head">
+              <div>
+                <p className="proof-section-kicker">Out in the world</p>
+                <h2 id="proof-links-title" className="proof-section-title">
+                  {credentials.length} signed link{credentials.length === 1 ? "" : "s"}.
+                </h2>
+              </div>
+              <p className="proof-section-aside">Anyone can verify</p>
+            </div>
+            <p className="proof-section-lede">
+              Each link opens the exact public page a recruiter sees: proof name, issuer, dates, and signature status.
             </p>
-            <div className="mt-4 border-y" style={{ borderColor: "var(--line)" }}>
+            <div className="proof-links-table">
               <DataTable
                 caption="Signed credential share links"
                 columns={[
@@ -223,42 +292,51 @@ export default async function CredentialsPage() {
         )}
 
         {(pending.length > 0 || next) && (
-          <section className="mt-12 border-t pt-8" style={{ borderColor: "var(--line)" }} aria-label="Next proof">
-            <Meta>Next proof</Meta>
-            <h2 className="h-product mt-2">What becomes proof next.</h2>
-            <ol className="mt-4">
+          <section className="proof-section" aria-labelledby="proof-next-title">
+            <div className="proof-section-head">
+              <div>
+                <p className="proof-section-kicker">Next proof</p>
+                <h2 id="proof-next-title" className="proof-section-title">What becomes proof next.</h2>
+              </div>
+              <p className="proof-section-aside">
+                {done} of {nodes} roadmap nodes complete
+              </p>
+            </div>
+            <ol className="proof-next-list">
               {pending.length > 0 && (
-                <li className="border-b py-5 first:border-t" style={{ borderColor: "var(--line)" }}>
-                  <Link href="/student/opensource" prefetch={false} className="row-link flex items-baseline gap-5 px-2 py-1">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>
+                <li>
+                  <Link href="/student/opensource" prefetch={false} className="proof-next-row">
+                    <span className="proof-row-index">01</span>
+                    <span className="proof-row-main">
+                      <span className="proof-row-title">
                         {pending.length} claimed contribution{pending.length === 1 ? "" : "s"} awaiting verification
                       </span>
-                      <span className="mt-1 block text-sm" style={{ color: "var(--text-muted)" }}>
-                        Merged work verifies automatically — then it joins your record.
+                      <span className="proof-row-meta">
+                        Merged work verifies automatically, then it joins your record.
                       </span>
                     </span>
-                    <span className="shrink-0 text-lg" style={{ color: "var(--text-muted)" }} aria-hidden="true">›</span>
+                    <span className="proof-row-arrow" aria-hidden="true">&rarr;</span>
                   </Link>
                 </li>
               )}
               {next && (
-                <li className="border-b py-5 first:border-t" style={{ borderColor: "var(--line)" }}>
-                  <Link href="/student/roadmap" prefetch={false} className="row-link flex items-baseline gap-5 px-2 py-1">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[1.02rem] font-semibold" style={{ color: "var(--text)" }}>
+                <li>
+                  <Link href="/student/roadmap" prefetch={false} className="proof-next-row">
+                    <span className="proof-row-index">{pending.length > 0 ? "02" : "01"}</span>
+                    <span className="proof-row-main">
+                      <span className="proof-row-title">
                         {next.remaining} node{next.remaining === 1 ? "" : "s"} to “{next.label}”
                       </span>
-                      <span className="mt-1 block text-sm" style={{ color: "var(--text-muted)" }}>
-                        {done} of {nodes} roadmap nodes complete — milestones compound into chapter achievements.
+                      <span className="proof-row-meta">
+                        Milestones compound into chapter achievements.
                       </span>
                     </span>
-                    <span className="shrink-0 text-lg" style={{ color: "var(--text-muted)" }} aria-hidden="true">›</span>
+                    <span className="proof-row-arrow" aria-hidden="true">&rarr;</span>
                   </Link>
                 </li>
               )}
             </ol>
-            <div className="mt-6">
+            <div className="proof-next-foot">
               <ActionLink href="/student/contests">Or earn it under pressure in challenges</ActionLink>
             </div>
           </section>
@@ -269,9 +347,9 @@ export default async function CredentialsPage() {
 }
 
 function sourceDetailFor(a) {
-  if (a.source_type === "roadmap") return `Roadmap milestone · ${a.source_ref || "path"}`;
-  if (a.source_type === "oss") return `Verified open-source contribution · ${a.source_ref || "merge"}`;
-  if (a.source_type === "contest") return `Contest result recorded by the chapter · ${a.source_ref || "challenge"}`;
-  if (a.badge_name) return "Chapter badge · criteria set by your chapter";
+  if (a.source_type === "roadmap") return `Roadmap milestone / ${a.source_ref || "path"}`;
+  if (a.source_type === "oss") return `Verified open-source contribution / ${a.source_ref || "merge"}`;
+  if (a.source_type === "contest") return `Contest result recorded by the chapter / ${a.source_ref || "challenge"}`;
+  if (a.badge_name) return "Chapter badge / criteria set by your chapter";
   return "Direct chapter issue";
 }
