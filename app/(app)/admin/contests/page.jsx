@@ -1,20 +1,20 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Trophy, Users, FileCheck, Clock3, Search, Plus, ArrowUpRight, ExternalLink } from "lucide-react";
+import { Users, FileCheck, Clock3, Search, ArrowUpRight, ExternalLink } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ContestForm } from "@/components/admin-forms";
 import { ContestFunnelBars, ContestConversionBars } from "@/components/admin/RemainingCharts";
+import "../_components/admin-ledger.css";
 
 function statusTone(s) {
   const m = {
-    draft: { bg: "var(--bg-elevated)", color: "var(--text-muted)", border: "var(--line)", label: "Draft" },
-    published: { bg: "color-mix(in srgb, #0ea5e9 10%, var(--bg))", color: "#0284c7", border: "color-mix(in srgb, #0ea5e9 18%, transparent)", label: "Published" },
-    open: { bg: "color-mix(in srgb, #16a34a 10%, var(--bg))", color: "#16a34a", border: "color-mix(in srgb, #16a34a 18%, transparent)", label: "Open" },
-    active: { bg: "color-mix(in srgb, #16a34a 10%, var(--bg))", color: "#16a34a", border: "color-mix(in srgb, #16a34a 18%, transparent)", label: "Active" },
-    closed: { bg: "var(--bg)", color: "var(--text-muted)", border: "var(--line)", label: "Closed" },
+    draft: { label: "Draft", className: "" },
+    published: { label: "Published", className: "aled-tag--info" },
+    open: { label: "Open", className: "aled-tag--success" },
+    active: { label: "Active", className: "aled-tag--success" },
+    closed: { label: "Closed", className: "" },
   };
   return m[s] || m.draft;
 }
@@ -64,37 +64,43 @@ export default async function AdminContestsPage({ searchParams }) {
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`Compete · ${stats?.total ?? 0} contests · ${stats?.live ?? 0} live · ${stats?.submissions ?? 0} submissions`} title="Contests" desc="Create, publish, and judge. Draft first, then open registration — submissions flow into the inbox below." />
+        <WorkspaceMasthead
+          kicker={`Compete / ${stats?.total ?? 0} contests / ${stats?.live ?? 0} live / ${stats?.submissions ?? 0} submissions`}
+          title="Contests"
+          lede="Create, publish, and judge. Draft first, then open registration — submissions flow into the inbox below."
+          meta={`${rows.length} shown in this view / newest first / cap 50`}
+          tone="field"
+          art="/events/event-contest.png"
+          artAlt=""
+          stats={[
+            { value: stats?.total ?? 0, label: "contests all time" },
+            { value: stats?.live ?? 0, label: "open or active" },
+            { value: stats?.drafts ?? 0, label: "drafts awaiting publish" },
+            { value: stats?.submissions ?? 0, label: "submissions" }
+          ]}
+        />
 
-        <div className="mb-6 grid gap-3 sm:grid-cols-4">
-          {[
-            { label: "Total", value: stats?.total ?? 0, icon: Trophy, sub: "all" },
-            { label: "Live", value: stats?.live ?? 0, icon: FileCheck, sub: "open / active" },
-            { label: "Drafts", value: stats?.drafts ?? 0, icon: Clock3, sub: "awaiting publish" },
-            { label: "Submissions", value: stats?.submissions ?? 0, icon: Users, sub: "all time" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-3 rounded-2xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              <span className="inline-flex size-8 items-center justify-center rounded-full border" style={{ borderColor: "var(--line)", background: "var(--bg)", color: s.label === "Live" && (stats?.live ?? 0) > 0 ? "var(--accent)" : "var(--text-muted)" }}><s.icon size={14} /></span>
-              <div><p className="font-mono text-sm font-semibold" style={{ color: "var(--text)" }}>{s.value}</p><p className="meta">{s.label} · {s.sub}</p></div>
+        <WorkspaceSection index="01" title="Competition shape" note="Funnel counts and registration-to-submission conversion for the newest contests.">
+          <div className="adminx-chart-grid">
+            <div className="adminx-chart">
+              <ContestFunnelBars data={[
+                { name: "Draft", value: stats?.drafts ?? 0 },
+                { name: "Live", value: stats?.live ?? 0 },
+                { name: "Closed", value: Math.max(0, (stats?.total ?? 0) - (stats?.drafts ?? 0) - (stats?.live ?? 0)) },
+              ]} />
             </div>
-          ))}
-        </div>
-
-        <section className="grid gap-4 lg:grid-cols-2" aria-label="Contest visuals">
-          <ContestFunnelBars data={[
-            { name: "Draft", value: stats?.drafts ?? 0 },
-            { name: "Live", value: stats?.live ?? 0 },
-            { name: "Closed", value: Math.max(0, (stats?.total ?? 0) - (stats?.drafts ?? 0) - (stats?.live ?? 0)) },
-          ]} />
-          <ContestConversionBars data={rows.slice(0, 5).map((r) => ({ name: r.title.slice(0, 14), regs: r.registrations, subs: r.submissions }))} />
-        </section>
-
-        <form method="get" className="mb-4 flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row sm:items-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} role="search">
-          <div className="relative flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
-            <input name="q" defaultValue={q} placeholder="Search title or description…" className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_14%,transparent)]" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }} />
+            <div className="adminx-chart">
+              <ContestConversionBars data={rows.slice(0, 5).map((r) => ({ name: r.title.slice(0, 14), regs: r.registrations, subs: r.submissions }))} />
+            </div>
           </div>
-          <select name="status" defaultValue={status} className="rounded-xl border px-3 py-2.5 text-sm outline-none" style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
+        </WorkspaceSection>
+
+        <form method="get" className="aled-toolbar" role="search">
+          <label className="aled-search">
+            <Search size={14} style={{ color: "var(--text-muted)" }} aria-hidden="true" />
+            <input name="q" defaultValue={q} placeholder="Search title or description…" aria-label="Search contests" />
+          </label>
+          <select name="status" defaultValue={status} className="aled-select" aria-label="Filter by status">
             <option value="">All statuses</option>
             <option value="draft">Draft</option>
             <option value="published">Published</option>
@@ -102,42 +108,39 @@ export default async function AdminContestsPage({ searchParams }) {
             <option value="active">Active</option>
             <option value="closed">Closed</option>
           </select>
-          <button className="btn-ink !py-2.5 text-sm">Filter</button>
-          {(q || status) && <Link href="/admin/contests" prefetch={false} className="text-xs font-medium hover:underline" style={{ color: "var(--accent)" }}>Clear</Link>}
-          <span className="meta ml-auto hidden sm:block">{rows.length} shown</span>
+          <button className="btn-ink !py-2 text-xs">Filter</button>
+          {(q || status) && <Link href="/admin/contests" prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}
+          <span className="aled-meta ml-auto hidden sm:block">{rows.length} shown</span>
         </form>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <section>
-            <div className="flex items-center gap-2">
-              <Trophy size={14} style={{ color: "var(--text-muted)" }} />
-              <Meta>Contests · newest first</Meta>
-            </div>
+        <div className="aled-split">
+          <section aria-label="Contest ledger">
+            <div className="aled-meta">Contests / newest first</div>
             {rows.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>No contests yet</p>
-                <p className="narrative mx-auto mt-2 max-w-md">Create a draft on the right — publish when the brief, dates, and judging criteria are ready. Students register from /student/contests.</p>
-              </div>
+              <WorkspaceEmpty
+                title="No contests yet"
+                body="Create a draft on the right — publish when the brief, dates, and judging criteria are ready. Students register from /student/contests."
+              />
             ) : (
-              <ul className="mt-4 space-y-2">
+              <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
                 {rows.map((c) => {
                   const tone = statusTone(c.status);
                   return (
-                    <li key={c.id} className="group flex flex-col gap-2 rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{c.title}</span>
-                          <span className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium" style={{ background: tone.bg, color: tone.color, borderColor: tone.border }}>{tone.label}</span>
+                    <li key={c.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                      <div className="aled-copy">
+                        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.4rem" }}>
+                          <span className="aled-title" style={{ display: "inline" }}>{c.title}</span>
+                          <span className={`aled-tag ${tone.className}`}>{tone.label}</span>
                         </div>
-                        {c.description && <p className="narrative mt-1 line-clamp-1 text-xs leading-5">{c.description}</p>}
-                        <p className="meta mt-1 flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1"><Users size={11} /> {c.registrations} registered</span>
-                          <span>· {c.submissions} submissions</span>
-                          <span className="inline-flex items-center gap-1"><Clock3 size={11} /> {c.starts_at ? new Date(c.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "no start"}</span>
-                          <span className="font-mono text-[11px]">{c.id.slice(0, 8)}</span>
+                        {c.description && <p className="aled-sub">{c.description}</p>}
+                        <p className="aled-sub" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.35rem 0.7rem" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Users size={11} aria-hidden="true" /> {c.registrations} registered</span>
+                          <span>{c.submissions} submissions</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Clock3 size={11} aria-hidden="true" /> {c.starts_at ? new Date(c.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "no start"}</span>
+                          <span>{c.id.slice(0, 8)}</span>
                         </p>
                       </div>
-                      <span className="hidden shrink-0 text-xs sm:inline-flex" style={{ color: "var(--text-muted)" }}><ArrowUpRight size={12} /></span>
+                      <span className="aled-actions" aria-hidden="true"><ArrowUpRight size={12} /></span>
                     </li>
                   );
                 })}
@@ -145,58 +148,51 @@ export default async function AdminContestsPage({ searchParams }) {
             )}
           </section>
 
-          <div className="space-y-4">
-            <ContestForm />
-            <div className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text)" }}><FileCheck size={12} /> Judging flow</p>
-              <ul className="mt-2 space-y-1.5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                <li>· Draft → Published → Open → Closed.</li>
-                <li>· Submissions appear below the moment a student submits.</li>
-                <li>· Use the inbox to open links and judge.</li>
+          <div className="aled-stack">
+            <WorkspaceSection title="New contest" note="Draft first. Publish when the brief, dates, and judging criteria are ready." className="mt-0">
+              <div className="aled-panel"><ContestForm /></div>
+            </WorkspaceSection>
+            <div className="aled-panel">
+              <p className="aled-panel-title"><FileCheck size={12} aria-hidden="true" /> Judging flow</p>
+              <ul className="aled-notes">
+                <li>Draft → Published → Open → Closed.</li>
+                <li>Submissions appear below the moment a student submits.</li>
+                <li>Use the inbox to open links and judge.</li>
               </ul>
             </div>
           </div>
         </div>
 
-        <section className="mt-8 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }} aria-label="Submissions inbox">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><FileCheck size={14} /> Submissions inbox · {subs.length} latest</h2>
-            <span className="meta">newest first · cap 20</span>
-          </div>
+        <WorkspaceSection index="02" title="Submissions inbox" note="Newest first, capped at 20. Open the link to judge the work." action={<span className="aled-meta">cap 20</span>}>
           {subs.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed p-8 text-center" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <p className="narrative">No submissions yet. When students submit work, it lands here with their note and link.</p>
-            </div>
+            <WorkspaceEmpty
+              title="No submissions yet"
+              body="When students submit work, it lands here with their note and link."
+            />
           ) : (
-            <div className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "var(--bg-elevated)" }}>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-medium">Student</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-medium">Contest</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 font-medium">Submission</th>
-                      <th className="whitespace-nowrap px-3 py-2.5 text-right font-medium">When</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y" style={{ borderColor: "var(--line)" }}>
-                    {subs.map((s) => (
-                      <tr key={s.id} className="transition hover:bg-[color-mix(in_srgb,var(--accent)_4%,transparent)]">
-                        <td className="px-3 py-3 font-medium" style={{ color: "var(--text)" }}>{s.student_name || s.student_id.slice(0, 8)}</td>
-                        <td className="px-3 py-3" style={{ color: "var(--text-muted)" }}>{s.contest_title}</td>
-                        <td className="px-3 py-3">
-                          {s.url ? <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: "var(--accent)" }}>{String(s.url).slice(0, 48)} <ExternalLink size={10} /></a> : <span className="meta">no link</span>}
-                          {s.note && <span className="mt-1 block max-w-xs truncate text-xs" style={{ color: "var(--text-muted)" }}>{s.note}</span>}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right font-mono text-xs" style={{ color: "var(--text-muted)" }}>{new Date(s.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {subs.map((s) => (
+                <li key={s.id} className="aled-row" style={{ "--aled-cols": "minmax(9rem, 0.7fr) minmax(0, 1fr) 4.5rem" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title">{s.student_name || s.student_id.slice(0, 8)}</span>
+                    <p className="aled-sub">{s.contest_title}</p>
+                  </div>
+                  <div className="aled-copy">
+                    {s.url ? (
+                      <a href={s.url} target="_blank" rel="noreferrer" className="aled-sub" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", color: "var(--accent)", fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontSize: "0.62rem" }}>
+                        {String(s.url).slice(0, 48)} <ExternalLink size={10} aria-hidden="true" />
+                      </a>
+                    ) : (
+                      <span className="aled-meta">no link</span>
+                    )}
+                    {s.note && <p className="aled-sub">{s.note}</p>}
+                  </div>
+                  <span className="aled-meta" style={{ textAlign: "right" }}>{new Date(s.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
+                </li>
+              ))}
+            </ul>
           )}
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
