@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, PlainStat, Rule } from "@/components/loom/primitives";
+import { Meta, PlainStat } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { OnboardingState } from "@/components/loom/States";
 import { ProveTabs } from "@/components/student/SectionRails";
 import {
@@ -87,16 +88,34 @@ export default async function StandingsPage({ searchParams }) {
 
   const empty = rows.length === 0 && !self.ranked;
 
+  const mastheadStats = self.ranked
+    ? [
+        { value: `#${self.rank}`, label: "your rank" },
+        { value: Number(self.score).toLocaleString("en-IN"), label: "points" },
+        { value: Number(self.verified_score), label: "verified points" },
+        { value: self.total, label: "in this board" }
+      ]
+    : [
+        { value: rows.length, label: "on this board" },
+        { value: selfEvidence.verifiedNodes, label: "verified nodes" },
+        { value: Number(self.pending), label: "claims awaiting review" },
+        { value: Number(self.commits), label: "commits attested" }
+      ];
+
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Meta>Prove · steady work, ranked</Meta>
-        <Display size="lg" className="mt-3 animate-in">Where steady work shows.</Display>
-        <p className="narrative mt-4 max-w-xl">
-          Standings reflect the work you keep shipping, learning, and contributing.
-        </p>
+        <WorkspaceMasthead
+          kicker="Prove / steady work, ranked"
+          title="Where steady work shows."
+          lede="Standings reflect the work you keep shipping, learning, and contributing."
+          meta={`${active.board} / ${period === "30d" ? "last 30 days" : "all time"}`}
+          tone="ledger"
+          art="/domains-art/domain-web.png"
+          artAlt=""
+          stats={mastheadStats}
+        />
         <ProveTabs active="/student/leaderboard" />
-        <Rule fade className="mt-6" />
 
         {self.ranked ? (
           <section aria-label="Your standing" className="animate-in mt-8 rounded-xl border px-5 py-5 sm:px-6" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--accent) 6%, var(--bg-elevated))", borderLeft: "3px solid var(--accent)" }}>
