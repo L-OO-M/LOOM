@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { Display, StatusPill } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { OnboardingState } from "@/components/loom/States";
 import { HelpHelperToggle } from "./_components/HelpHelperToggle";
 import { FindHelpersButton } from "./_components/FindHelpersButton";
@@ -90,10 +91,20 @@ export default async function HelpPage() {
   return (
     <AppShell area="student" tenant={tenant} user={ctx.profile}>
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-8 sm:px-6">
-        <PageHeader
-          kicker="Connect · peer help"
+        <WorkspaceMasthead
+          kicker="Connect / peer help"
           title="Stuck on something?"
-          desc="Raise it once, and the chapter's available helpers get notified. No chasing, no cold DMs."
+          lede="Raise it once, and the chapter's available helpers get notified. No chasing, no cold DMs."
+          meta={available ? "You are listed as an available helper" : "You are not listed as a helper yet"}
+          tone="field"
+          art="/storyloom/mentorship.png"
+          artAlt=""
+          stats={[
+            { value: signals.length, label: "requests you raised" },
+            { value: myMatches.length, label: "asked of you" },
+            { value: pendingForMe.length, label: "awaiting your answer" },
+            { value: myMatches.filter((m) => m.status === "accepted").length, label: "accepted" }
+          ]}
         />
 
         <ConnectTabs active="/student/help" className="mt-6" />
