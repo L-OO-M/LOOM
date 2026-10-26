@@ -32,17 +32,17 @@ export function WorkspaceMasthead({
             </div>
           )}
           {stats.length > 0 && (
-            <dl className="wsm-stats" aria-label="At a glance">
+            <div className="wsm-stats" aria-label="At a glance">
               {stats.map((s) => (
                 <div key={s.label} className="wsm-stat">
-                  <dd>
+                  <p className="wsm-stat-value">
                     {s.value}
                     {s.unit && <span>{s.unit}</span>}
-                  </dd>
-                  <dt>{s.label}</dt>
+                  </p>
+                  <p className="wsm-stat-label">{s.label}</p>
                 </div>
               ))}
-            </dl>
+            </div>
           )}
           {aside}
         </div>

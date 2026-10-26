@@ -163,7 +163,7 @@
   border-bottom: 0;
 }
 
-.wsm-stat dd {
+.wsm-stat-value {
   margin: 0;
   font-family: var(--font-display), Georgia, serif;
   font-size: 1.55rem;
@@ -174,7 +174,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.wsm-stat dd span {
+.wsm-stat-value span {
   margin-left: 0.18rem;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.52rem;
@@ -183,7 +183,7 @@
   color: var(--text-muted);
 }
 
-.wsm-stat dt {
+.wsm-stat-label {
   margin-top: 0.28rem;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.47rem;
