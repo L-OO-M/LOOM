@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { ToggleRight, Shield } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { FlagToggle } from "@/components/admin-forms";
+import "../_components/admin-ledger.css";
 
 const FLAG_META = {
   github_integration: { title: "GitHub integration", desc: "When off, webhooks are acked but not stored or scored. Paused by default." },
@@ -29,42 +29,64 @@ export default async function AdminFlagsPage() {
   if (ctx.error) redirect("/login?redirect=/admin/flags");
   const { user, tenant, sql } = ctx;
   const rows = await sql`SELECT * FROM feature_flags WHERE tenant_id = ${tenant?.id} ORDER BY key ASC`;
+  const enabled = rows.filter((f) => f.enabled).length;
+  const operatorOnly = rows.filter((f) => OPERATOR_ONLY[f.key]).length;
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`Control · ${rows.length} flags · this chapter`} title="Feature flags" desc="Toggles persist to this chapter and are audit-logged. Flip carefully — each change writes to the audit trail." />
-        <div className="mb-4 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-          <Shield size={12} /> Chapter toggles are immediate and scoped to this college. Global security controls below are operator-only.
+        <WorkspaceMasthead
+          kicker={`Control / ${rows.length} flags / this chapter`}
+          title="Feature flags"
+          lede="Toggles persist to this chapter and are audit-logged. Flip carefully — each change writes to the audit trail."
+          meta={`${enabled} on / ${rows.length - enabled} off / ${operatorOnly} operator-only`}
+          tone="ledger"
+          stats={[
+            { value: rows.length, label: "flags for this chapter" },
+            { value: enabled, label: "currently on" },
+            { value: rows.length - enabled, label: "currently off" },
+            { value: operatorOnly, label: "operator-only" }
+          ]}
+        />
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginTop: "1.1rem", padding: "0.6rem 0.75rem", border: "1px solid var(--line)", background: "color-mix(in srgb, var(--bg-elevated) 70%, transparent)" }}>
+          <Shield size={12} style={{ color: "var(--text-muted)" }} aria-hidden="true" />
+          <span className="aled-meta">Chapter toggles are immediate and scoped to this college. Global security controls are operator-only.</span>
         </div>
-        {rows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed p-10 text-center" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-            <p className="narrative">No flags for this college. Seed the control plane with <span className="font-mono">node load/seed-control-plane.js</span>.</p>
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {rows.map((f) => {
-              const operatorOnly = OPERATOR_ONLY[f.key];
-              const meta = operatorOnly || FLAG_META[f.key] || { title: f.key.replaceAll("_", " "), desc: "Chapter-scoped toggle." };
-              return (
-                <li key={f.key} className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: f.enabled ? "color-mix(in srgb, var(--accent) 18%, var(--line))" : "var(--line)", background: f.enabled ? "color-mix(in srgb, var(--accent) 4%, var(--bg-elevated))" : "var(--bg-elevated)" }}>
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text)" }}><ToggleRight size={14} style={{ color: f.enabled ? "var(--accent)" : "var(--text-muted)" }} /> {meta.title}</span>
-                    <span className="meta mt-0.5 block">{meta.desc}</span>
-                    <span className="meta font-mono text-[11px]">{f.key}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <span className="meta hidden sm:block">{f.enabled ? "On" : "Off"}</span>
-                    {operatorOnly ? (
-                      <span className="meta rounded-lg border px-2 py-1" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>Operator-only</span>
-                    ) : (
-                      <FlagToggle flagKey={f.key} enabled={f.enabled} />
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+
+        <WorkspaceSection index="01" title="Chapter controls" note="Each flag is keyed to this chapter. Operator-only controls stay read-only here.">
+          {rows.length === 0 ? (
+            <WorkspaceEmpty
+              title="No flags for this college"
+              body="Seed the control plane with node load/seed-control-plane.js."
+            />
+          ) : (
+            <div style={{ marginTop: "0.9rem", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+              {rows.map((f) => {
+                const locked = OPERATOR_ONLY[f.key];
+                const meta = locked || FLAG_META[f.key] || { title: f.key.replaceAll("_", " "), desc: "Chapter-scoped toggle." };
+                return (
+                  <div key={f.key} className="aled-flag-row">
+                    <span style={{ minWidth: 0 }}>
+                      <span className="aled-title" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <ToggleRight size={14} style={{ color: f.enabled ? "var(--accent)" : "var(--text-muted)" }} aria-hidden="true" /> {meta.title}
+                      </span>
+                      <p className="aled-sub">{meta.desc}</p>
+                      <p className="aled-meta" style={{ marginTop: "0.25rem" }}>{f.key}</p>
+                    </span>
+                    <span className="aled-flag-state">
+                      <span className={`aled-tag ${f.enabled ? "aled-tag--success" : ""}`}>{f.enabled ? "On" : "Off"}</span>
+                      {locked ? (
+                        <span className="aled-tag">Operator-only</span>
+                      ) : (
+                        <FlagToggle flagKey={f.key} enabled={f.enabled} />
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
