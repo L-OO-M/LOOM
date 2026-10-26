@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta } from "@/components/loom/primitives";
+import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import SettingsClient from "./SettingsClient";
 import EmailVerificationCard from "./EmailVerificationCard";
 import { AppearancePanel } from "./AppearancePanel";
@@ -18,8 +19,13 @@ export default async function SettingsPage() {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Meta>Account · profile, membership, sign-out</Meta>
-        <Display size="lg" className="mt-3">Settings.</Display>
+        <WorkspaceMasthead
+          kicker="Settings / account"
+          title="Settings."
+          lede="Profile, public card, membership, privacy, and the session on this device — all in one ledger."
+          meta={`${tenant?.name || "College"} / ${profile?.role || "student"}`}
+          tone="paper"
+        />
 
         <section className="mt-6 rounded-2xl border p-5" style={{ borderColor: card?.is_public ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }} aria-label="Public card">
           <Meta>{card?.username ? `Your public card — @${card.username}` : "Your public card"}</Meta>
@@ -46,8 +52,8 @@ export default async function SettingsPage() {
           <SettingsClient profile={profile} />
         </section>
 
-        <section id="membership" className="mt-10 scroll-mt-20" aria-label="Membership">
-          <Meta>Membership</Meta>
+        <div id="membership" className="scroll-mt-20">
+          <WorkspaceSection index="01" title="Membership" note="Your chapter record, read-only.">
           <dl className="mt-4">
             {[
               ["College", `${tenant?.name || "—"} (${tenant?.slug || "—"})`],
@@ -61,7 +67,8 @@ export default async function SettingsPage() {
               </div>
             ))}
           </dl>
-        </section>
+          </WorkspaceSection>
+        </div>
 
         <EmailVerificationCard
           verifiedAt={profile?.email_verified_at ? String(profile.email_verified_at) : null}
@@ -69,8 +76,8 @@ export default async function SettingsPage() {
           configured={verificationConfigured()}
         />
 
-        <section id="privacy" className="mt-10 scroll-mt-20" aria-label="Privacy control center">
-          <Meta>Privacy — you control what becomes visible</Meta>
+        <div id="privacy" className="scroll-mt-20">
+          <WorkspaceSection index="02" title="Privacy" note="You control what becomes visible.">
           <dl className="mt-4">
             {[
               ["Public profile card", "Manage in Community →", "/student/community"],
@@ -85,10 +92,10 @@ export default async function SettingsPage() {
             ))}
           </dl>
           <p className="narrative mt-3">Only public usernames are stored — never tokens. Audit logs record ids, never bodies. Full deletion is manual and audited — ask your admin.</p>
-        </section>
+          </WorkspaceSection>
+        </div>
 
-        <section className="mt-10" aria-label="Trust and session">
-          <Meta>Trust & session</Meta>
+        <WorkspaceSection index="03" title="Trust & session" note="Notifications and the session on this device.">
           <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
             <Link href="/student/notifications" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
               Notification history →
@@ -100,7 +107,7 @@ export default async function SettingsPage() {
             </form>
           </div>
           <p className="narrative mt-5">Sessions are Supabase Auth cookies. Signing out ends the session on this device.</p>
-        </section>
+        </WorkspaceSection>
 
         <AppearancePanel />
       </main>
