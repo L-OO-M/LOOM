@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Meta } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
+import { departmentArt } from "@/lib/artwork";
 
 async function api(url, method = "GET", body) {
   const res = await fetch(url, {
@@ -86,22 +88,34 @@ export function DepartmentsSection() {
           {open.length > 0 && (
             <div className="mt-4">
               <p className="meta">Explore domains — joining is instant, no approval</p>
-              <ul className="mt-2 grid gap-2 sm:grid-cols-2">
-                {open.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold" style={{ color: "var(--text)" }}>{d.name}</span>
-                      <span className="meta">{d.members} member{d.members === 1 ? "" : "s"}</span>
-                    </span>
-                    <button
-                      disabled={busy === d.id}
-                      onClick={() => act(d.id, () => api(`/api/departments/${d.id}/join`, "POST"))}
-                      className="btn-ink shrink-0 !py-1.5 !text-xs disabled:opacity-50"
-                    >
-                      {busy === d.id ? "Joining…" : "Join"}
-                    </button>
-                  </li>
-                ))}
+              <ul className="desk-domain-grid">
+                {open.map((d) => {
+                  const art = departmentArt(d.name);
+                  return (
+                    <li key={d.id} className="desk-domain-card">
+                      <span className="desk-domain-art" aria-hidden="true">
+                        {art ? (
+                          <Image src={art} alt="" fill sizes="(max-width: 639px) 50vw, 25vw" />
+                        ) : (
+                          <span className="desk-domain-initial">{String(d.name || "?").slice(0, 1)}</span>
+                        )}
+                        <span className="desk-domain-shade" />
+                      </span>
+                      <span className="desk-domain-copy">
+                        <span className="desk-domain-name">{d.name}</span>
+                        <span className="desk-domain-meta">{d.members} member{d.members === 1 ? "" : "s"}</span>
+                      </span>
+                      <button
+                        disabled={busy === d.id}
+                        onClick={() => act(d.id, () => api(`/api/departments/${d.id}/join`, "POST"))}
+                        className="desk-domain-join disabled:opacity-50"
+                        aria-label={`Join ${d.name}`}
+                      >
+                        {busy === d.id ? "Joining..." : "Join"}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

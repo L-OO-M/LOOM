@@ -59,8 +59,8 @@ export default async function StudentPage() {
     d.setDate(monday.getDate() + i);
     const iso = toIsoDay(d);
     const r = byDay.get(iso);
-    const hit = !!r && (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0;
-    return { label, hit, today: iso === toIsoDay(now) };
+    const count = (r?.commits || 0) + (r?.pull_requests || 0) + (r?.reviews || 0);
+    return { label, hit: count > 0, count, today: iso === toIsoDay(now) };
   });
   const weekHits = weekRows.filter((r) => (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0);
   const weekSessions = new Set(weekHits.map((r) => dayKey(r))).size;

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { FolderKanban, GitPullRequest, Map as MapIcon } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { ActionLink } from "@/components/loom/primitives";
 import { OnboardingState } from "@/components/loom/States";
@@ -27,6 +28,17 @@ function relShort(iso) {
 }
 
 const LOOP_STAGES = ["Beginner", "Learn", "Practice", "Build", "Collaborate", "Mentor"];
+
+function proofIcon(meta) {
+  if (/open source/i.test(meta)) return GitPullRequest;
+  if (/project/i.test(meta)) return FolderKanban;
+  return MapIcon;
+}
+
+function projectArt(project, fallback) {
+  const tag = (project?.tags || []).find((t) => domainArt(t));
+  return domainArt(tag) || fallback;
+}
 
 export function StudentDashboard({
   profile, greeting, todayLabel, nextNode, nodes, doneIds, overallPercent,
@@ -77,6 +89,9 @@ export function StudentDashboard({
     }))
   ].slice(0, 5);
   const loopStage = Math.min((loop?.stageIndex ?? 0) + 1, 6);
+  const weekPeak = Math.max(1, ...weekDays.map((d) => d.count || 0));
+  const signalMax = Math.max(1, weekCounts.sessions, weekCounts.contributions, weekCounts.milestones);
+  const projectCards = (projectsPreview || []).slice(0, 2);
 
   return (
     <main className="desk mx-auto max-w-6xl px-4 sm:px-6">
@@ -247,19 +262,27 @@ export function StudentDashboard({
                   </div>
                   <p className="desk-section-lede">A record of finished work, not a list of intentions.</p>
                   {proof.length>0 ? (
-                    <ol className="desk-ledger">
-                      {proof.map((p,i) => (
-                        <li key={i} className="desk-ledger-row">
-                          <span className="desk-ledger-date">{p.when || "Recent"}</span>
-                          <div className="min-w-0">
-                            <p className="desk-ledger-title">{p.text}</p>
-                            <p className="desk-ledger-meta">{p.meta}{p.hot ? " / verified signal" : ""}</p>
-                          </div>
-                          {p.href ? (
-                            <Link href={p.href} prefetch={false} className="desk-ledger-action">View &rarr;</Link>
-                          ) : <span />}
-                        </li>
-                      ))}
+                    <ol className="desk-stream">
+                      {proof.map((p,i) => {
+                        const Icon = proofIcon(p.meta);
+                        return (
+                          <li key={i} className="desk-stream-item">
+                            <span className="desk-stream-marker" aria-hidden="true">
+                              <Icon size={14} strokeWidth={1.8} />
+                            </span>
+                            <div className="desk-stream-copy">
+                              <span className="desk-stream-top">
+                                <span className="desk-stream-date">{p.when || "Recent"}</span>
+                                <span className="desk-stream-meta">{p.meta}{p.hot ? " / verified" : ""}</span>
+                              </span>
+                              <p className="desk-stream-title">{p.text}</p>
+                            </div>
+                            {p.href ? (
+                              <Link href={p.href} prefetch={false} className="desk-stream-action">View &rarr;</Link>
+                            ) : <span />}
+                          </li>
+                        );
+                      })}
                     </ol>
                   ) : (
                     <p className="desk-empty">Nothing recorded yet. Finish a node or ship a project - it will appear here with evidence attached.</p>
@@ -307,28 +330,27 @@ export function StudentDashboard({
                     <h2 id="desk-building-title">Things you are building</h2>
                     <span className="desk-note">{projectCount ?? 0} shipped</span>
                   </div>
-                  {projectsPreview && projectsPreview.length>0 ? (
-                    <>
-                      <Link href={`/student/projects/${projectsPreview[0].id}`} prefetch={false} className="desk-build">
-                        {heroArt && <Image src={heroArt} alt="" fill sizes="(max-width: 1023px) 100vw, 60vw" className="desk-build-bg" />}
-                        <span className="desk-build-status">{projectsPreview[0].status}</span>
-                        <p className="desk-build-title">{projectsPreview[0].title}</p>
-                        {projectsPreview[0].description && <p className="desk-build-body">{projectsPreview[0].description}</p>}
-                        <span className="desk-build-open">Open project &rarr;</span>
-                      </Link>
-                      {projectsPreview.length>1 && (
-                        <ul className="desk-build-list">
-                          {projectsPreview.slice(1,3).map((p,i)=>(
-
-                            <li key={p.id} className="desk-build-row">
-                              <span className="index-num hidden sm:block">{String(i+2).padStart(2,"0")}</span>
-                              <Link href={`/student/projects/${p.id}`} prefetch={false} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline" style={{ color:"var(--desk-ink)" }}>{p.title}</Link>
-                              <span className="desk-mono shrink-0 hidden sm:block">{p.status}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
+                  {projectCards.length>0 ? (
+                    <div className="desk-build-grid">
+                      {projectCards.map((p, i) => {
+                        const art = projectArt(p, heroArt);
+                        return (
+                          <Link key={p.id} href={`/student/projects/${p.id}`} prefetch={false} className="desk-build-card">
+                            <span className="desk-build-media">
+                              {art && <Image src={art} alt="" fill sizes="(max-width: 639px) 100vw, 360px" />}
+                              <span className="desk-build-media-shade" />
+                              <span className="desk-build-status">{p.status}</span>
+                              <span className="desk-build-index">{String(i + 1).padStart(2, "0")}</span>
+                            </span>
+                            <span className="desk-build-content">
+                              <span className="desk-build-title">{p.title}</span>
+                              {p.description && <span className="desk-build-desc">{p.description}</span>}
+                              <span className="desk-build-open">Go to project &rarr;</span>
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <div className="desk-build mt-4">
                       <span className="desk-build-status">Open call</span>
@@ -345,6 +367,45 @@ export function StudentDashboard({
             </div>
 
             <aside className="desk-rail" aria-label="Live">
+              <Reveal delay={0.04}>
+                <section className="desk-rail-card" aria-labelledby="desk-cadence-title">
+                  <div className="desk-rail-head">
+                    <h3 id="desk-cadence-title" className="desk-rail-title">Cadence</h3>
+                    <span className="desk-mono">Last 7 days</span>
+                  </div>
+                  <div
+                    className="desk-chart"
+                    role="img"
+                    aria-label={`Daily activity: ${weekDays.map((d) => `${d.label} ${d.count || 0}`).join(", ")}`}
+                  >
+                    {weekDays.map((d) => (
+                      <span key={d.label} className={`desk-chart-day ${d.today ? "is-today" : ""}`}>
+                        <span className="desk-chart-bar-wrap">
+                          <span className="desk-chart-bar" style={{ height: `${Math.max(4, ((d.count || 0) / weekPeak) * 100)}%` }} />
+                        </span>
+                        <span className="desk-chart-label">{d.label.slice(0, 1)}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="desk-signal-list">
+                    {[
+                      ["Sessions", weekCounts.sessions],
+                      ["Contributions", weekCounts.contributions],
+                      ["Milestones", weekCounts.milestones]
+                    ].map(([label, value]) => (
+                      <div key={label} className="desk-signal-row">
+                        <span className="desk-signal-label">{label}</span>
+                        <span className="desk-signal-value">{value}</span>
+                        <span className="desk-signal-track">
+                          <span style={{ width: `${(value / signalMax) * 100}%` }} />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="desk-rail-sub">Real activity from GitHub and completed milestones.</p>
+                </section>
+              </Reveal>
+
               <Reveal delay={0.04}>
                 <section className="desk-rail-card">
                   <div className="desk-rail-head">
@@ -450,12 +511,12 @@ export function StudentDashboard({
 
       <Reveal>
         <section className="desk-coda" aria-labelledby="desk-coda-title">
+          <span className="desk-coda-shader" aria-hidden="true" />
           <p className="desk-label">Keep building</p>
           <h2 id="desk-coda-title" className="desk-coda-title">Keep building, {name}.</h2>
           <p className="desk-coda-body">Progress becomes proof when learning turns into projects, contributions, and community.</p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/student/roadmap" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Continue roadmap &rarr;</Link>
-            <Link href="/student/projects" prefetch={false} className="btn-ghost !px-6 !py-3 !text-base">Explore projects</Link>
+          <div className="mt-6 flex justify-center">
+            <Link href="/student/roadmap" prefetch={false} className="btn-ink !px-7 !py-3 !text-base">Continue roadmap &rarr;</Link>
           </div>
         </section>
       </Reveal>
