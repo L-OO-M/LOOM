@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { MarkCompleteButton } from "@/components/actions";
 import { NodeStudyList } from "./_components/NodeStudyList";
 import { isZenModeEnabled } from "@/lib/feature-flags";
@@ -44,20 +45,27 @@ export default async function RoadmapNodePage({ params }) {
         <div className="grid gap-8 lg:grid-cols-[1.7fr_0.6fr]">
           <div className="min-w-0">
             <Link href="/student/roadmap" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← The path</Link>
-            <p className="meta mt-4">
-              {String(node.domain).replace(/_/g, " ").toUpperCase()} · Node {position?.c ?? "–"} of {total?.c ?? "–"} · {node.difficulty_level ? `${node.difficulty_level} · ` : ""}{completed ? (verified ? "Completed" : "Completed · pending review") : "In progress"}
-            </p>
-            <h1 className="display display-lg mt-2">{node.title}</h1>
-            <p className="lede mt-4 max-w-2xl">{node.description}</p>
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-y py-4" style={{ borderColor: "var(--line)" }}>
+            <WorkspaceMasthead
+              kicker={`Roadmap / ${String(node.domain).replace(/_/g, " ")}`}
+              title={node.title}
+              lede={node.description}
+              meta={`Node ${position?.c ?? "–"} of ${total?.c ?? "–"}${node.difficulty_level ? ` / ${node.difficulty_level}` : ""} / ${completed ? (verified ? "Completed" : "Completed · pending review") : "In progress"}`}
+              tone="ledger"
+              art="/storyloom/learning.png"
+              artAlt=""
+              stats={[
+                { value: resources.length, label: "study resources" },
+                { value: totalMins, unit: "min", label: "estimated reading" }
+              ]}
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-y py-4" style={{ borderColor: "var(--line)" }}>
               <span className="meta">{resources.length} resources · ≈ {totalMins} min</span>
               {completed && progress?.completed_at && <span className="meta">Finished {new Date(progress.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>}
               <span className="ml-auto"><MarkCompleteButton nodeId={node.id} completed={completed} verified={verified} /></span>
             </div>
-            <section className="mt-10" aria-label="Study material">
-              <h2 className="font-display text-lg font-medium" style={{ color: "var(--text)" }}>Study this</h2>
+            <WorkspaceSection index="01" title="Study this" note={resources.length > 0 ? `${resources.length} resources on this node.` : "No resources mapped to this node yet."}>
               <NodeStudyList resources={resources} node={node} zenEnabled={zenEnabled} />
-            </section>
+            </WorkspaceSection>
             <nav className="mt-10 flex justify-between gap-3 border-t pt-6" style={{ borderColor: "var(--line)" }}>
               {prev ? <Link href={`/student/roadmap/${prev.id}`} prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>← {prev.title}</Link> : <span />}
               {next ? <Link href={`/student/roadmap/${next.id}`} prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>{next.title} →</Link> : <span />}

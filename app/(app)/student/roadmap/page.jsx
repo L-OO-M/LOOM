@@ -3,8 +3,9 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
-import { orderDomains, resolveDomain } from "@/lib/domains";
+import { orderDomains, resolveDomain, domainLabel } from "@/lib/domains";
 import { isZenModeEnabled } from "@/lib/feature-flags";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 
 // Every roadmap is scoped to one domain. All 300+ nodes used to render as a
 // single graph, which made the map unreadable and made "next step" meaningless
@@ -30,11 +31,16 @@ export default async function RoadmapPage({ searchParams }) {
   if (!domain) {
     return (
       <AppShell area="student" tenant={tenant} user={user}>
-        <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
-          <p className="meta">Roadmap</p>
-          <h1 className="mt-2 text-2xl font-semibold">No roadmap published yet</h1>
-          <p className="narrative mt-3">Your chapter hasn&apos;t published roadmap content. Once it does, your path appears here — one domain at a time.</p>
-        </div>
+        <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+          <WorkspaceMasthead
+            kicker="Learn / your path"
+            title="No roadmap published yet."
+            lede="Your chapter hasn't published roadmap content. Once it does, your path appears here — one domain at a time."
+            tone="paper"
+            art="/domains-art/domain-web.png"
+            artAlt=""
+          />
+        </main>
       </AppShell>
     );
   }
@@ -104,8 +110,28 @@ export default async function RoadmapPage({ searchParams }) {
     projectsByNode[p.roadmap_node_id].push(p);
   }
 
+  const doneCount = nodes.filter((n) => doneSet.has(n.id)).length;
+  const percent = nodes.length > 0 ? Math.round((doneCount / nodes.length) * 100) : 0;
+
   return (
     <AppShell area="student" tenant={tenant} user={user}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <WorkspaceMasthead
+          kicker="Learn / your track, one domain at a time"
+          title={`${domainLabel(domain)} roadmap.`}
+          lede="Foundations to production — one topic at a time. Follow the path, branch into each topic's material, build something real, and the map fills in behind you."
+          meta={`${doneCount} of ${nodes.length} topics complete / ${percent}% of this track`}
+          tone="ledger"
+          art="/domains-art/domain-web.png"
+          artAlt=""
+          stats={[
+            { value: doneCount, label: "topics complete" },
+            { value: nodes.length - doneCount, label: "still ahead" },
+            { value: verifiedIds.length, label: "verified by a lead" },
+            { value: domains.length, label: "tracks open" }
+          ]}
+        />
+      </div>
       <div className="pt-2">
         <RoadmapTabs
           domain={domain}
