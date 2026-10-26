@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { reputationForMany } from "@/lib/reputation";
-import { Display, Meta, ActionLink, StatusPill, Rule } from "@/components/loom/primitives";
+import { Meta, ActionLink, Rule } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { inputStyle } from "@/components/ui";
@@ -195,12 +196,21 @@ export default async function DiscoverPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Meta>Discover · your college</Meta>
-        <Display size="lg" className="mt-3">Find the people building what comes next.</Display>
-        <p className="lede mt-4 max-w-2xl">
-          Real builders, contributors, and guides from your chapter — surfaced through shipped
-          projects, verified work, and proof, not profiles alone.
-        </p>
+        <WorkspaceMasthead
+          kicker="Discover / the chapter"
+          title="Find the people building what comes next."
+          lede="Real builders, contributors, and guides from your chapter — surfaced through shipped projects, verified work, and proof, not profiles alone."
+          meta={`${builders.length + newcomers.length} public builder card${builders.length + newcomers.length === 1 ? "" : "s"} in this chapter`}
+          tone="field"
+          art="/domains-art/domain-creative.png"
+          artAlt=""
+          stats={[
+            { value: builders.length, label: "builders with proof" },
+            { value: newcomers.length, label: "recently claimed" },
+            { value: mentors.length, label: "guides open" },
+            { value: stream.length, label: "live signals" }
+          ]}
+        />
         <DiscoverTabs active="/student/discover" />
 
         <div className="mt-5"><ClaimCard hasCard={!!myCard} /></div>
