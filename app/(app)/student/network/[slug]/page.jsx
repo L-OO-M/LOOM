@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, PlainStat, StatusPill, ActionLink } from "@/components/loom/primitives";
+import { StatusPill, ActionLink } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { initialsFor } from "@/lib/chapters";
 import { DiscoverTabs } from "@/components/student/SectionRails";
 
@@ -70,37 +71,31 @@ export default async function ChapterPage({ params }) {
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
         <Link href="/student/network" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← All chapters</Link>
 
-        <div className="mt-4 flex items-start gap-4">
-          <span
-            aria-hidden="true"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold"
-            style={{ background: "var(--bg-muted)", color: "var(--accent)", border: "1px solid var(--line)" }}
-          >
-            {initialsFor(chapter.public_name)}
-          </span>
-          <div className="min-w-0">
-            <Meta>{isMine ? "Your chapter" : "Chapter profile"}</Meta>
-            <Display size="lg" className="mt-2">{chapter.public_name}</Display>
-            <div className="mt-2 flex flex-wrap gap-2">
+        <WorkspaceMasthead
+          kicker={isMine ? "Network / your chapter" : "Network / chapter profile"}
+          title={chapter.public_name}
+          lede={chapter.mission || undefined}
+          meta={`Folio ${initialsFor(chapter.public_name)} / ${isMine ? "your chapter" : "public chapter"}`}
+          tone="paper"
+          art="/domains-art/domain-creative.png"
+          artAlt=""
+          stats={[
+            { value: members, label: "members learning" },
+            { value: oss, label: "verified merges" },
+            { value: projects, label: "projects shipped" }
+          ]}
+          actions={
+            <>
               {isMine && <StatusPill tone="live">your chapter</StatusPill>}
               {chapter.is_featured && <StatusPill>featured</StatusPill>}
-            </div>
-          </div>
-        </div>
-        {chapter.mission && <p className="lede mt-4 max-w-2xl">{chapter.mission}</p>}
+            </>
+          }
+        />
 
         <DiscoverTabs active="/student/network" />
 
-
-        <div className="mt-8 grid gap-8 border-y py-7 sm:grid-cols-3" style={{ borderColor: "var(--line)" }}>
-          <PlainStat value={members} unit="members" label="learning together" />
-          <PlainStat value={oss} unit="merges" label="verified open-source work" />
-          <PlainStat value={projects} unit="projects" label="shipped and counting" />
-        </div>
-
         {departments.length > 0 && (
-          <section className="mt-10" aria-label="Domains and departments">
-            <Meta>Domains · {departments.length} active</Meta>
+          <WorkspaceSection index="01" title="Domains & departments" note={`${departments.length} active in this chapter.`}>
             <ul className="mt-4 grid gap-3 sm:grid-cols-2">
               {departments.map((d) => (
                 <li key={d.slug} className="rounded-2xl border px-4 py-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -114,12 +109,11 @@ export default async function ChapterPage({ params }) {
                 </li>
               ))}
             </ul>
-          </section>
+          </WorkspaceSection>
         )}
 
         <div className="mt-10 grid gap-10 sm:grid-cols-2">
-          <section aria-label="Top contributors">
-            <Meta>Top contributors</Meta>
+          <WorkspaceSection index="02" title="Top contributors" note="Verified merges, names only.">
             {leaders.length === 0 ? (
               <p className="narrative mt-3">No verified merges yet — the first name here could be yours.</p>
             ) : (
@@ -144,11 +138,10 @@ export default async function ChapterPage({ params }) {
                 <ActionLink href="/student/discover">Meet the builders</ActionLink>
               </p>
             )}
-          </section>
+          </WorkspaceSection>
 
           <div className="space-y-10">
-            <section aria-label="Activity">
-              <Meta>Activity · last 30 days</Meta>
+            <WorkspaceSection title="Activity" note="Last 30 days.">
               {oss === 0 && projects === 0 ? (
                 <p className="narrative mt-3">Quiet so far — no shipped projects or verified merges yet.</p>
               ) : (
@@ -169,10 +162,9 @@ export default async function ChapterPage({ params }) {
                   Racing this chapter? <Link href="/student/leaderboard" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Climb your board →</Link>
                 </p>
               )}
-            </section>
+            </WorkspaceSection>
 
-            <section aria-label="Connect">
-              <Meta>Connect</Meta>
+            <WorkspaceSection title="Connect" note="Public links shared by the chapter.">
               <ul className="mt-3 space-y-2.5 text-sm">
                 {chapter.website_url && <li><a href={chapter.website_url} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Website ↗</a></li>}
                 {chapter.contact_email && <li><a href={`mailto:${chapter.contact_email}`} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>{chapter.contact_email}</a></li>}
@@ -183,13 +175,12 @@ export default async function ChapterPage({ params }) {
                   <li style={{ color: "var(--text-muted)" }}>No public links yet.</li>
                 )}
               </ul>
-            </section>
+            </WorkspaceSection>
           </div>
         </div>
 
         {partnerships.length > 0 && (
-          <section className="mt-10 border-t pt-8" style={{ borderColor: "var(--line)" }} aria-label="Partnerships">
-            <Meta>Partnerships · {partnerships.length}</Meta>
+          <WorkspaceSection index="03" title="Partnerships" note={`${partnerships.length} active ${partnerships.length === 1 ? "collaboration" : "collaborations"}.`}>
             <ul className="mt-3 space-y-2.5 text-sm" style={{ color: "var(--text-muted)" }}>
               {partnerships.map((p, i) => {
                 const otherName = p.a_name === chapter.public_name ? p.b_name : p.a_name;
@@ -204,7 +195,7 @@ export default async function ChapterPage({ params }) {
                 );
               })}
             </ul>
-          </section>
+          </WorkspaceSection>
         )}
       </main>
     </AppShell>

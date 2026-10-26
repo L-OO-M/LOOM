@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { getFederationSql } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta, PlainStat } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { OnboardingState } from "@/components/loom/States";
 import { ChapterCard, FeaturedChapterCard } from "./_components/ChapterCard";
 import { DiscoverTabs } from "@/components/student/SectionRails";
@@ -81,20 +81,22 @@ export default async function NetworkPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Meta>Discover · one society, many campuses</Meta>
-        <Display size="lg" className="mt-3">Find your chapter.</Display>
-        <p className="narrative mt-4 max-w-2xl">
-          Chapters are where builders learn, build, and contribute together. Each one runs its own
-          domains, projects, and open-source work — discover where you fit.
-        </p>
+        <WorkspaceMasthead
+          kicker="Network / one society, many campuses"
+          title="Find your chapter."
+          lede="Chapters are where builders learn, build, and contribute together. Each one runs its own domains, projects, and open-source work — discover where you fit."
+          meta={`${chapters.length} public ${chapters.length === 1 ? "chapter" : "chapters"} in the federation`}
+          tone="field"
+          art="/domains-art/domain-creative.png"
+          artAlt=""
+          stats={[
+            { value: latest?.total_chapters ?? chapters.length, label: "public chapters" },
+            { value: latest?.total_students ?? chapters.reduce((s, c) => s + (c.members || 0), 0), label: "students learning" },
+            { value: latest?.total_oss_contributions ?? chapters.reduce((s, c) => s + (c.oss_merges || 0), 0), label: "verified merges" }
+          ]}
+        />
 
         <DiscoverTabs active="/student/network" />
-
-        <div className="mt-8 grid gap-8 sm:grid-cols-3">
-          <PlainStat value={latest?.total_chapters ?? chapters.length} unit="chapters" label="public in the federation" />
-          <PlainStat value={latest?.total_students ?? chapters.reduce((s, c) => s + (c.members || 0), 0)} unit="students" label="learning across campuses" />
-          <PlainStat value={latest?.total_oss_contributions ?? chapters.reduce((s, c) => s + (c.oss_merges || 0), 0)} unit="merges" label="verified open-source work" />
-        </div>
 
         {mine && (
           <section
@@ -118,30 +120,26 @@ export default async function NetworkPage({ searchParams }) {
         )}
 
         {featured.length > 0 && (
-          <section className="mt-12" aria-label="Featured chapters">
-            <Meta style={{ color: "var(--accent)" }}>Featured · start here</Meta>
+          <WorkspaceSection index="01" title="Featured chapters" note="Start with the chapters setting the pace.">
             <div className="mt-4 grid gap-4">
               {featured.map((c) => (
                 <FeaturedChapterCard key={c.id} chapter={c} isMine={c.tenant_id === tenant?.id} rank={chapters.findIndex((x) => x.id === c.id) + 1} />
               ))}
             </div>
-          </section>
+          </WorkspaceSection>
         )}
 
-        <section className="mt-12" aria-label="All chapters">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <Meta>{filtering ? `${chapters.length} result${chapters.length === 1 ? "" : "s"}` : "All chapters"}</Meta>
-              <h2 className="h-product mt-2">{q ? `Matching “${q}”` : "Every public chapter"}</h2>
-            </div>
-            {(q || sort !== "members") && (
-              <Link href="/student/network" prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-                Reset filters
-              </Link>
-            )}
-          </div>
-
-          <form method="get" action="/student/network" role="search" aria-label="Search chapters" className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <WorkspaceSection
+          index={featured.length > 0 ? "02" : "01"}
+          title={q ? `Matching “${q}”` : "Every public chapter"}
+          note={filtering ? `${chapters.length} result${chapters.length === 1 ? "" : "s"} across the federation.` : "Public profiles, ranked by members or recent activity."}
+          action={(q || sort !== "members") ? (
+            <Link href="/student/network" prefetch={false} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+              Reset filters
+            </Link>
+          ) : null}
+        >
+          <form method="get" action="/student/network" role="search" aria-label="Search chapters" className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
             <label htmlFor="chapter-search" className="sr-only">Search chapters</label>
             <input
               id="chapter-search"
@@ -204,7 +202,7 @@ export default async function NetworkPage({ searchParams }) {
               ))}
             </div>
           )}
-        </section>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
