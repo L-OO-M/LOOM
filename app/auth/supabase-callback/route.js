@@ -1,7 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { homeForRole } from "@/lib/auth";
+import { homeForRole, safeAuthErrorCode } from "@/lib/auth";
 import { provisionGitHubIdentity } from "@/lib/github-identity";
 
 // The Supabase OAuth callback (PKCE).
@@ -22,6 +22,17 @@ import { provisionGitHubIdentity } from "@/lib/github-identity";
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+
+  // Supabase reports a refused/cancelled OAuth call back on the redirect (for
+  // example ?error=access_denied or ?error_code=provider_disabled). Only a code
+  // from our own small set is forwarded; error_description is provider text and
+  // is never reflected onto /login.
+  const providerError = searchParams.get("error") || searchParams.get("error_code");
+  if (providerError) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(safeAuthErrorCode(providerError))}`
+    );
+  }
 
   if (code) {
     const supabase = await createServerSupabase();

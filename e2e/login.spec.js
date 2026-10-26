@@ -40,6 +40,29 @@ test.describe("sign in", () => {
     expect(page.url()).toMatch(/\/(student|lead|admin)/);
   });
 
+  // Regression: a disabled Supabase GitHub provider used to navigate the whole
+  // page to /auth/v1/authorize, which answers with raw JSON ("Unsupported
+  // provider: provider is not enabled"). The user was stranded off-site with no
+  // explanation. The button now checks first and reports it in place.
+  test("reports a disabled GitHub provider without leaving /login", async ({ page }) => {
+    await page.route("**/api/auth/providers", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, data: { email: true, github: false } })
+      })
+    );
+
+    await page.goto("/login");
+    await page.getByRole("button", { name: /Continue with GitHub/i }).click();
+
+    // Next.js also renders a route-announcer with role=alert, so scope to the
+    // message this button owns.
+    await expect(page.getByRole("alert").filter({ hasText: /not enabled/i }))
+      .toContainText(/GitHub sign-in is not enabled/i);
+    expect(new URL(page.url()).pathname).toBe("/login");
+  });
+
   test("keeps the session across a new browser context (persistence)", async ({ browser }, testInfo) => {
     const email = process.env.E2E_LOGIN_EMAIL;
     const password = process.env.E2E_LOGIN_PASSWORD;

@@ -77,7 +77,7 @@ Your current `NEXT_PUBLIC_APP_URL` is `https://loom-self-omega.vercel.app`.
 
 | Field | Value |
 |---|---|
-| Application name | `L.O.O.M.` |
+| Application name | `LOOM` |
 | Homepage URL | `https://loom-self-omega.vercel.app` |
 | **Authorization callback URL** | `https://loom-self-omega.vercel.app/api/github/oauth/callback` |
 
@@ -102,8 +102,17 @@ complete locally**. To test it, deploy a preview branch and register
 
 Dashboard → **Authentication → Sign In / Providers → GitHub → ON**.
 
-- Callback URL: `https://gbkpocjtcnozihvacmtg.supabase.co/auth/v1/callback`
-- Client ID / Secret: **paste the same credentials from §2.**
+Create a **second** GitHub OAuth App for sign-in. GitHub OAuth Apps have one
+Authorization callback URL, and §2's app is already bound to this app's
+repository callback:
+
+- Callback URL: `https://weqduvtpaoihrmzxnrek.supabase.co/auth/v1/callback`
+- Client ID / Secret: from that **sign-in** OAuth App, not from §2.
+
+Do **not** paste §1a's `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` here unless
+you intentionally gave that app the Supabase callback and moved the repository
+grant to a different app. The two grants can share a GitHub account, but not an
+OAuth App callback.
 
 Supabase requests `read:user user:email` only. That is intended — do **not**
 widen it. Repository access stays in this app.
@@ -113,21 +122,38 @@ widen it. Repository access stays in this app.
 Dashboard → **Authentication → URL Configuration → Redirect URLs**, add:
 
 ```
-https://loom-self-omega.vercel.app/auth/callback
+https://loom-self-omega.vercel.app/auth/supabase-callback
+http://localhost:3000/auth/supabase-callback
+http://127.0.0.1:3000/auth/supabase-callback
 ```
 
-Supabase will refuse to redirect to anything not on this list.
+Supabase will refuse to redirect to anything not on this list. Add every
+production, preview, and local origin you actually use.
+
+> **The path is `/auth/supabase-callback`, not `/auth/callback`.** Auth0 owns
+> `/auth/callback` now; Supabase's PKCE exchange moved when Auth0 became the
+> front door. If the old URL is the only one registered, the GitHub provider can
+> be enabled and sign-in still fails. Add the path for every origin you serve
+> (production, preview, `http://localhost:3000`).
+
+Check the provider is actually on before blaming the redirect:
+
+```bash
+curl -s "https://<project-ref>.supabase.co/auth/v1/settings" \
+  -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" | jq '.external.github'
+# false => every GitHub click gets: Unsupported provider: provider is not enabled
+```
 
 ### 3b. Equivalent via API
 
 ```bash
-curl -X PATCH "https://api.supabase.com/v1/projects/gbkpocjtcnozihvacmtg/config/auth" \
+curl -X PATCH "https://api.supabase.com/v1/projects/weqduvtpaoihrmzxnrek/config/auth" \
   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "external_github_enabled": true,
-    "external_github_client_id": "Ov23li99flXnFnP6skQh",
-    "external_github_secret": "YOUR_CLIENT_SECRET"
+    "external_github_client_id": "<sign-in-oauth-app-client-id>",
+    "external_github_secret": "<sign-in-oauth-app-secret>"
   }'
 ```
 

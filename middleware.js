@@ -50,6 +50,10 @@ const publicPaths = [
   // Client-side "who am I" probe. Public so logged-out visitors get a 200 with
   // signedIn:false instead of the middleware's machine 401.
   "/api/auth/state",
+  // Public provider-capability probe used by the auth screens before starting
+  // OAuth. Contains no user data; gating it would make logged-out visitors get
+  // the machine 401 and defeat the check.
+  "/api/auth/providers",
   "/api/public/events",
   "/api/public/projects",
   "/api/public/departments",

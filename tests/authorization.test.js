@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canLinkByEmail, hasRole, homeForRole, requireRole, safeRedirectPath } from "@/lib/auth";
+import {
+  authCallbackMessage,
+  canLinkByEmail,
+  hasRole,
+  homeForRole,
+  requireRole,
+  safeAuthErrorCode,
+  safeRedirectPath
+} from "@/lib/auth";
 
 describe("authorization helpers", () => {
   it("grants admin everything student can do", () => {
@@ -59,6 +67,29 @@ describe("safeRedirectPath", () => {
     expect(safeRedirectPath(null)).toBeNull();
     expect(safeRedirectPath(undefined)).toBeNull();
     expect(safeRedirectPath(42)).toBeNull();
+  });
+});
+
+describe("auth callback errors", () => {
+  it("forwards only known callback error codes", () => {
+    expect(safeAuthErrorCode("access_denied")).toBe("access_denied");
+    expect(safeAuthErrorCode(" PROVIDER_DISABLED ")).toBe("provider_disabled");
+    expect(safeAuthErrorCode("redirect_not_allowed")).toBe("redirect_not_allowed");
+    expect(safeAuthErrorCode("bad_code_verifier")).toBe("auth_callback_failed");
+    expect(safeAuthErrorCode(undefined)).toBe("auth_callback_failed");
+  });
+
+  it("never reflects provider-supplied text into the login page", () => {
+    // error_description is attacker-controlled and must not be rendered as-is.
+    expect(authCallbackMessage("<script>alert(1)</script>"))
+      .toBe("Sign-in could not be completed. Please try again.");
+    expect(authCallbackMessage(null)).toBeNull();
+    expect(authCallbackMessage("")).toBeNull();
+  });
+
+  it("explains the disabled-provider case instead of a raw provider error", () => {
+    expect(authCallbackMessage("provider_disabled")).toMatch(/not enabled/i);
+    expect(authCallbackMessage("access_denied")).toMatch(/cancelled/i);
   });
 });
 

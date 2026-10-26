@@ -20,6 +20,20 @@ import { createClient } from "@/lib/supabase/client";
 //   - the provider is not enabled in Supabase (operator problem)
 //   - the user cancelled or the redirect URL is not allow-listed (config)
 
+// Returns true/false when the server could check, null when it could not.
+// Unknown must behave like "allowed": a failed capability probe should not
+// disable a provider that does work.
+async function githubProviderState() {
+  try {
+    const res = await fetch("/api/auth/providers", { headers: { accept: "application/json" } });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body?.data?.github ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function GitHubSignInButton({ label = "Continue with GitHub", divider = true }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,6 +42,16 @@ export default function GitHubSignInButton({ label = "Continue with GitHub", div
     setBusy(true);
     setError("");
     try {
+      // A disabled Supabase provider answers the authorize endpoint with a raw
+      // JSON 400, so the browser would leave /login and strand the user on the
+      // Supabase domain with no way back. Check first and keep the error here.
+      const providerState = await githubProviderState();
+      if (providerState === false) {
+        setError("GitHub sign-in is not enabled right now. Use email and password.");
+        setBusy(false);
+        return;
+      }
+
       const supabase = createClient();
       const callback = `${window.location.origin}/auth/supabase-callback`;
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -45,7 +69,7 @@ export default function GitHubSignInButton({ label = "Continue with GitHub", div
       if (oauthError) {
         setError(
           oauthError.message?.includes("not enabled") || oauthError.message?.includes("provider")
-            ? "GitHub sign-in is not enabled for this chapter yet. Use email and password."
+            ? "GitHub sign-in is not enabled right now. Use email and password."
             : oauthError.message || "Could not start GitHub sign-in."
         );
         setBusy(false);

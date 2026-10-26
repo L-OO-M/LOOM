@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
-import { homeForRole, safeRedirectPath } from "@/lib/auth";
+import { authCallbackMessage, homeForRole, safeRedirectPath } from "@/lib/auth";
 import { AuthField, AuthShell, authInputClass } from "@/app/(auth)/_components/AuthShell";
 import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
 
@@ -26,6 +26,8 @@ function LoginForm() {
   // handed to router.push, or `/login?redirect=https://evil.example` turns this
   // page into an open redirect for freshly authenticated users.
   const redirect = safeRedirectPath(searchParams.get("redirect"));
+  // The callback redirects here with a code, never the provider's raw wording.
+  const callbackError = authCallbackMessage(searchParams.get("error"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -68,6 +70,13 @@ function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+      {callbackError && (
+        <p role="alert" className="rounded-lg border px-3 py-2 text-sm"
+          style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}>
+          {callbackError}
+        </p>
+      )}
+
       <AuthField id="email" label="Email">
         <input
           id="email"
