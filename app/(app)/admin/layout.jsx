@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import "../../../components/loom/workspace.css";
 import "./_components/admin-console.css";
 
 // Private workspace — never indexed.

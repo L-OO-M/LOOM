@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getRequestContext } from "@/lib/auth-server";
+import "../../../components/loom/workspace.css";
 
 // Private workspace — never indexed.
 export const metadata = {
