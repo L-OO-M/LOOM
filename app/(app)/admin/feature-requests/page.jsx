@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { issuesReady } from "@/lib/github-issues";
 import AdminFeatureBoard from "./AdminFeatureBoard";
+import "../_components/admin-ledger.css";
 
 export default async function AdminFeatureRequestsPage() {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -23,11 +24,29 @@ export default async function AdminFeatureRequestsPage() {
     if (e?.code !== "42P01") throw e;
     rows = [];
   }
+  const pending = rows.filter((r) => r.status === "pending").length;
+  const approved = rows.filter((r) => r.status === "approved").length;
+  const built = rows.filter((r) => r.status === "built").length;
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-        <PageHeader kicker={`${rows.length} ideas · ${rows.filter((r) => r.status === "pending").length} pending`} title="Feature requests" desc="Review, ask, approve, reject, or assign back to the requester to build. Every decision is audited." />
-        <AdminFeatureBoard initial={rows} githubConfigured={issuesReady()} />
+        <WorkspaceMasthead
+          kicker={`${rows.length} ideas / ${pending} pending`}
+          title="Feature requests"
+          lede="Review, ask, approve, reject, or assign back to the requester to build. Every decision is audited."
+          meta={`${approved} approved / ${built} built / ${issuesReady() ? "GitHub issues connected" : "GitHub issues not configured"}`}
+          tone="ledger"
+          stats={[
+            { value: rows.length, label: "ideas on record" },
+            { value: pending, label: "awaiting a decision" },
+            { value: approved, label: "approved" },
+            { value: built, label: "built" }
+          ]}
+        />
+        <WorkspaceSection index="01" title="Request ledger" note="Ordered by decision state: pending, needs info, approved, then the rest. Newest first within each.">
+          <div className="aled-feature-board"><AdminFeatureBoard initial={rows} githubConfigured={issuesReady()} /></div>
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
