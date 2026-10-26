@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { EventsExplorer } from "./EventsBits";
 import { ConnectTabs } from "@/components/student/SectionRails";
 import { resolveScope, HISTORY_STATUSES, VISIBLE_STATUSES } from "@/lib/events";
@@ -84,11 +84,21 @@ export default async function EventsPage({ searchParams }) {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 sm:px-6">
-        <Meta>Connect · show up, level up</Meta>
-        <Display size="lg" className="mt-3">Gatherings worth showing up for.</Display>
-        <p className="narrative mt-4 max-w-2xl">
-          Find something worth your evening, register, show up — then turn the evening into proof.
-        </p>
+        <WorkspaceMasthead
+          kicker="Connect / show up, level up"
+          title="Gatherings worth showing up for."
+          lede="Find something worth your evening, register, show up — then turn the evening into proof."
+          meta={`${events.length} in view / ${mine.length} seat${mine.length === 1 ? "" : "s"} held`}
+          tone="paper"
+          art="/events/event-talk.png"
+          artAlt=""
+          stats={[
+            { value: events.length, label: "gatherings in view" },
+            { value: mine.length, label: "seats you hold" },
+            { value: events.filter((e) => e.is_online).length, label: "online" },
+            { value: certs.length, label: "certificates earned" }
+          ]}
+        />
 
         <ConnectTabs active="/student/events" />
 
