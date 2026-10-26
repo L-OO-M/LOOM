@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/ui";
-import { Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { isVerifiedRankingEnabled, standingBreakdown } from "@/lib/standings";
 import ReviewQueue from "./_components/ReviewQueue";
+import "../_components/admin-ledger.css";
 
 export const dynamic = "force-dynamic";
 
@@ -67,44 +67,57 @@ export default async function AdminRankingPage() {
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 pb-14 sm:px-6">
-        <PageHeader
-          kicker={`Trust · ${total} awaiting review`}
+        <WorkspaceMasthead
+          kicker={`Trust / ${total} awaiting review`}
           title="Evidence review"
-          desc="Claims students have submitted that nothing has confirmed yet. Confirming one puts it on the public board; declining one removes the points entirely."
+          lede="Claims students have submitted that nothing has confirmed yet. Confirming one puts it on the public board; declining one removes the points entirely."
+          meta={`${nodes.length} milestone claims / ${projects.length} project claims / ${live ? "verified board live" : "verified board off"}`}
+          tone="ledger"
+          art="/domains-art/domain-infra.png"
+          artAlt=""
+          stats={[
+            { value: nodes.length, label: "milestone claims" },
+            { value: projects.length, label: "project claims" },
+            { value: total, label: "awaiting review" }
+          ]}
         />
 
         {!live && (
-          <div className="mt-6 rounded-2xl border p-4 text-sm" style={{ borderColor: "var(--warning, #f59e0b)", background: "color-mix(in srgb, #f59e0b 8%, var(--bg-elevated))" }}>
-            <p className="font-semibold" style={{ color: "var(--text)" }}>
+          <div className="aled-panel" style={{ marginTop: "1.4rem", borderColor: "color-mix(in srgb, var(--warn) 45%, var(--line))" }}>
+            <p className="aled-panel-title" style={{ color: "var(--warn)" }}>
               Verified standings are switched off for this chapter.
             </p>
-            <p className="narrative mt-1">
-              You can still confirm and decline claims here, and the ledger will be
-              correct &mdash; but students will not see a verified board until
-              <span style={{ color: "var(--accent)" }}> ranking_verified </span>
-              is switched on in Feature flags.
+            <p className="aled-panel-note" style={{ marginBottom: 0 }}>
+              You can still confirm and decline claims here, and the ledger will be correct — but students
+              will not see a verified board until <span style={{ color: "var(--accent)" }}>ranking_verified</span> is
+              switched on in Feature flags.
             </p>
           </div>
         )}
 
-        <section className="mt-6 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-          <Meta>What you are confirming</Meta>
-          <ul className="mt-3 grid gap-1.5 text-sm sm:grid-cols-2">
+        <WorkspaceSection index="01" title="What you are confirming" note="Only a signed GitHub delivery or an admin decision can put a point on the board.">
+          <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0 }}>
             {standingBreakdown().map((b) => (
-              <li key={b.label} className="flex flex-wrap items-baseline justify-between gap-2">
-                <span style={{ color: "var(--text-muted)" }}>{b.label}</span>
-                <span className="figure-mono text-xs" style={{ color: "var(--accent)" }}>+{b.weight}</span>
+              <li key={b.label} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                <span className="aled-title" style={{ fontWeight: 500, color: "var(--text-muted)" }}>{b.label}</span>
+                <span className="aled-value" style={{ color: "var(--accent)" }}>+{b.weight}</span>
               </li>
             ))}
           </ul>
-          <p className="meta mt-3">
-            Only a signed GitHub delivery or an admin decision can put a point on the
-            board. The database rejects any score without a verifier, so there is no
-            path that skips this queue.
+          <p className="aled-meta" style={{ marginTop: "0.8rem" }}>
+            The database rejects any score without a verifier, so there is no path that skips this queue.
           </p>
-        </section>
+        </WorkspaceSection>
 
-        <ReviewQueue nodes={nodes} projects={projects} />
+        <WorkspaceSection index="02" title="Review queue" note="Milestone and project claims, oldest first. Confirming pays out; declining removes the row and recomputes." action={<span className="aled-meta">{total} waiting</span>}>
+          {total === 0 ? (
+            <WorkspaceEmpty title="Queue clear" body="No provisional claims are waiting for review. Confirmed and declined items leave this list." />
+          ) : (
+            <div style={{ marginTop: "0.9rem" }}>
+              <ReviewQueue nodes={nodes} projects={projects} />
+            </div>
+          )}
+        </WorkspaceSection>
       </main>
     </AppShell>
   );
