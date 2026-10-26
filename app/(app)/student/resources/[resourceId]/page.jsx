@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { Display, Meta } from "@/components/loom/primitives";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { ResourceCompleteButton } from "@/components/actions";
 
 export default async function ResourceDetailPage({ params }) {
@@ -19,22 +19,31 @@ export default async function ResourceDetailPage({ params }) {
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
         <Link href="/student/resources" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Library</Link>
-        <Meta className="mt-4">{kindLabel} · {r.domain} · {r.level?.replace("_", " ")} · {r.minutes} minutes</Meta>
-        <Display size="lg" className="mt-3">{r.title}</Display>
+        <WorkspaceMasthead
+          kicker={`Resources / ${kindLabel.toLowerCase()}`}
+          title={r.title}
+          lede={`${r.domain} · ${r.level?.replace("_", " ") || "level not set"} · ${r.minutes} minutes`}
+          meta={done?.status === "completed" ? "On your record" : "Not yet marked complete"}
+          tone="field"
+          art="/storyloom/learning.png"
+          artAlt=""
+        />
 
-        <div className="mt-8 border-y py-6" style={{ borderColor: "var(--line)" }}>
-          {r.url ? (
-            <a href={r.url} target="_blank" rel="noopener noreferrer" className="btn-ink">
-              Open {kindLabel.toLowerCase()} ↗
-            </a>
-          ) : (
-            <p className="narrative">Internal resource — content attaches here once mentors upload it. Check back soon.</p>
-          )}
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <ResourceCompleteButton resourceId={r.id} completed={done?.status === "completed"} />
-            <span className="meta">{done?.status === "completed" ? "on your record" : "mark it when finished — it stays on your record"}</span>
+        <WorkspaceSection index="01" title="Open & record" note={done?.status === "completed" ? "This piece is already on your record." : "Mark it when finished — it stays on your record."}>
+          <div className="mt-4">
+            {r.url ? (
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className="btn-ink">
+                Open {kindLabel.toLowerCase()} ↗
+              </a>
+            ) : (
+              <p className="narrative">Internal resource — content attaches here once mentors upload it. Check back soon.</p>
+            )}
+            <div className="mt-5 flex flex-wrap items-center gap-4">
+              <ResourceCompleteButton resourceId={r.id} completed={done?.status === "completed"} />
+              <span className="meta">{done?.status === "completed" ? "on your record" : "mark it when finished — it stays on your record"}</span>
+            </div>
           </div>
-        </div>
+        </WorkspaceSection>
 
         <p className="narrative mt-8">
           Reading compounds. <Link href="/student/roadmap" prefetch={false} className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Return to your path →</Link>
