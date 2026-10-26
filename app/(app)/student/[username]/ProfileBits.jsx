@@ -8,6 +8,17 @@ function previewInitials(name) {
   return String(name || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
 }
 
+function safeImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   const router = useRouter();
   const [username, setUsername] = useState(initial?.username || "");
@@ -19,6 +30,7 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   const [isPublic, setIsPublic] = useState(initial?.is_public ?? true);
   const [showEndorsements, setShowEndorsements] = useState(initial?.endorsements_visible ?? true);
   const [msg, setMsg] = useState("");
+  const previewPhoto = safeImageUrl(photo);
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
@@ -93,9 +105,9 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
       <aside className="folio-editor-preview" aria-label="Live preview of your cover">
         <span className="folio-preview-label">Live cover preview</span>
         <div className="folio-preview-avatar">
-          {canPhoto && photo.trim() ? (
+          {canPhoto && previewPhoto ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="" />
+            <img src={previewPhoto} alt="" />
           ) : (
             <span aria-hidden="true">{previewInitials(name || username)}</span>
           )}

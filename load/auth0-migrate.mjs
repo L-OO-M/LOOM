@@ -369,8 +369,7 @@ async function exportUsers(args) {
   console.log(`Exported ${records.length} Auth0 user record(s) into ${chunks.length} chunk(s).`);
   console.log(`Directory: ${OUT_DIR}`);
   console.log(`Skipped existing Auth0 users: ${summary.withEmail - selected.length}`);
-  console.log(`Passwords with compatible bcrypt cost 10: ${summary.compatiblePassword}`);
-  console.log(`Users who will need a password reset: ${requiresPasswordReset}`);
+  console.log("Password hash compatibility summary written to the manifest.");
   console.log("The exported files contain password hashes. Do not commit or upload them anywhere except Auth0.");
 }
 

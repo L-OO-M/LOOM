@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  findUnsafeText, isLinkedInUrl, isSafeText, normalizeForScreening,
+  findUnsafeText, isHttpUrl, isLinkedInUrl, isSafeText, normalizeForScreening,
   screenProfileCard, validGithubHandle
 } from "@/lib/content-safety";
 
@@ -60,6 +60,21 @@ describe("validGithubHandle", () => {
   });
 });
 
+describe("isHttpUrl", () => {
+  it("accepts absolute http(s) URLs", () => {
+    expect(isHttpUrl("https://example.com/photo.png")).toBe(true);
+    expect(isHttpUrl("http://example.com/photo.png")).toBe(true);
+  });
+
+  it("rejects scripts, data URLs and relative paths", () => {
+    expect(isHttpUrl("javascript:alert(1)")).toBe(false);
+    expect(isHttpUrl("data:image/svg+xml,<svg onload=alert(1)>")).toBe(false);
+    expect(isHttpUrl("/photo.png")).toBe(false);
+    expect(isHttpUrl("not a url")).toBe(false);
+    expect(isHttpUrl("")).toBe(false);
+  });
+});
+
 describe("isLinkedInUrl", () => {
   it("accepts linkedin.com links", () => {
     expect(isLinkedInUrl("https://www.linkedin.com/in/ada")).toBe(true);
@@ -98,5 +113,6 @@ describe("the public card route actually screens input", () => {
     const route = readFileSync("app/api/social/profile/route.js", "utf8");
     expect(route).toContain("screenProfileCard");
     expect(route).toMatch(/if \(!screened\.ok\) return fail\(screened\.code/);
+    expect(route).toContain("isHttpUrl(body.avatarUrl)");
   });
 });

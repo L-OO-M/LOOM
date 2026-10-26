@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { RESERVED_USERNAMES, validUsername } from "@/lib/reputation";
-import { screenProfileCard } from "@/lib/content-safety";
+import { isHttpUrl, screenProfileCard } from "@/lib/content-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const cardSchema = z.object({
@@ -42,6 +42,9 @@ export async function PUT(request) {
     body = cardSchema.parse(await request.json());
   } catch (e) {
     return validationError(e);
+  }
+  if (body.avatarUrl && !isHttpUrl(body.avatarUrl)) {
+    return fail("INVALID_URL", "Photo URL must be an http(s) URL", 400);
   }
   const username = body.username.trim().toLowerCase();
   if (RESERVED_USERNAMES.includes(username)) return fail("INVALID_USERNAME", "That name is reserved for app pages — pick another", 400);
