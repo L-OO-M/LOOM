@@ -32,14 +32,16 @@ describe("community helpers", () => {
   it("toggles votes and keeps counters in sync", async () => {
     const calls = [];
     const sql = Object.assign(
-      async (strings, ...values) => {
+      async (strings) => {
         const text = strings.join("?").toLowerCase();
         calls.push(text);
-        if (text.includes("from forum_votes")) return sql.__existing;
+        if (text.includes("insert into forum_votes")) return sql.__existing.length ? [] : [{ id: "v1" }];
+        if (text.includes("delete from forum_votes")) return sql.__existing;
         return [];
       },
       {
         __existing: [],
+        begin: async (fn) => fn(sql),
         json: (v) => v
       }
     );
