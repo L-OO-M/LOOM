@@ -202,8 +202,8 @@ export default function RegisterPage() {
             className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="student@college.edu" />
         </AuthField>
 
-        <AuthField id="password" label="Password" hint="At least 6 characters">
-          <input id="password" type="password" required minLength={6} autoComplete="new-password" value={password}
+        <AuthField id="password" label="Password" hint="At least 8 characters">
+          <input id="password" type="password" required minLength={8} autoComplete="new-password" value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
         </AuthField>
