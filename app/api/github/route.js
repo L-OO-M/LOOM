@@ -133,6 +133,8 @@ export async function DELETE() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   const [before] = await sql`SELECT github_username FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
 
   // Revoking access means the proofs derived from it must go too. Leaving
@@ -141,7 +143,7 @@ export async function DELETE() {
   // the revocation did not cascade.
   const revoked = await sql`
     DELETE FROM ranking_events
-    WHERE tenant_id = ${tenant?.id ?? null}::uuid
+    WHERE tenant_id = ${tid}::uuid
       AND user_id = ${user.id}
       AND source = 'webhook'
       AND verified_by LIKE 'github:%'
@@ -149,20 +151,34 @@ export async function DELETE() {
   `;
   const revokedCount = revoked.length;
 
+  // A project verified by a repo grant is proof only while that grant exists.
+  // Unlink removes the grant, so the project must fall back to provisional;
+  // leaving the verified label would show a badge and a verified state that no
+  // score and no live grant support.
+  const downgraded = await sql`
+    UPDATE projects
+       SET evidence_state = 'provisional', verified_at = NULL, verified_by = NULL, updated_at = NOW()
+     WHERE owner_id = ${user.id}
+       AND tenant_id = ${tid}::uuid
+       AND evidence_state = 'verified'
+       AND verified_by LIKE 'github:%'
+    RETURNING id
+  `;
+
   await sql`DELETE FROM github_connections WHERE user_id = ${user.id}`;
   await sql`DELETE FROM github_repo_grants WHERE user_id = ${user.id}`;
   await sql`UPDATE profiles SET github_username = NULL WHERE user_id = ${user.id}`;
 
-  if (revokedCount) {
+  if (revokedCount || downgraded.length) {
     const { recomputeScore } = await import("@/lib/ranking");
-    await recomputeScore(sql, tenant?.id, user.id);
+    await recomputeScore(sql, tid, user.id);
   }
 
   await writeAudit({
-    sql, actorId: user.id, tenantId: tenant?.id,
+    sql, actorId: user.id, tenantId: tid,
     action: "unlinked_github", resource: "github_connection", resourceId: user.id,
     before: before ? { githubUsername: before.github_username } : null,
-    after: { connected: false, revokedEvidence: revokedCount }
+    after: { connected: false, revokedEvidence: revokedCount, downgradedProjects: downgraded.length }
   });
-  return ok({ connected: false, githubUsername: null, revokedEvidence: revokedCount });
+  return ok({ connected: false, githubUsername: null, revokedEvidence: revokedCount, downgradedProjects: downgraded.length });
 }

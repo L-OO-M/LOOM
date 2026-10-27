@@ -125,6 +125,23 @@ export async function GET(request) {
     return cleared(redirect(`${origin}/student/github?error=github_already_linked`));
   }
 
+  // Changing the GitHub account is not the same as refreshing the connection.
+  // The old account's evidence and grants must be revoked first, which is what
+  // DELETE /api/github does; without this guard the callback would silently
+  // rebind identity while leaving the previous account's proof in place.
+  const [current] = await sql`
+    SELECT github_user_id FROM github_connections
+    WHERE user_id = ${user.id}
+    LIMIT 1
+  `;
+  if (current?.github_user_id != null && String(current.github_user_id) !== String(me.id)) {
+    await writeAudit({
+      sql, actorId: user.id, tenantId: tenant?.id,
+      action: "github_oauth_rejected", resource: "github_oauth", resourceId: "IDENTITY_SWAP_REQUIRES_UNLINK"
+    });
+    return cleared(redirect(`${origin}/student/github?error=github_unlink_first`));
+  }
+
   // A handle rename must not orphan the connection: rebind the display name
   // unconditionally, since GitHub has just told us what it currently is.
   //
