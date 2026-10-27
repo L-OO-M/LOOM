@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { parseGitHubRepo, recomputeScore, revokeEvidence } from "@/lib/ranking";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 export async function GET(request, { params }) {
   const ctx = await getRequestContext();
@@ -35,7 +36,7 @@ const patchSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().max(2000).optional(),
   status: z.enum(["active", "completed", "archived"]).optional(),
-  repoUrl: z.string().url().nullable().optional(),
+  repoUrl: z.string().nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   tags: z.array(z.string().min(1).max(30)).max(8).optional(),
   roadmapNodeId: z.string().nullable().optional()
 });

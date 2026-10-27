@@ -8,6 +8,11 @@ const bodySchema = z.object({
   email: z.string().email().optional()
 });
 
+// Thrown inside the transaction when the first-claim INSERT returns no row.
+// Throwing (rather than returning) makes postgres.js roll the transaction back,
+// so a lost race cannot leave any partial write behind.
+class ClaimLostError extends Error {}
+
 // First-admin bootstrap. Public in middleware (no admin exists yet to
 // authorize against), so the route enforces its own triple gate:
 // 1. caller must hold a valid session (Auth0 or the Supabase fallback),
@@ -15,6 +20,10 @@ const bodySchema = z.object({
 // 3. the platform_admins insert must win an atomic first-claim race
 //    (single INSERT ... WHERE NOT EXISTS + ON CONFLICT DO NOTHING;
 //    exactly one concurrent caller gets a RETURNING row).
+//
+// The claim and the profile promotion run in ONE transaction: if the profile
+// write fails, the platform_admins row rolls back with it. The previous split
+// statements could strand a platform admin with no admin profile.
 export async function POST(request) {
   // resolveIdentity() -- not the Supabase client directly. Reading only Supabase
   // made /setup unusable for anyone who signed in through Auth0: the page had a
@@ -36,40 +45,59 @@ export async function POST(request) {
   const email = identity.email || body.email || null;
   const sql = getSql();
 
-  // Idempotent re-claim by the existing admin (e.g. retried setup click).
-  const [mine] = await sql`SELECT user_id FROM platform_admins WHERE user_id = ${userId} LIMIT 1`;
-  const [selfProfile] = await sql`SELECT tenant_id FROM profiles WHERE user_id = ${userId} LIMIT 1`;
-  if (mine) {
-    await writeAudit({
-      sql, actorId: userId, tenantId: selfProfile?.tenant_id ?? null,
-      action: "admin.claim_first", resource: "platform_admins", resourceId: userId,
-      after: { repeat: true }
+  let claim;
+  try {
+    claim = await sql.begin(async (tx) => {
+      // Serialize concurrent first-claims. WHERE NOT EXISTS alone is safe for
+      // the same user_id (unique constraint), but two DIFFERENT user IDs can
+      // both observe zero rows under READ COMMITTED and each insert. The
+      // transaction-scoped lock makes the read-then-insert atomic and releases
+      // automatically on commit or rollback.
+      await tx`SELECT pg_advisory_xact_lock(741852963)`;
+
+      // Idempotent re-claim by the existing admin (e.g. retried setup click).
+      const [mine] = await tx`SELECT user_id FROM platform_admins WHERE user_id = ${userId} LIMIT 1`;
+      const [selfProfile] = await tx`SELECT tenant_id FROM profiles WHERE user_id = ${userId} LIMIT 1`;
+      if (mine) {
+        await writeAudit({
+          sql: tx, actorId: userId, tenantId: selfProfile?.tenant_id ?? null,
+          action: "admin.claim_first", resource: "platform_admins", resourceId: userId,
+          after: { repeat: true }
+        });
+        return { repeat: true };
+      }
+
+      const [won] = await tx`
+        INSERT INTO platform_admins (user_id, is_founder, locked, label)
+        SELECT ${userId}, true, true, 'Founder'
+        WHERE NOT EXISTS (SELECT 1 FROM platform_admins)
+        ON CONFLICT (user_id) DO NOTHING
+        RETURNING user_id
+      `;
+      if (!won) throw new ClaimLostError();
+
+      if (selfProfile) {
+        await tx`UPDATE profiles SET role = 'admin' WHERE user_id = ${userId}`;
+      } else {
+        await tx`
+          INSERT INTO profiles (user_id, name, role, primary_domain)
+          VALUES (${userId}, ${email?.split("@")[0] ?? "Admin"}, 'admin', 'web')
+        `;
+      }
+
+      await writeAudit({
+        sql: tx, actorId: userId, tenantId: selfProfile?.tenant_id ?? null,
+        action: "admin.claim_first", resource: "platform_admins", resourceId: userId
+      });
+
+      return { repeat: false };
     });
-    return ok({ message: "Admin already claimed" });
+  } catch (error) {
+    if (error instanceof ClaimLostError) {
+      return fail("ALREADY_SETUP", "Platform admin already exists", 403);
+    }
+    throw error;
   }
 
-  const [won] = await sql`
-    INSERT INTO platform_admins (user_id, is_founder, locked, label)
-    SELECT ${userId}, true, true, 'Founder'
-    WHERE NOT EXISTS (SELECT 1 FROM platform_admins)
-    ON CONFLICT (user_id) DO NOTHING
-    RETURNING user_id
-  `;
-  if (!won) return fail("ALREADY_SETUP", "Platform admin already exists", 403);
-
-  if (selfProfile) {
-    await sql`UPDATE profiles SET role = 'admin' WHERE user_id = ${userId}`;
-  } else {
-    await sql`
-      INSERT INTO profiles (user_id, name, role, primary_domain)
-      VALUES (${userId}, ${email?.split("@")[0] ?? "Admin"}, 'admin', 'web')
-    `;
-  }
-
-  await writeAudit({
-    sql, actorId: userId, tenantId: selfProfile?.tenant_id ?? null,
-    action: "admin.claim_first", resource: "platform_admins", resourceId: userId
-  });
-
-  return ok({ message: "Admin claimed" });
+  return ok({ message: claim.repeat ? "Admin already claimed" : "Admin claimed" });
 }

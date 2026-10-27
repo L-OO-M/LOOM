@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
   const enrolled = await sql.begin(async (tx) => {
     const [locked] = await tx`SELECT capacity FROM volunteer_slots WHERE id = ${id} FOR UPDATE`;
     if (!locked) return null;
-    const [{ count }] = await tx`SELECT COUNT(*)::int AS count FROM volunteer_signups WHERE slot_id = ${id} FOR UPDATE`;
+    const [{ count }] = await tx`SELECT COUNT(*)::int AS count FROM volunteer_signups WHERE slot_id = ${id}`;
     if (count >= locked.capacity) return "FULL";
     const [row] = await tx`
       INSERT INTO volunteer_signups (slot_id, user_id)

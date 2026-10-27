@@ -48,38 +48,59 @@ export async function POST(request, { params }) {
   }
   const limited = checkRateLimit(`event-register:${user.id}`, { limit: 30, windowMs: 60_000 });
   if (!limited.ok) return fail("RATE_LIMITED", "Too many registration attempts — slow down", 429);
-  const [event] = await sql`SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid AND status IN ('upcoming', 'live', 'past') LIMIT 1`;
-  if (!event) return fail("NOT_FOUND", "Event not found", 404);
+  const tid = tenant?.id ?? null;
 
   if (body.action === "cancel") {
-    const [cancelled] = await sql`UPDATE event_registrations SET status = 'cancelled' WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' RETURNING id`;
-    if (!cancelled) return ok({ cancelled: false, already: true });
-    await sql`UPDATE events SET registered_count = (SELECT COUNT(*) FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled') WHERE id = ${id}`;
+    const result = await sql.begin(async (tx) => {
+      const [event] = await tx`
+        SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tid}::uuid
+          AND status IN ('upcoming', 'live', 'past') LIMIT 1 FOR UPDATE
+      `;
+      if (!event) return { kind: "NOT_FOUND" };
+      const [cancelled] = await tx`UPDATE event_registrations SET status = 'cancelled' WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' RETURNING id`;
+      if (!cancelled) return { kind: "ALREADY", event };
+      await tx`UPDATE events SET registered_count = (SELECT COUNT(*) FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled') WHERE id = ${id} AND tenant_id = ${tid}::uuid`;
+      return { kind: "CANCELLED", event };
+    });
+    if (result.kind === "NOT_FOUND") return fail("NOT_FOUND", "Event not found", 404);
+    if (result.kind === "ALREADY") return ok({ cancelled: false, already: true });
     await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "cancelled_registration", resource: "event", resourceId: id, after: { status: "cancelled" } });
     return ok({ cancelled: true });
   }
 
-  const [{ seats = 0 }] = await sql`SELECT COUNT(*)::int AS seats FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled'`;
-  if (event.capacity && seats >= event.capacity) {
-    const [mine] = await sql`SELECT id FROM event_registrations WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' LIMIT 1`;
-    if (!mine) return fail("EVENT_FULL", "This event is full", 409);
-    return ok({ already: true });
-  }
-  const code = `LOOM-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-  const [row] = await sql`
-    INSERT INTO event_registrations (event_id, student_id, status, check_in_code)
-    VALUES (${id}, ${user.id}, 'registered', ${code})
-    ON CONFLICT (event_id, student_id) DO UPDATE SET status = 'registered' RETURNING *
-  `;
-  await sql`UPDATE events SET registered_count = (SELECT COUNT(*) FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled') WHERE id = ${id}`;
+  const result = await sql.begin(async (tx) => {
+    const [event] = await tx`
+      SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tid}::uuid
+        AND status IN ('upcoming', 'live', 'past') LIMIT 1 FOR UPDATE
+    `;
+    if (!event) return { kind: "NOT_FOUND" };
+
+    const [{ seats = 0 }] = await tx`SELECT COUNT(*)::int AS seats FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled'`;
+    const [mine] = await tx`SELECT id FROM event_registrations WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' LIMIT 1`;
+    if (mine) return { kind: "ALREADY", event };
+    if (event.capacity && seats >= event.capacity) return { kind: "FULL", event };
+
+    const code = `LOOM-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    const [row] = await tx`
+      INSERT INTO event_registrations (event_id, student_id, status, check_in_code)
+      VALUES (${id}, ${user.id}, 'registered', ${code})
+      ON CONFLICT (event_id, student_id) DO UPDATE SET status = 'registered' RETURNING *
+    `;
+    await tx`UPDATE events SET registered_count = (SELECT COUNT(*) FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled') WHERE id = ${id} AND tenant_id = ${tid}::uuid`;
+    return { kind: "REGISTERED", event, row };
+  });
+  if (result.kind === "NOT_FOUND") return fail("NOT_FOUND", "Event not found", 404);
+  if (result.kind === "FULL") return fail("EVENT_FULL", "This event is full", 409);
+  if (result.kind === "ALREADY") return ok({ already: true });
+
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "registered_event", resource: "event", resourceId: id, after: { status: "registered" } });
   await notify({
     sql, tenantId: tenant?.id, userId: user.id, type: "event_registered",
-    title: `Registered: ${event.title}`,
-    body: `Show this check-in code at the door: ${row.check_in_code}.`,
+    title: `Registered: ${result.event.title}`,
+    body: `Show this check-in code at the door: ${result.row.check_in_code}.`,
     link: `/student/events/${id}`
   });
-  return ok({ registration: row }, { status: 201 });
+  return ok({ registration: result.row }, { status: 201 });
 }
 
 // Attendees submit feedback after attending.

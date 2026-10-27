@@ -129,8 +129,12 @@ export async function POST(request) {
     INSERT INTO dept_reports (tenant_id, department_id, month, draft, status)
     VALUES (${tid}, ${body.departmentId}, ${firstDay}, ${sql.json(draft)}, 'draft')
     ON CONFLICT (department_id, month) DO UPDATE SET draft = ${sql.json(draft)}
+    WHERE dept_reports.status = 'draft'
     RETURNING *
   `;
+  if (!report) {
+    return fail("REPORT_LOCKED", "This report is submitted and can no longer be recompiled — an admin must reopen it first", 409);
+  }
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: "compiled_report",
     resource: "report", resourceId: report.id,

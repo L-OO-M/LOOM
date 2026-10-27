@@ -3,11 +3,12 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseContributionUrl } from "@/lib/oss";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 // `commit` used to be accepted here but nothing ever verified one, so it only
 // created a claim that could never count. Claims are PRs, issues, or reviews.
 const claimSchema = z.object({
-  prUrl: z.string().url().max(300),
+  prUrl: z.string().max(300).refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   title: z.string().max(200).default(""),
   contributionType: z.enum(["pr", "issue", "review"]).optional()
 });

@@ -59,8 +59,8 @@ export async function PATCH(request, { params }) {
   if (!admin && !verticalLead && !lead) {
     return fail("FORBIDDEN", "Only that department's Head/Co-Head can edit or submit its report", 403);
   }
-  if (report.status === "submitted" && body.status === "submitted" && !admin) {
-    return fail("FORBIDDEN", "Report is already submitted — only an admin can reopen it", 403);
+  if (report.status === "submitted" && !admin) {
+    return fail("FORBIDDEN", "Report is locked once submitted — only an admin can reopen it", 403);
   }
   const next = await sql`
     UPDATE dept_reports SET

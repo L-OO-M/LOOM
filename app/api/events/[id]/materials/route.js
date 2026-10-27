@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const materialSchema = z.object({
   title: z.string().min(3).max(160),
-  storageUrl: z.string().url().max(500),
+  storageUrl: z.string().max(500).refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   fileType: z.enum(["slide", "recording", "handout", "code", "link"]).default("link")
 });
 

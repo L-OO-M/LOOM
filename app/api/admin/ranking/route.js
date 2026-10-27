@@ -229,9 +229,30 @@ export async function POST(request) {
 
 // Reverse every claim a student has that no verifier stands behind.
 //
-// Deletes the provisional rows themselves so the queue does not re-surface them,
-// and removes any ledger row that a previous confirmation left behind.
+// Reads the unverified claims BEFORE flipping their state, because the ledger
+// row to reverse is keyed by (kind, ref_id) and a rejected claim is
+// indistinguishable from a verified one by state alone once we start writing.
+//
+// Reversal is per claim through revokeEvidence, never a tenant+user DELETE on
+// ranking_events: that also wiped verified OSS, roadmap and project evidence,
+// which this action has no business touching. A claim that a previous
+// confirmation left a ledger row behind for still loses exactly that row; every
+// verified claim keeps its own.
 async function clearUnverifiedFor({ sql, tenantId, studentId, reviewer }) {
+  const roadmapClaims = await sql`
+    SELECT node_id
+      FROM student_roadmap_progress
+     WHERE tenant_id = ${tenantId}::uuid AND student_id = ${studentId}
+       AND status = 'completed'
+       AND evidence_state IN ('provisional', 'rejected')
+  `;
+  const projectClaims = await sql`
+    SELECT id
+      FROM projects
+     WHERE tenant_id = ${tenantId}::uuid AND owner_id = ${studentId}
+       AND evidence_state IN ('provisional', 'rejected')
+  `;
+
   await sql`
     UPDATE student_roadmap_progress
        SET evidence_state = 'rejected', verified_by = ${reviewer}, verified_at = NOW(), updated_at = NOW()
@@ -242,8 +263,17 @@ async function clearUnverifiedFor({ sql, tenantId, studentId, reviewer }) {
        SET evidence_state = 'rejected', verified_by = ${reviewer}, verified_at = NOW(), updated_at = NOW()
      WHERE tenant_id = ${tenantId}::uuid AND owner_id = ${studentId} AND evidence_state = 'provisional'
   `;
-  await sql`
-    DELETE FROM ranking_events
-     WHERE tenant_id = ${tenantId}::uuid AND user_id = ${studentId}
-  `;
+
+  // Sequential, like every other query here: the pooler is shared and this is
+  // one bounded per-claim loop, not a Promise.all batch.
+  for (const claim of roadmapClaims) {
+    await revokeEvidence({
+      sql, tenantId, userId: studentId, kind: "roadmap_done", refId: claim.node_id
+    });
+  }
+  for (const claim of projectClaims) {
+    await revokeEvidence({
+      sql, tenantId, userId: studentId, kind: "project_verified", refId: claim.id
+    });
+  }
 }
