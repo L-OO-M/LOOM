@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, FileCheck, Clock3, Search, ArrowUpRight, ExternalLink } from "lucide-react";
+import { Users, FileCheck, Clock3, Search, ExternalLink } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ContestForm } from "@/components/admin-forms";
 import { ContestFunnelBars, ContestConversionBars } from "@/components/admin/RemainingCharts";
+import { ContestStatusControl } from "./_components/ContestStatusControl";
+import { ContestJudge } from "./_components/ContestJudge";
 import "../_components/admin-ledger.css";
 
 function statusTone(s) {
@@ -35,9 +37,9 @@ export default async function AdminContestsPage({ searchParams }) {
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE status = 'draft')::int AS drafts,
       COUNT(*) FILTER (WHERE status IN ('open','active','published'))::int AS live,
-      (SELECT COUNT(*)::int FROM contest_submissions s JOIN contests c ON c.id = s.contest_id WHERE (c.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS submissions
+      (SELECT COUNT(*)::int FROM contest_submissions s JOIN contests c ON c.id = s.contest_id WHERE c.tenant_id = ${tid}::uuid) AS submissions
     FROM contests
-    WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+    WHERE tenant_id = ${tid}::uuid
   `;
 
   const rows = await sql`
@@ -47,17 +49,17 @@ export default async function AdminContestsPage({ searchParams }) {
     FROM contests c
     LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_registrations GROUP BY contest_id) r ON r.contest_id = c.id
     LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_submissions GROUP BY contest_id) s ON s.contest_id = c.id
-    WHERE (c.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE c.tenant_id = ${tid}::uuid
       AND (${q ? sql`(c.title ILIKE ${"%" + q + "%"} OR c.description ILIKE ${"%" + q + "%"})` : sql`TRUE`})
       AND (${status ? sql`c.status = ${status}` : sql`TRUE`})
     ORDER BY c.created_at DESC LIMIT 50
   `;
 
   const subs = await sql`
-    SELECT s.*, c.title AS contest_title, p.name AS student_name FROM contest_submissions s
+    SELECT s.*, c.title AS contest_title, c.status AS contest_status, p.name AS student_name FROM contest_submissions s
     JOIN contests c ON c.id = s.contest_id
     LEFT JOIN profiles p ON p.user_id = s.student_id
-    WHERE c.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+    WHERE c.tenant_id = ${tid}::uuid
     ORDER BY s.created_at DESC LIMIT 20
   `;
 
@@ -140,7 +142,7 @@ export default async function AdminContestsPage({ searchParams }) {
                           <span>{c.id.slice(0, 8)}</span>
                         </p>
                       </div>
-                      <span className="aled-actions" aria-hidden="true"><ArrowUpRight size={12} /></span>
+                      <ContestStatusControl id={c.id} status={c.status} title={c.title} />
                     </li>
                   );
                 })}
@@ -188,6 +190,9 @@ export default async function AdminContestsPage({ searchParams }) {
                     {s.note && <p className="aled-sub">{s.note}</p>}
                   </div>
                   <span className="aled-meta" style={{ textAlign: "right" }}>{new Date(s.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <ContestJudge submission={s} />
+                  </div>
                 </li>
               ))}
             </ul>
