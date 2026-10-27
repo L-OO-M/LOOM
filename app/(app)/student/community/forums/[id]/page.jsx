@@ -4,7 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill } from "@/components/loom/primitives";
 import { VoteButton, FlagButton } from "../../CommunityBits";
-import { ReplyForm, SolveButton } from "../ForumsBits";
+import { ReplyForm, SolveButton, UnsolveButton } from "../ForumsBits";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +123,7 @@ export default async function ThreadPage({ params }) {
                   </div>
                   <div className="flex w-24 shrink-0 flex-col items-end gap-2 sm:w-auto">
                     {canSolve && !r.is_answer && <SolveButton threadId={thread.id} replyId={r.id} />}
+                    {canSolve && r.is_answer && <UnsolveButton threadId={thread.id} />}
                     <FlagButton targetType="reply" targetId={r.id} />
                   </div>
                 </div>

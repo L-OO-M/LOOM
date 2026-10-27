@@ -2,10 +2,11 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, notify, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { recordEvidence, recomputeScore, revokeEvidence } from "@/lib/ranking";
 
 const replySchema = z.object({ body: z.string().min(1).max(8000) });
 const patchSchema = z.object({
-  action: z.enum(["solve", "pin"]),
+  action: z.enum(["solve", "unsolve", "pin"]),
   replyId: z.string().uuid().nullable().optional(),
   pinned: z.boolean().optional()
 });
@@ -94,18 +95,79 @@ export async function PATCH(request, { params }) {
     return ok({ pinned: body.pinned ?? true });
   }
   if (thread.author_id !== user.id && !isAdmin) return fail("FORBIDDEN", "Only the author can mark a solution", 403);
+
+  if (body.action === "unsolve") {
+    const current = await sql.begin(async (tx) => {
+      const [answer] = await tx`
+        SELECT id, author_id FROM forum_replies
+        WHERE thread_id = ${id} AND is_answer = true LIMIT 1 FOR UPDATE
+      `;
+      if (!answer) return null;
+      await tx`UPDATE forum_replies SET is_answer = false WHERE thread_id = ${id} AND is_answer = true`;
+      await tx`UPDATE forum_threads SET solved = false, solution_post_id = NULL WHERE id = ${id}`;
+      await revokeEvidence({
+        sql: tx, tenantId: tenant?.id, userId: answer.author_id,
+        kind: "solution_accepted", refId: answer.id
+      });
+      return answer;
+    });
+    if (!current) return ok({ solved: false, already: true });
+    await recomputeScore(sql, tenant?.id, current.author_id);
+    await writeAudit({
+      sql, actorId: user.id, tenantId: tenant?.id, action: "unmarked_solution",
+      resource: "forum_reply", resourceId: current.id, after: { threadId: id }
+    });
+    return ok({ solved: false });
+  }
+
   if (!body.replyId) return fail("VALIDATION_ERROR", "replyId is required", 400);
-  const [answer] = await sql`SELECT id, author_id FROM forum_replies WHERE id = ${body.replyId} AND thread_id = ${id} LIMIT 1`;
-  if (!answer) return fail("NOT_FOUND", "Reply not found", 404);
-  await sql`UPDATE forum_replies SET is_answer = false WHERE thread_id = ${id}`;
-  await sql`UPDATE forum_replies SET is_answer = true WHERE id = ${body.replyId} AND thread_id = ${id}`;
-  await sql`UPDATE forum_threads SET solved = true, solution_post_id = ${body.replyId} WHERE id = ${id}`;
-  if (answer.author_id !== user.id) {
+  const result = await sql.begin(async (tx) => {
+    const [answer] = await tx`
+      SELECT id, author_id, is_answer FROM forum_replies
+      WHERE id = ${body.replyId} AND thread_id = ${id} AND status = 'visible' LIMIT 1 FOR UPDATE
+    `;
+    if (!answer) return { kind: "NOT_FOUND" };
+    const previous = await tx`
+      SELECT id, author_id FROM forum_replies
+      WHERE thread_id = ${id} AND is_answer = true AND id <> ${body.replyId}
+    `;
+    await tx`UPDATE forum_replies SET is_answer = false WHERE thread_id = ${id} AND is_answer = true`;
+    await tx`UPDATE forum_replies SET is_answer = true WHERE id = ${body.replyId} AND thread_id = ${id}`;
+    await tx`UPDATE forum_threads SET solved = true, solution_post_id = ${body.replyId} WHERE id = ${id}`;
+    for (const old of previous) {
+      await revokeEvidence({
+        sql: tx, tenantId: tenant?.id, userId: old.author_id,
+        kind: "solution_accepted", refId: old.id
+      });
+    }
+    // The verifier must be someone other than the answer's author. A thread
+    // author answering their own question cannot award themselves the points.
+    if (answer.author_id !== user.id) {
+      await recordEvidence({
+        sql: tx, tenantId: tenant?.id, userId: answer.author_id,
+        kind: "solution_accepted", refId: answer.id, verifiedBy: user.id,
+        source: "forum_solution", evidence: { threadId: id, replyId: answer.id }
+      });
+    }
+    return { kind: "OK", answer, previous, wasAnswer: answer.is_answer === true };
+  });
+  if (result.kind === "NOT_FOUND") return fail("NOT_FOUND", "Reply not found", 404);
+
+  const affected = new Set(result.previous.map((r) => r.author_id));
+  if (result.answer.author_id !== user.id) affected.add(result.answer.author_id);
+  for (const studentId of affected) {
+    await recomputeScore(sql, tenant?.id, studentId);
+  }
+  if (result.answer.author_id !== user.id && !result.wasAnswer) {
     await notify({
-      sql, tenantId: tenant?.id, userId: answer.author_id,
+      sql, tenantId: tenant?.id, userId: result.answer.author_id,
       type: "forum_solution", title: "Your answer was marked as the solution",
       body: "A thread author picked your reply as the solution.", link: `/student/community/forums/${id}`
     });
   }
+  await writeAudit({
+    sql, actorId: user.id, tenantId: tenant?.id, action: "marked_solution",
+    resource: "forum_reply", resourceId: body.replyId, after: { threadId: id }
+  });
   return ok({ solved: true });
 }

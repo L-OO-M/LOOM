@@ -112,6 +112,39 @@ export function ReplyForm({ threadId }) {
   );
 }
 
+export function UnsolveButton({ threadId }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function unsolve() {
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/community/threads/${threadId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "unsolve" })
+      });
+      const data = await res.json();
+      if (!data?.ok) setMsg(data?.error?.message || "Could not remove — try again");
+    } catch {
+      setMsg("Network error — try again");
+    }
+    setBusy(false);
+    router.refresh();
+  }
+
+  return (
+    <span className="inline-flex shrink-0 flex-col items-end gap-1">
+      <button disabled={busy} onClick={unsolve} aria-busy={busy} className="shrink-0 text-xs font-semibold disabled:opacity-50" style={{ color: "var(--text-muted)" }}>
+        {busy ? "Removing…" : "Remove solution"}
+      </button>
+      {msg && <span className="text-xs" role="alert" style={{ color: "var(--danger)" }}>{msg}</span>}
+    </span>
+  );
+}
+
 export function SolveButton({ threadId, replyId }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
