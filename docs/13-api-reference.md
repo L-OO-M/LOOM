@@ -22,6 +22,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET/POST/PATCH | `/api/contests/manage` | lead+ (`manage_contests`) | lead/admin contest manager: list with registration/submission counts, create, change status |
 | GET | `/api/contests/export` | lead+ (`manage_contests`) | CSV of registrations for `?contestId=` (tenant-scoped) |
 | GET/POST | `/api/mentorship` | user | request/list sessions |
+| PATCH | `/api/mentorship/[id]` | participant | accept, decline, complete, or cancel a session; role-specific transition maps, tenant-scoped, audited, notifies the counterpart |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
 | GET | `/api/leaderboard` | user | Standings board: `?scope=college\|global\|friends` `&period=all\|30d` `&q=` `&limit=` (≤100) `&offset=`; ranks share on ties (`RANK()`), service roles excluded. Returns `verifiedOnly` + `breakdown`; rows carry `verified_score` and `pending`. Counts **only** attested GitHub activity and verified evidence — see [`20-verified-ranking.md`](20-verified-ranking.md) |
@@ -92,7 +93,7 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. |
 | GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. |
 | PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
-| POST | `/api/admin/events/[id]/attendance` | admin: check in by door code → attended + certificate (once) + notify |
+| POST | `/api/admin/events/[id]/attendance` | dept_lead+ (`manage_event_ops`): check in by door code → attended + certificate (once) + notify |
 | GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
 | GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
@@ -231,7 +232,8 @@ is single-use, expires in 24h, and only its SHA-256 hash is stored.
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/admin/audit` | admin | audit trail, filterable |
-| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager |
+| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager; PATCH closes/reopens a contest |
+| POST | `/api/admin/contests/judge` | admin | judge a submission `{submissionId, status:"submitted"\|"shortlisted"\|"winner"\|"rejected", score?, feedback?}`: writes `contest_top` evidence for winners, revokes it when a winner is displaced, skips self-verification, audits and notifies |
 | GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
 | GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
 | GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node) |
