@@ -18,6 +18,8 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { profile, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   const myDeptIds = (profile.memberships || []).map((m) => m.department_id);
   const myVerticals = [...new Set([
     ...(profile.vertical ? [profile.vertical] : []),
@@ -29,7 +31,7 @@ export async function GET() {
     FROM announcements a
     LEFT JOIN departments d ON d.id = a.department_id
     LEFT JOIN profiles p ON p.user_id = a.author_id
-    WHERE (a.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE a.tenant_id = ${tid}::uuid
       AND (
         a.scope = 'society'
         OR (a.scope = 'vertical' AND a.vertical = ANY(${myVerticals}))
@@ -46,6 +48,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   let body;
   try {
     body = postSchema.parse(await request.json());
@@ -61,7 +65,7 @@ export async function POST(request) {
     const [dept] = await sql`
       SELECT id, vertical FROM departments
       WHERE id = ${body.departmentId}
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${tid}::uuid
       LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
@@ -87,7 +91,7 @@ export async function POST(request) {
 
   const [announcement] = await sql`
     INSERT INTO announcements (tenant_id, scope, department_id, vertical, title, body, author_id)
-    VALUES (${tenant?.id ?? null}, ${body.scope}, ${departmentId}, ${vertical}, ${body.title}, ${body.body}, ${user.id})
+    VALUES (${tid}, ${body.scope}, ${departmentId}, ${vertical}, ${body.title}, ${body.body}, ${user.id})
     RETURNING *
   `;
 
@@ -98,22 +102,22 @@ export async function POST(request) {
     if (body.scope === "society") {
       await sql`
         INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT ${tenant?.id ?? null}, p.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
-        FROM profiles p WHERE p.tenant_id = ${tenant?.id ?? null}::uuid AND p.user_id <> ${user.id}`;
+        SELECT ${tid}, p.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
+        FROM profiles p WHERE p.tenant_id = ${tid}::uuid AND p.user_id <> ${user.id}`;
     } else if (body.scope === "vertical") {
       await sql`
         INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT DISTINCT ${tenant?.id ?? null}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
+        SELECT DISTINCT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
         FROM department_memberships m JOIN departments d ON d.id = m.department_id
-        WHERE d.tenant_id = ${tenant?.id ?? null}::uuid AND d.vertical = ${vertical} AND m.user_id <> ${user.id}`;
+        WHERE d.tenant_id = ${tid}::uuid AND d.vertical = ${vertical} AND m.user_id <> ${user.id}`;
     } else {
       await sql`
         INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT ${tenant?.id ?? null}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
+        SELECT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
         FROM department_memberships m WHERE m.department_id = ${departmentId} AND m.user_id <> ${user.id}`;
     }
   } catch { /* delivery must never break posting */ }
 
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "posted_announcement", resource: "announcement", resourceId: announcement.id, after: { scope: body.scope, title: body.title } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "posted_announcement", resource: "announcement", resourceId: announcement.id, after: { scope: body.scope, title: body.title } });
   return ok({ announcement }, { status: 201 });
 }
