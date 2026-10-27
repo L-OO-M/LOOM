@@ -9,13 +9,12 @@ import { recordEvidence, recomputeScore } from "@/lib/ranking";
 import { applyIssueEvent } from "@/lib/github-issues";
 import { toIsoDay } from "@/lib/github-activity";
 import { getSql } from "@/lib/db";
+import { ACTIVITY_WEIGHTS, activityDeltaPoints } from "@/lib/scoring";
 
-// Weights for the daily activity row. commit/pullRequest MUST match
-// STANDINGS_WEIGHTS in lib/standings.js, because the leaderboard computes
-// score = commits x5 + prs x20 from these columns. The `reviews` weight is
-// only used for the stored score here; the leaderboard does not count reviews
-// yet (see the note at the top of lib/standings.js).
-const ACTIVITY_WEIGHTS = { commit: 5, pullRequest: 20, review: 2 };
+// The daily activity row and the standings board share this contract. Exporting
+// the constant from the route makes the webhook/standings parity explicit and
+// testable; the values themselves live only in lib/scoring.js.
+export { ACTIVITY_WEIGHTS };
 
 /**
  * Turn one delivery into a countable activity delta.
@@ -172,8 +171,9 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
   //
   // This is the table every "your proof of building" number is read from:
   // the heatmap and commit/PR/streak tiles on /student/github, the dashboard's
-  // weekly strip, and commits x5 + prs x20 in the leaderboard score (55% of
-  // the advertised formula). The webhook previously wrote ONLY github_events,
+  // weekly strip, and the capped commits/PRs half of the standings score. The
+  // weights come from lib/scoring.js, the same contract the board's SQL uses.
+  // The webhook previously wrote ONLY github_events,
   // so all of those stayed at zero forever regardless of real activity -- the
   // standalone /api/jobs/github/process worker that used to do this had no
   // callers, no cron and no vercel.json.
@@ -202,10 +202,7 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
       activity = { applied: false, reason: "DUPLICATE_DELIVERY" };
     } else {
       const day = toIsoDay(new Date());
-      const points =
-        delta.commits * ACTIVITY_WEIGHTS.commit +
-        delta.pullRequests * ACTIVITY_WEIGHTS.pullRequest +
-        delta.reviews * ACTIVITY_WEIGHTS.review;
+      const points = activityDeltaPoints(delta);
       await sql`
         INSERT INTO public.student_daily_activity
           (student_id, day, tenant_id, commits, pull_requests, reviews, score)
@@ -465,7 +462,9 @@ const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId
     tenantId,
     userId: profile.user_id,
     kind: "oss_verified",
-    refId: prUrl,
+    // Canonical, matching admin verification: refId is the ledger identity, so
+    // using the raw html_url here let one merge be awarded twice.
+    refId: canonical,
     verifiedBy: `github:${author}`,
     source: "webhook",
     evidence: { repository: fullName, pr: prUrl, merged_at: pr.merged_at ?? null }

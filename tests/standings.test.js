@@ -5,6 +5,8 @@ import {
   STANDINGS_BOARD_SIZE,
   assignRanks,
   canLinkProfile,
+  fetchBoard,
+  fetchSelfStanding,
   normalizeLimit,
   normalizeOffset,
   normalizePeriod,
@@ -13,6 +15,36 @@ import {
   standingBreakdown,
 } from "@/lib/standings";
 import { WEIGHTS } from "@/lib/ranking";
+
+// Minimal postgres.js-compatible tagged template recorder. Nested fragments are
+// the way lib/standings composes SQL, so each returned "query" carries its text
+// and the outer template inlines that text. We assert the real query the board
+// and self-standing builders produce, not just the dead pure score function.
+function makeRecordingSql() {
+  const calls = [];
+  const render = (value) => {
+    if (Array.isArray(value)) return value.map(() => "?").join(", ");
+    if (value && typeof value === "object" && typeof value.text === "string") {
+      return value.text;
+    }
+    return "?";
+  };
+  const tag = (strings, ...values) => {
+    // sql(array) (postgres.js IN-list helper) has no `.raw`; tagged templates do.
+    const text = Array.isArray(strings) && !strings.raw
+      ? strings.map(() => "?").join(", ")
+      : strings.reduce(
+          (acc, chunk, i) => acc + chunk + (i < values.length ? render(values[i]) : ""),
+          ""
+        );
+    const query = Promise.resolve([]);
+    query.text = text;
+    calls.push({ text, values });
+    return query;
+  };
+  tag.json = (value) => value;
+  return { sql: tag, calls };
+}
 
 describe("standings scoring", () => {
   it("counts attested activity and verified evidence, nothing else", () => {
@@ -116,6 +148,74 @@ describe("standings ranks", () => {
 
   it("handles an empty board", () => {
     expect(assignRanks([])).toEqual([]);
+  });
+});
+
+describe("standings board SQL contract", () => {
+  const viewerId = "11111111-1111-1111-1111-111111111111";
+  const tenantId = "22222222-2222-2222-2222-222222222222";
+
+  function scoreColumnsCall(calls) {
+    const call = calls.find((c) => c.text.includes("AS score"));
+    expect(call).toBeTruthy();
+    return call;
+  }
+
+  it("caps commits and pull requests in the query that serves the board", async () => {
+    const { sql, calls } = makeRecordingSql();
+    await fetchBoard(sql, { viewerId, tenantId, scope: "college", period: "all" });
+
+    const score = scoreColumnsCall(calls);
+    // The cap must wrap the COUNT, before the weight is applied. Multiplying
+    // first and capping points afterwards would let a large count leak through.
+    expect(score.text).toMatch(/LEAST\(COALESCE\(a\.commits, 0\), \?\)/);
+    expect(score.text).toMatch(/LEAST\(COALESCE\(a\.prs, 0\), \?\)/);
+    expect(score.text).not.toMatch(/COALESCE\(a\.commits, 0\) \*/);
+    expect(score.text).not.toMatch(/COALESCE\(a\.prs, 0\) \*/);
+    const numeric = score.values.filter((v) => typeof v === "number");
+    expect(numeric).toEqual([
+      ACTIVITY_CAPS.commit,
+      ACTIVITY_WEIGHTS.commit,
+      ACTIVITY_CAPS.pullRequest,
+      ACTIVITY_WEIGHTS.pullRequest,
+    ]);
+  });
+
+  it("caps the viewer's self-standing query the same way", async () => {
+    const { sql, calls } = makeRecordingSql();
+    await fetchSelfStanding(sql, { viewerId, tenantId, scope: "college", period: "all" });
+
+    const score = scoreColumnsCall(calls);
+    expect(score.text).toMatch(/LEAST\(COALESCE\(a\.commits, 0\), \?\)/);
+    expect(score.text).toMatch(/LEAST\(COALESCE\(a\.prs, 0\), \?\)/);
+    const numeric = score.values.filter((v) => typeof v === "number");
+    expect(numeric).toEqual([
+      ACTIVITY_CAPS.commit,
+      ACTIVITY_WEIGHTS.commit,
+      ACTIVITY_CAPS.pullRequest,
+      ACTIVITY_WEIGHTS.pullRequest,
+    ]);
+  });
+
+  it("keeps tenant scoping parameterized in both queries", async () => {
+    const board = makeRecordingSql();
+    await fetchBoard(board.sql, { viewerId, tenantId, scope: "college", period: "all" });
+    const boardQuery = board.calls.find((c) => c.text.includes("RANK() OVER"));
+    expect(boardQuery.text).toMatch(/p\.tenant_id = \?::uuid/);
+    expect(boardQuery.text).toMatch(/OR \?::uuid IS NULL/);
+    // Tenant values stay bound parameters, even inside the nested predicate
+    // fragment; nothing is string-interpolated into the SQL text.
+    const boardTenant = board.calls.find((c) => c.text.includes("p.tenant_id = ?::uuid"));
+    expect(boardTenant.values).toEqual([tenantId, tenantId]);
+
+    const self = makeRecordingSql();
+    await fetchSelfStanding(self.sql, { viewerId, tenantId, scope: "college", period: "all" });
+    const selfQuery = self.calls.find((c) => c.text.includes("mine AS"));
+    expect(selfQuery.text).toMatch(/p\.tenant_id = \?::uuid/);
+    expect(selfQuery.text).toMatch(/WHERE user_id = \?/);
+    const selfTenant = self.calls.find((c) => c.text.includes("p.tenant_id = ?::uuid"));
+    expect(selfTenant.values).toEqual([tenantId, tenantId]);
+    expect(selfQuery.values).toContain(viewerId);
   });
 });
 
