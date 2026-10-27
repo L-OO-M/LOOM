@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { PRIMARY_DOMAINS } from "@/lib/domains";
 
 const patchSchema = z.object({
   name: z.string().min(2).max(80).optional(),
@@ -9,7 +10,7 @@ const patchSchema = z.object({
   rollNumber: z.string().max(40).nullable().optional(),
   branch: z.string().max(80).nullable().optional(),
   year: z.number().int().min(1).max(6).nullable().optional(),
-  primaryDomain: z.string().max(40).nullable().optional(),
+  primaryDomain: z.enum(PRIMARY_DOMAINS).nullable().optional(),
   onboardingCompleted: z.boolean().optional()
 });
 
