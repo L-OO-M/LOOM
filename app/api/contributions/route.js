@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const postSchema = z.object({
   studentId: z.string().min(1).optional(),
@@ -9,7 +10,7 @@ const postSchema = z.object({
   kind: z.enum(["project", "competition", "certification", "event"]).default("project"),
   title: z.string().min(3).max(200),
   description: z.string().max(2000).default(""),
-  evidenceUrl: z.string().url().max(500).nullable().optional()
+  evidenceUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE)
 });
 
 // The contribution ledger (Plan 5.3/5.4): self-logged rows for every member,
@@ -31,7 +32,7 @@ export async function GET(request) {
     const [dept] = await sql`
       SELECT vertical FROM departments
       WHERE id = ${departmentId}
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${tenant.id}::uuid
       LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
@@ -46,7 +47,7 @@ export async function GET(request) {
     LEFT JOIN profiles lp ON lp.user_id = c.student_id
     LEFT JOIN profiles lg ON lg.user_id = c.logged_by
     WHERE c.student_id = ${studentId}
-      AND (c.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND c.tenant_id = ${tenant.id}::uuid
       AND (${departmentId ? sql`c.department_id = ${departmentId}` : sql`TRUE`})
     ORDER BY c.created_at DESC
     LIMIT 100
@@ -74,7 +75,7 @@ export async function POST(request) {
     const [dept] = await sql`
       SELECT vertical FROM departments
       WHERE id = ${body.departmentId}
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${tenant.id}::uuid
       LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
