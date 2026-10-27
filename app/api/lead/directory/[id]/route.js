@@ -4,6 +4,7 @@ import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { getEntry } from "@/lib/directory";
 import { canAccessVertical } from "@/lib/scope";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -17,8 +18,8 @@ const patchSchema = z.object({
   departmentId: z.string().uuid().nullable().optional(),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
   email: z.string().email().max(160).nullable().optional(),
-  linkedinUrl: z.string().url().max(300).nullable().optional(),
-  photoUrl: z.string().url().max(500).nullable().optional(),
+  linkedinUrl: z.string().max(300).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
+  photoUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   bio: z.string().max(600).optional(),
   tenureStart: dateField,
   tenureEnd: dateField,

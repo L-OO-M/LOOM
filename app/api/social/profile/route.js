@@ -2,16 +2,16 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { RESERVED_USERNAMES, validUsername } from "@/lib/reputation";
-import { isHttpUrl, screenProfileCard } from "@/lib/content-safety";
+import { isHttpUrl, isOptionalHttpUrl, HTTP_URL_MESSAGE, screenProfileCard } from "@/lib/content-safety";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const cardSchema = z.object({
   username: z.string().min(2).max(30),
   bio: z.string().max(300).default(""),
   location: z.string().max(100).nullable().optional(),
-  avatarUrl: z.string().url().max(500).nullable().optional(),
+  avatarUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, "Photo URL must be an http(s) URL"),
   github: z.string().max(60).nullable().optional(),
-  linkedin: z.string().url().max(200).nullable().optional(),
+  linkedin: z.string().max(200).nullable().optional().refine(isOptionalHttpUrl, "LinkedIn URL must be an http(s) URL"),
   isPublic: z.boolean().default(true),
   endorsementsVisible: z.boolean().optional()
 });

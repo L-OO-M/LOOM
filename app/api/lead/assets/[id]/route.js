@@ -3,6 +3,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { ASSET_KINDS, getAsset, normalizeTags, categoryBelongsToTenant } from "@/lib/assets";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -12,7 +13,7 @@ const patchSchema = z.object({
   kind: z.enum(ASSET_KINDS).optional(),
   categoryId: z.string().uuid().nullable().optional(),
   tags: z.union([z.array(z.string().max(30)), z.string().max(400)]).optional(),
-  externalUrl: z.string().url().max(600).nullable().optional(),
+  externalUrl: z.string().max(600).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   isActive: z.boolean().optional()
 });
 

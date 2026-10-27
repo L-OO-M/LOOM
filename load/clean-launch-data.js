@@ -13,6 +13,13 @@ import { databaseUrl } from "./env-local.js";
 
 const CONFIRM = process.argv.includes("--confirm");
 
+// Dev-only cleanup. REFUSES to run in production, before any connection or
+// destructive work. Same guard as seed-dev, wipe-dev, and seed-e2e-student.
+if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+  console.error("clean-launch-data refuses to run in production.");
+  process.exit(1);
+}
+
 // Fixed seed ids are not auth users.
 const SEED_IDS = [
   "seed-user-aarav",

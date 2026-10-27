@@ -4,6 +4,7 @@ import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
 import { listDirectory } from "@/lib/directory";
 import { canAccessVertical, ownedVerticals } from "@/lib/scope";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const dateField = z.string().regex(DATE).nullable().optional();
@@ -15,8 +16,8 @@ const createSchema = z.object({
   departmentId: z.string().uuid().nullable().optional(),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
   email: z.string().email().max(160).nullable().optional(),
-  linkedinUrl: z.string().url().max(300).nullable().optional(),
-  photoUrl: z.string().url().max(500).nullable().optional(),
+  linkedinUrl: z.string().max(300).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
+  photoUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   bio: z.string().max(600).default(""),
   tenureStart: dateField,
   tenureEnd: dateField,

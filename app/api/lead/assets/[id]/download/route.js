@@ -3,6 +3,7 @@ import { fail } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { getAsset } from "@/lib/assets";
 import { createSignedUrl } from "@/lib/storage";
+import { isHttpUrl } from "@/lib/content-safety";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,7 +24,12 @@ export async function GET(request, { params }) {
 
   const asset = await getAsset(ctx.sql, { tenantId: ctx.tenant.id, id });
   if (!asset) return fail("NOT_FOUND", "Asset not found", 404);
-  if (asset.external_url) return NextResponse.redirect(asset.external_url, 302);
+  if (asset.external_url) {
+    if (!isHttpUrl(asset.external_url)) {
+      return fail("INVALID_URL", "Asset link is not a valid http(s) URL", 400);
+    }
+    return NextResponse.redirect(asset.external_url, 302);
+  }
   if (!asset.storage_path) return fail("NOT_FOUND", "No file attached to this asset", 404);
 
   const url = await createSignedUrl(asset.storage_path);

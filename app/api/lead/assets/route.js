@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/auth-server";
 import { ASSET_KINDS, listAssets, normalizeTags, categoryBelongsToTenant } from "@/lib/assets";
 import { validateUpload, buildStoragePath } from "@/lib/media";
 import { uploadObject, removeObjects } from "@/lib/storage";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const asUuid = (v) => (UUID.test(String(v || "").trim()) ? String(v).trim() : null);
@@ -16,7 +17,7 @@ const linkSchema = z.object({
   kind: z.enum(ASSET_KINDS).default("link"),
   categoryId: z.string().uuid().nullable().optional(),
   tags: z.union([z.array(z.string().max(30)), z.string().max(400)]).optional(),
-  externalUrl: z.string().url().max(600)
+  externalUrl: z.string().max(600).refine(isOptionalHttpUrl, HTTP_URL_MESSAGE)
 });
 
 function guard(e) {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const issueSchema = z.object({
   studentId: z.string().min(1).max(100),
@@ -8,7 +9,7 @@ const issueSchema = z.object({
   sourceType: z.enum(["manual", "oss", "contest", "roadmap"]).default("manual"),
   sourceRef: z.string().max(200).nullable().optional(),
   level: z.enum(["bronze", "silver", "gold"]).default("gold"),
-  evidenceUrl: z.string().url().max(500).nullable().optional()
+  evidenceUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE)
 });
 
 // Admin issues an achievement to a student in their tenant.
