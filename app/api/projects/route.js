@@ -3,10 +3,11 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { parseGitHubRepo, repoOwnershipOk, recordEvidence, recomputeScore } from "@/lib/ranking";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isOptionalHttpUrl } from "@/lib/content-safety";
 
 // repo_url is REQUIRED.
 //
-// It used to be `z.string().url().optional().nullable()`, and the score was
+// It used to be a bare optional URL string, and the score was
 // awarded at insert. So `POST /api/projects {"title":"x"}` returned a fully
 // credited project: +25 on the public board, with no rate limit, no per-owner
 // cap, and no requirement that any code existed. Ten requests, 250 points,
@@ -21,7 +22,7 @@ const createSchema = z
     title: z.string().min(3).max(120),
     description: z.string().max(2000).default(""),
     roadmapNodeId: z.string().optional().nullable(),
-    repoUrl: z.string().url("Link the GitHub repository for this project").optional().nullable(),
+    repoUrl: z.string().nullable().optional().refine(isOptionalHttpUrl, "Link the GitHub repository for this project"),
     repositoryId: z.string().uuid().optional().nullable(),
     tags: z.array(z.string().min(1).max(30)).max(8).default([])
   })
@@ -35,10 +36,10 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  const tid = tenant?.id ?? null;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   const rows = profile.role === "admin"
-    ? await sql`SELECT * FROM projects WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL ORDER BY created_at DESC LIMIT 100`
-    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} AND tenant_id = ${tid}::uuid ORDER BY created_at DESC LIMIT 100`;
+    ? await sql`SELECT * FROM projects WHERE tenant_id = ${tenant.id}::uuid ORDER BY created_at DESC LIMIT 100`
+    : await sql`SELECT * FROM projects WHERE owner_id = ${user.id} AND tenant_id = ${tenant.id}::uuid ORDER BY created_at DESC LIMIT 100`;
   return ok({ projects: rows });
 }
 
@@ -47,6 +48,7 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
 
   // Unbounded creation was the cheapest exploit in the system. The repository
   // requirement is the real control; this is the cost floor on top of it.
@@ -70,7 +72,7 @@ export async function POST(request) {
       SELECT id, full_name, html_url FROM repositories
       WHERE id = ${body.repositoryId}
         AND student_id = ${user.id}
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR tenant_id IS NULL)
+        AND tenant_id = ${tenant.id}::uuid
       LIMIT 1
     `;
     if (!repo) return fail("REPOSITORY_NOT_FOUND", "That repository is not in your linked GitHub account", 404);
