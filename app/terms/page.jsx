@@ -26,6 +26,7 @@ const PLACEHOLDERS = {
   legalEntity: "[LEGAL_ENTITY_NAME]",
   contact: "[TERMS_CONTACT]",
   governingLaw: "[GOVERNING_LAW_AND_VENUE]",
+  liabilityCap: "[LIABILITY_CAP]",
   published: "2026-10-15"
 };
 
@@ -36,7 +37,7 @@ export default function TermsPage() {
       title="Terms of use."
       lede="The rules for accounts, acceptable conduct, submitted work, moderation, credentials, availability, and changes. These are draft terms pending chapter review."
       published={PLACEHOLDERS.published}
-      sections={[{"id": "agreement", "title": "Agreement"}, {"id": "eligibility-and-accounts", "title": "Eligibility and accounts"}, {"id": "acceptable-use", "title": "Acceptable use"}, {"id": "submitted-work-and-moderation", "title": "Submitted work and moderation"}, {"id": "credentials-and-verification", "title": "Credentials and verification"}, {"id": "availability-changes-and-termination", "title": "Availability, changes, and termination"}, {"id": "governing-terms", "title": "Governing terms"}]}
+      sections={[{"id": "agreement", "title": "Agreement"}, {"id": "eligibility-and-accounts", "title": "Eligibility and accounts"}, {"id": "acceptable-use", "title": "Acceptable use"}, {"id": "submitted-work-and-moderation", "title": "Submitted work and moderation"}, {"id": "credentials-and-verification", "title": "Credentials and verification"}, {"id": "availability-changes-and-termination", "title": "Availability, changes, and termination"}, {"id": "no-warranty-and-liability", "title": "No warranty and limitation of liability"}, {"id": "governing-terms", "title": "Governing terms"}]}
     >
       <JsonLd
         data={webPageSchema({
@@ -103,6 +104,25 @@ export default function TermsPage() {
           <li>Accounts or content violating these terms may be restricted, suspended, or removed, with administrative audit where applicable.</li>
           <li>Material changes will be published here with an updated publication date.</li>
         </ul>
+
+        <h2 id="no-warranty-and-liability" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
+          No warranty and limitation of liability
+        </h2>
+        <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
+          To the maximum extent permitted by applicable law, the service is provided &ldquo;as is&rdquo; and
+          &ldquo;as available&rdquo; without warranties of any kind, whether express or implied, including
+          fitness for a particular purpose, accuracy of member-submitted content, or uninterrupted
+          availability. The operator is not liable for indirect, incidental, special, consequential,
+          exemplary, or punitive damages, or for lost data, opportunities, or credentials, arising from
+          use of or inability to use the service.
+        </p>
+        <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
+          Where liability cannot be excluded, the operator&rsquo;s total aggregate liability for all claims
+          relating to the service is limited to {PLACEHOLDERS.liabilityCap}. Nothing in these terms excludes
+          liability that applicable law does not permit to be excluded. Member-submitted work, external
+          links, and third-party services remain the responsibility of the member or provider that supplied
+          them.
+        </p>
 
         <h2 id="governing-terms" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>
           Governing terms
