@@ -14,21 +14,22 @@ export default async function AdminMentorsPage() {
   if (ctx.error === "FORBIDDEN") redirect("/student");
   if (ctx.error) redirect("/login?redirect=/admin/mentors");
   const { user, tenant, sql } = ctx;
-  const tid = tenant?.id ?? null;
+  if (!tenant?.id) redirect("/login?redirect=/admin/mentors");
+  const tid = tenant.id;
 
   const [stats] = await sql`
     SELECT
-      (SELECT COUNT(*)::int FROM mentors WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS mentors,
-      (SELECT COUNT(*)::int FROM mentors WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND available = true) AS available,
-      (SELECT COUNT(*)::int FROM mentor_applications WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND status = 'pending') AS pending,
-      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE (m.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS sessions
+      (SELECT COUNT(*)::int FROM mentors WHERE tenant_id = ${tid}::uuid) AS mentors,
+      (SELECT COUNT(*)::int FROM mentors WHERE tenant_id = ${tid}::uuid AND available = true) AS available,
+      (SELECT COUNT(*)::int FROM mentor_applications WHERE tenant_id = ${tid}::uuid AND status = 'pending') AS pending,
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid) AS sessions
   `;
 
   const mentors = await sql`
     SELECT m.*, p.name AS mentor_name, p.github_username,
            (SELECT COUNT(*)::int FROM mentor_sessions s WHERE s.mentor_id = m.user_id) AS session_count
     FROM mentors m LEFT JOIN profiles p ON p.user_id = m.user_id
-    WHERE m.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+    WHERE m.tenant_id = ${tid}::uuid
     ORDER BY m.available DESC, m.created_at DESC LIMIT 50
   `;
 
@@ -38,7 +39,7 @@ export default async function AdminMentorsPage() {
     LEFT JOIN mentors m ON m.user_id = s.mentor_id
     LEFT JOIN profiles pm ON pm.user_id = s.mentor_id
     LEFT JOIN profiles ps ON ps.user_id = s.student_id
-    WHERE (m.tenant_id = ${tid}::uuid OR m.tenant_id IS NULL OR s.mentor_id IS NULL)
+    WHERE m.tenant_id = ${tid}::uuid
     ORDER BY s.created_at DESC LIMIT 20
   `;
 
@@ -46,7 +47,7 @@ export default async function AdminMentorsPage() {
     SELECT a.*, p.name AS applicant_name, p.primary_domain, p.branch, p.year
     FROM mentor_applications a
     LEFT JOIN profiles p ON p.user_id = a.student_id
-    WHERE a.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+    WHERE a.tenant_id = ${tid}::uuid
     ORDER BY CASE WHEN a.status = 'pending' THEN 0 ELSE 1 END, a.created_at DESC
     LIMIT 20
   `;

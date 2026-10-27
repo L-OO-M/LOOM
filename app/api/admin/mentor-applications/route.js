@@ -9,10 +9,11 @@ export async function GET() {
   if (ctx.error === "FORBIDDEN") return fail("FORBIDDEN", "Admin access required", 403);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   const rows = await sql`
     SELECT a.*, p.name AS applicant_name FROM mentor_applications a
     LEFT JOIN profiles p ON p.user_id = a.student_id
-    WHERE a.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL
+    WHERE a.tenant_id = ${tenant.id}::uuid
     ORDER BY CASE WHEN a.status = 'pending' THEN 0 ELSE 1 END, a.created_at DESC
     LIMIT 50
   `;
@@ -30,6 +31,7 @@ export async function POST(request) {
   if (ctx.error === "FORBIDDEN") return fail("FORBIDDEN", "Admin access required", 403);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   let body;
   try {
     body = reviewSchema.parse(await request.json());
@@ -38,17 +40,17 @@ export async function POST(request) {
   }
   try {
     const updated = await reviewApplication({
-      sql, applicationId: body.id, tenantId: tenant?.id ?? null,
+      sql, applicationId: body.id, tenantId: tenant.id,
       reviewerId: user.id, decision: body.decision
     });
     await writeAudit({
-      sql, actorId: user.id, tenantId: tenant?.id,
+      sql, actorId: user.id, tenantId: tenant.id,
       action: body.decision === "approved" ? "approved_mentor" : "rejected_mentor_application",
       resource: "mentor_application", resourceId: body.id,
       after: { student: updated.student_id, decision: body.decision }
     });
     await notify({
-      sql, tenantId: tenant?.id, userId: updated.student_id,
+      sql, tenantId: tenant.id, userId: updated.student_id,
       type: "mentor_application",
       title: body.decision === "approved" ? "You're a mentor now" : "Mentor application reviewed",
       body: body.decision === "approved"

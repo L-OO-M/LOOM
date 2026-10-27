@@ -40,7 +40,8 @@ export default async function MentorshipPage() {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/mentorship");
   const { user, tenant, sql } = ctx;
-  const tid = tenant?.id ?? null;
+  if (!tenant?.id) redirect("/login?redirect=/student/mentorship");
+  const tid = tenant.id;
 
   const mentorRows = await sql`
     SELECT m.id, m.user_id, m.expertise, m.bio, m.created_at,
@@ -52,7 +53,7 @@ export default async function MentorshipPage() {
     FROM mentors m
     LEFT JOIN profiles p ON p.user_id = m.user_id
     LEFT JOIN user_profiles up ON up.user_id = m.user_id
-    WHERE (m.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND m.available = true
+    WHERE m.tenant_id = ${tid}::uuid AND m.available = true
     ORDER BY m.created_at DESC LIMIT 50
   `;
   const sessionRows = await sql`
