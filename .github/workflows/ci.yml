@@ -21,6 +21,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    # Read-only: the scanner only needs the checked-out files. No GITHUB_TOKEN,
+    # no write scopes, no org licence secret required (see note below).
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # gitleaks/gitleaks-action v2 is EOL on GitHub-hosted runners (Node 20 is
+      # removed in Sept 2026) and needs a paid/free org licence key. Use the
+      # official pinned gitleaks image instead: same engine, no licence, no
+      # third-party action surface. `--redact` keeps secret values out of logs;
+      # findings still name the rule, file, and line.
+      - name: Run gitleaks
+        run: >-
+          docker run --rm
+          -v "$PWD:/repo"
+          ghcr.io/gitleaks/gitleaks:v8.30.1
+          dir /repo --redact --verbose --no-banner --exit-code 1
+
   lint:
     name: Lint + encoding
     runs-on: ubuntu-latest

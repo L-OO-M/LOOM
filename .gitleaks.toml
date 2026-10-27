@@ -1,0 +1,20 @@
+# Extends the default gitleaks rules; nothing is disabled.
+#
+# The only additions are exact allowlists for values that are deliberately
+# fake and are asserted on by tests/env-secrets.test.js. They are matched by
+# full value, not by path, so a real credential committed anywhere (including
+# inside tests/) is still reported.
+title = "LOOM gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake fixtures from tests/env-secrets.test.js"
+regexTarget = "secret"
+regexes = [
+  '''(?i)^a-real-long-(webhook|credential)-secret(-value)?$''',
+  '''(?i)^explicit-credential-secret-value$''',
+  '''(?i)^fixture-client-secret-not-real-0+$''',
+  '''^0{40}$''',
+]
