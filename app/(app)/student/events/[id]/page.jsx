@@ -5,7 +5,8 @@ import { isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill, ActionLink } from "@/components/loom/primitives";
 import { env } from "@/lib/env";
-import { RegisterButton, FeedbackForm, MaterialForm, CheckInForm } from "../EventsBits";
+import { RegisterButton, FeedbackForm, MaterialForm } from "../EventsBits";
+import { EventCheckIn } from "@/components/events/EventCheckIn";
 import { displayState, isFull, nextStepFor, TYPE_LABEL, HISTORY_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -148,7 +149,7 @@ export default async function EventDetailPage({ params }) {
         {admin && (
           <section className="mt-10 border-t pt-6" style={{ borderColor: "var(--line)" }} aria-label="Check-in">
             <Meta>Door check-in · {attendees.filter((a) => a.status === "attended").length}/{attendees.length} attended</Meta>
-            <div className="mt-3"><CheckInForm eventId={event.id} /></div>
+            <div className="mt-3"><EventCheckIn eventId={event.id} /></div>
             <ul className="mt-3 max-h-64 space-y-1 overflow-auto text-sm">
               {attendees.map((a) => (
                 <li key={a.id} className="flex justify-between gap-2">

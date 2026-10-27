@@ -118,7 +118,7 @@ export default async function AdminEventsPage({ searchParams }) {
                       </span>
                       <div className="aled-copy">
                         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.4rem" }}>
-                          <Link href={`/student/events/${e.id}`} prefetch={false} className="aled-title" style={{ display: "inline" }}>{e.title}</Link>
+                          <Link href={`/admin/events/${e.id}`} prefetch={false} className="aled-title" style={{ display: "inline" }}>{e.title}</Link>
                           <span className={`aled-tag ${tone.className}`}>{tone.label}</span>
                           <span className="aled-meta">{e.event_type}{e.dept_name ? ` / ${e.dept_name}` : e.domain ? ` / ${e.domain}` : ""}</span>
                         </div>
@@ -139,7 +139,7 @@ export default async function AdminEventsPage({ searchParams }) {
                       </div>
                       <span className="aled-actions">
                         <span className="aled-meta">{e.id.slice(0, 8)}</span>
-                        <Link href={`/student/events/${e.id}`} prefetch={false} style={{ color: "var(--text-muted)", display: "inline-flex" }} aria-label={`Open ${e.title}`}><ArrowUpRight size={13} /></Link>
+                        <Link href={`/admin/events/${e.id}`} prefetch={false} style={{ color: "var(--text-muted)", display: "inline-flex" }} aria-label={`Open ${e.title}`}><ArrowUpRight size={13} /></Link>
                       </span>
                     </li>
                   );

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { writeAudit, notify } from "@/lib/auth-server";
+import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { signCertificate } from "@/lib/certificates";
 import { recordEvidence, recomputeScore } from "@/lib/ranking";
 
@@ -13,10 +14,17 @@ const attendSchema = z.object({
 // Check in an attendee by door code (or student id override), mark attended,
 // and issue their certificate exactly once.
 export async function POST(request, { params }) {
-  const ctx = await getRequestContext({ adminOnly: true });
-  if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
-  if (ctx.error === "FORBIDDEN") return fail("FORBIDDEN", "Admin access required", 403);
-  if (ctx.error) return fail(ctx.error, "Profile not found", 404);
+  // Admins and any live lead tier may run the door: `manage_event_ops` is the
+  // permission the lead console already uses for event operations. The tenant
+  // predicate below keeps the grant inside the caller's chapter.
+  let ctx;
+  try {
+    ctx = await requireCan("manage_event_ops");
+  } catch (e) {
+    const guard = toGuardResponse(e);
+    if (!guard) throw e;
+    return fail(guard.error.code, guard.error.message, guard.status);
+  }
   const { user, tenant, sql } = ctx;
   const { id } = await params;
   let body;

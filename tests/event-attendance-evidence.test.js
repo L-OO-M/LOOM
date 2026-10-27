@@ -17,12 +17,12 @@ function recorder(handler = () => []) {
   return sql;
 }
 
-async function load({ sql }) {
+async function load({ sql, role = "admin", userId = ADMIN }) {
   vi.resetModules();
   vi.doMock("@/lib/auth-server", () => ({
     getRequestContext: async () => ({
-      user: { id: ADMIN },
-      profile: { role: "admin" },
+      user: { id: userId },
+      profile: { role, memberships: [] },
       tenant: { id: TENANT },
       sql
     }),
@@ -96,5 +96,35 @@ describe("event check-in evidence", () => {
     expect(response.status).toBe(200);
     expect(recordEvidence).not.toHaveBeenCalled();
     expect(recomputeScore).not.toHaveBeenCalled();
+  });
+
+  it("lets a department lead run the door, not just an admin", async () => {
+    const sql = recorder((text) => {
+      if (text.startsWith("SELECT * FROM events")) {
+        return [{ id: EVENT, title: "Hack night", status: "upcoming", starts_at: "2020-01-01T00:00:00Z" }];
+      }
+      if (text.startsWith("SELECT * FROM event_registrations")) {
+        return [{ id: "reg-3", student_id: STUDENT }];
+      }
+      if (text.startsWith("INSERT INTO certificates")) {
+        return [{ verification_code: "CERT-3" }];
+      }
+      return [];
+    });
+    const { POST } = await load({ sql, role: "dept_lead", userId: "lead-1" });
+
+    const response = await POST(request(STUDENT), { params: Promise.resolve({ id: EVENT }) });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("refuses the door to a student", async () => {
+    const sql = recorder();
+    const { POST, recordEvidence } = await load({ sql, role: "student", userId: STUDENT });
+
+    const response = await POST(request(STUDENT), { params: Promise.resolve({ id: EVENT }) });
+
+    expect(response.status).toBe(403);
+    expect(recordEvidence).not.toHaveBeenCalled();
   });
 });

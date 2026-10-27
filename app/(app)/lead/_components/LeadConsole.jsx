@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { Meta } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
@@ -265,7 +266,7 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                 {data.workshops.map((w) => (
                   <li key={w.id} className="flex flex-wrap items-baseline gap-3 p-4 hover:bg-[var(--wash)] transition">
                     <span className="mono-tag w-24 shrink-0">{new Date(w.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text)" }}>{w.title}</span>
+                    <Link href={`/lead/events/${w.id}`} prefetch={false} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline" style={{ color: "var(--text)" }}>{w.title}</Link>
                     {w.capacity ? (
                       <span className="mono-tag shrink-0">{w.registered_count}/{w.capacity} seats</span>
                     ) : (
