@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MENTOR_BAR, meetsMentorBar, milestoneFor } from "@/lib/mentorship";
+import { MENTOR_BAR, earnedMilestoneKeys, meetsMentorBar, milestoneFor } from "@/lib/mentorship";
 
 describe("mentor bar", () => {
   it("requires both path progress and public proof", () => {
@@ -36,5 +36,17 @@ describe("milestone ladder", () => {
 
   it("handles empty catalogs without awarding", () => {
     expect(milestoneFor(3, 0)).toBeNull();
+  });
+
+  it("keeps every cumulative milestone the verified count supports", () => {
+    expect(earnedMilestoneKeys(0, 10)).toEqual([]);
+    expect(earnedMilestoneKeys(1, 10)).toEqual(["roadmap-first-step"]);
+    expect(earnedMilestoneKeys(5, 10)).toEqual(["roadmap-first-step", "roadmap-halfway"]);
+    expect(earnedMilestoneKeys(10, 10)).toEqual([
+      "roadmap-first-step",
+      "roadmap-halfway",
+      "roadmap-complete"
+    ]);
+    expect(earnedMilestoneKeys(3, 0)).toEqual([]);
   });
 });
