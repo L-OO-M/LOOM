@@ -6,6 +6,7 @@ import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/Workspace
 import { MarkCompleteButton } from "@/components/actions";
 import { NodeStudyList } from "./_components/NodeStudyList";
 import { isZenModeEnabled } from "@/lib/feature-flags";
+import { nextRoadmapNode } from "@/lib/roadmap";
 
 export default async function RoadmapNodePage({ params }) {
   const { nodeId } = await params;
@@ -29,10 +30,26 @@ export default async function RoadmapNodePage({ params }) {
   // resource shelf above is NOT behind that flag — it is the node's study
   // material and renders either way.
   const zenEnabled = await isZenModeEnabled(sql, tenant?.id);
-  const [next] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order > ${node.sort_order} ORDER BY sort_order ASC LIMIT 1`;
+  // The "next" link follows the same verified, prerequisite-aware walk as the
+  // roadmap map; a sort-order neighbour could point at a blocked node.
+  const domainNodes = await sql`SELECT id, sort_order FROM roadmap_nodes WHERE domain = ${node.domain} ORDER BY sort_order ASC`;
+  const domainIds = domainNodes.map((n) => n.id);
+  const domainEdges = domainIds.length
+    ? await sql`SELECT from_id, to_id, kind FROM roadmap_edges WHERE from_id = ANY(${domainIds})`
+    : [];
+  const verifiedRows = await sql`
+    SELECT node_id FROM student_roadmap_progress
+    WHERE student_id = ${user.id} AND status = 'completed' AND evidence_state = 'verified'
+  `;
+  const verifiedNodeIds = verifiedRows.map((r) => r.node_id);
+  const next = nextRoadmapNode({
+    nodes: domainNodes,
+    edges: domainEdges,
+    completedIds: [...verifiedNodeIds, node.id]
+  });
   const [prev] = await sql`SELECT * FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order < ${node.sort_order} ORDER BY sort_order DESC LIMIT 1`;
-  const [position] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE domain = ${node.domain} AND sort_order <= ${node.sort_order}`;
-  const [total] = await sql`SELECT COUNT(*)::int AS c FROM roadmap_nodes WHERE domain = ${node.domain}`;
+  const position = { c: domainNodes.filter((n) => (n.sort_order ?? 0) <= (node.sort_order ?? 0)).length };
+  const total = { c: domainNodes.length };
   const totalMins = resources.reduce((s, r) => s + (r.minutes || 0), 0);
   const completed = progress?.status === "completed";
   // "Completed" is a claim; only a lead-confirmed node is verified proof. Keep

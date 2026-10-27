@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
 import { orderDomains, resolveDomain, domainLabel } from "@/lib/domains";
+import { domainProgress, nextRoadmapNode } from "@/lib/roadmap";
 import { isZenModeEnabled } from "@/lib/feature-flags";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 
@@ -57,24 +58,18 @@ export default async function RoadmapPage({ searchParams }) {
   }
   const edges = allEdges.filter((e) => nodeIds.has(e.from_id) && nodeIds.has(e.to_id));
 
-  // Topological "next" inside this domain: first uncompleted node whose
-  // prerequisites are all done. Falls back to the first uncompleted node.
-  const doneSet = new Set(doneIds);
-  let nextId = null;
-  if (edges.length > 0) {
-    for (const n of nodes) {
-      if (doneSet.has(n.id)) continue;
-      const preds = edges.filter((e) => e.to_id === n.id).map((e) => e.from_id);
-      if (preds.every((p) => doneSet.has(p))) { nextId = n.id; break; }
-    }
-  }
-  if (!nextId) nextId = nodes.find((n) => !doneSet.has(n.id))?.id ?? null;
+  // Progress, the next step, and the domain rail all read the verified set.
+  // Claims still render as "pending review" below, but they are not progress:
+  // one unverified tick must not advance the map or the tier.
+  const verifiedSet = new Set(verifiedIds);
+  const nextNode = nextRoadmapNode({ nodes, edges, completedIds: verifiedIds });
+  const nextId = nextNode?.id ?? null;
 
   // Per-domain counts drive the switcher rail, so a member can see the shape of
   // every track before switching into it.
   const domains = orderDomains(available).map((d) => {
     const ids = new Set(allNodes.filter((n) => n.domain === d).map((n) => n.id));
-    const dDone = [...ids].filter((id) => doneSet.has(id)).length;
+    const dDone = [...ids].filter((id) => verifiedSet.has(id)).length;
     return { domain: d, total: ids.size, done: dDone };
   });
 
@@ -110,8 +105,9 @@ export default async function RoadmapPage({ searchParams }) {
     projectsByNode[p.roadmap_node_id].push(p);
   }
 
-  const doneCount = nodes.filter((n) => doneSet.has(n.id)).length;
-  const percent = nodes.length > 0 ? Math.round((doneCount / nodes.length) * 100) : 0;
+  const progress = domainProgress({ nodes, verifiedIds });
+  const doneCount = progress.done;
+  const percent = progress.percent;
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
@@ -120,14 +116,14 @@ export default async function RoadmapPage({ searchParams }) {
           kicker="Learn / your track, one domain at a time"
           title={`${domainLabel(domain)} roadmap.`}
           lede="Foundations to production — one topic at a time. Follow the path, branch into each topic's material, build something real, and the map fills in behind you."
-          meta={`${doneCount} of ${nodes.length} topics complete / ${percent}% of this track`}
+          meta={`${doneCount} of ${nodes.length} verified / ${percent}% of this track`}
           tone="ledger"
           art="/domains-art/domain-web.png"
           artAlt=""
           stats={[
-            { value: doneCount, label: "topics complete" },
+            { value: doneCount, label: "topics verified" },
             { value: nodes.length - doneCount, label: "still ahead" },
-            { value: verifiedIds.length, label: "verified by a lead" },
+            { value: doneIds.length - verifiedIds.length, label: "awaiting review" },
             { value: domains.length, label: "tracks open" }
           ]}
         />
