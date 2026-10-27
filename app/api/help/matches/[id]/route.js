@@ -49,9 +49,19 @@ export async function PATCH(request, { params }) {
 export async function GET(_, { params }) {
   let ctx;
   try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
-  const { sql, tenant } = ctx;
-  // Tenant-scoped: help_matches carries tenant_id NOT NULL.
-  const [m] = await sql`SELECT * FROM help_matches WHERE id=${params.id}::uuid AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`;
+  const { user, sql, tenant } = ctx;
+  const tid = tenant?.id ?? null;
+  // Tenant scope alone is not authorization: every member of the chapter could
+  // read any other member's match by id. Join the signal so participation is
+  // checked in the same query, and never return the row before it is proven.
+  const [m] = await sql`
+    SELECT m.* FROM help_matches m
+    JOIN help_signals s ON s.id = m.signal_id AND s.tenant_id = m.tenant_id
+    WHERE m.id = ${params.id}::uuid
+      AND m.tenant_id = ${tid}::uuid
+      AND (s.user_id = ${user.id} OR m.helper_id = ${user.id})
+    LIMIT 1
+  `;
   if (!m) return fail("NOT_FOUND", "Not found", 404);
   return ok({ match: m });
 }
