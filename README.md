@@ -9,15 +9,15 @@ The project follows a documentation-first rule: product and architecture docs de
 This repository contains:
 
 - A complete documentation spine in `docs/`
-- A JavaScript Next.js App Router app with Supabase Auth (single `/login`, role-based landing: students → `/student`, leads → `/lead`, admins → `/admin`)
+- A JavaScript Next.js App Router app with Auth0 as the login front door and Supabase Auth as the legacy/E2E fallback (single `/login`, role-based landing: students → `/student`, leads → `/lead`, admins → `/admin`)
 - URL-addressable student workspace: Home, Learn (roadmap list/detail, resources list/detail), Build (projects list/new/detail, GitHub, open source), Prove (credentials/certificates, contests list/detail + register/submit, leaderboard), Connect (mentorship, community forums/wiki/snippets, events), Discover (people, network/chapters), insights, notifications, settings, privacy, public profile
 - URL-addressable lead console (`/lead`): roster, workshops, succession flags for `dept_lead` / `vertical_lead`
 - URL-addressable admin workspace: overview, students (+detail/scoped role assign/bulk), mentors, departments, roadmaps, resources, OSS, community, contests, events, projects, verification, analytics, finance, reports, handover, flags, FAQ, audit, settings
 - Public site: landing, `/about`, `/faq`, `/events`, `/domains`, `/domains/[slug]`
 - Tracked SQL migrations in `load/migrations/` applied via `node load/migrate.js`
-- Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (27 actions, 6 levels)
+- Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (29 actions, 6 levels)
 - Tenant resolution, API envelopes, raw-SQL data access (`lib/db.js`, pooler-safe), and HMAC-verified GitHub webhook processing (opt-in, paused by default)
-- Vitest (24 files, 172 cases) and Playwright (80 specs x chromium + mobile) coverage
+- Vitest (80 test files) and Playwright (10 spec files, run against chromium + mobile projects) coverage
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ Then open `http://localhost:3000`.
 
 ### First-time setup
 
-1. Visit `/register` to create your Supabase Auth account
+1. Visit `/register` to create an account through Auth0 (the legacy Supabase form remains available)
 2. Sign in at `/login`, then visit `/setup` and click **Claim admin** (works only while no platform admin exists)
 3. Admins manage students/content at `/admin/*`; students work at `/student/*`
 
@@ -79,8 +79,8 @@ npm run dev           # Development server
 ## Architecture
 
 ```
-Student → Supabase Auth → middleware → student layout → Next.js App → Supabase Postgres
-Admin   → Supabase Auth → middleware → admin layout (role check) → Next.js App → Supabase Postgres
+Student → Auth0 (Supabase Auth fallback) → middleware → student layout → Next.js App → Supabase Postgres
+Admin   → Auth0 (Supabase Auth fallback) → middleware → admin layout (role check) → Next.js App → Supabase Postgres
 GitHub  → Webhook (HMAC) → Route Handler → github_events → student_daily_activity
 ```
 

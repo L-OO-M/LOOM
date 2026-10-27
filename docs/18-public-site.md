@@ -45,11 +45,10 @@ Public routes resolve the tenant from the host (same as `lib/tenant.js resolveTe
 
 ## SEO surfaces
 
-- Root pp/layout.jsx owns the title template (%s | LOOM), description, keywords, OG defaults (/loom-og.png), and summary_large_image twitter card; NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION fills the Search Console meta tag when set.
+- Root app/layout.jsx owns the title template (%s | LOOM), description, keywords, OG defaults (/loom-og.png), and summary_large_image twitter card; NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION fills the Search Console meta tag when set.
 - Public pages (/about, /faq, /events, /domains, /domains/[slug] via generateMetadata) each set title + description + absolute canonical (lib/seo.js canonicalFor). The landing page is a client component, so it inherits root metadata + sitemap canonical.
-- pp/sitemap.js (daily revalidate: 5 public routes + active department slugs from the DB, degrades to static routes when the DB is unreachable) and pp/robots.js (allow public + /verify/, disallow /api/, app workspaces, auth, setup).
-- Private areas (/student, /admin, /lead layouts, (auth) group, /setup) all emit 
-oindex, nofollow.
+- app/sitemap.js (daily revalidate: 5 public routes + active department slugs from the DB, degrades to static routes when the DB is unreachable) and app/robots.js (allow public + /verify/, disallow /api/, app workspaces, auth, setup).
+- Private areas (/student, /admin, /lead layouts, (auth) group, /setup) all emit noindex, nofollow.
 - Structured data via components/seo/JsonLd.jsx: Organization + WebSite on /, FAQPage on /faq (DB-driven), ItemList of departments on /domains.
 - One <h1> per public page (PageHero owns it; empty-state branches are mutually exclusive); department cards use <h2>. All internal navigation uses <Link prefetch={false}> (pooler-friendly); the only raw <a href> targets are API file downloads, which must not client-navigate.
 

@@ -5,7 +5,7 @@ Auth: Auth0 session cookie (primary) or Supabase session cookie (legacy/E2E fall
 Tenant: derived server-side from the caller's profile. `adminOnly` routes return `403 FORBIDDEN` for students.
 Governance: non-founder leadership is term-bound; an ended term is treated as `core` at request time. Scoped routes require the record's vertical/department to be owned by the caller (see [Governance](23-governance-and-terms.md)).
 
-Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/webhook` (HMAC `x-hub-signature-256`), `POST /api/admin/claim-first`, `GET /api/admin/check-setup`.
+Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/webhook` (HMAC `x-hub-signature-256`), `POST /api/admin/claim-first`, `GET /api/admin/check-setup`, `GET /api/auth/providers`, `GET /api/auth/state`.
 
 ## Core
 
@@ -13,12 +13,14 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 |--------|-------|------|-------|
 | GET/PUT | `/api/profile` | user | own profile |
 | GET | `/api/roadmap` | user | nodes + my progress |
-| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Rate limited. |
+| POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Re-claiming or reopening a previously verified node revokes `roadmap_done` and recomputes the score. Rate limited. |
 | GET | `/api/resources` | user | curated library |
 | GET/POST | `/api/projects` | user | create: title, description, roadmapNodeId?, **`repositoryId` (preferred; a repo row from your linked GitHub account) or `repoUrl` (github.com/owner/repo)**, tags. Ownership is proven by the OAuth `github_repo_grants` row when available; otherwise the legacy owner-handle match is accepted but stays `provisional` — **scores nothing** until a signed delivery proves activity or a lead confirms it. One claim per repo. Rate limited. |
 | GET/PATCH | `/api/projects/[id]` | owner/admin | PATCH cannot set `evidence_state`/`verified_by`/`verified_at`. Changing `repoUrl` returns the claim to provisional. Archiving withdraws the standing. |
 | GET/POST | `/api/admin/ranking` | admin | the evidence review queue: GET lists provisional node/project claims; POST `{kind, id, decision:"verified"\|"rejected"}`, or `clearAllForStudent:true` to reverse every unverified claim for one student. Requires `verify_evidence` (admin/platform_admin). |
-| GET/POST | `/api/contests` | user/admin-create | register + submit flows |
+| GET/POST | `/api/contests` | user | list open contests / register (`{contestId}`) or submit (`?action=submit` with `{contestId, url?, note?}`) |
+| GET/POST/PATCH | `/api/contests/manage` | lead+ (`manage_contests`) | lead/admin contest manager: list with registration/submission counts, create, change status |
+| GET | `/api/contests/export` | lead+ (`manage_contests`) | CSV of registrations for `?contestId=` (tenant-scoped) |
 | GET/POST | `/api/mentorship` | user | request/list sessions |
 | GET/POST | `/api/mentorship/apply` | user | generational loop: list my applications / apply (evidence-checked eligibility; 422 with reasons when not yet eligible) |
 | GET/POST | `/api/admin/mentor-applications` | admin | review queue / approve (promotes to mentor) or reject |
@@ -26,6 +28,8 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/notifications` | user | |
 | POST | `/api/notifications/[id]/read` | user | |
 | GET/POST/DELETE | `/api/github` | user | link username (POST), unlink own connection (DELETE), list repos + 120-day activity + `ingestionPaused` + `lastEventAt` (GET) |
+| GET | `/api/github/oauth/start` | user | starts the repository-grant flow: signs state, sets the short-lived state cookie, then redirects to GitHub |
+| GET | `/api/github/oauth/callback` | user | OAuth callback: verifies state/nonce, exchanges the code, stores the sealed token and repo grants, then redirects back to the student GitHub page |
 | GET/POST | `/api/github/repos` | user | OAuth repo picker: `GET ?page=1..5` lists repositories the token can push to (cached in `repositories`, marks `alreadyLinked`); `POST {name, description?, isPrivate?}` creates one on the student's account and audits `created_github_repo` (5/min) |
 | POST | `/api/github/sync` | user | refresh cached repository metadata from GitHub (up to 3 pages / 300 repos; 3/min) |
 | POST | `/api/github/webhook` | service | HMAC-signed GitHub delivery: stores the event, aggregates into `student_daily_activity`, auto-verifies merged OSS PRs and submitted `pull_request_review` claims. Also reachable at the `/api/webhook` alias. |
@@ -38,7 +42,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | POST | `/api/opensource/projects` | admin | curate `{owner, repo, difficulty, primaryDomain}` — live GitHub fetch; 404 if repo missing; upserts by canonical GitHub URL and refreshes metadata (`metadata_synced_at`) |
 | GET | `/api/opensource/contributions` | user | my claims + badges |
 | POST | `/api/opensource/contributions` | user | claim PR/issue URL in a tracked repo → `claimed` (20/min; body `contributionType` pr\|issue\|review, audited). The server derives the type from the URL, stores a canonical URL, and rejects mismatches (`TYPE_MISMATCH`) or repo/issue combinations that cannot be verified. Duplicate canonical URLs upsert instead of inflating badges. |
-| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — awards badges + achievements + notify |
+| PATCH | `/api/opensource/contributions/[id]` | admin | `{status: verified\|rejected}` — verify awards ledger evidence, badges, achievements and notification. Reject revokes `oss_verified` (canonical and legacy raw URL), recomputes the score, removes badges/achievements no longer earned, and returns `{granted, revoked}` |
 
 ## Chapters & network
 
@@ -71,7 +75,7 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | GET/POST | `/api/community/threads` | list (q, domain, sort, state=all/unsolved/unanswered) / create (10/min) |
 | GET/POST/PATCH | `/api/community/threads/[id]` | detail+replies (read-only, no view bump) / reply (notifies author at `/student/community/forums/[id]`) / solve (author, notifies replier) or pin (admin) |
 | POST | `/api/community/votes` | toggle vote thread/reply/snippet (60/min) |
-| POST | `/api/community/flags` | flag thread/reply for moderation (reason: spam/abuse/off-topic; repeat flags don&apos;t recount) |
+| POST | `/api/community/flags` | flag a thread or reply in the caller&apos;s tenant (reason: spam/abuse/off-topic; repeat flags don&apos;t recount; foreign or missing targets return 404 before any flag is written) |
 | GET/POST | `/api/community/wiki` | search / create page |
 | GET/PATCH | `/api/community/wiki/[slug]` | detail+edits (read-only, no view bump) / suggest (student) · apply/review (admin) |
 | GET/POST | `/api/community/snippets` | search (q matches title/description/language — never code bodies) / share (screened for abuse) |
@@ -83,7 +87,7 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | Method | Route | Notes |
 |--------|-------|-------|
 | GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced). POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and **rejects any event whose start falls inside the 20 Nov – 20 Dec 2026 relaxation window** (`RELAXATION_WINDOW`, 409). |
-| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel / feedback |
+| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount) / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
 | GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. |
 | GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. |
@@ -95,7 +99,7 @@ is restricted to the holder or an admin of the issuing chapter and returns
 
 ## Errors & limits
 
-Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
+Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `REPORT_LOCKED` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
 Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-create 10/min, webhook 120/min per tenant).
 
 ## Org, leads & operations (added after the initial reference)
@@ -146,7 +150,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
 | GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
 | POST/DELETE | `/api/volunteers/[id]/signup` | user | take a seat (live capacity check, idempotent) / release it |
-| GET/POST | `/api/reports` | lead+ | list (own departments for heads, own vertical for VLs, all for admins) + auto-compile a monthly draft from live counts |
+| GET/POST | `/api/reports` | lead+ | list (own departments for heads, own vertical for VLs, all for admins) + auto-compile a monthly draft from live counts (submitted rows return `REPORT_LOCKED`) |
 | GET/PATCH | `/api/reports/[id]` | lead+ | read / edit-submit (`submitted` is terminal; only admin reopens); VL restricted to reports in their vertical |
 | GET | `/api/reports/export` | VL/admin | semester/annual JSON export of submitted reports + live counts (`export_reports`; VL scoped to own vertical) |
 | GET/POST | `/api/handover` | admin | continuity checklist list / create |
@@ -174,7 +178,7 @@ can be nominated.
 | GET | `/api/help/signals` | — | My signals, newest first |
 | POST | `/api/help/match` | 5/min | Nominate helpers for **my own** signal `{signal_id}` (or `{kind, ref_id}`). Notifies each match and flips the signal to `matched`. Returns `helpers: []` with a message when nobody is available — not an error |
 | PATCH | `/api/help/profile` | — | My helper profile `{available, topics?}`. This is the opt-in/opt-out switch |
-| GET | `/api/help/matches/[id]` | — | One match, tenant-scoped |
+| GET | `/api/help/matches/[id]` | — | One match, tenant-scoped and participant-only (signal owner or nominated helper) |
 | PATCH | `/api/help/matches/[id]` | — | `{status: accepted\|declined\|resolved\|closed}`. Only the signal owner or the nominated helper. `resolved` also resolves the signal. Notifies the other party; on `accepted` the notification links to the accepter's profile (the only channel the two share) |
 
 Matching is deterministic and reads stored aggregates only
@@ -207,6 +211,8 @@ is single-use, expires in 24h, and only its SHA-256 hash is stored.
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
+| GET | `/api/auth/providers` | public | capability probe for the auth screens: whether Supabase email and GitHub providers are enabled (`null` = could not check) |
+| GET | `/api/auth/state` | public | lightweight session probe for client components: `{signedIn, email}` from either front door, never a profile or tenant |
 | POST | `/api/auth/register` | public, 5/hour/IP | creates the Supabase user; `confirmationRequired` is reported, but no confirmation is enforced |
 | POST | `/api/auth/login` | public, 8/10 min/IP | server-proxied so the app limiter sees attempts |
 | GET | `/api/auth/security` | session | Auth0 sign-in methods and whether a database password is linked. `managementConfigured:false` means the deployment cannot add a password yet |

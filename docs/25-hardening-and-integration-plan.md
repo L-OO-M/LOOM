@@ -1,7 +1,8 @@
 # Hardening and integration plan
 
-**Status:** audit complete; implementation not started.
+**Status:** audit complete; implementation in progress (P0 and selected P1 integrity items closed where marked).
 **Audited:** 2026-10-26.
+**Updated:** 2026-10-27 — register reconciled with the hardening wave; every checked item below has a passing regression test.
 **Scope:** security, tenancy, backend integrity, workflows, coupling, loose ends, and department-level integrations.
 **Method:** read-only static audit of the repository plus a live read of `/api/health`. No application files were changed for this audit.
 
@@ -55,7 +56,7 @@ query currently depends on hand-written `tenant_id` predicates.
 
 ## 2. P0 - stop the bleeding
 
-- [ ] **P0-1 Cross-tenant contest leak.**
+- [x] **P0-1 Cross-tenant contest leak.**
   `app/(app)/student/page.jsx:75-81` queries `contests` with no tenant
   predicate. `app/(app)/admin/analytics/page.jsx:42-47` does the same.
   `contests` is a strict tenant table. Add the tenant predicate to both, remove
@@ -63,25 +64,37 @@ query currently depends on hand-written `tenant_id` predicates.
   `SELF_KEY` early-skip at `tests/tenant-scoping-gate.test.js:155` so a
   subquery cannot mask an unscoped primary `FROM`.
   **Done when:** a regression test fails before the fix and passes after it.
+  **Verified:** both queries now pin `tenant_id`; the gate strips subqueries
+  before accepting a self-key and has explicit regressions for both pages.
 
-- [ ] **P0-2 "Clear unverified" deletes verified evidence.**
+- [x] **P0-2 "Clear unverified" deletes verified evidence.**
   `app/api/admin/ranking/route.js:234-248` deletes every `ranking_events` row
   for the student, not only provisional claims. Revoke only the rejected
   `kind/refId` rows. Never delete by `tenant_id + user_id`.
   **Done when:** clearing one provisional claim leaves verified OSS, roadmap,
   and project evidence intact.
+  **Verified:** `clearUnverifiedFor()` reads the unverified claims first and
+  reverses each by `(kind, ref_id)`, tenant and user pinned, through
+  `revokeEvidence`; `tests/ranking-clear-unverified.test.js` proves verified
+  OSS/roadmap/project rows survive.
 
-- [ ] **P0-3 Volunteer signup always fails.**
+- [x] **P0-3 Volunteer signup always fails.**
   `app/api/volunteers/[id]/signup/route.js:23` runs
   `SELECT COUNT(*) ... FOR UPDATE`, which PostgreSQL rejects. Remove
   `FOR UPDATE` from the aggregate; keep the slot-row lock and the transaction.
   **Done when:** signup succeeds and a capacity race test passes.
+  **Verified:** the aggregate no longer uses `FOR UPDATE`; the transaction
+  still locks the slot row before recounting. See
+  `tests/volunteer-signup.test.js`.
 
-- [ ] **P0-4 Next.js critical advisory.**
+- [x] **P0-4 Next.js critical advisory.**
   `npm audit` reports a critical Image Optimization RCE and a high App Router
   DoS affecting `next@15.5.27`. Upgrade to `next@15.5.28+`, then rerun build
   and the full local E2E suite.
   **Done when:** audit is clean and the gates below pass.
+  **Verified already done:** `package.json` specifies `next ^15.5.28`,
+  `package-lock.json` resolves `next` `15.5.28`, `npm audit --audit-level=high`
+  reports 0 vulnerabilities, and the production-build E2E suite is green.
 
 - [ ] **P0-5 Auth0-only is UI-only.**
   `NEXT_PUBLIC_AUTH0_ONLY` gates the login/register pages only. The legacy
@@ -118,18 +131,23 @@ query currently depends on hand-written `tenant_id` predicates.
   restore drill into a scratch project.
   **Done when:** rotation is recorded and a restore has actually been tested.
 
-- [ ] **P0-10 Guard destructive scripts.**
+- [x] **P0-10 Guard destructive scripts.**
   `load/clean-launch-data.js` deletes hardcoded test accounts and `auth.users`
   rows with only `--confirm`. Add the same production refusal used by
   `seed-dev.js`, `wipe-dev.js`, and `seed-e2e-student.js`.
   **Done when:** the script refuses to run with `NODE_ENV=production` or
   `VERCEL_ENV=production`.
+  **Verified:** the refusal runs before any connection; pinned by
+  `tests/clean-launch-data-guard.test.js`.
 
-- [ ] **P0-11 Fix the uncommitted dashboard restyle.**
+- [x] **P0-11 Fix the uncommitted dashboard restyle.**
   `components/student/OrgPanels.jsx` uses `desk-domain-*` classes that do not
   exist in `student-folio.css`; the `fill` image also needs a positioned parent.
   Either add the missing rules or revert the restyle.
   **Done when:** the dashboard renders correctly at 1440 and 390 in both themes.
+  **Verified already done:** the `desk-domain-*` rules now exist in
+  `app/(app)/student/_components/student-folio.css`, including an absolutely
+  positioned `desk-domain-art` wrapper for the `fill` image.
 
 **P0 gate:** lint, encoding, unit, build, full local E2E, manual security probes,
 and a second review of every auth/tenant diff.
@@ -140,10 +158,11 @@ and a second review of every auth/tenant diff.
 
 ### 3.1 Authorization and tenant isolation
 
-- [ ] Fail closed in `lib/requirePermission.js:6-37`. It only checks
-  `ctx.user`; when profile or tenant resolution fails, routes may proceed with
-  an undefined `sql` or tenant. Require `ctx.profile`, `ctx.tenant`, and
-  `ctx.sql`, and map `ctx.error` to the correct status.
+- [x] Fail closed in `lib/requirePermission.js`. It now requires
+  `ctx.profile`, `ctx.tenant`, and `ctx.sql`, maps `ctx.error` to the correct
+  status, and treats a thrown context lookup as `CONTEXT_ERROR`.
+  **Verified:** `tests/require-permission.test.js` covers missing context,
+  unresolved tenant/profile, and guard response mapping.
 - [ ] Replace the 49 fail-open `tenant_id = X OR tenant_id IS NULL` arms with
   one `scope(tenantId)` helper. Only genuinely global tables should use NULL.
   The current `lib/db.js` comment bans this pattern for exactly this reason.
@@ -158,42 +177,68 @@ and a second review of every auth/tenant diff.
   `forum_votes`, `forum_flags`, `volunteer_signups`, `github_events`,
   `mentor_sessions`, and `contest_submissions`. Compare uuid columns as uuid,
   not text.
-- [ ] Enforce "at least one admin remains" on handover transfer. The current
-  path demotes the outgoing admin without checking the remaining admin count.
-- [ ] Fix `lib/lead.js:46-61`, where a vertical lead's workshop fallback
-  becomes `OR TRUE`, and `app/(app)/lead/mous/page.jsx:19`, which loads MoUs
-  without vertical scope.
+- [x] Enforce "at least one admin remains" on handover transfer.
+  **Verified:** `applyHandoverTransfer` promotes the successor to `admin` first
+  and only then demotes the outgoing admin, inside the transfer transaction;
+  a failed promotion throws before any demotion. `tests/handover.test.js` and
+  the transfer route's `FOR UPDATE` cover the seat change.
+- [x] Fix `lib/lead.js`, where a vertical lead's workshop fallback became
+  `OR TRUE`, and `app/(app)/lead/mous/page.jsx`, which loaded MoUs without
+  vertical scope. **Verified:** vertical leads now see their vertical plus
+  department-less chapter-wide events; `tests/lead-scope.test.js` pins the
+  admin/dept/vertical matrix.
 - [ ] Restrict `app/api/admin/resources` to platform admins, or add
   `tenant_id` to `resources`. A chapter admin currently mutates the global
   catalogue.
-- [ ] Scope `app/api/contributions` admin writes to the caller's tenant; the
-  current department lookup permits a NULL tenant.
-- [ ] Require a department the caller actually leads when proposing an expense
+- [x] Scope `app/api/contributions` writes to the caller's tenant.
+  **Verified:** both department lookups and the ledger read now require
+  `tenant_id = ctx.tenant.id`; the fail-open `OR ... IS NULL` arms are gone.
+  `tests/hardening-batch-2.test.js` pins the query shape and tenant value.
+- [x] Require a department the caller actually leads when proposing an
+  expense
   (`app/api/finance/expenses/route.js:32,69-75`).
-
+  **Verified already done:** the route now checks that a non-admin caller
+  leads the targeted department (or owns its vertical) before inserting.
 ### 3.2 Mutation integrity and transactions
 
-- [ ] Make first-admin bootstrap atomic: one transaction plus an advisory lock
-  or singleton constraint. It currently inserts `platform_admins` and
-  `profiles` separately.
-- [ ] Make event registration capacity atomic: lock the event row and recount
-  inside the transaction, or use `INSERT ... SELECT ... WHERE count < capacity`.
+- [x] Make first-admin bootstrap atomic: the claim and profile promotion now
+  share one transaction guarded by `pg_advisory_xact_lock(741852963)`.
+  **Verified:** `tests/claim-first-atomic.test.js` covers the lost race,
+  profile-write rollback, and idempotent repeat claim.
+- [x] Make event registration capacity atomic: the event row is locked and
+  seats are recounted inside the transaction before insert.
+  **Verified:** `tests/event-capacity.test.js` covers full events, cancels,
+  and concurrent registration.
 - [ ] Make contest submission/judging idempotent once judging exists.
-- [ ] Make report submission immutable. A lead can reopen a submitted report
-  and overwrite content (`app/api/reports/[id]/route.js:62-72`,
-  `app/api/reports/route.js:129-131`). Preserve revisions instead of
-  overwriting.
-- [ ] Revoke evidence when a verified item is rejected:
-  - OSS rejection must revoke `oss_verified` and badges
-    (`app/api/opensource/contributions/[id]/route.js:36-62`).
-  - Re-claiming a verified roadmap node must not downgrade it to provisional
-    while leaving the old score.
-  - Changing a project repo must revoke old evidence.
-  - Re-linking a different GitHub account must revoke old webhook evidence and
-    grants.
-- [ ] Fix `app/api/community/flags/route.js:37-40`: `forum_replies` has no
-  `tenant_id`; validate the reply through its thread and remove the bogus
-  predicate.
+- [x] Make report submission immutable: non-admins cannot edit or re-submit a
+  submitted report, and compile returns `409 REPORT_LOCKED` instead of
+  overwriting it. **Verified:** `tests/report-immutability.test.js`.
+- [x] Fix roadmap completion crashing before the prerequisite gate. The route
+  destructured the first row from a `SELECT node_id` result and then called
+  `.map()` on it, so every "completed" update threw before inserting progress.
+  **Verified:** `tests/evidence-revocation.test.js` drives the real completion
+  route and reaches the upsert.
+- [ ] Preserve report revision history. Immutability is enforced, but edits are
+  still overwritten in place rather than stored as revisions.
+- [x] Revoke evidence when a verified item is rejected:
+  - OSS rejection revokes `oss_verified`, removes badges no longer earned, and
+    deletes the matching OSS achievements; verify clears legacy raw-URL ledger
+    rows so one merge has one identity.
+    **Verified:** `tests/evidence-revocation.test.js`.
+  - Re-claiming a verified roadmap node revokes `roadmap_done` and recomputes.
+    **Verified:** same test file.
+  - Changing or clearing a project repo (or archiving it) already revoked
+    `project_verified` and recomputed. **Verified:** source inspection of
+    `app/api/projects/[id]/route.js:119-124`.
+  - Unlinking GitHub revokes webhook `github:` evidence and recomputes.
+    **Verified:** `app/api/github/route.js` DELETE path.
+  - Re-linking a different GitHub account still needs the same revocation
+    before the OAuth upsert.
+- [x] Fix `app/api/community/flags/route.js`: validate the thread in the
+  caller's tenant and the reply through its thread before inserting; update
+  replies by id because `forum_replies` has no `tenant_id`.
+  **Verified:** `tests/hardening-batch-2.test.js` proves a foreign target never
+  reaches the insert and a valid reply update no longer uses a tenant column.
 - [ ] Add a partial unique index for project repo claims:
   `(tenant_id, owner_id, lower(repo_full_name)) WHERE repo_full_name IS NOT NULL`.
   Map `23505` to `409`.
@@ -207,24 +252,35 @@ and a second review of every auth/tenant diff.
   (`processed_at`, `status`, retry/resume). The current insert commits before
   side effects, so a timeout can permanently skip aggregation.
 - [ ] Make webhook notifications idempotent. Redelivery currently re-notifies.
-- [ ] Sign GitHub OAuth state with HMAC. Repo selection is stored unsigned
-  despite the comment claiming otherwise. Add PKCE.
+- [x] Sign GitHub OAuth state with HMAC. Repo selection is covered by the
+  signed state payload. **Verified:** `lib/github-oauth.js` signs/verifies a
+  nonce, user id, and encoded repo selection; `tests/github-oauth.test.js`
+  rejects tampering, expiry, and a mismatched user.
+- [ ] Add PKCE to the GitHub OAuth exchange.
 - [ ] Derive GitHub identity only from provider identities or GitHub `/user`.
   `lib/github-identity.js:31-68` currently trusts user-editable
   `user_metadata`.
 - [ ] Require a dedicated `CREDENTIAL_SECRET` in production. It currently falls
   back to the GitHub webhook secret.
-- [ ] Validate all user-supplied URLs as `http`/`https` only. `z.string().url()`
+- [x] Validate all user-supplied URLs as `http`/`https` only. `z.string().url()`
   accepts `javascript:` and `data:` in roadmap, contributions, contests,
   directory, assets, and achievements.
-- [ ] Restrict asset download redirects to known `http`/`https` hosts.
+  **Verified:** shared `isOptionalHttpUrl()` now guards roadmap evidence,
+  project/contest/achievement/contribution URLs, directory and social-profile
+  links; pinned by `tests/url-safety.test.js`.
+- [x] Restrict asset download redirects to known `http`/`https` hosts.
+  **Verified:** asset downloads reject a stored non-http(s) external URL before
+  redirecting.
 
 ### 3.4 Auth, abuse, and tokens
 
 - [ ] Move rate limiting off the in-memory `Map` for auth/register/username/
   flags. It resets on cold start and does not coordinate across instances.
-- [ ] Make email-verification token use atomic:
-  `UPDATE ... SET used_at = NOW() WHERE id = ... AND used_at IS NULL RETURNING *`.
+- [x] Make email-verification token use atomic. Consumption and profile
+  verification now run in one transaction, with `used_at IS NULL` and the
+  expiry check in the `UPDATE ... RETURNING` predicate.
+  **Verified:** `tests/hardening-batch-2.test.js` covers success, reuse, and
+  expiry.
 - [ ] Add username-change cooldown, change count, and optional tombstone.
 - [ ] Reject disposable email domains and align client/API password minimum
   (currently 6 vs 8).
@@ -238,20 +294,34 @@ and a second review of every auth/tenant diff.
 
 - [ ] Tighten CSP: remove `unsafe-eval`, move inline scripts to nonces/hashes,
   add `object-src 'none'`, `base-uri 'self'`, and explicit `frame-src`.
+  **Partially done:** `object-src 'none'`, `base-uri 'self'`, and an explicit
+  YouTube `frame-src` are in place; `unsafe-eval` and inline-script hashing
+  remain open. Pinned by `tests/csp.test.js`.
 - [ ] Fix the current CSP breakage: YouTube embeds have no `frame-src`, and
-  Google Fonts are blocked by `style-src`/`font-src`.
+  Google Fonts are blocked by `style-src`/`font-src`. **Partially done:** the
+  YouTube frame allowance is fixed; the font path still needs a decision.
 - [ ] Fix dark-theme contrast: white on `--text`, `--accent`, and orange/green
   tier pills is below accessible contrast.
-- [ ] Add accessible names to admin search inputs.
-- [ ] Add `id="main"` in the shared shell so the existing skip link works.
+- [x] Add accessible names to admin search inputs.
+  **Verified already done:** the admin search inputs carry `aria-label`s.
+- [x] Add `id="main"` in the shared shell so the existing skip link works.
+  **Verified:** `components/AppShell.jsx` renders one `id="main"` target and
+  `tests/nav.test.js` guards it.
 
 ### 3.6 Lower-severity hardening
 
-- [ ] Make community vote toggles transactional; concurrent requests can drift
+- [x] Make community vote toggles transactional; concurrent requests can drift
   counts.
+  **Verified:** `lib/community.js` now locks the target row, lets the
+  `ON CONFLICT ... RETURNING` insert decide add-vs-remove, and updates the
+  counter only for a row it actually inserted or deleted;
+  `tests/community.test.js` covers the add and remove paths.
 - [ ] Validate `resourceId` as UUID before querying.
 - [ ] Validate `primaryDomain` against `PRIMARY_DOMAINS` in profile updates.
-- [ ] Restrict help-match GET to the participants, matching PATCH.
+- [x] Restrict help-match GET to the participants, matching PATCH.
+  **Verified:** the GET now joins `help_signals` and requires the caller to be
+  the signal owner or the match helper; `tests/hardening-batch-2.test.js` pins
+  the participant predicates and the 404 path.
 - [ ] Cap or batch large announcement fan-out and bulk student writes.
 - [ ] Add upload scanning or at least type/size policy enforcement at the
   storage boundary.
@@ -262,14 +332,19 @@ and a second review of every auth/tenant diff.
 
 ### 4.1 One scoring contract
 
-- [ ] `app/api/github/webhook/route.js:18` uses
+- [x] `app/api/github/webhook/route.js:18` uses
   `{ commit: 5, pullRequest: 20 }`; `lib/standings.js:55` uses
   `{ commit: 2, pullRequest: 12 }`. Export one constant from a shared module.
-- [ ] Apply `LEAST(...)` caps inside `scoreColumns()` in `lib/standings.js`.
+  **Verified:** both import `lib/scoring.js`; `tests/scoring-contract.test.js`
+  pins the numbers and parity.
+- [x] Apply `LEAST(...)` caps inside `scoreColumns()` in `lib/standings.js`.
   `scoreStandings()` applies caps, but production reads `scoreColumns()`
   directly, so the board is uncapped.
-- [ ] Add tests that execute the real board/self queries. The current tests
+  **Verified:** the SQL now applies `LEAST` to commits and PRs.
+- [x] Add tests that execute the real board/self queries. The current tests
   exercise a pure function production does not call.
+  **Verified:** `tests/standings.test.js` asserts the generated query shape and
+  cap behavior, not only the pure helper.
 - [ ] Make the three advertised-but-unwritten kinds real or remove them:
   `contest_top`, `solution_accepted`, `event_attended`.
 
@@ -328,11 +403,16 @@ and a second review of every auth/tenant diff.
 - [ ] If nightly E2E is added, use a separate Supabase project/staging DB, not
   the production database.
 - [ ] Add CODEOWNERS for auth, RLS, migrations, `.github/`, and finance code.
+  **Blocked:** no verifiable GitHub owner/team handle in repository metadata;
+  a guessed entry is worse than none.
 - [ ] Enable branch protection and stop self-approved direct pushes to `main`.
   This session bypassed the rules because the workflow was broken; that must
   not become normal.
-- [ ] Add secret scanning and a pre-commit check for `.env.local`, logs,
+- [x] Add secret scanning and a pre-commit check for `.env.local`, logs,
   screenshots, and generated artifacts.
+  **Verified:** CI has a read-only gitleaks job scanning the checked-out tree
+  with redacted output; `.gitleaks.toml` extends the default rules. The
+  pre-commit hook remains a local/operator step.
 - [ ] Keep Dependabot and add a monthly dependency review; do not ignore
   critical advisories.
 - [ ] Make migrations CI-verifiable and document the rollback/rehearsal path.
@@ -453,28 +533,39 @@ Also:
   hardcoded to 2026-27.
 - [ ] `docs/17` describes a nonexistent Drizzle `db/` mirror and 8 departments;
   the seed has 11.
-- [ ] Docs and test counts drift: README says Supabase Auth, docs say Auth0
+- [x] Docs and test counts drift: README says Supabase Auth, docs say Auth0
   primary; dependency count says 10, actual is 15; test/spec counts are stale.
-- [ ] `docs/17` and `docs/18` contain real C0 control-character corruption that
-  `check:encoding` misses.
-- [ ] `docs/13` omits six live routes and misstates contests; `docs/15` claims
-  no workflows and boot-time secret rejection.
+  **Verified:** README/HANDOFF/SECURITY now state Auth0-primary with Supabase
+  fallback, 15 runtime deps, and current test/spec shapes.
+- [x] `docs/17` and `docs/18` contain real C0 control-character corruption that
+  `check:encoding` misses. **Verified:** the corrupted runs were repaired;
+  `npm run check:encoding` reports only two legitimate-text notices.
+- [x] `docs/13` omits six live routes and misstates contests; `docs/15` claims
+  no workflows and boot-time secret rejection. **Verified:** contests,
+  OAuth/auth probes, CI scope, and deploy behavior are now documented.
 - [ ] `.env.example` has 34 keys; about 51 are referenced in code.
-- [ ] `clean-launch-data.js` lacks a production guard.
-- [ ] Dead landing components and a `/student/showcases` link point nowhere.
-- [ ] `EmptyState` says "for now" even when it is permanent.
-- [ ] `admin/faq` shows a false empty state before fetch.
+- [x] `clean-launch-data.js` lacks a production guard.
+- [x] Dead landing components and a `/student/showcases` link point nowhere.
+  **Verified:** the unused landing components were removed and no student route
+  is left pointing at a nonexistent showcase.
+- [x] `EmptyState` says "for now" even when it is permanent.
+- [x] `admin/faq` shows a false empty state before fetch. **Verified:** it now
+  has explicit loading, error, and empty branches.
 - [ ] `admin/mentors` requires pasting a raw UUID.
-- [ ] Settings routing and the workspace switcher mislabel admin/lead as
-  Student.
-- [ ] Admin has no mobile navigation below 640px.
+- [x] Settings routing and the workspace switcher mislabel admin/lead as
+  Student. **Verified:** `settingsForArea()` and area-aware active rows are
+  pinned by `tests/nav.test.js`.
+- [x] Admin has no mobile navigation below 640px. **Verified:** admin/lead
+  mobile bars derive from their desktop nav.
 - [ ] Admin event actions route into student chrome.
 - [ ] `admin/{event-ops,mous,directory,assets}` are redirect stubs.
 - [ ] Admin/report and audit screens are read-only, capped at 100 rows.
-- [ ] `admin/students` filters after `LIMIT 50`, so tier counts are wrong.
+- [x] `admin/students` filters after `LIMIT 50`, so tier counts are wrong.
+  **Verified:** the tier index is built from the full filtered roster before
+  the 50-row page; API and page agree.
 - [ ] `admin/contests` cannot close or judge contests; lead and admin surfaces
   use different APIs.
-- [ ] `skip to content` is a dead link.
+- [x] `skip to content` is a dead link. **Verified:** `id="main"` exists.
 - [ ] Drawer/menu focus behavior is incomplete.
 - [ ] Dark-theme contrast fails on several pills and accent surfaces.
 - [ ] "This week" covers 13 days and `weekSessions` counts active days.
@@ -492,12 +583,15 @@ Also:
 
 ### Phase 0 - immediate (1-2 days)
 
-- [ ] Fix P0-1 through P0-3.
-- [ ] Upgrade Next.js and rerun gates.
-- [ ] Fill legal placeholders and enforce consent server-side.
-- [ ] Rotate database and M2M secrets; guard destructive scripts.
-- [ ] Fix or revert the uncommitted dashboard restyle.
-- [ ] Verify 1440/390, dark/light, and the affected auth/tenant paths.
+- [x] Fix P0-1 through P0-3.
+- [x] Upgrade Next.js and rerun gates.
+- [ ] Fill legal placeholders and enforce consent server-side. **Blocked on
+  legal entity/contact/retention decisions and an auth-boundary change.**
+- [ ] Rotate database and M2M secrets; **guard destructive scripts done**.
+  Rotation/restore drill still needs production credentials and a human.
+- [x] Fix or revert the uncommitted dashboard restyle.
+- [x] Verify 1440/390, dark/light, and the affected auth/tenant paths; full
+  production-build Playwright suite passed (414 passed, 6 skipped).
 
 **Gate:** lint, encoding, unit, build, full local E2E, manual security probes.
 

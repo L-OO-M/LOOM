@@ -24,8 +24,8 @@ a revert-first response if production is impacted
 
 `npm audit` is clean (0 vulnerabilities) after the Option-A upgrade:
 
-- `vitest ^4.1.11` (fixes GHSA-5xrq-8626-4rwp UI RCE and GHSA-82fw-gwwq-j7x9 mocker traversal; pulls `vite 8.3.0`, which fixes GHSA-fx2h-pf6j-xcff, GHSA-4w7w-66w2-5vf9, launch-editor UNC handling, and removes the `esbuild` dev-server surface)
-- `next ^15.5.25` + `overrides: { postcss: 8.5.28 }` (top-level and nested `postcss` both at `8.5.28`, fixing GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849, GHSA-fxqj-rqcc-2cmp, GHSA-qx2v-qp2m-jg93)
+- `vitest ^4.1.12` (lockfile resolves `4.1.12`; fixes GHSA-5xrq-8626-4rwp UI RCE and GHSA-82fw-gwwq-j7x9 mocker traversal; its nested `vite` resolves to `8.3.5`, which fixes GHSA-fx2h-pf6j-xcff, GHSA-4w7w-66w2-5vf9, launch-editor UNC handling, and removes the `esbuild` dev-server surface)
+- `next ^15.5.28` (lockfile resolves `15.5.28`) + `overrides: { postcss: 8.5.28 }` (top-level and nested `postcss` both at `8.5.28`, fixing GHSA-6g55-p6wh-862q, GHSA-r28c-9q8g-f849, GHSA-fxqj-rqcc-2cmp, GHSA-qx2v-qp2m-jg93)
 
 All flagged advisories were **dev-server / build-tool only** (Vite/Vitest/esbuild
 dev servers, PostCSS pipelines over untrusted CSS). They never shipped in

@@ -294,8 +294,10 @@ build time (the roadmap routes are `ƒ` dynamic), and no `load/*.js` script is
 imported by application code.
 
 **Deliberately not automated:** migrations are not run by `postinstall`,
-`prebuild`, or any CI workflow (this repository has no `.github/workflows`).
-Every preview deployment targets the same shared database, so a build-time
+`prebuild`, or CI. `.github/workflows/ci.yml` runs a read-only gitleaks secret
+scan, lint + encoding, unit tests, and build; it does not run migrations or E2E
+(E2E needs real Supabase/Auth0 env vars and a seeded database). Every preview
+deployment targets the same shared database, so a build-time
 migration would apply production DDL from every branch and every preview. Run
 migrations as an explicit, human-invoked step against the intended database
 before promoting a build, and confirm with `db:verify`.

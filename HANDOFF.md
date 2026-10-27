@@ -15,7 +15,7 @@
 
 The guiding rule, from the society core: an **ecosystem, not an event organizer**. The generational loop is *Students Learn → Students Build → Students Mentor → Students Contribute*. Pillars: Accessibility, Readiness, Excellence, Network.
 
-**Stack (all verified in `package.json`):** Next.js 15 App Router, **JavaScript/JSX only (no TypeScript by decision)**, React 19, Tailwind CSS 4, Supabase (Auth + single shared Postgres via the `:6543` pooler), `postgres` + raw parameterized SQL (no ORM — the old Drizzle mirror was deleted), zod, `motion` + GSAP (landing only), `next/font` (Geist + Fraunces). Runtime deps are exactly 10 — anything else was uninstalled as unused.
+**Stack (all verified in `package.json`):** Next.js 15 App Router, **JavaScript/JSX only (no TypeScript by decision)**, React 19, Tailwind CSS 4, Auth0 as the login front door (`@auth0/nextjs-auth0`), Supabase Auth as the legacy/E2E fallback, single shared Supabase Postgres via the `:6543` pooler, `postgres` + raw parameterized SQL (no ORM — the old Drizzle mirror was deleted), zod, `motion` + GSAP (landing only), `next/font` (Geist + Fraunces). Runtime deps are exactly 15 — anything else was uninstalled as unused.
 
 ---
 
@@ -69,15 +69,15 @@ components/
   seo/JsonLd.jsx                  # Organization/WebSite/FAQPage/ItemList schemas
   AppShell.jsx, BrandMark.jsx, WeaveField.jsx, ui.jsx, actions.jsx, admin-forms.jsx
 lib/                              # one concern per file: auth, auth-server, auth0 (client), user-identities
-                                  # (Auth0 sub → canonical uid), permissions (20-action
+                                  # (Auth0 sub → canonical uid), permissions (29-action
                                   # matrix), tenant, db (pooler-safe), nav (single IA source), seo,
                                   # github (pause gate), lead, oss, mentorship, reputation, community,
                                   # credentials, classification notes, api, audit, env, rate-limit, theme
 load/                             # migrate.js, seeds, rollups, wipe-dev.js, shoot.js, verify-gate.js,
                                   # env-local.js (shared DATABASE_URL loader — secrets never hardcoded)
-load/migrations/ 001–047         # THE schema source of truth; idempotent, never edit applied ones
+load/migrations/ 001–056         # THE schema source of truth; idempotent, never edit applied ones
 docs/ 00,05,06,09,11–19 + README  # current set (7 superseded docs deleted; redirect map in docs/README)
-tests/ (24 files) · e2e/ (app + public incl. SEO specs)
+tests/ (80 files) · e2e/ (10 spec files, including the public/SEO specs)
 ```
 
 **Conventions (non-negotiable):** JS only · every `<Link>` gets `prefetch={false}` (pooler cost) · sequential awaits on pages, never parallel batches · every mutation: zod → server tenant → `can()` check → `writeAudit()` (+ `notify()`) · migrations idempotent (`IF NOT EXISTS`) · honest empty states, zero mock data in UI · one concern per commit.
@@ -125,7 +125,7 @@ tests/ (24 files) · e2e/ (app + public incl. SEO specs)
 
 ### 🔵 D. Steady-state hygiene (ongoing)
 
-15. Keep the gates green before every handoff: `lint` 0 errors, `build` clean, `vitest`, full Playwright (160 = 80 specs × chromium + mobile). Add E2E for every new route (pattern in `e2e/app.spec.js`).
+15. Keep the gates green before every handoff: `lint` 0 errors, `build` clean, `vitest`, full Playwright (10 spec files, run against chromium + mobile). Add E2E for every new route (pattern in `e2e/app.spec.js`).
 16. New tables = new migration file (`load/migrations/0NN_name.sql`, idempotent) + append `docs/13/14/17`. Never edit an applied migration; never ALTER by hand.
 17. Keep docs honest: the repo deletes superseded docs rather than letting them rot — follow the redirect-map convention in `docs/README.md`.
 18. Shared-DB discipline: real data only. `db:seed:dev`/`db:wipe` are local tools; `wipe-dev --confirm` removes seed rows, `--full` truncates data tables (keeps schema).
