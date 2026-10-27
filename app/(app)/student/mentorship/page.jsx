@@ -8,6 +8,7 @@ import { Timeline, TimelineItem } from "@/components/loom/Timeline";
 import { OnboardingState } from "@/components/loom/States";
 import { ApplyForm } from "./ApplyForm";
 import { MentorsBrowser } from "./_components/MentorsBrowser";
+import { SessionActions } from "./_components/SessionActions";
 import { ConnectTabs } from "@/components/student/SectionRails";
 
 export const dynamic = "force-dynamic";
@@ -56,11 +57,21 @@ export default async function MentorshipPage() {
     WHERE m.tenant_id = ${tid}::uuid AND m.available = true
     ORDER BY m.created_at DESC LIMIT 50
   `;
+  // Both sides of the loop see the same history: a student their requests, a
+  // mentor the sessions they accepted. The tenant predicate keeps a moved
+  // member's stale session out of the chapter view.
   const sessionRows = await sql`
-    SELECT s.id, s.status, s.scheduled_at, p.name as mentor_name FROM mentor_sessions s
-    LEFT JOIN profiles p ON p.user_id = s.mentor_id
-    WHERE s.student_id = ${user.id}
-    ORDER BY s.scheduled_at DESC NULLS LAST, s.id DESC LIMIT 10
+    SELECT s.id, s.status, s.scheduled_at, s.mentor_id, s.student_id,
+           mp.name AS mentor_name, sp.name AS student_name
+    FROM mentor_sessions s
+    LEFT JOIN profiles mp ON mp.user_id = s.mentor_id
+    LEFT JOIN profiles sp ON sp.user_id = s.student_id
+    WHERE (s.student_id = ${user.id} OR s.mentor_id = ${user.id})
+      AND EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.user_id = s.mentor_id AND p.tenant_id = ${tid}::uuid
+      )
+    ORDER BY s.scheduled_at DESC NULLS LAST, s.id DESC LIMIT 20
   `;
   // The far end of the loop: candidacy computed from evidence.
   const [mentorRow] = await sql`SELECT user_id FROM mentors WHERE user_id = ${user.id} LIMIT 1`;
@@ -100,12 +111,17 @@ export default async function MentorshipPage() {
       avg_rating: Number(m.avg_rating) || 0
     };
   });
-  const sessions = sessionRows.map((s) => ({
-    id: String(s.id),
-    status: String(s.status || "requested"),
-    scheduled_at: s.scheduled_at instanceof Date ? s.scheduled_at.toISOString() : s.scheduled_at ? String(s.scheduled_at) : null,
-    mentor_name: s.mentor_name || "Mentor session"
-  }));
+  const sessions = sessionRows.map((s) => {
+    const isMentor = s.mentor_id === user.id;
+    return {
+      id: String(s.id),
+      status: String(s.status || "requested"),
+      scheduled_at: s.scheduled_at instanceof Date ? s.scheduled_at.toISOString() : s.scheduled_at ? String(s.scheduled_at) : null,
+      mentor_name: s.mentor_name || "Mentor session",
+      counterpart_name: isMentor ? (s.student_name || "Student") : (s.mentor_name || "Mentor session"),
+      role: isMentor ? "mentor" : "student"
+    };
+  });
 
   const stats = eligibility?.stats ?? null;
   const pct = stats ? Math.min(100, Math.max(0, Number(stats.pct) || 0)) : 0;
@@ -131,19 +147,27 @@ export default async function MentorshipPage() {
         <ConnectTabs active="/student/mentorship" />
 
         {sessions.length > 0 && (
-          <WorkspaceSection index="01" title="Your requests" note={`${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} on record.`}>
+          <WorkspaceSection index="01" title="Sessions" note={`${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} on record.`}>
             <Timeline className="mt-5">
               {sessions.map((s) => {
                 const c = sessionCopy(s);
                 const when = s.status === "scheduled" ? fmtDateTime(s.scheduled_at) : fmtDate(s.scheduled_at);
+                const body = s.role === "mentor" && s.status === "requested"
+                  ? "A student asked for your time. Accept to put it on the calendar, or decline with a clear reason."
+                  : c.body;
                 return (
                   <TimelineItem
                     key={s.id}
                     state={c.state}
-                    title={s.mentor_name}
+                    title={s.counterpart_name}
                     meta={when || c.label}
-                    body={c.body}
-                    action={<StatusPill tone={c.pill}>{when ? `${c.label} · ${when}` : c.label}</StatusPill>}
+                    body={body}
+                    action={(
+                      <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                        <StatusPill tone={c.pill}>{when ? `${c.label} / ${when}` : c.label}</StatusPill>
+                        <SessionActions session={s} />
+                      </span>
+                    )}
                   />
                 );
               })}
