@@ -2,6 +2,7 @@ import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 const resourceSchema = z.object({
   id: z.string().min(1).max(80).optional(),
@@ -9,7 +10,7 @@ const resourceSchema = z.object({
   domain: z.string().min(1).max(40).default("web"),
   level: z.string().min(1).max(40).default("foundation"),
   kind: z.enum(["article", "doc", "video", "course"]).default("article"),
-  url: z.string().url().nullable().optional(),
+  url: z.string().nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   minutes: z.number().int().min(1).max(600).default(30),
   // Optional link to the exact roadmap node this resource teaches. Without it a
   // node page can only fall back to the whole domain (migration 045).
@@ -27,6 +28,12 @@ export async function GET() {
 export async function POST(request) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error) return fail(ctx.error, ctx.error === "FORBIDDEN" ? "Admin only" : "Auth required", ctx.error === "FORBIDDEN" ? 403 : 401);
+  // resources is a global catalog with no tenant_id: any chapter admin writing
+  // here changes every chapter's roadmap links and library. Editing it is a
+  // platform-level act, even though reading it is not.
+  if (ctx.profile?.role !== "platform_admin") {
+    return fail("FORBIDDEN", "Only platform admins can change the global resource catalog", 403);
+  }
   const { user, tenant, sql } = ctx;
   let body;
   try {
