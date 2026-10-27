@@ -7,10 +7,11 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   const mentors = await sql`
     SELECT m.*, p.name as mentor_name FROM mentors m
     LEFT JOIN profiles p ON p.user_id = m.user_id
-    WHERE (m.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) AND m.available = true
+    WHERE m.tenant_id = ${tenant.id}::uuid AND m.available = true
     ORDER BY m.created_at DESC LIMIT 50
   `;
   const sessions = await sql`
@@ -30,6 +31,7 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
   let body;
   try {
     body = requestSchema.parse(await request.json());
@@ -42,16 +44,28 @@ export async function POST(request) {
   // and read that mentor's row (expertise, bio) and book a session against
   // them. The lookup is by primary key, so the predicate is cheap.
   const [mentor] = isUuid
-    ? await sql`SELECT * FROM mentors WHERE (user_id = ${body.mentorId} OR id = ${body.mentorId}::uuid) AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`
-    : await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} AND tenant_id = ${tenant?.id ?? null}::uuid LIMIT 1`;
+    ? await sql`SELECT * FROM mentors WHERE (user_id = ${body.mentorId} OR id = ${body.mentorId}::uuid) AND tenant_id = ${tenant.id}::uuid LIMIT 1`
+    : await sql`SELECT * FROM mentors WHERE user_id = ${body.mentorId} AND tenant_id = ${tenant.id}::uuid LIMIT 1`;
   if (!mentor) return fail("NOT_FOUND", "Mentor not found", 404);
   const mentorUserId = mentor.user_id;
+  if (mentorUserId === user.id) {
+    return fail("SELF_REQUEST", "You cannot request a session with yourself", 400);
+  }
+  const [existing] = await sql`
+    SELECT id FROM mentor_sessions
+    WHERE student_id = ${user.id} AND mentor_id = ${mentorUserId}
+      AND status IN ('requested', 'scheduled')
+    LIMIT 1
+  `;
+  if (existing) {
+    return fail("REQUEST_EXISTS", "You already have an open request with this mentor", 409);
+  }
   const [session] = await sql`
     INSERT INTO mentor_sessions (mentor_id, student_id, status, scheduled_at)
     VALUES (${mentorUserId}, ${user.id}, 'requested', ${body.scheduledAt || null})
     RETURNING *
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "requested_mentorship", resource: "mentor_session", resourceId: session.id, after: { mentor: mentorUserId } });
-  await notify({ sql, tenantId: tenant?.id, userId: mentorUserId, type: "mentorship", title: "New session request", link: "/admin/mentors" });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant.id, action: "requested_mentorship", resource: "mentor_session", resourceId: session.id, after: { mentor: mentorUserId } });
+  await notify({ sql, tenantId: tenant.id, userId: mentorUserId, type: "mentorship", title: "New session request", link: "/student/mentorship" });
   return ok({ session }, { status: 201 });
 }

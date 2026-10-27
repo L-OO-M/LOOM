@@ -14,7 +14,7 @@ describe("cross-tenant reads are filtered in SQL, not after the fact", () => {
     // This lookup previously had NO tenant predicate at all: any member could
     // pass another chapter's mentorId and read that mentor's row.
     expect(src).not.toMatch(/SELECT \* FROM mentors WHERE user_id = \$\{body\.mentorId\} LIMIT 1/);
-    const scopedLookups = src.match(/FROM mentors WHERE[^`]*tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/gi) || [];
+    const scopedLookups = src.match(/FROM mentors WHERE[^`]*tenant_id = \$\{tenant(?:\.id|\?\.id \?\? null)\}::uuid/gi) || [];
     expect(scopedLookups.length).toBeGreaterThanOrEqual(2);
   });
 
