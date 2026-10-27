@@ -7,7 +7,9 @@ export async function GET(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
-  const { user, sql } = ctx;
+  const { user, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   const { searchParams } = new URL(request.url);
   const domain = searchParams.get("domain");
   const q = searchParams.get("q");
@@ -21,7 +23,7 @@ export async function GET(request) {
     ${kind ? sql`AND kind = ${kind}` : sql``}
     ORDER BY minutes ASC LIMIT 50
   `;
-  const done = await sql`SELECT resource_id FROM resource_progress WHERE student_id = ${user.id} AND status = 'completed'`;
+  const done = await sql`SELECT resource_id FROM resource_progress WHERE student_id = ${user.id} AND tenant_id = ${tid}::uuid AND status = 'completed'`;
   const doneSet = new Set(done.map((d) => d.resource_id));
   return ok({ resources: resources.map((r) => ({ ...r, completed: doneSet.has(r.id) })) });
 }
@@ -33,6 +35,8 @@ export async function POST(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  const tid = tenant?.id ?? null;
+  if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   let body;
   try {
     body = completeSchema.parse(await request.json());
@@ -47,11 +51,11 @@ export async function POST(request) {
   // is switched on.
   const [row] = await sql`
     INSERT INTO resource_progress (student_id, resource_id, status, completed_at, tenant_id)
-    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW(), ${tenant?.id ?? null}::uuid)
-    ON CONFLICT (student_id, resource_id) DO UPDATE SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+    VALUES (${user.id}, ${body.resourceId}, 'completed', NOW(), ${tid}::uuid)
+    ON CONFLICT (student_id, resource_id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, status = 'completed', completed_at = NOW(), updated_at = NOW()
     RETURNING *
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "completed_resource", resource: "resource", resourceId: body.resourceId, after: { resourceId: body.resourceId } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "completed_resource", resource: "resource", resourceId: body.resourceId, after: { resourceId: body.resourceId } });
   revalidateTag("resources:counts");
   revalidateTag("resources:total");
   revalidateTag("progress:nodes");
