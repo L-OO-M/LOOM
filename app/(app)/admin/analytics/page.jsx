@@ -38,7 +38,9 @@ export default async function AdminAnalyticsPage() {
     SELECT k.title,
       (SELECT COUNT(*)::int FROM contest_registrations r WHERE r.contest_id = k.id) AS regs,
       (SELECT COUNT(*)::int FROM contest_submissions s WHERE s.contest_id = k.id) AS subs
-    FROM contests k ORDER BY k.created_at DESC NULLS LAST LIMIT 8
+    FROM contests k
+    WHERE k.tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY k.created_at DESC NULLS LAST LIMIT 8
   `;
   const dist = health?.domain_distribution || {};
   const domainData = Object.entries(dist).map(([name, value]) => ({ name, value: Number(value) })).sort((a, b) => b.value - a.value);

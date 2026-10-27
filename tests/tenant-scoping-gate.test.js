@@ -82,6 +82,38 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     ).toEqual([]);
   }, 20_000);
 
+  it("leaves no reverse-order OR tenant_id IS NULL arm on a strict table", () => {
+    // The scanner above only matched `tenant_id IS NULL OR tenant_id = X`.
+    // `tenant_id = X OR tenant_id IS NULL` is the same escape hatch in the other
+    // order and must fail too.
+    const REVERSE =
+      /\w*\.?tenant_id\s*=\s*[^`\n]*?\bOR\s+\w*\.?tenant_id\s+IS\s+NULL/i;
+    // Pre-existing reverse-order NULL arms outside P0-1. They include legacy
+    // pre-tenancy/global rows and are tracked separately; do not add new ones.
+    const PRE_EXISTING_REVERSE = [
+      "app/(app)/admin/mentors/page.jsx",
+      "app/(app)/admin/page.jsx",
+      "app/(app)/student/credentials/page.jsx",
+      "app/api/credentials/route.js",
+      "lib/community.js"
+    ];
+    const offenders = [];
+    for (const file of FILES) {
+      if (PRE_EXISTING_REVERSE.some((f) => file.includes(f))) continue;
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (!REVERSE.test(line)) return;
+        const ctx = lines.slice(Math.max(0, i - 4), i + 1).join(" ");
+        if (UNSCOPED_BY_DESIGN.some((t) => ctx.includes(t))) return;
+        offenders.push(`${file}:${i + 1}  ${line.trim()}`);
+      });
+    }
+    expect(
+      offenders,
+      `Only tables in UNSCOPED_BY_DESIGN may keep the NULL arm in either order:\n${offenders.join("\n")}`
+    ).toEqual([]);
+  }, 20_000);
+
   it("documents why open_source_projects keeps the NULL arm", () => {
     const projects = readFileSync("app/api/opensource/projects/route.js", "utf8");
     expect(projects).toMatch(/tenant_id IS NULL OR tenant_id =/);
@@ -118,7 +150,6 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
   //   - a table reached only through a subquery whose parent is pinned, which
   //     is not statically decidable; those are listed below with a reason.
   const PARENT_PINNED_ALLOWLIST = [
-    ["app/(app)/admin/analytics/page.jsx", "contests row is the tenant-pinned outer query"],
     ["app/(app)/student/contests/[id]/page.jsx", "contest row is the tenant-pinned outer query"],
     ["app/(app)/student/community/wiki/[slug]/page.jsx", "wiki page is tenant-pinned; rest is name lookup"],
     ["app/api/admin/students/route.js", "membership EXISTS over the tenant-pinned departments set"],
@@ -145,6 +176,37 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     const SELF_KEY =
       /(user_id|owner_id|author_id|student_id|requester_id|follower_id|mentor_id|endorssee_id|created_by|actor_id)\s*(=\s*ANY\(\s*\$\{|=\s*\$\{)/i;
 
+    // A self-key inside a subquery scopes only that subquery. It must not make
+    // the gate skip the whole statement: `FROM contests c WHERE EXISTS (SELECT
+    // ... r.student_id = $1)` still reads every chapter's contests. Remove
+    // SELECT subqueries before testing for a caller-scoped predicate, while
+    // leaving constructs like `= ANY(${ids})` intact.
+    function stripSubqueries(text) {
+      let out = "";
+      let i = 0;
+      while (i < text.length) {
+        if (text[i] === "(") {
+          let depth = 0;
+          let j = i;
+          for (; j < text.length; j += 1) {
+            if (text[j] === "(") depth += 1;
+            else if (text[j] === ")") {
+              depth -= 1;
+              if (depth === 0) break;
+            }
+          }
+          if (/^\s*SELECT\b/i.test(text.slice(i + 1, j))) {
+            out += " ";
+            i = j + 1;
+            continue;
+          }
+        }
+        out += text[i];
+        i += 1;
+      }
+      return out;
+    }
+
     const offenders = [];
     for (const file of REQUEST_PATH_FILES) {
       if (PARENT_PINNED_ALLOWLIST.some(([f]) => file.includes(f))) continue;
@@ -153,7 +215,7 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
         const q = m[1];
         if (!/\bSELECT\b/i.test(q)) continue;
         if (/\btenant_id\b/i.test(q)) continue;      // tenant-scoped
-        if (SELF_KEY.test(q)) continue;               // caller-scoped
+        if (SELF_KEY.test(stripSubqueries(q))) continue; // caller-scoped primary statement
         if (UNSCOPED_BY_DESIGN.some((t) => q.includes(t))) continue;
         for (const t of STRICT_TABLES) {
           // Only the primary FROM, never a JOIN used to fetch a display name.
@@ -178,6 +240,27 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     expect(page).not.toMatch(/SELECT \* FROM projects WHERE id = \$\{id\} LIMIT 1/);
     expect(page).not.toMatch(/!p\.tenant_id \|\| !tenant\?\.id/);
     expect(page).toMatch(/tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/);
+  });
+
+  it("scopes the student dashboard contests query to the request tenant", () => {
+    // Regression: the upcoming-contests strip had no tenant predicate, so every
+    // chapter's contests could appear on another chapter's student home. The
+    // EXISTS(...) self-key in the same statement used to mask this from the gate.
+    const src = readFileSync("app/(app)/student/page.jsx", "utf8");
+    const q = src.match(/FROM contests c[\s\S]*?`/);
+    expect(q, "student contests query not found").toBeTruthy();
+    expect(q[0]).toMatch(/c\.tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/);
+    expect(q[0]).not.toMatch(/tenant_id\s+IS\s+NULL/i);
+  });
+
+  it("scopes the admin analytics contests query to the request tenant", () => {
+    // Regression: the contest insights panel read contests unscoped and was
+    // hidden by a false PARENT_PINNED_ALLOWLIST entry.
+    const src = readFileSync("app/(app)/admin/analytics/page.jsx", "utf8");
+    const q = src.match(/FROM contests k[\s\S]*?`/);
+    expect(q, "analytics contests query not found").toBeTruthy();
+    expect(q[0]).toMatch(/k\.tenant_id = \$\{tenant\?\.id \?\? null\}::uuid/);
+    expect(q[0]).not.toMatch(/tenant_id\s+IS\s+NULL/i);
   });
 
   it("never falls back to an unscoped GitHub handle lookup", () => {

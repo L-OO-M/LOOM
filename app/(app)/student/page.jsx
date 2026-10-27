@@ -76,7 +76,8 @@ export default async function StudentPage() {
     SELECT c.id, c.title, c.status, c.starts_at, c.ends_at,
       EXISTS(SELECT 1 FROM contest_registrations r WHERE r.contest_id = c.id AND r.student_id = ${user?.id ?? ""}) AS registered
     FROM contests c
-    WHERE c.status IN ('open', 'upcoming', 'published')
+    WHERE c.tenant_id = ${tenant?.id ?? null}::uuid
+      AND c.status IN ('open', 'upcoming', 'published')
     ORDER BY c.starts_at ASC NULLS LAST LIMIT 3
   `;
   const events = await sql`

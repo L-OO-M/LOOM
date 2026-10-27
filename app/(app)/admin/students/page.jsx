@@ -4,7 +4,7 @@ import { Search, Users, Filter, ArrowUpRight, X } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoleDistributionDonut, DeptMembershipBars } from "@/components/admin/StudentsCharts";
-import { classifyMany } from "@/lib/tiers";
+import { rosterTierIndex, filterIdsByTier, normalizeTier } from "@/lib/tiers";
 import "./students.css";
 
 function roleTone(role) {
@@ -53,35 +53,36 @@ export default async function AdminStudentsPage({ searchParams }) {
     WHERE (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
   `;
 
-  let rows = await sql`
-    SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
-           p.github_username, p.updated_at, p.vertical, p.role_term_end,
-      (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
-       FROM department_memberships m JOIN departments d ON d.id = m.department_id
-       WHERE m.user_id = p.user_id) AS departments
-    FROM profiles p
-    WHERE (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
-      AND (${q ? sql`(p.name ILIKE ${"%" + q + "%"} OR p.user_id ILIKE ${"%" + q + "%"} OR COALESCE(p.github_username,'') ILIKE ${"%" + q + "%"})` : sql`TRUE`})
-      AND (${role ? sql`p.role = ${role}` : sql`TRUE`})
-      AND (${dept ? sql`EXISTS (SELECT 1 FROM department_memberships m JOIN departments d ON d.id = m.department_id WHERE m.user_id = p.user_id AND d.slug = ${dept})` : sql`TRUE`})
-    ORDER BY p.updated_at DESC LIMIT 50
-  `;
+  // Tiers are computed live over the whole filtered roster, never stored and
+  // never shown as public tags. The index is unbounded so counts and tier
+  // filtering describe every matching member, not just the first page.
+  const tierIndex = await rosterTierIndex(sql, {
+    tenantId: tenant?.id ?? null,
+    q,
+    role,
+    dept,
+  });
+  const tierMap = tierIndex.tierMap;
+  const tierCounts = tierIndex.counts;
+  const appliedTier = tierIndex.tierReady ? normalizeTier(tierFilter) : "";
+  const visibleIds = appliedTier
+    ? filterIdsByTier(tierIndex.ids, tierMap, appliedTier)
+    : tierIndex.ids;
+  const matchedCount = visibleIds.length;
 
-  // Tier segregation is computed live, never stored, never shown as public tags.
-  let tierMap = new Map();
-  let tierCounts = { beginner: 0, intermediate: 0, advanced: 0 };
-  if (rows.length > 0) {
-    try {
-      tierMap = await classifyMany(sql, rows.map((r) => r.user_id));
-      for (const r of rows) {
-        const t = tierMap.get(r.user_id)?.tier || "beginner";
-        tierCounts[t] = (tierCounts[t] || 0) + 1;
-        r._tier = t;
-      }
-      if (tierFilter && ["beginner", "intermediate", "advanced"].includes(tierFilter)) {
-        rows = rows.filter((r) => r._tier === tierFilter);
-      }
-    } catch { /* tier must never break roster */ }
+  let rows = [];
+  if (visibleIds.length > 0) {
+    rows = await sql`
+      SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
+             p.github_username, p.updated_at, p.vertical, p.role_term_end,
+        (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
+         FROM department_memberships m JOIN departments d ON d.id = m.department_id
+         WHERE m.user_id = p.user_id) AS departments
+      FROM profiles p
+      WHERE p.user_id = ANY(${visibleIds})
+        AND (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      ORDER BY p.updated_at DESC LIMIT 50
+    `;
   }
 
   // Charts use sequential tenant-scoped aggregates (pooler-safe).
@@ -209,7 +210,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                 <option value="advanced">Advanced / ready to build</option>
               </select>
               <button className="btn-ink !py-2.5 !px-5 text-sm">Search</button>
-              {(q || role || dept) && (
+              {(q || role || dept || tierFilter) && (
                 <Link href={clearHref} prefetch={false} className="adst-clear">
                   <X size={12} /> Clear
                 </Link>
@@ -224,7 +225,8 @@ export default async function AdminStudentsPage({ searchParams }) {
                 <span key={f} className="adst-active-filter">{f}</span>
               ))}
               <span className="adst-active-count">
-                {rows.length} result{rows.length === 1 ? "" : "s"} &middot; capped at 50
+                {matchedCount} result{matchedCount === 1 ? "" : "s"} &middot; showing {rows.length}
+                {matchedCount > rows.length ? " (server cap 50)" : ""}
               </span>
             </div>
           )}

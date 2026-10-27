@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 
 export async function GET() {
   const ctx = await getRequestContext();
@@ -20,7 +21,7 @@ export async function GET() {
 }
 
 const registerSchema = z.object({ contestId: z.string().uuid() });
-const submitSchema = z.object({ contestId: z.string().uuid(), url: z.string().url().optional().nullable(), note: z.string().max(2000).optional().nullable() });
+const submitSchema = z.object({ contestId: z.string().uuid(), url: z.string().optional().nullable().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE), note: z.string().max(2000).optional().nullable() });
 
 // Both contest lookups are tenant-filtered in SQL rather than checked after the
 // read. The old guard (`tenant?.id && contest.tenant_id && ...`) failed open

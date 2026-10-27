@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { homeForRole } from "@/lib/auth";
+import { normalizeTier, rosterTierIndex, filterIdsByTier } from "@/lib/tiers";
 
 export async function GET(request) {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -13,18 +14,43 @@ export async function GET(request) {
   const q = searchParams.get("q");
   const role = searchParams.get("role");
   const dept = searchParams.get("dept");
-  const rows = await sql`
-    SELECT p.*,
-      (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level))
-       FROM department_memberships m JOIN departments d ON d.id = m.department_id
-       WHERE m.user_id = p.user_id) AS departments
-    FROM profiles p
-    WHERE (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
-      AND (${q ? sql`(p.name ILIKE ${"%" + q + "%"} OR p.user_id ILIKE ${"%" + q + "%"})` : sql`TRUE`})
-      AND (${role ? sql`p.role = ${role}` : sql`TRUE`})
-      AND (${dept ? sql`EXISTS (SELECT 1 FROM department_memberships m JOIN departments d ON d.id = m.department_id WHERE m.user_id = p.user_id AND d.slug = ${dept})` : sql`TRUE`})
-    ORDER BY p.updated_at DESC LIMIT 50
-  `;
+  const tierFilter = normalizeTier(searchParams.get("tier"));
+  let rows;
+  if (tierFilter) {
+    const tierIndex = await rosterTierIndex(sql, {
+      tenantId: tenant?.id ?? null,
+      q,
+      role,
+      dept,
+      matchGithub: false,
+    });
+    const visibleIds = tierIndex.tierReady
+      ? filterIdsByTier(tierIndex.ids, tierIndex.tierMap, tierFilter)
+      : tierIndex.ids;
+    rows = visibleIds.length === 0 ? [] : await sql`
+      SELECT p.*,
+        (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level))
+         FROM department_memberships m JOIN departments d ON d.id = m.department_id
+         WHERE m.user_id = p.user_id) AS departments
+      FROM profiles p
+      WHERE p.user_id = ANY(${visibleIds})
+        AND (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      ORDER BY p.updated_at DESC LIMIT 50
+    `;
+  } else {
+    rows = await sql`
+      SELECT p.*,
+        (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level))
+         FROM department_memberships m JOIN departments d ON d.id = m.department_id
+         WHERE m.user_id = p.user_id) AS departments
+      FROM profiles p
+      WHERE (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND (${q ? sql`(p.name ILIKE ${"%" + q + "%"} OR p.user_id ILIKE ${"%" + q + "%"})` : sql`TRUE`})
+        AND (${role ? sql`p.role = ${role}` : sql`TRUE`})
+        AND (${dept ? sql`EXISTS (SELECT 1 FROM department_memberships m JOIN departments d ON d.id = m.department_id WHERE m.user_id = p.user_id AND d.slug = ${dept})` : sql`TRUE`})
+      ORDER BY p.updated_at DESC LIMIT 50
+    `;
+  }
   return ok({ students: rows });
 }
 
