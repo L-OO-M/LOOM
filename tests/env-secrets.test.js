@@ -102,6 +102,12 @@ describe("assertProductionSecrets", () => {
     expect(() => assertProductionSecrets()).toThrow(/placeholder/);
   });
 
+  it("rejects a missing CREDENTIAL_SECRET even when the webhook secret exists", async () => {
+    setEnv({ ...GOOD, CREDENTIAL_SECRET: undefined });
+    const { assertProductionSecrets } = await loadEnvModule();
+    expect(() => assertProductionSecrets()).toThrow(/CREDENTIAL_SECRET/);
+  });
+
   it("rejects a too-short signing secret", async () => {
     setEnv({ ...GOOD, GITHUB_WEBHOOK_SECRET: "short123" });
     const { assertProductionSecrets } = await loadEnvModule();
