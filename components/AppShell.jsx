@@ -11,7 +11,7 @@ import {
   Award, BarChart3, BookOpen, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
-import { adminNav, groupForTab, leadNav, mobileNav, pathToTab, studentNav, studentSecondary, usesDropdowns, workspaceForPath } from "@/lib/nav";
+import { adminNav, groupForTab, leadNav, mobileNavForArea, pathToTab, settingsForArea, studentNav, studentSecondary, usesDropdowns, workspaceForPath } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
@@ -39,6 +39,8 @@ export function AppShell({ area = "student", tenant, user, children }) {
   const tabs = area === "admin" ? adminNav : area === "lead" ? leadNav : studentNav;
   const activeTab = pathToTab(pathname || "", area);
   const activeGroup = groupForTab(tabs, activeTab);
+  const settings = settingsForArea(area);
+  const mobileItems = mobileNavForArea(area);
   const [openMenu, setOpenMenu] = useState(null);
   const [inboxOpen, setInboxOpen] = useState(false);
   const inbox = useInbox(area === "student");
@@ -174,11 +176,11 @@ export function AppShell({ area = "student", tenant, user, children }) {
                 {mounted && theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               </button>
               <Link
-                href="/student/settings"
+                href={settings.href}
                 prefetch={false}
                 className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
-                style={{ color: activeTab === "settings" ? "var(--accent)" : "var(--text-muted)" }}
-                aria-label="Settings"
+                style={{ color: activeTab === "settings" || pathname === settings.href ? "var(--accent)" : "var(--text-muted)" }}
+                aria-label={settings.label}
               >
                 <Settings size={16} />
               </Link>
@@ -199,38 +201,40 @@ export function AppShell({ area = "student", tenant, user, children }) {
           </nav>
         </header>
 
-        <div className="pt-20 pb-24 md:pb-10"><div className="shell">{children}</div></div>
+        <div id="main" tabIndex={-1} className="pt-20 pb-24 md:pb-10"><div className="shell">{children}</div></div>
 
-        {area === "student" && (
-          <nav className="fixed inset-x-3 bottom-3 z-50 md:hidden" aria-label="Workspace mobile">
-            <div className="floatbar grid grid-cols-6 rounded-3xl px-1 py-1.5">
-              {mobileNav.map((item) => {
-                // The "You" slot renders the real profile control (avatar + menu)
-                // rather than a link, so mobile members get the same identity
-                // surface as desktop instead of a dead Settings hop.
-                if (item.icon === "profile") {
-                  return <MobileProfileSlot key="profile-slot" user={user} />;
-                }
-                const Icon = icons[item.icon] || Home;
-                const current = pathname || "";
-                const exactHit = mobileNav.some((m) => m.href === current);
-                const isActive = current === item.href || (item.group ? activeGroup?.id === item.group && !exactHit : current === "/student");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={false}
-                    className="flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95"
-                    style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}
-                  >
-                    <Icon size={19} strokeWidth={isActive ? 2 : 1.5} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
+        <nav
+          className={`fixed inset-x-3 bottom-3 z-50 ${area === "student" ? "md:hidden" : "sm:hidden"}`}
+          aria-label={`${area === "admin" ? "Admin" : area === "lead" ? "Lead" : "Student"} mobile`}
+        >
+          <div
+            className={`floatbar rounded-3xl px-1 py-1.5 ${area === "student" ? "grid grid-cols-6" : "flex overflow-x-auto"}`}
+          >
+            {mobileItems.map((item) => {
+              // The "You" slot renders the real profile control (avatar + menu)
+              // rather than a link, so mobile members get the same identity
+              // surface as desktop instead of a dead Settings hop.
+              if (item.icon === "profile") {
+                return <MobileProfileSlot key="profile-slot" user={user} area={area} />;
+              }
+              const Icon = icons[item.icon] || Home;
+              const current = pathname || "";
+              const isActive = item.group ? activeGroup?.id === item.group : current === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  className={`flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${area === "student" ? "" : "min-w-[44px] shrink-0 px-1.5"}`}
+                  style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}
+                >
+                  <Icon size={19} strokeWidth={isActive ? 2 : 1.5} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
         {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} inbox={inbox} />}
         {area === "student" && <FeatureRequestFab />}
@@ -342,9 +346,9 @@ function MyProfileLink({ user: propUser, area = "student" }) {
   const initials = (card?.username || fallbackName).slice(0, 2).toUpperCase();
   const showAsClaim = !card?.username;
   const workspaces = [
-    { label: "Student", href: "/student", desc: "Learn / Build / Prove", active: true },
-    ...(canLead ? [{ label: "Lead", href: "/lead", desc: "Department / Vertical console" }] : []),
-    ...(canAdmin ? [{ label: "Admin", href: "/admin", desc: "Chapter operations" }] : []),
+    { label: "Student", href: "/student", desc: "Learn / Build / Prove", active: area === "student" },
+    ...(canLead ? [{ label: "Lead", href: "/lead", desc: "Department / Vertical console", active: area === "lead" }] : []),
+    ...(canAdmin ? [{ label: "Admin", href: "/admin", desc: "Chapter operations", active: area === "admin" }] : []),
   ];
   return (
     <div ref={ref} className="relative">
@@ -390,9 +394,9 @@ function MyProfileLink({ user: propUser, area = "student" }) {
                 <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{showAsClaim ? "Claim public card" : "View private card"}</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>{showAsClaim ? "Pick a username — share like Spotify" : "Make it public to share"}</span></span>
               </Link>
             )}
-            <Link href="/student/settings" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+            <Link href={settingsForArea(area).href} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
               <Settings size={14} style={{ color: "var(--text-muted)" }} />
-              <span className="text-sm" style={{ color: "var(--text)" }}>Settings &amp; privacy</span>
+              <span className="text-sm" style={{ color: "var(--text)" }}>{settingsForArea(area).label}</span>
             </Link>
             {/* Proof and Discover left the 6-slot mobile bar so the profile
                 slot could exist; they live here so nothing is unreachable. */}
@@ -414,11 +418,23 @@ function MyProfileLink({ user: propUser, area = "student" }) {
               <button
                 key={w.href}
                 role="menuitem"
+                aria-current={w.active ? "page" : undefined}
                 onClick={() => { setOpen(false); router.push(w.href); }}
                 className="row-link flex w-full items-center gap-3 px-3 py-2.5 text-left"
+                style={{ background: w.active ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}
               >
-                <span className="grid size-7 place-items-center rounded-full border text-[10px] font-bold" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>{w.label[0]}</span>
-                <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{w.label}</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>{w.desc}</span></span>
+                <span
+                  className="grid size-7 place-items-center rounded-full border text-[10px] font-bold"
+                  style={w.active
+                    ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
+                    : { borderColor: "var(--line)", color: "var(--text-muted)" }}
+                >
+                  {w.label[0]}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{w.label}{w.active ? " · current" : ""}</span>
+                  <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{w.desc}</span>
+                </span>
               </button>
             ))}
             {!canLead && !canAdmin && <p className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>Lead/Admin appears when your role is elevated by an admin.</p>}
@@ -431,10 +447,10 @@ function MyProfileLink({ user: propUser, area = "student" }) {
 
 /* The floating bar's "You" slot: the same avatar + menu as the top bar,
    sized for the bottom bar and opening upward. */
-function MobileProfileSlot({ user }) {
+function MobileProfileSlot({ user, area = "student" }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <MyProfileLink user={user} />
+      <MyProfileLink user={user} area={area} />
     </div>
   );
 }

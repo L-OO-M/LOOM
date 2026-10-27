@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { adminNav, groupForTab, mobileNav, pathToTab, studentAliases, studentNav, studentSecondary, workspaceForPath } from "@/lib/nav";
+import { readFileSync } from "node:fs";
+import {
+  adminNav,
+  groupForTab,
+  leadNav,
+  mobileNav,
+  mobileNavForArea,
+  pathToTab,
+  settingsForArea,
+  studentAliases,
+  studentNav,
+  studentSecondary,
+  workspaceForPath
+} from "@/lib/nav";
 
 describe("workspace chrome ownership", () => {
   it("claims only student, lead, and admin routes", () => {
@@ -84,5 +97,36 @@ describe("five-verb navigation", () => {
     const hrefs = mobileNav.map((n) => n.href);
     expect(hrefs).toContain("/student/contests");
     expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+});
+
+describe("area-aware shell chrome", () => {
+  it("routes settings to the workspace that owns a real page", () => {
+    expect(settingsForArea("student").href).toBe("/student/settings");
+    expect(settingsForArea("admin").href).toBe("/admin/settings");
+    // Lead has no /lead/settings page; the personal account surface is the
+    // existing destination for every signed-in role.
+    expect(settingsForArea("lead").href).toBe("/student/settings");
+    expect(settingsForArea("lead").href).not.toBe("/lead/settings");
+  });
+
+  it("derives admin and lead mobile bars from their desktop nav data", () => {
+    expect(mobileNavForArea("student")).toBe(mobileNav);
+    expect(mobileNavForArea("admin").map((n) => n.href)).toEqual(adminNav.map((n) => n.href));
+    expect(mobileNavForArea("lead").map((n) => n.href)).toEqual(leadNav.map((n) => n.href));
+    expect(mobileNavForArea("admin").some((n) => n.href === "/admin/settings")).toBe(true);
+    expect(mobileNavForArea("lead").some((n) => n.href === "/lead/overview")).toBe(true);
+  });
+
+  it("wires the shell to one main target and the area helpers", () => {
+    const shell = readFileSync("components/AppShell.jsx", "utf8");
+    expect(shell.match(/id="main"/g)).toHaveLength(1);
+    expect(shell).toContain("settingsForArea(area)");
+    expect(shell).toContain("mobileNavForArea(area)");
+    expect(shell).toContain("prefetch={false}");
+    // The workspace switcher marks the area it was rendered in, never a
+    // hardcoded Student row.
+    expect(shell).not.toContain("active: true");
+    expect(shell).toContain('active: area === "admin"');
   });
 });

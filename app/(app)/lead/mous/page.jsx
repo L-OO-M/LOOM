@@ -16,7 +16,10 @@ export default async function Page() {
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role)) redirect("/student");
 
-  const mous = await listMous(sql, { tenantId: tenant.id });
+  // A vertical lead only sees MoUs inside their vertical. Admin and dept lead
+  // keep their existing chapter-wide view.
+  const verticalScope = profile.role === "vertical_lead" ? { vertical: profile.vertical } : {};
+  const mous = await listMous(sql, { tenantId: tenant.id, ...verticalScope });
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   const canManage = can(me, "manage_mou").ok;
   const active = mous.filter((m) => m.status === "active").length;

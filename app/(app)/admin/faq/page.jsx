@@ -8,7 +8,9 @@ import "../_components/admin-ledger.css";
 
 export default function AdminFaqPage() {
   const [faqs, setFaqs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [q, setQ] = useState("");
   const [f, setF] = useState({ slug: "", question: "", answer: "", sortOrder: 0 });
   const [msg, setMsg] = useState("");
@@ -17,11 +19,27 @@ export default function AdminFaqPage() {
 
   useEffect(() => {
     let live = true;
-    fetch("/api/admin/faq").then((r) => r.json()).then((d) => {
-      if (!live) return;
-      if (d.ok) setFaqs(d.data?.faqs ?? []);
-      else setFailed(true);
-    }).catch(() => { if (live) setFailed(true); });
+    fetch("/api/admin/faq")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!live) return;
+        if (d.ok) {
+          setFaqs(d.data?.faqs ?? []);
+          setFailed(false);
+          setErrorMsg("");
+        } else {
+          setFailed(true);
+          setErrorMsg(d.error?.message || "The FAQ API returned an error.");
+        }
+      })
+      .catch(() => {
+        if (!live) return;
+        setFailed(true);
+        setErrorMsg("Network error — could not reach the FAQ API.");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
     return () => { live = false; };
   }, []);
 
@@ -67,27 +85,29 @@ export default function AdminFaqPage() {
 
   const filtered = faqs.filter((x) => !q || x.question.toLowerCase().includes(q.toLowerCase()) || x.slug.toLowerCase().includes(q.toLowerCase()));
   const published = faqs.filter((x) => x.is_published).length;
+  const settled = !loading && !failed;
+  const statValue = (value) => (settled ? value : "—");
 
   return (
     <AppShell area="admin">
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
         <WorkspaceMasthead
-          kicker={`Public site / ${faqs.length} total / ${published} published`}
+          kicker={loading ? "Public site / loading FAQ rows" : failed ? "Public site / FAQ rows unavailable" : `Public site / ${faqs.length} total / ${published} published`}
           title="FAQ"
           lede="What signed-out visitors read on /faq. Unpublished rows stay hidden — publish when the answer is honest and process-level."
-          meta={`${faqs.length - published} hidden / ${filtered.length} in view`}
+          meta={loading ? "Loading rows…" : failed ? "Rows could not be loaded" : `${faqs.length - published} hidden / ${filtered.length} in view`}
           tone="paper"
           stats={[
-            { value: faqs.length, label: "rows on record" },
-            { value: published, label: "published to /faq" },
-            { value: faqs.length - published, label: "hidden" },
-            { value: filtered.length, label: "rows in view" }
+            { value: statValue(faqs.length), label: "rows on record" },
+            { value: statValue(published), label: "published to /faq" },
+            { value: statValue(faqs.length - published), label: "hidden" },
+            { value: statValue(filtered.length), label: "rows in view" }
           ]}
         />
 
         <div className="aled-toolbar">
           <span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-            <Eye size={12} aria-hidden="true" /> {published} published / {faqs.length - published} hidden
+            <Eye size={12} aria-hidden="true" /> {loading ? "Loading…" : failed ? "Unavailable" : `${published} published / ${faqs.length - published} hidden`}
           </span>
           <label className="aled-search" style={{ flexBasis: "14rem", marginLeft: "auto" }}>
             <Search size={12} style={{ color: "var(--text-muted)" }} aria-hidden="true" />
@@ -96,18 +116,23 @@ export default function AdminFaqPage() {
         </div>
 
         {failed && (
-          <div className="aled-empty" style={{ borderStyle: "solid", borderColor: "color-mix(in srgb, var(--danger) 22%, transparent)" }}>
+          <div className="aled-empty" role="alert" style={{ borderStyle: "solid", borderColor: "color-mix(in srgb, var(--danger) 22%, transparent)" }}>
             <p className="aled-empty-title" style={{ color: "var(--danger)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
               <AlertTriangle size={14} aria-hidden="true" /> Could not load FAQs
             </p>
-            <p className="aled-empty-body">Check the connection and reload the page.</p>
+            <p className="aled-empty-body">{errorMsg || "Check the connection and reload the page."}</p>
           </div>
         )}
 
         <div className="aled-split">
           <section aria-label="FAQ ledger">
-            <div className="aled-meta">{filtered.length} shown / {q ? "filtered" : "all"} / order follows sort_order</div>
-            {filtered.length === 0 ? (
+            {settled && <div className="aled-meta">{filtered.length} shown / {q ? "filtered" : "all"} / order follows sort_order</div>}
+            {loading ? (
+              <div className="aled-empty" role="status" aria-live="polite">
+                <p className="aled-empty-title">Loading FAQ rows…</p>
+                <p className="aled-empty-body">Checking the ledger before showing what is stored.</p>
+              </div>
+            ) : failed ? null : filtered.length === 0 ? (
               <WorkspaceEmpty
                 title={faqs.length === 0 ? "No FAQ rows yet" : "No matches"}
                 body={faqs.length === 0 ? "Seed with node load/seed-faq.js or add the first one on the right." : "Try a different search term or clear the filter."}

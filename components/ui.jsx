@@ -22,7 +22,7 @@ export function Card({ children, className = "" }) {
 export function EmptyState({ title, body, action }) {
   return (
     <div className="mx-auto max-w-xl py-10 text-center">
-      <p className="meta" style={{ color: "var(--accent)" }}>Empty — for now</p>
+      <p className="meta" style={{ color: "var(--accent)" }}>Empty</p>
       <p className="display display-md mt-3">{title}</p>
       {body && <p className="narrative mx-auto mt-3 text-center">{body}</p>}
       {action && <div className="mt-6">{action}</div>}
