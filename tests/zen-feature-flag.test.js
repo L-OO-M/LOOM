@@ -71,20 +71,40 @@ describe("flag definition", () => {
     await expect(isZenModeEnabled(fakeSql({ enabled: "true" }), "tenant-1")).resolves.toBe(false);
   });
 
-  // Development is the deliberate exception: `next dev` turns the feature on so
-  // it can be worked on locally, while production and the test runtime stay
-  // fail-closed. The shared flag row is never consulted in development.
+  // Development is a deliberate override: `next dev` turns the feature on so it
+  // can be worked on locally without writing the shared row. Local production
+  // and previews are covered below; live Vercel production stays hard-off.
   it("is ON in development with no row and no tenant", async () => {
     vi.stubEnv("NODE_ENV", "development");
     await expect(isZenModeEnabled(null, null)).resolves.toBe(true);
     await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(true);
   });
 
-  // Zen Mode is not shipped to chapters yet, so production ignores the row
-  // entirely -- even an explicit enabled row stays OFF there.
-  it("is OFF in production even when the chapter row is enabled", async () => {
+  // A local production build (next start, no VERCEL marker) is where the
+  // feature is built and reviewed, so it is ON even with no row.
+  it("is ON in a local production build with no row", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL", undefined);
+    vi.stubEnv("VERCEL_ENV", undefined);
+    await expect(isZenModeEnabled(null, null)).resolves.toBe(true);
+    await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(true);
+  });
+
+  // Live Vercel production is the one place Zen Mode is hard-off: the persisted
+  // row is ignored there until the feature is cleared for real chapters.
+  it("is OFF on live Vercel production even when the chapter row is enabled", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
     await expect(isZenModeEnabled(fakeSql({ enabled: true }), "tenant-1")).resolves.toBe(false);
+  });
+
+  // A Vercel preview is not live production, so it follows the row.
+  it("follows the row on a preview deployment", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    await expect(isZenModeEnabled(fakeSql({ enabled: true }), "tenant-1")).resolves.toBe(true);
+    await expect(isZenModeEnabled(fakeSql({ enabled: false }), "tenant-1")).resolves.toBe(false);
   });
 
   afterEach(() => {
