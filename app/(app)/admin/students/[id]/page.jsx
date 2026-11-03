@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Clock3, Github, Layers, GraduationCap, Shield, ExternalLink, Award, FolderGit2, Activity } from "lucide-react";
@@ -27,7 +28,7 @@ export default async function AdminStudentDetailPage({ params }) {
     SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical,
            tenant_id, updated_at, role_term_end
     FROM profiles
-    WHERE user_id = ${id} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1
+    WHERE user_id = ${id} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1
   `;
   if (!s) notFound();
 

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Archive, Plus } from "lucide-react";
@@ -25,7 +26,7 @@ async function saveDepartment(formData) {
     await sql`
       UPDATE departments SET name = ${name}, description = ${description},
         vertical = ${vertical}, is_active = ${isActive}
-      WHERE id = ${id} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      WHERE id = ${id} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     `;
     await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_department", resource: "department", resourceId: id, after: { name, isActive } });
   } else {
@@ -66,7 +67,7 @@ export default async function AdminDepartmentsPage() {
       SELECT department_id, MAX(created_at) AS last_activity
       FROM member_contributions GROUP BY department_id
     ) c ON c.department_id = d.id
-    WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE d.tenant_id = ${scope(tid)}::uuid
     ORDER BY d.is_active DESC, d.vertical, d.name
   `;
 

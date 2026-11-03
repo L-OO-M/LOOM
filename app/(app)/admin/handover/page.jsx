@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, ClipboardCheck, Users } from "lucide-react";
@@ -17,8 +18,8 @@ export default async function AdminHandoverPage() {
   const tid = tenant?.id ?? null;
   const [stats] = await sql`
     SELECT
-      (SELECT COUNT(*)::int FROM handover_checklists WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS total,
-      (SELECT COUNT(*)::int FROM handover_checklists WHERE done = true AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS done
+      (SELECT COUNT(*)::int FROM handover_checklists WHERE tenant_id = ${scope(tid)}::uuid) AS total,
+      (SELECT COUNT(*)::int FROM handover_checklists WHERE done = true AND tenant_id = ${scope(tid)}::uuid) AS done
   `;
 
   const pct = (stats?.total ?? 0) > 0 ? Math.round(((stats?.done ?? 0) / (stats.total)) * 100) : 0;
@@ -31,7 +32,7 @@ export default async function AdminHandoverPage() {
   const byCategory = await sql`
     SELECT category, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done)::int AS done
     FROM handover_checklists
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
     GROUP BY category
     ORDER BY category
   `;
@@ -42,7 +43,7 @@ export default async function AdminHandoverPage() {
     SELECT p.user_id, p.name, p.role, p.role_term_end
     FROM profiles p
     LEFT JOIN platform_admins pa ON pa.user_id = p.user_id
-    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE p.tenant_id = ${scope(tid)}::uuid
       AND p.role IN ('dept_lead', 'vertical_lead', 'admin')
       AND p.role_term_end IS NOT NULL
       AND p.role_term_end <= (CURRENT_DATE + INTERVAL '45 days')

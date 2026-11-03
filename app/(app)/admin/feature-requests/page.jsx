@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
@@ -17,7 +18,7 @@ export default async function AdminFeatureRequestsPage() {
     rows = await sql`
       SELECT fr.*, p.name AS requester_name FROM feature_requests fr
       LEFT JOIN profiles p ON p.user_id = fr.requester_id
-      WHERE fr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+      WHERE fr.tenant_id = ${scope(tid)}::uuid
       ORDER BY CASE fr.status WHEN 'pending' THEN 1 WHEN 'needs_info' THEN 2 WHEN 'approved' THEN 3 ELSE 4 END, fr.created_at DESC LIMIT 100
     `;
   } catch (e) {

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
@@ -20,48 +21,48 @@ export default async function AdminPage() {
   const [counts] = await sql`
     SELECT
       (SELECT COUNT(*)::int FROM profiles
-        WHERE role = 'student' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS students,
+        WHERE role = 'student' AND tenant_id = ${scope(tid)}::uuid) AS students,
       (SELECT COUNT(DISTINCT r.student_id)::int FROM student_roadmap_progress r
         JOIN profiles p ON p.user_id = r.student_id
-        WHERE r.status = 'completed' AND (p.tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS started,
+        WHERE r.status = 'completed' AND p.tenant_id = ${scope(tid)}::uuid) AS started,
       (SELECT COUNT(DISTINCT a.student_id)::int FROM student_daily_activity a
         JOIN profiles p ON p.user_id = a.student_id
         LEFT JOIN student_roadmap_progress r ON r.student_id = a.student_id AND r.status = 'completed'
-        WHERE (p.tenant_id = ${tid} OR ${tid}::uuid IS NULL) AND a.day >= CURRENT_DATE - 7
+        WHERE p.tenant_id = ${scope(tid)}::uuid AND a.day >= CURRENT_DATE - 7
           AND (a.commits + a.pull_requests + a.reviews) > 0 AND r.student_id IS NULL) AS beginners_active,
       (SELECT COALESCE(AVG(roadmap_completion_pct), 0)::numeric FROM student_analytics_snapshots
         WHERE tenant_id = ${tid} AND snapshot_date = CURRENT_DATE) AS completion_avg,
       (SELECT COUNT(*)::int FROM student_oss_contributions
-        WHERE status = 'verified' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS merges,
+        WHERE status = 'verified' AND tenant_id = ${scope(tid)}::uuid) AS merges,
       (SELECT COUNT(*)::int FROM student_oss_contributions
-        WHERE status = 'claimed' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS claims,
+        WHERE status = 'claimed' AND tenant_id = ${scope(tid)}::uuid) AS claims,
       (SELECT COUNT(*)::int FROM projects pr
         JOIN profiles p ON p.user_id = pr.owner_id
-        WHERE (p.tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS projects,
+        WHERE p.tenant_id = ${scope(tid)}::uuid) AS projects,
       (SELECT COUNT(*)::int FROM contest_submissions s
         JOIN contests c ON c.id = s.contest_id
-        WHERE c.tenant_id = ${tid} OR ${tid}::uuid IS NULL) AS submissions,
+        WHERE c.tenant_id = ${scope(tid)}::uuid) AS submissions,
       (SELECT COUNT(*)::int FROM contests
-        WHERE status = 'draft' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS drafts,
+        WHERE status = 'draft' AND tenant_id = ${scope(tid)}::uuid) AS drafts,
       (SELECT COUNT(*)::int FROM mentors
-        WHERE available = true AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS mentors,
+        WHERE available = true AND tenant_id = ${scope(tid)}::uuid) AS mentors,
       (SELECT COUNT(*)::int FROM events
         WHERE tenant_id = ${tid} AND starts_at < NOW() AND status <> 'cancelled') AS events_held,
       (SELECT COUNT(*)::int FROM chapter_partnerships
         WHERE (tenant_a_id = ${tid} OR tenant_b_id = ${tid}) AND status = 'active') AS partnerships,
       (SELECT COUNT(*)::int FROM mentor_applications
-        WHERE status = 'pending' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS applications,
+        WHERE status = 'pending' AND tenant_id = ${scope(tid)}::uuid) AS applications,
       (SELECT COUNT(*)::int FROM events
-        WHERE status = 'proposed' AND (tenant_id = ${tid} OR ${tid}::uuid IS NULL)) AS proposed_events,
+        WHERE status = 'proposed' AND tenant_id = ${scope(tid)}::uuid) AS proposed_events,
       (SELECT COUNT(*)::int FROM forum_flags f
         WHERE f.created_at >= NOW() - INTERVAL '7 days'
           AND (
             (f.target_type = 'thread' AND EXISTS (
-              SELECT 1 FROM forum_threads t WHERE t.id = f.target_id AND (t.tenant_id = ${tid} OR t.tenant_id IS NULL)
+              SELECT 1 FROM forum_threads t WHERE t.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
             ))
             OR (f.target_type = 'reply' AND EXISTS (
               SELECT 1 FROM forum_replies r JOIN forum_threads t ON t.id = r.thread_id
-              WHERE r.id = f.target_id AND (t.tenant_id = ${tid} OR t.tenant_id IS NULL)
+              WHERE r.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
             ))
           )) AS flagged
   `;
@@ -92,7 +93,7 @@ export default async function AdminPage() {
       FROM member_contributions
       GROUP BY department_id
     ) c ON c.department_id = d.id
-    WHERE (d.tenant_id = ${tid} OR ${tid}::uuid IS NULL)
+    WHERE d.tenant_id = ${scope(tid)}::uuid
     ORDER BY d.vertical, d.name
   `;
   const coreRequests = departments.reduce((s, d) => s + (d.core_requests || 0), 0);
@@ -118,19 +119,19 @@ export default async function AdminPage() {
   // Chart data — sequential, tenant-scoped, single-pass aggregates (pooler-safe).
   const roleDistRaw = await sql`
     SELECT role, COUNT(*)::int AS c FROM profiles
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
     GROUP BY role ORDER BY c DESC
   `;
   const projectStatusRaw = await sql`
     SELECT COALESCE(pr.status, 'unknown') AS status, COUNT(*)::int AS c
     FROM projects pr JOIN profiles p ON p.user_id = pr.owner_id
-    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE p.tenant_id = ${scope(tid)}::uuid
     GROUP BY pr.status ORDER BY c DESC
   `;
   const dailyRaw = await sql`
     SELECT a.day::text AS day, SUM(a.commits + a.pull_requests + a.reviews)::int AS total
     FROM student_daily_activity a JOIN profiles p ON p.user_id = a.student_id
-    WHERE (p.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AND a.day >= CURRENT_DATE - INTERVAL '14 days'
+    WHERE p.tenant_id = ${scope(tid)}::uuid AND a.day >= CURRENT_DATE - INTERVAL '14 days'
     GROUP BY a.day ORDER BY a.day ASC
   `;
 

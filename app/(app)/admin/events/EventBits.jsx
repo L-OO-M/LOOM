@@ -38,7 +38,7 @@ export function EventForm() {
       setMsg(data.error?.message || "Failed");
       return;
     }
-    router.push(`/student/events/${data.data.event.id}`);
+    router.push(`/admin/events/${data.data.event.id}`);
     router.refresh();
   }
 

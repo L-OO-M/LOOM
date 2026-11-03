@@ -11,6 +11,7 @@ export const metadata = {
 export default async function AdminLayout({ children }) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/admin");
+  if (ctx.error === "CONSENT_REQUIRED") redirect("/consent");
   if (ctx.error === "FORBIDDEN") redirect("/student");
   if (ctx.error === "PROFILE_NOT_FOUND") redirect("/login?redirect=/admin");
   return <>{children}</>;

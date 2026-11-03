@@ -4,7 +4,7 @@ import { Clock3, Award, MessageCircle, Inbox, Check, X, Sparkles } from "lucide-
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
-import { MentorForm } from "@/components/admin-forms";
+import { MentorPicker } from "@/components/admin/MentorPicker";
 import { ReviewButtons } from "./ReviewButtons";
 import "../_components/admin-ledger.css";
 
@@ -126,12 +126,9 @@ export default async function AdminMentorsPage() {
         </WorkspaceSection>
 
         <div className="aled-split">
-          <WorkspaceSection index="03" title="Add mentor" note="Promotes a student to mentor. Prefer approving a candidacy below — it carries evidence.">
+          <WorkspaceSection index="03" title="Add mentor" note="Search the roster, then promote a member. Prefer approving a candidacy below — it carries evidence.">
             <div className="aled-panel">
-              <MentorForm />
-              <p className="aled-meta" style={{ marginTop: "0.8rem" }}>
-                Tip: copy <span style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>user_id</span> from the Students roster.
-              </p>
+              <MentorPicker />
             </div>
           </WorkspaceSection>
 

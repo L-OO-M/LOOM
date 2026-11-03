@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { Building2, Globe, ShieldCheck } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
@@ -14,9 +15,9 @@ export default async function AdminSettingsPage() {
   const tid = tenant?.id ?? null;
   const [stats] = await sql`
     SELECT
-      (SELECT COUNT(*)::int FROM profiles WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS students,
-      (SELECT COUNT(*)::int FROM projects WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS projects,
-      (SELECT COUNT(*)::int FROM contests WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS contests
+      (SELECT COUNT(*)::int FROM profiles WHERE tenant_id = ${scope(tid)}::uuid) AS students,
+      (SELECT COUNT(*)::int FROM projects WHERE tenant_id = ${scope(tid)}::uuid) AS projects,
+      (SELECT COUNT(*)::int FROM contests WHERE tenant_id = ${scope(tid)}::uuid) AS contests
   `;
   const domains = tenant ? await sql`SELECT * FROM tenant_domains WHERE tenant_id = ${tenant.id}` : [];
 

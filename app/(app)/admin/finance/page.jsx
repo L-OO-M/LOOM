@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -19,7 +20,7 @@ async function decideExpense(formData) {
   await sql`
     UPDATE expenses SET status = ${decision}, decided_by = ${user.id}
     WHERE id = ${id} AND status = 'proposed'
-      AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `expense_${decision}`, resource: "expense", resourceId: id });
   revalidatePath("/admin/finance");
@@ -91,19 +92,19 @@ export default async function AdminFinancePage() {
 
   const [stats] = await sql`
     SELECT
-      (SELECT COALESCE(SUM(allocated),0)::numeric FROM budget_heads WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) AS allocated,
-      (SELECT COALESCE(SUM(amount),0)::numeric FROM expenses WHERE status = 'approved' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS spent,
-      (SELECT COUNT(*)::int FROM expenses WHERE status = 'proposed' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS pending,
-      (SELECT COALESCE(SUM(amount),0)::numeric FROM sponsorships WHERE status = 'received' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS sponsorships
+      (SELECT COALESCE(SUM(allocated),0)::numeric FROM budget_heads WHERE tenant_id = ${scope(tid)}::uuid) AS allocated,
+      (SELECT COALESCE(SUM(amount),0)::numeric FROM expenses WHERE status = 'approved' AND tenant_id = ${scope(tid)}::uuid) AS spent,
+      (SELECT COUNT(*)::int FROM expenses WHERE status = 'proposed' AND tenant_id = ${scope(tid)}::uuid) AS pending,
+      (SELECT COALESCE(SUM(amount),0)::numeric FROM sponsorships WHERE status = 'received' AND tenant_id = ${scope(tid)}::uuid) AS sponsorships
   `;
 
   const heads = await sql`
     SELECT h.*,
       COALESCE((SELECT SUM(e.amount) FROM expenses e
         WHERE e.head_id = h.id AND e.status = 'approved'
-          AND (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)), 0)::numeric AS spent
+          AND e.tenant_id = ${scope(tid)}::uuid), 0)::numeric AS spent
     FROM budget_heads h
-    WHERE (h.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE h.tenant_id = ${scope(tid)}::uuid
     ORDER BY h.name ASC
   `;
   const expenses = await sql`
@@ -112,17 +113,17 @@ export default async function AdminFinancePage() {
     LEFT JOIN budget_heads h ON h.id = e.head_id
     LEFT JOIN departments d ON d.id = e.department_id
     LEFT JOIN profiles p ON p.user_id = e.created_by
-    WHERE (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE e.tenant_id = ${scope(tid)}::uuid
     ORDER BY e.created_at DESC LIMIT 100
   `;
   const sponsorships = await sql`
     SELECT * FROM sponsorships
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
     ORDER BY created_at DESC LIMIT 100
   `;
   const departments = await sql`
     SELECT id, name FROM departments
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
     ORDER BY name ASC
   `;
 

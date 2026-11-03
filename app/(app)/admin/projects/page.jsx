@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Search, ArrowUpRight, ExternalLink, Layers } from "lucide-react";
@@ -21,7 +22,7 @@ export default async function AdminProjectsPage({ searchParams }) {
     SELECT COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE status = 'active')::int AS active,
            COUNT(DISTINCT owner_id)::int AS builders
-    FROM projects WHERE tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL
+    FROM projects WHERE tenant_id = ${scope(tid)}::uuid
   `;
 
   const rows = await sql`
@@ -29,7 +30,7 @@ export default async function AdminProjectsPage({ searchParams }) {
     FROM projects pr
     LEFT JOIN profiles p ON p.user_id = pr.owner_id
     LEFT JOIN roadmap_nodes n ON n.id = pr.roadmap_node_id
-    WHERE (pr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE pr.tenant_id = ${scope(tid)}::uuid
       AND (${q ? sql`(pr.title ILIKE ${"%" + q + "%"} OR p.name ILIKE ${"%" + q + "%"})` : sql`TRUE`})
       AND (${status ? sql`pr.status = ${status}` : sql`TRUE`})
     ORDER BY pr.created_at DESC LIMIT 50

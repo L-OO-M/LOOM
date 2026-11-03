@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { GraduationCap, Search, ListOrdered } from "lucide-react";
@@ -23,14 +24,14 @@ export default async function AdminRoadmapsPage({ searchParams }) {
     SELECT
       (SELECT COUNT(*)::int FROM roadmap_nodes) AS nodes,
       (SELECT COUNT(DISTINCT domain)::int FROM roadmap_nodes) AS domains,
-      (SELECT COUNT(*)::int FROM student_roadmap_progress p JOIN profiles pr ON pr.user_id = p.student_id WHERE p.status = 'completed' AND (pr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS completions,
-      (SELECT COUNT(*)::int FROM profiles WHERE role = 'student' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS students
+      (SELECT COUNT(*)::int FROM student_roadmap_progress p JOIN profiles pr ON pr.user_id = p.student_id WHERE p.status = 'completed' AND pr.tenant_id = ${scope(tid)}::uuid) AS completions,
+      (SELECT COUNT(*)::int FROM profiles WHERE role = 'student' AND tenant_id = ${scope(tid)}::uuid) AS students
   `;
 
   const domains = await sql`SELECT DISTINCT domain FROM roadmap_nodes ORDER BY domain`;
   const nodes = await sql`
     SELECT n.*,
-      (SELECT COUNT(*)::int FROM student_roadmap_progress p JOIN profiles pr ON pr.user_id = p.student_id WHERE p.node_id = n.id AND p.status = 'completed' AND (pr.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)) AS completions,
+      (SELECT COUNT(*)::int FROM student_roadmap_progress p JOIN profiles pr ON pr.user_id = p.student_id WHERE p.node_id = n.id AND p.status = 'completed' AND pr.tenant_id = ${scope(tid)}::uuid) AS completions,
       (SELECT COUNT(*)::int FROM resources r WHERE r.domain = n.domain) AS resources
     FROM roadmap_nodes n
     WHERE (${q ? sql`(n.title ILIKE ${"%" + q + "%"} OR n.description ILIKE ${"%" + q + "%"})` : sql`TRUE`})

@@ -1,11 +1,19 @@
+import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Search, Users, Filter, ArrowUpRight, X } from "lucide-react";
+import { Search, Users, Filter, ArrowUpRight, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoleDistributionDonut, DeptMembershipBars } from "@/components/admin/StudentsCharts";
 import { rosterTierIndex, filterIdsByTier, normalizeTier } from "@/lib/tiers";
+import { pageWindow } from "@/lib/pagination";
+import { BulkRolePanel } from "./BulkRolePanel";
 import "./students.css";
+
+// docs/25 §4.4: admin lists page at 50 rows. The pager arithmetic and the SQL
+// LIMIT read this one constant so a change can never make the offset advance by
+// a different stride than the page actually returns.
+const PAGE_SIZE = 50;
 
 function roleTone(role) {
   switch (role) {
@@ -34,10 +42,13 @@ export default async function AdminStudentsPage({ searchParams }) {
   const role = sp?.role || "";
   const dept = sp?.dept || "";
   const tierFilter = sp?.tier || "";
+  // Raw query-string value; validated and clamped by pageWindow once the
+  // filtered result count is known.
+  const requestedPage = sp?.page;
 
   const departments = await sql`
-    SELECT slug, name FROM departments
-    WHERE is_active AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    SELECT id, slug, name FROM departments
+    WHERE is_active AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     ORDER BY name
   `;
 
@@ -50,7 +61,7 @@ export default async function AdminStudentsPage({ searchParams }) {
       COUNT(*) FILTER (WHERE role IN ('dept_lead','vertical_lead'))::int AS leads,
       COUNT(*) FILTER (WHERE role = 'admin')::int AS admins
     FROM profiles
-    WHERE (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tenant?.id ?? null)}::uuid
   `;
 
   // Tiers are computed live over the whole filtered roster, never stored and
@@ -70,8 +81,15 @@ export default async function AdminStudentsPage({ searchParams }) {
     : tierIndex.ids;
   const matchedCount = visibleIds.length;
 
+  // Pagination happens AFTER the tier filter, over the same ids the tier index
+  // produced: `visibleIds` is the full filtered set (not a DB page), so page N
+  // slices it by OFFSET instead of paging before the JS-side tier filter.
+  const win = pageWindow(matchedCount, requestedPage, PAGE_SIZE);
+
+  // An explicit page past the end never falls back to page 1's rows: the query
+  // is skipped and the roster renders the honest "page does not exist" state.
   let rows = [];
-  if (visibleIds.length > 0) {
+  if (matchedCount > 0 && !win.outOfRange) {
     rows = await sql`
       SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
              p.github_username, p.updated_at, p.vertical, p.role_term_end,
@@ -80,8 +98,9 @@ export default async function AdminStudentsPage({ searchParams }) {
          WHERE m.user_id = p.user_id) AS departments
       FROM profiles p
       WHERE p.user_id = ANY(${visibleIds})
-        AND (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
-      ORDER BY p.updated_at DESC LIMIT 50
+        AND p.tenant_id = ${scope(tenant?.id ?? null)}::uuid
+      ORDER BY p.updated_at DESC, p.user_id DESC
+      LIMIT ${PAGE_SIZE} OFFSET ${win.offset}
     `;
   }
 
@@ -89,12 +108,25 @@ export default async function AdminStudentsPage({ searchParams }) {
   const deptCounts = await sql`
     SELECT d.name, COUNT(*)::int AS c FROM department_memberships m
     JOIN departments d ON d.id = m.department_id
-    WHERE (d.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE d.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     GROUP BY d.name ORDER BY c DESC LIMIT 6
   `;
 
   const activeFilters = [q && `search: ${q}`, role && `role: ${role}`, dept && `dept: ${dept}`, tierFilter && `tier: ${tierFilter}`].filter(Boolean);
   const clearHref = "/admin/students";
+
+  // Pager hrefs carry every active filter forward; page 1 stays implicit so
+  // URLs do not drift into a redundant ?page=1.
+  const withPage = (nextPage) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (role) params.set("role", role);
+    if (dept) params.set("dept", dept);
+    if (appliedTier) params.set("tier", appliedTier);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const qs = params.toString();
+    return qs ? `/admin/students?${qs}` : "/admin/students";
+  };
   const tierRows = [
     { id: "beginner", label: "Beginner", count: tierCounts.beginner, desc: "needs support" },
     { id: "intermediate", label: "Intermediate", count: tierCounts.intermediate, desc: "needs guidance" },
@@ -118,7 +150,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                 Search, inspect, and manage roles. Every role change is audited and scoped to this chapter.
               </p>
               <p className="adst-meta-line">
-                {stats?.total ?? 0} enrolled &middot; {rows.length} shown &middot; server cap 50
+                {stats?.total ?? 0} enrolled &middot; {matchedCount} matched &middot; page {win.page} of {win.pages || 1}
               </p>
             </div>
             <div className="adminx-glance" aria-label="Chapter roster at a glance">
@@ -226,14 +258,25 @@ export default async function AdminStudentsPage({ searchParams }) {
               ))}
               <span className="adst-active-count">
                 {matchedCount} result{matchedCount === 1 ? "" : "s"} &middot; showing {rows.length}
-                {matchedCount > rows.length ? " (server cap 50)" : ""}
+                {win.pages > 1 ? ` \u00b7 page ${win.page} of ${win.pages}` : ""}
               </span>
             </div>
           )}
         </form>
 
         <div className="adst-roster">
-          {rows.length === 0 ? (
+          {win.outOfRange ? (
+            <div className="adst-empty">
+              <p className="adst-empty-title">Page {win.requestedPage} is past the end of this roster.</p>
+              <p className="adst-empty-copy">
+                {matchedCount} matching member{matchedCount === 1 ? "" : "s"} fit on {win.pages} page{win.pages === 1 ? "" : "s"} at {PAGE_SIZE} per page.
+                Nothing is shown here rather than repeating another page&apos;s rows.
+              </p>
+              <Link href={withPage(win.pages)} prefetch={false} className="adst-empty-link">
+                Go to the last page ({win.pages})
+              </Link>
+            </div>
+          ) : rows.length === 0 ? (
             <div className="adst-empty">
               <p className="adst-empty-title">No students found.</p>
               <p className="adst-empty-copy">Try broadening the search or clearing the department filter. New sign-ups appear here after their first login.</p>
@@ -263,7 +306,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                     return (
                       <tr key={r.user_id}>
                         <td className="adst-person">
-                          <span className="adst-row-num" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                          <span className="adst-row-num" aria-hidden="true">{String(win.from + i).padStart(2, "0")}</span>
                           <Link href={`/admin/students/${r.user_id}`} prefetch={false} className="adst-person-link">
                             <span className="adst-avatar">{initials(r.name)}</span>
                             <span className="adst-person-copy">
@@ -312,8 +355,41 @@ export default async function AdminStudentsPage({ searchParams }) {
               </table>
             </div>
           )}
+          {!win.outOfRange && win.pages > 1 && (
+            <nav className="adst-pager" aria-label="Roster pages">
+              {win.hasPrev ? (
+                <Link href={withPage(win.page - 1)} prefetch={false} rel="prev" className="adst-pager-step">
+                  <ChevronLeft size={12} aria-hidden="true" /> Previous
+                </Link>
+              ) : (
+                // Rendered as text, not a dead anchor: page 1 has no previous.
+                <span className="adst-pager-step is-disabled" aria-disabled="true">
+                  <ChevronLeft size={12} aria-hidden="true" /> Previous
+                  <span className="sr-only"> — already on the first page</span>
+                </span>
+              )}
+              <p className="adst-pager-count">
+                Showing <strong>{win.from}&ndash;{win.to}</strong> of {matchedCount}
+                <span className="adst-pager-position" aria-current="page">Page {win.page} of {win.pages}</span>
+              </p>
+              {win.hasNext ? (
+                <Link href={withPage(win.page + 1)} prefetch={false} rel="next" className="adst-pager-step">
+                  Next <ChevronRight size={12} aria-hidden="true" />
+                </Link>
+              ) : (
+                <span className="adst-pager-step is-disabled" aria-disabled="true">
+                  Next <ChevronRight size={12} aria-hidden="true" />
+                  <span className="sr-only"> — already on the last page</span>
+                </span>
+              )}
+            </nav>
+          )}
           <div className="adst-foot">
-            <span>{rows.length} shown &middot; server cap 50 &middot; use search + filters to narrow</span>
+            <span>
+              {win.outOfRange
+                ? `Page ${win.requestedPage} requested · only ${win.pages} page${win.pages === 1 ? "" : "s"} exist`
+                : `${rows.length} shown · ${PAGE_SIZE} per page · use search + filters to narrow`}
+            </span>
             <Link href={clearHref} prefetch={false}>Clear filters</Link>
           </div>
         </div>
