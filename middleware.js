@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { auth0 } from "@/lib/auth0";
+import { checkSameOrigin, UNSAFE_METHODS } from "@/lib/csrf";
 
 // Paths owned by the Auth0 SDK's middleware (login, logout, OAuth callback,
 // profile, token). They MUST be delegated to the SDK -- treating them as public
@@ -72,6 +73,25 @@ const publicPaths = [
 export async function middleware(request) {
   const raw = request.nextUrl.pathname;
   const pathname = raw.length > 1 ? raw.replace(/\/+$/, "") : raw;
+
+  // CSRF/origin gate for cookie-authenticated mutations. Runs before auth so a
+  // foreign-origin write is rejected even if the session would otherwise pass.
+  // Signed webhooks are exempt inside checkSameOrigin.
+  if (pathname.startsWith("/api/") && UNSAFE_METHODS.has(request.method.toUpperCase())) {
+    const originCheck = checkSameOrigin(request);
+    if (!originCheck.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "CSRF_ORIGIN_REJECTED",
+            message: "Cross-origin request rejected"
+          }
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   // Auth0 front door: hand its routes to the SDK before anything else. The SDK
   // performs the login redirect, the OAuth exchange, and session refresh; if the

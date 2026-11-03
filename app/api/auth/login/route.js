@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { auth0OnlyEnabled } from "@/lib/env";
 
 const schema = z.object({
   email: z.string().email().max(320),
@@ -20,7 +21,15 @@ const schema = z.object({
 // Deliberately does NOT reveal whether an account exists: the failure message is
 // Supabase's, unchanged, so this is not an account-enumeration oracle.
 export async function POST(request) {
-  const rl = checkRateLimit(request, { limit: 8, windowMs: 10 * 60_000 });
+  if (auth0OnlyEnabled()) {
+    return fail(
+      "AUTH0_ONLY",
+      "Legacy email/password sign-in is closed on this deployment. Continue with Auth0.",
+      403
+    );
+  }
+
+  const rl = await checkRateLimit(request, { durable: true, limit: 8, windowMs: 10 * 60_000 });
   if (!rl.ok) {
     const r = rateLimitResponse(rl.retryAfter);
     return fail(r.error.code, r.error.message, 429);

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { homeForRole, safeAuthErrorCode } from "@/lib/auth";
 import { provisionGitHubIdentity } from "@/lib/github-identity";
+import { auth0OnlyEnabled } from "@/lib/env";
+import { createLogger, requestIdFrom } from "@/lib/log";
 
 // The Supabase OAuth callback (PKCE).
 //
@@ -20,7 +22,11 @@ import { provisionGitHubIdentity } from "@/lib/github-identity";
 // provision repository access and cannot verify a project -- that is the
 // separate grant at /api/github/oauth/callback.
 export async function GET(request) {
+  const log = createLogger("auth-callback", { requestId: requestIdFrom(request) });
   const { searchParams, origin } = new URL(request.url);
+  if (auth0OnlyEnabled()) {
+    return NextResponse.redirect(`${origin}/login?error=auth0_only`);
+  }
   const code = searchParams.get("code");
 
   // Supabase reports a refused/cancelled OAuth call back on the redirect (for
@@ -65,10 +71,11 @@ export async function GET(request) {
             });
           }
         }
-      } catch {
+      } catch (err) {
         /* never fail a completed sign-in over identity provisioning — the
            member can re-link from /student/github, and losing their session
            would be strictly worse than losing the convenience. */
+        log.warn("github identity provisioning failed; sign-in continues", { err });
       }
 
       // Role-aware landing (falls back to /student for brand-new profiles).
@@ -77,7 +84,9 @@ export async function GET(request) {
         if (!ctx.error && ctx.profile) {
           return NextResponse.redirect(`${origin}${homeForRole(ctx.profile.role)}`);
         }
-      } catch { /* fall through to default */ }
+      } catch (err) { /* fall through to default */
+        log.warn("role-aware landing lookup failed; defaulting to /student", { err });
+      }
       return NextResponse.redirect(`${origin}/student`);
     }
   }

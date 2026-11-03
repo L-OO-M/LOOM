@@ -1,5 +1,6 @@
 import { fail, ok } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
+import { auth0OnlyEnabled } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   createVerificationToken,
@@ -14,6 +15,9 @@ import {
 // send it. Deliberately does NOT require a profile or an allowlisted domain:
 // this is a trust signal, not an access gate.
 export async function POST() {
+  if (auth0OnlyEnabled()) {
+    return fail("AUTH0_ONLY", "Email verification now happens during Auth0 sign-in.", 403);
+  }
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Sign in first", 401);
   const { user, profile, tenant, sql } = ctx;

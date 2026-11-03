@@ -89,7 +89,7 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           className={authInputClass}
           style={{ borderColor: "var(--line)", color: "var(--text)" }}
-          placeholder="student@college.edu"
+          placeholder="you@example.com"
           aria-describedby={error ? "login-err" : undefined}
         />
       </AuthField>

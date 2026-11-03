@@ -175,7 +175,7 @@ export default function RegisterPage() {
         Create account
       </h1>
       <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        Register with your college email. Every domain is open to join instantly.
+        Register with your email. Every domain is open to join instantly.
       </p>
 
       <a
@@ -199,7 +199,7 @@ export default function RegisterPage() {
 
         <AuthField id="email" label="Email">
           <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="student@college.edu" />
+            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="you@example.com" />
         </AuthField>
 
         <AuthField id="password" label="Password" hint="At least 8 characters">
