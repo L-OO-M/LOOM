@@ -145,8 +145,8 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | DELETE | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | remove (soft delete); own or own-domain only |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | PATCH | `/api/admin/students` | admin | change a role with scope + `termEnd` (YYYY-MM-DD; defaults to one year for dept_lead / vertical_lead / admin). Refuses founder seats, self-changes, and removing the last admin; closes/opens `leadership_terms`, syncs membership terms, audits |
-| POST | `/api/admin/students/bulk` | admin | assign role + term to ≤50 users at once (same guards as single; each user gets a `leadership_terms` row and membership term dates) |
-| GET | `/api/admin/students` | admin | roster with `role_term_end` for the term column |
+| POST | `/api/admin/students/bulk` | admin | assign role + term to at most **500** users per request (larger or empty arrays are rejected with `VALIDATION_ERROR` before any write; same guards as single; each user gets a `leadership_terms` row and membership term dates; the whole batch is one transaction) |
+| GET | `/api/admin/students` | admin | roster with `role_term_end` for the term column; paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
 | POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
 | GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
@@ -232,11 +232,11 @@ is single-use, expires in 24h, and only its SHA-256 hash is stored.
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
 | GET | `/api/admin/audit` | admin | audit trail, filterable |
-| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager; PATCH closes/reopens a contest |
+| GET/POST/PATCH | `/api/admin/contests` | admin | contest manager; PATCH closes/reopens a contest; GET is paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
 | POST | `/api/admin/contests/judge` | admin | judge a submission `{submissionId, status:"submitted"\|"shortlisted"\|"winner"\|"rejected", score?, feedback?}`: writes `contest_top` evidence for winners, revokes it when a winner is displaced, skips self-verification, audits and notifies; an identical repeat returns `{unchanged:true}` with no second audit/notification |
-| GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
-| GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
-| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node) |
+| GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster; GET is paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
+| GET/POST/PATCH | `/api/admin/projects` | admin | project curation; GET is paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
+| GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node); GET is paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
 | GET/POST/PATCH | `/api/admin/roadmaps` | admin | roadmap authoring (nodes + edges) |
 
 ### `/api/admin/flags` is partially operator-only

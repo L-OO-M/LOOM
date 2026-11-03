@@ -273,6 +273,23 @@ and a second review of every auth/tenant diff.
 - [x] Fix `planner_sessions.owner_user_id` uuid vs `profiles.user_id` text.
   **Verified:** 058 converts the column in place and rebuilds
   `(tenant_id, owner_user_id)`; live schema reports `text`.
+- [x] Wrap every remaining multi-table write in one transaction, so a mid-way
+  failure cannot leave half-applied state. **Verified:** mentorship approval
+  (mentor row + role promotion), new asset upload (`media_assets` +
+  `asset_versions`), and new asset version (`asset_versions` +
+  `media_assets.current_version`) each run inside `sql.begin`; handover transfer,
+  contest judging and the bulk student import were already transactional and
+  were confirmed rather than rewritten. Side effects that cannot join the
+  transaction are ordered deliberately: `writeAudit`/`notify` either take the
+  `tx` client (and roll back with it) or run after commit; uploaded objects are
+  removed only when the transaction rolled back. Pinned by
+  `tests/mentorship-review-tx.test.js`, `tests/asset-upload-transaction.test.js`,
+  `tests/asset-version-transaction.test.js` and the rollback cases in
+  `tests/contest-judging.test.js` / `tests/admin-students-bulk.test.js`.
+- [x] Cap the bulk student write path. **Verified:**
+  `POST /api/admin/students/bulk` rejects an empty array and anything over 500
+  users with `400 VALIDATION_ERROR` before any SQL runs; the accepted batch is
+  still one transaction.
 
 ### 3.3 Webhooks, OAuth, and external identity
 
@@ -337,19 +354,24 @@ and a second review of every auth/tenant diff.
 
 ### 3.5 Headers and browser surface
 
-- [ ] Tighten CSP: remove `unsafe-eval`, move inline scripts to nonces/hashes,
+- [x] Tighten CSP: remove `unsafe-eval`, move inline scripts to nonces/hashes,
   add `object-src 'none'`, `base-uri 'self'`, and explicit `frame-src`.
-  **Partially done:** `object-src 'none'`, `base-uri 'self'`, and an explicit
-  YouTube `frame-src` are in place. `middleware.js` now emits a per-request
-  nonce policy built by `lib/csp.js` (production `script-src` has no
-  `'unsafe-inline'`; `'unsafe-eval'` is dev-only) and `app/layout.jsx` opts the
-  tree into dynamic rendering, which nonce-based CSP requires. Still open before
-  this is safe to ship: the six prerendered public pages
-  (`app/{about,contact,domains,faq,privacy,terms}/page.jsx`) export
-  `dynamic = "force-static"`, so their built HTML has no request to read a nonce
-  from and Next renders their inline scripts without one. Remove that export from
-  each (verified: `/` and every other route now carries the nonce on 100% of its
-  inline Next scripts). Pinned by `tests/csp.test.js`.
+  **Verified:** `middleware.js` emits a per-request nonce policy built by
+  `lib/csp.js`; production `script-src` has no `'unsafe-inline'` and
+  `'unsafe-eval'` is dev-only. `app/layout.jsx` reads request headers, which opts
+  the tree into dynamic rendering, the documented requirement for nonce CSP. The
+  six previously prerendered public pages (`/about`, `/contact`, `/domains`,
+  `/faq`, `/privacy`, `/terms`) are now `force-dynamic`: prerendering shipped
+  unnonced inline scripts that the browser blocked, which would have killed
+  their theme toggle and mobile nav. Measured against the production build: every
+  inline Next script carries the nonce on those pages and on `/`, `/events`
+  (13/13, 15/15, 41/41) and the nonce differs per request. `style-src` keeps
+  `'unsafe-inline'` because Next emits inline style attributes. `/sitemap.xml`,
+  `/robots.txt` and `*.txt` stay outside auth but now pass through middleware's
+  public branch so they keep the CSP header after it moved out of
+  `next.config.mjs`. Pinned by `tests/csp.test.js`,
+  `tests/csp-static-pages.test.js` and the security-header assertion in
+  `e2e/public.spec.js`.
 - [x] Fix the current CSP breakage: YouTube embeds have no `frame-src`, and
   Google Fonts are blocked by `style-src`/`font-src`.
   **Verified:** `frame-src` names both youtube-nocookie and youtube hosts
