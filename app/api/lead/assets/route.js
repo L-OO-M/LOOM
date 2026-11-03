@@ -89,21 +89,26 @@ async function createFileAsset({ request, user, tenant, sql }) {
 
   await uploadObject({ path, body: Buffer.from(await file.arrayBuffer()), contentType: check.mime });
   try {
-    await sql`
-      INSERT INTO media_assets
-        (id, tenant_id, category_id, kind, title, description, tags, storage_path, mime_type, size_bytes, current_version, created_by)
-      VALUES
-        (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${kind}, ${title}, ${description},
-         ${tags}::text[], ${path}, ${check.mime}, ${file.size}, 1, ${user.id})
-    `;
-    await sql`
-      INSERT INTO asset_versions
-        (tenant_id, asset_id, version, storage_path, file_name, mime_type, size_bytes, uploaded_by)
-      VALUES
-        (${tenant.id}::uuid, ${id}::uuid, 1, ${path}, ${String(file.name).slice(0, 200)}, ${check.mime}, ${file.size}, ${user.id})
-    `;
+    // The asset row and its first version are one logical file. Previously a
+    // failure on the second insert left an asset with no version (or, worse, a
+    // versionless row that the version reader could not resolve).
+    await sql.begin(async (tx) => {
+      await tx`
+        INSERT INTO media_assets
+          (id, tenant_id, category_id, kind, title, description, tags, storage_path, mime_type, size_bytes, current_version, created_by)
+        VALUES
+          (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${kind}, ${title}, ${description},
+           ${tags}::text[], ${path}, ${check.mime}, ${file.size}, 1, ${user.id})
+      `;
+      await tx`
+        INSERT INTO asset_versions
+          (tenant_id, asset_id, version, storage_path, file_name, mime_type, size_bytes, uploaded_by)
+        VALUES
+          (${tenant.id}::uuid, ${id}::uuid, 1, ${path}, ${String(file.name).slice(0, 200)}, ${check.mime}, ${file.size}, ${user.id})
+      `;
+    });
   } catch (e) {
-    // The object is already uploaded; drop it so a failed insert leaves no orphan.
+    // The object is already uploaded; drop it so a failed transaction leaves no orphan.
     await removeObjects(path).catch(() => {});
     throw e;
   }

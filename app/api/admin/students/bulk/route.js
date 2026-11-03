@@ -6,8 +6,13 @@ import { homeForRole } from "@/lib/auth";
 
 const termDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").nullable().optional();
 
+// Hard ceiling for one batch. The whole batch runs in a single transaction with
+// several sequential statements per user, so an unbounded list could hold a
+// pooler connection for minutes and time the request out mid-write.
+const BULK_USER_CAP = 500;
+
 const bulkSchema = z.object({
-  userIds: z.array(z.string().min(1)).min(1).max(50),
+  userIds: z.array(z.string().min(1)).min(1).max(BULK_USER_CAP),
   role: z.enum(["student", "core", "dept_lead", "vertical_lead", "admin"]),
   departmentId: z.string().uuid().nullable().optional(),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
@@ -32,9 +37,26 @@ export async function POST(request) {
   if (ctx.error === "FORBIDDEN") return fail("FORBIDDEN", "Admin only", 403);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, tenant, sql } = ctx;
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (e) {
+    return validationError(e);
+  }
+  // Reject an oversized (or empty) batch before any lookup or write so a bad
+  // payload cannot start a transaction, and name the limit in the response
+  // instead of relying on zod's generic message.
+  if (Array.isArray(payload?.userIds)) {
+    if (payload.userIds.length === 0) {
+      return fail("VALIDATION_ERROR", "Select at least one user", 400);
+    }
+    if (payload.userIds.length > BULK_USER_CAP) {
+      return fail("VALIDATION_ERROR", `Bulk changes are capped at ${BULK_USER_CAP} users per request`, 400);
+    }
+  }
   let body;
   try {
-    body = bulkSchema.parse(await request.json());
+    body = bulkSchema.parse(payload);
   } catch (e) {
     return validationError(e);
   }
