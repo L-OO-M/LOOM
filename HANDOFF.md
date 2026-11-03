@@ -1,6 +1,6 @@
 # LOOM — Colleague Handoff
 
-> **Read this first.** Everything a new maintainer needs: what the project is, how to run it, how it is built, what is done, and — in detail — what work remains. Verified state at this handoff: `lint` 0 errors · `build` clean · `vitest` 1022/1022 (120 files) · Playwright 416 passed, 6 skipped (chromium + mobile, production build).
+> **Read this first.** Everything a new maintainer needs: what the project is, how to run it, how it is built, what is done, and — in detail — what work remains. Verified state at this handoff: `lint` 0 errors · `build` clean · `vitest` 1069/1069 (127 files) · Playwright 416 passed, 6 skipped (chromium + mobile, production build).
 
 ---
 

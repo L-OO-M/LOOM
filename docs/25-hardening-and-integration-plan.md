@@ -566,18 +566,22 @@ and a second review of every auth/tenant diff.
 - [x] If nightly E2E is added, use a separate Supabase project/staging DB, not
   **Verified:** documented as a hard prerequisite; no nightly workflow is committed.
   the production database.
-- [ ] The lint gate does not lint JSX at all, so ~415 components bypass
+- [x] The lint gate did not lint JSX at all, so every component bypassed
   `react-hooks` and `jsx-a11y` rules.
-  **Evidence:** `npx eslint . --format json` returns 388 files, every one
-  `.js`/`.mjs`/`.ts` and none `.jsx`; `npx eslint components/loom/Drawer.jsx`
-  answers "File ignored because no matching configuration was supplied"; loading
-  `eslint.config.mjs` throws `Failed to patch ESLint because the calling module
-  was not recognized` from `@rushstack/eslint-patch` inside
-  `eslint-config-next@15.5.27`, which is incompatible with the installed
-  `eslint@9.39.5`. A probe run over `app/`+`components/` with the JSX glob
-  restored reports only a handful of findings (chiefly `no-img-element`), so the
-  fix is version alignment plus a small cleanup — **not** a mass rewrite.
-  **Do not** treat "lint passes" as evidence a component file is checked.
+  **Verified:** `eslint.config.mjs` now declares `files: ["**/*.jsx"]`; ESLint 9's
+  flat config only walks `.js`/`.mjs`/`.cjs` without it. `eslint-config-next` is
+  aligned to `15.5.28`, matching `next`. `npx eslint .` now reports 684 files
+  (395 `.js`, 283 `.jsx`, 5 `.mjs`, 1 `.ts`) and the gate is back to exactly the
+  two pre-existing `import/no-anonymous-default-export` warnings, 0 errors.
+  Turning the light on found real defects the blind spot had hidden: `ReviewQueue`
+  rendered `<Meta>` without importing it (`react/jsx-no-undef`, a crash on the
+  ranking queue), six `aria-pressed` attributes on `role="tab"` buttons that
+  already carried `aria-selected` (invalid ARIA), a dead `departments.length`
+  effect dependency, three unescaped `'` entities and two `no-img-element`
+  uses that now carry justified suppressions (member-supplied avatar hosts and
+  our generated OG raster). Guarded by `tests/lint-jsx-coverage.test.js`, which
+  fails if `.jsx` stops being matched or the React/jsx-a11y rule sets stop
+  applying.
 - [ ] Add CODEOWNERS for auth, RLS, migrations, `.github/`, and finance code.
   **Blocked:** no verifiable GitHub owner/team handle in repository metadata;
   a guessed entry is worse than none.
