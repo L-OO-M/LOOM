@@ -50,7 +50,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | Table | Stores → read / written by |
 |-------|----------------------------|
 | `profiles` | Identity/role/tenant/vertical/roll_number/branch + `role_term_start/role_term_end` [048] — the single source of truth; an expired term downgrades the governing role to `core` → `ctx`, `GET/PATCH /api/profile`, `GET/PATCH /api/admin/students`, bulk assign; written by first-login auto-create, grant upward-sync, admin edits |
-| `tenants` | Chapter rows (`demo-college` seeded) → `queryTenant`, `/api/network`, public APIs; written by `seed-control-plane.js` |
+| `tenants` | Chapter rows (slug/name configured per deployment) → `queryTenant`, `/api/network`, public APIs; written by `seed-control-plane.js` |
 | `tenant_domains` | Host→tenant mapping → `getTenantFromRequest` (webhook, `/api/public/*`); written by seed |
 | `departments` | 11 seeded org units (8 technical + 3 non-technical) + head/co-head pointers + vertical → `/api/departments`, `/api/public/departments`, `/domains*`, lead/admin overviews; written by `seed-departments.js` (no admin UI — DB-managed) |
 | `department_memberships` | User↔dept `level` (general/core/dept_lead) + `core_requested` + `succession_ready` + `term_start/term_end` [048] (an ended `dept_lead` row stops conferring authority) → attached on every `ctx`, rosters; written by join / request-core / grant PATCH |
@@ -198,7 +198,7 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 ## 8. Post-audit hardening (no-dummy-data pass)
 
 - Seed wipe: all seed-user-* rows removed from the shared DB via load/wipe-dev.js --confirm; orphaned content (1 event, 1 thread, 1 wiki page) reassigned to the real admin; 20 fixed a live webhook 500 (normalized.payload never existed) found by HMAC-signed delivery tests.
-- Tenant renamed Demo College ? MSIT (tenants.name, chapter_profiles.public_name); seed-control-plane is now insert-only on tenant name so reruns never clobber it.
+- Tenant renamed Demo College → MSIT (tenants.name, chapter_profiles.public_name); seed-control-plane is now insert-only on tenant name so reruns never clobber it.
 - New surfaces: LevelGuide (auth pages explain all 5 levels; roles are granted, never self-selected), StatTiles (visual metric tiles on student/admin/lead dashboards), /admin/departments (create/rename/archive), /admin/handover (transfer checklist board), budget-head creation on /admin/finance, global app/error.jsx + app/not-found.jsx, role-scoped assignment in PATCH /api/admin/students (dept_lead requires department + fills Head?Co-Head slots; vertical_lead requires vertical).
 
 
@@ -217,7 +217,12 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
   connection has `rolbypassrls = true`, which overrides `FORCE ROW LEVEL
   SECURITY` -- so anything running on `DATABASE_URL` is invisible to RLS.
   `GET /api/health` reports `isolation.effective` as the single source of
-  truth. Full procedure: `docs/rls-rollout-runbook.md`.
+  truth. Full procedure: `docs/rls-rollout-runbook.md`. Migration 065 closed the
+  gap 031 had to skip: `department_memberships`, `event_registrations`,
+  `forum_votes`, `forum_flags`, `volunteer_signups`, `mentor_sessions`, and
+  `contest_submissions` now carry a backfilled `tenant_id` plus tenant-leading
+  indexes (RLS stays off by decision), so a future policy rollout has a column to
+  key on instead of a join upward.
 - The RLS flag is **operator-only**. `PATCH /api/admin/flags` rejects
   `tenant_rls_enforced` with `OPERATOR_ONLY` and `/admin/flags` renders it
   read-only, because it is global (not chapter-scoped) and one misclick would

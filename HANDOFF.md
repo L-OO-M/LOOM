@@ -1,6 +1,6 @@
 # LOOM — Colleague Handoff
 
-> **Read this first.** Everything a new maintainer needs: what the project is, how to run it, how it is built, what is done, and — in detail — what work remains. Last updated after `e9eecc5` (SEO + co-location pass). Verified state at handoff: `lint` 0 errors · `build` clean · `vitest` 46/46 · Playwright 160/160.
+> **Read this first.** Everything a new maintainer needs: what the project is, how to run it, how it is built, what is done, and — in detail — what work remains. Verified state at this handoff: `lint` 0 errors · `build` clean · `vitest` 1022/1022 (120 files) · Playwright 416 passed, 6 skipped (chromium + mobile, production build).
 
 ---
 
@@ -38,6 +38,7 @@ The guiding rule, from the society core: an **ecosystem, not an event organizer*
 ```bash
 npm install
 node load/migrate.js        # tracked migrations, idempotent (needs DATABASE_URL in env or .env.local)
+npm run db:status           # read-only: does this DB prove it has every migration? (exit 1 = not ready)
 npm run db:seed             # control-plane (MSIT tenant, flags) + roadmap/resources content
 node load/seed-departments.js
 node load/seed-faq.js

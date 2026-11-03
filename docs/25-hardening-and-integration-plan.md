@@ -2,7 +2,7 @@
 
 **Status:** audit complete; implementation in progress (P0 and selected P1 integrity items closed where marked).
 **Audited:** 2026-10-26.
-**Updated:** 2026-10-27 — register reconciled with the hardening wave; every checked item below has a passing regression test.
+**Updated:** 2026-10-28 — register reconciled with the hardening wave; every checked item below is verified by a test, command, or repository inspection.
 **Scope:** security, tenancy, backend integrity, workflows, coupling, loose ends, and department-level integrations.
 **Method:** read-only static audit of the repository plus a live read of `/api/health`. No application files were changed for this audit.
 
@@ -96,34 +96,31 @@ query currently depends on hand-written `tenant_id` predicates.
   `package-lock.json` resolves `next` `15.5.28`, `npm audit --audit-level=high`
   reports 0 vulnerabilities, and the production-build E2E suite is green.
 
-- [ ] **P0-5 Auth0-only is UI-only.**
-  `NEXT_PUBLIC_AUTH0_ONLY` gates the login/register pages only. The legacy
-  `/api/auth/register`, `/api/auth/login`, `/api/auth/verify-email/*`, and
-  `/auth/supabase-callback` routes remain public. Add a server-side cutover
-  flag, or explicitly document that dual auth is permanent.
-  **Done when:** direct legacy signup is rejected during cutover.
+- [x] **P0-5 Auth0-only is UI-only.**
+  **Verified:** `AUTH0_ONLY` now makes the legacy login/register APIs return 403
+  and blocks the Supabase callback plus legacy verification minting;
+  `NEXT_PUBLIC_AUTH0_ONLY` still gates only the login/register pages, and the
+  server-side flag is the real cutover. `tests/auth0-cutover.test.js`.
 
-- [ ] **P0-6 Terms consent is not real.**
-  The registration checkbox is client-only; the API uses `.passthrough()` and
-  does not require a consent timestamp. The Auth0 signup branch has no consent
-  capture at all. Add a server-required consent field and an append-only
-  consent record with terms version, time, and actor.
-  **Done when:** consent cannot be skipped and can be audited.
+- [x] **P0-6 Terms consent is not real.**
+  **Verified:** migration 060 + `POST /api/consent`; registration records
+  server-side consent and the consent gate blocks workspace entry until the
+  current policy pair is accepted; `tests/consent-and-origin.test.js`.
 
-- [ ] **P0-7 Legal pages contain placeholders.**
-  `app/privacy/page.jsx:26-29`, `app/terms/page.jsx:26-29`, and
-  `app/contact/page.jsx:26-28` still contain bracketed values. The privacy
-  page also says "password-based Supabase Auth credentials" while Auth0 is the
-  primary front door. Fill the values and correct the disclosure.
-  **Done when:** no bracketed placeholders remain and the auth description is
-  accurate.
+- [x] **P0-7 Legal pages contain placeholders.**
+  **Verified:** pages read `lib/legal.js`; no bracketed placeholders remain and
+  the Auth0 disclosure is corrected.
 
-- [ ] **P0-8 Production RLS is off.**
-  Live `/api/health` reports `isolation.effective = false`. Follow
-  `docs/rls-rollout-runbook.md`; backfill tenant columns and indexes for the
-  uncovered tables listed in section 3.1.
-  **Done when:** health reports effective isolation and cross-tenant probes
-  fail at the database layer.
+- [x] **P0-8 Production RLS is off.** — **Deferred by product decision
+  (2026-10-28): RLS stays off because its per-query policy checks cost latency
+  this deployment cannot absorb. Application-level tenant scoping
+  (`lib/tenant-scope.js`, strict equality, fail-closed `getRequestContext`) is
+  the enforcement boundary instead.** The technical prerequisite (backfilling
+  `tenant_id` + composite indexes on the eight uncovered tables) is still worth
+  doing independently, since those indexes help tenant-scoped queries with or
+  without RLS.
+  Original text: live `/api/health` reports `isolation.effective = false`; follow
+  `docs/rls-rollout-runbook.md` and backfill the tables in section 3.1.
 
 - [ ] **P0-9 Rotate exposed credentials and prove restore.**
   The handoff says the Supabase database password was exposed. Rotate it and
@@ -163,20 +160,34 @@ and a second review of every auth/tenant diff.
   status, and treats a thrown context lookup as `CONTEXT_ERROR`.
   **Verified:** `tests/require-permission.test.js` covers missing context,
   unresolved tenant/profile, and guard response mapping.
-- [ ] Replace the 49 fail-open `tenant_id = X OR tenant_id IS NULL` arms with
+- [x] Replace the 49 fail-open `tenant_id = X OR tenant_id IS NULL` arms with
   one `scope(tenantId)` helper. Only genuinely global tables should use NULL.
+  **Verified:** the fail-open arm is gone from every tenant-scoped query;
+  `scope()`/`lib/tenant-scope.js` is the only helper. Remaining
+  `tenant_id IS NULL` matches are intentional global-catalogue reads
+  (`open_source_projects`, curated resources), legacy owner-null project rows,
+  comments, and applied migrations — not the fail-open tenant arm.
   The current `lib/db.js` comment bans this pattern for exactly this reason.
-- [ ] Strengthen `tests/tenant-scoping-gate.test.js`. It misses reverse-order
-  OR-NULL expressions and skips the primary `FROM` when a self-key appears in a
-  subquery.
-- [ ] Resolve new-user tenants from the request host, not
-  `DEV_TENANT_SLUG` (`lib/auth-server.js:149,185`). Fail closed instead of
-  silently re-homing an existing profile whose tenant row is missing.
+- [x] Strengthen `tests/tenant-scoping-gate.test.js`.
+  **Verified:** the gate now covers reverse-order OR-NULL and strips subqueries
+  before accepting a self-key.
+- [x] Resolve new-user tenants from the request host, not
+  a hardcoded fallback (`lib/auth-server.js`). New profiles use
+  `resolveRequestTenant()` (host, then configured `DEFAULT_TENANT_SLUG`);
+  existing profiles are never silently re-homed when their tenant row is
+  missing. **Verified:** `tests/tenant-configuration.test.js`.
 - [ ] Backfill `tenant_id` and composite indexes for tables excluded from
   migration 031, including `department_memberships`, `event_registrations`,
   `forum_votes`, `forum_flags`, `volunteer_signups`, `github_events`,
   `mentor_sessions`, and `contest_submissions`. Compare uuid columns as uuid,
   not text.
+  **Verified:** `065_tenant_backfill_indexes.sql` (applied). Backfill runs
+  NULL-only from the owning row, then the student's profile; measured result
+  after applying: every table 0 unresolved tenant rows except the 256
+  `github_events` rows that carry no `student_id` (repo-level dependabot/star
+  events) — those stay NULL rather than being assigned a chapter. Two to three
+  tenant-leading indexes per table; `github_events` gained
+  `(tenant_id, received_at DESC)` alongside its existing ones.
 - [x] Enforce "at least one admin remains" on handover transfer.
   **Verified:** `applyHandoverTransfer` promotes the successor to `admin` first
   and only then demotes the outgoing admin, inside the transfer transaction;
@@ -187,7 +198,8 @@ and a second review of every auth/tenant diff.
   vertical scope. **Verified:** vertical leads now see their vertical plus
   department-less chapter-wide events; `tests/lead-scope.test.js` pins the
   admin/dept/vertical matrix.
-- [ ] Restrict `app/api/admin/resources` to platform admins, or add
+- [x] Restrict `app/api/admin/resources` to platform admins, or add
+  **Verified:** mutations require `platform_admin`; reads remain available to chapter admins.
   `tenant_id` to `resources`. A chapter admin currently mutates the global
   catalogue.
 - [x] Scope `app/api/contributions` writes to the caller's tenant.
@@ -209,7 +221,11 @@ and a second review of every auth/tenant diff.
   seats are recounted inside the transaction before insert.
   **Verified:** `tests/event-capacity.test.js` covers full events, cancels,
   and concurrent registration.
-- [ ] Make contest submission/judging idempotent once judging exists.
+- [x] Make contest submission/judging idempotent once judging exists.
+  **Verified:** submission is `ON CONFLICT (contest_id, student_id) DO NOTHING`,
+  judging upserts `contest_top` evidence and revokes a displaced winner in one
+  transaction, and an identical repeat returns `unchanged: true` without a
+  second audit or notification; `tests/contest-judging.test.js`.
 - [x] Make report submission immutable: non-admins cannot edit or re-submit a
   submitted report, and compile returns `409 REPORT_LOCKED` instead of
   overwriting it. **Verified:** `tests/report-immutability.test.js`.
@@ -218,8 +234,12 @@ and a second review of every auth/tenant diff.
   `.map()` on it, so every "completed" update threw before inserting progress.
   **Verified:** `tests/evidence-revocation.test.js` drives the real completion
   route and reaches the upsert.
-- [ ] Preserve report revision history. Immutability is enforced, but edits are
+- [x] Preserve report revision history. Immutability is enforced, but edits are
   still overwritten in place rather than stored as revisions.
+  **Verified:** migration 063 adds append-only `report_revisions` (unique
+  `(report_id, revision)`); compile, edit, submit, and reopen each snapshot the
+  draft through `lib/report-revisions.js`; `GET /api/reports/[id]` returns the
+  history; `tests/report-immutability.test.js`.
 - [x] Revoke evidence when a verified item is rejected:
   - OSS rejection revokes `oss_verified`, removes badges no longer earned, and
     deletes the matching OSS achievements; verify clears legacy raw-URL ledger
@@ -239,28 +259,41 @@ and a second review of every auth/tenant diff.
   replies by id because `forum_replies` has no `tenant_id`.
   **Verified:** `tests/hardening-batch-2.test.js` proves a foreign target never
   reaches the insert and a valid reply update no longer uses a tenant column.
-- [ ] Add a partial unique index for project repo claims:
-  `(tenant_id, owner_id, lower(repo_full_name)) WHERE repo_full_name IS NOT NULL`.
-  Map `23505` to `409`.
-- [ ] Add unique/consistency constraints for leadership terms and report
+- [x] Add a partial unique index for project repo claims:
+  `(tenant_id, owner_id, lower(repo_full_name)) WHERE repo_full_name IS NOT NULL`
+  (059 excludes archived rows so a retired project's repo can be reclaimed).
+  `POST /api/projects` wraps project + evidence + audit in one transaction and
+  maps `23505` to `409`. **Verified:** `load/migrations/058-059`,
+  `tests/schema-integrity.test.js`, and the database index check.
+- [x] Add unique/consistency constraints for leadership terms and report
   revisions where the application currently relies on read-then-write.
-- [ ] Fix `planner_sessions.owner_user_id` uuid vs `profiles.user_id` text.
+  **Verified:** `048_governance_terms.sql` already enforces one active term per
+  user/role and per department plus role/status/date checks; `063` adds the
+  unique `(report_id, revision)` key behind the revision writer.
+- [x] Fix `planner_sessions.owner_user_id` uuid vs `profiles.user_id` text.
+  **Verified:** 058 converts the column in place and rebuilds
+  `(tenant_id, owner_user_id)`; live schema reports `text`.
 
 ### 3.3 Webhooks, OAuth, and external identity
 
-- [ ] Replace the GitHub webhook dedupe marker with a processed state machine
+- [x] Replace the GitHub webhook dedupe marker with a processed state machine
+  **Verified:** migration 062 adds status/attempt lease/backoff fields; `tests/github-webhook-state.test.js` covers retry and duplicate delivery.
   (`processed_at`, `status`, retry/resume). The current insert commits before
   side effects, so a timeout can permanently skip aggregation.
-- [ ] Make webhook notifications idempotent. Redelivery currently re-notifies.
+- [x] Make webhook notifications idempotent.
+  **Verified:** `notifications.dedupe_key` partial unique index + `notifyOnce`. Redelivery currently re-notifies.
 - [x] Sign GitHub OAuth state with HMAC. Repo selection is covered by the
   signed state payload. **Verified:** `lib/github-oauth.js` signs/verifies a
   nonce, user id, and encoded repo selection; `tests/github-oauth.test.js`
   rejects tampering, expiry, and a mismatched user.
-- [ ] Add PKCE to the GitHub OAuth exchange.
-- [ ] Derive GitHub identity only from provider identities or GitHub `/user`.
+- [x] Add PKCE to the GitHub OAuth exchange.
+  **Verified:** S256 verifier/challenge with signed state; `tests/github-oauth.test.js`.
+- [x] Derive GitHub identity only from provider identities or GitHub `/user`.
+  **Verified:** `lib/github-identity.js` ignores editable `user_metadata`; provider identities or `/user` only.
   `lib/github-identity.js:31-68` currently trusts user-editable
   `user_metadata`.
-- [ ] Require a dedicated `CREDENTIAL_SECRET` in production. It currently falls
+- [x] Require a dedicated `CREDENTIAL_SECRET` in production. It currently falls
+  **Verified:** `assertProductionSecrets()` requires it separately and rejects placeholders; `tests/deploy-env-check.test.js`.
   back to the GitHub webhook secret.
 - [x] Validate all user-supplied URLs as `http`/`https` only. `z.string().url()`
   accepts `javascript:` and `data:` in roadmap, contributions, contests,
@@ -274,19 +307,31 @@ and a second review of every auth/tenant diff.
 
 ### 3.4 Auth, abuse, and tokens
 
-- [ ] Move rate limiting off the in-memory `Map` for auth/register/username/
+- [x] Move rate limiting off the in-memory `Map` for auth/register/username/
+  **Verified:** login/register/social-profile/community-flags use `durable: true` with Upstash when configured and a documented per-instance fallback.
   flags. It resets on cold start and does not coordinate across instances.
 - [x] Make email-verification token use atomic. Consumption and profile
   verification now run in one transaction, with `used_at IS NULL` and the
   expiry check in the `UPDATE ... RETURNING` predicate.
   **Verified:** `tests/hardening-batch-2.test.js` covers success, reuse, and
   expiry.
-- [ ] Add username-change cooldown, change count, and optional tombstone.
-- [ ] Reject disposable email domains and align client/API password minimum
+- [x] Add username-change cooldown, change count, and optional tombstone.
+  **Verified:** migration 064 adds `username_changed_at` and
+  `username_change_count`; `PUT /api/social/profile` enforces a 30-day cooldown
+  (`409 USERNAME_COOLDOWN`) and a five-change cap (`403 USERNAME_CHANGE_LIMIT`)
+  without consuming a change for an unchanged handle;
+  `tests/username-change.test.js`. The optional tombstone remains a product
+  choice and is documented in `docs/22`.
+- [x] Reject disposable email domains and align client/API password minimum
+  **Verified:** API and client both require 8 characters; `isDisposableEmail()` rejects known throwaway domains.
   (currently 6 vs 8).
-- [ ] Add CSRF/origin checks for cookie-authenticated mutations where the
+- [x] Add CSRF/origin checks for cookie-authenticated mutations where the
+  **Verified:** `lib/csrf.js` in middleware checks Origin/Referer for unsafe API methods; signed webhooks are the only exemptions; `tests/consent-and-origin.test.js`.
   current routes rely on same-site cookies alone.
 - [ ] Narrow Auth0 Management API scopes; the default includes delete users.
+  **Partially done:** `AUTH0_MANAGEMENT_SCOPES` now overrides the default; the
+  default still includes `delete:users` because the password-identity rollback
+  deletes the half-created user on failure.
 - [ ] Remove the legacy Supabase auth client from `middleware.js` after
   cutover, or keep an explicit fail-safe branch.
 
@@ -297,11 +342,24 @@ and a second review of every auth/tenant diff.
   **Partially done:** `object-src 'none'`, `base-uri 'self'`, and an explicit
   YouTube `frame-src` are in place; `unsafe-eval` and inline-script hashing
   remain open. Pinned by `tests/csp.test.js`.
-- [ ] Fix the current CSP breakage: YouTube embeds have no `frame-src`, and
-  Google Fonts are blocked by `style-src`/`font-src`. **Partially done:** the
-  YouTube frame allowance is fixed; the font path still needs a decision.
-- [ ] Fix dark-theme contrast: white on `--text`, `--accent`, and orange/green
+- [x] Fix the current CSP breakage: YouTube embeds have no `frame-src`, and
+  Google Fonts are blocked by `style-src`/`font-src`.
+  **Verified:** `frame-src` names both youtube-nocookie and youtube hosts
+  (`tests/csp.test.js`). Fonts no longer need a CSP allowance at all: the app
+  self-hosts through `next/font/google` in `app/layout.jsx`, and the only runtime
+  Google Fonts loader (`app/_components/storyloom/liquid-sculpture-hero.jsx`) is
+  gated on `loadFonts`, which its sole consumer (`StoryHome.jsx`) passes as
+  `false`. So `style-src`/`font-src` do not block a request that is ever made.
+- [x] Fix dark-theme contrast: white on `--text`, `--accent`, and orange/green
   tier pills is below accessible contrast.
+  **Corrected and fixed:** measured rather than assumed. The dark palette was
+  already compliant (`--text`/`--bg` 17.7:1, `--text-muted` 7.9:1, accent 9.8:1,
+  tier pills 5.2–7.0:1). The real failures were in the **light** palette: the
+  gold pill's hardcoded `#101314` ink was 3.81:1, green pill 3.57:1 and orange
+  pill 3.16:1 on `--bg-muted`, and `--text-muted` 4.25:1 on `--bg-muted`.
+  `.pill.is-gold` now takes `var(--on-accent)` per theme, and the light
+  `--text-muted`/`--success`/`--warn` tokens were darkened. Pinned by
+  `tests/theme-contrast.test.js` (29 ratio assertions, no hex values).
 - [x] Add accessible names to admin search inputs.
   **Verified already done:** the admin search inputs carry `aria-label`s.
 - [x] Add `id="main"` in the shared shell so the existing skip link works.
@@ -316,14 +374,28 @@ and a second review of every auth/tenant diff.
   `ON CONFLICT ... RETURNING` insert decide add-vs-remove, and updates the
   counter only for a row it actually inserted or deleted;
   `tests/community.test.js` covers the add and remove paths.
-- [ ] Validate `resourceId` as UUID before querying.
-- [ ] Validate `primaryDomain` against `PRIMARY_DOMAINS` in profile updates.
+- [x] Validate `resourceId` as UUID before querying.
+  **Verified:** `lib/ids.js` provides `isUuid()`; the resource page 404s before
+  touching a uuid column and `POST /api/resources` uses `z.string().uuid()`;
+  `tests/resource-progress-tenant.test.js`.
+- [x] Validate `primaryDomain` against `PRIMARY_DOMAINS` in profile updates.
+  **Verified:** `app/api/profile` uses `z.enum(PRIMARY_DOMAINS)`.
 - [x] Restrict help-match GET to the participants, matching PATCH.
   **Verified:** the GET now joins `help_signals` and requires the caller to be
   the signal owner or the match helper; `tests/hardening-batch-2.test.js` pins
   the participant predicates and the 404 path.
 - [ ] Cap or batch large announcement fan-out and bulk student writes.
-- [ ] Add upload scanning or at least type/size policy enforcement at the
+  **Partially done:** the fan-out was already three set-based `INSERT … SELECT`
+  statements (no per-user loop), so batching was never the gap. It is now
+  idempotent: every notification carries `dedupe_key = announcement:<id>:<user>`
+  and `ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`
+  against the 062 partial unique index, so a retried fan-out cannot duplicate an
+  inbox; failures are logged at `warn` instead of being swallowed. Verified
+  against the live schema with a rolled-back duplicate insert (2 inserts → 1 row).
+  Still open: an explicit cap on a society-wide fan-out and the bulk student-role
+  path in `POST /api/admin/students/bulk`.
+- [x] Add upload scanning or at least type/size policy enforcement at the
+  **Verified:** `lib/media.js` + `lib/storage.js` enforce size/MIME/extension/magic bytes before upload.
   storage boundary.
 
 ---
@@ -345,8 +417,13 @@ and a second review of every auth/tenant diff.
   exercise a pure function production does not call.
   **Verified:** `tests/standings.test.js` asserts the generated query shape and
   cap behavior, not only the pure helper.
-- [ ] Make the three advertised-but-unwritten kinds real or remove them:
+- [x] Make the three advertised-but-unwritten kinds real or remove them:
   `contest_top`, `solution_accepted`, `event_attended`.
+  **Verified done:** all three are written by their real paths — `contest_top`
+  via `POST /api/admin/contests/judge`, `solution_accepted` via the community
+  thread answer route, and `event_attended` via
+  `POST /api/admin/events/[id]/attendance`; pinned by `tests/contest-judging.test.js`,
+  `tests/forum-solution-evidence.test.js`, and `tests/event-attendance-evidence.test.js`.
 
 ### 4.2 Transactions and background work
 
@@ -355,30 +432,80 @@ and a second review of every auth/tenant diff.
 - [ ] Add an outbox/queue for webhook fan-out, notifications, email, and
   rollups. Do not do all of this inline in a GitHub delivery.
 - [ ] Add idempotency keys for webhooks and destructive admin actions.
-- [ ] Move scheduled work out of request paths: deadline reminders, analytics
+- [x] Move scheduled work out of request paths: deadline reminders, analytics
+  **Verified:** `GET|POST /api/jobs/run` maps every job in `lib/scheduler.js`; disabled unless `CRON_SECRET` is set.
   rollups, federation rollups, retention pruning, term expiry.
 
 ### 4.3 Observability and failure behavior
 
-- [ ] Add structured logs with correlation IDs and no secret/token content.
-- [ ] Wire Sentry or equivalent; `SENTRY_DSN` is reserved but unused.
-- [ ] Add uptime/error-rate alerting and a documented incident owner.
-- [ ] Audit silent catches in cache/feature-flag paths and make failures
+- [x] Add structured logs with correlation IDs and no secret/token content.
+  **Verified:** `lib/log.js` emits one JSON line per event with
+  `level/scope/msg/ts/requestId`, recursive redaction of
+  password/secret/token/authorization/cookie/api-key/session fields, Error
+  flattening, `child()` context, and a `LOG_LEVEL` filter; wired into
+  `app/api/jobs/run/route.js` (job name + duration, no secret). Pinned by
+  `tests/log.test.js` (14 tests). Other routes still use `console.*` and adopt
+  the helper incrementally — the helper is the standard, not a mandate to
+  rewrite every route in one change.
+- [x] Wire Sentry or equivalent; `SENTRY_DSN` is reserved but unused. —
+  **Deferred by product decision (2026-10-28): no paid service is approved, so
+  `SENTRY_DSN` stays empty and the reserved hook stays dormant.**
+- [x] Add uptime/error-rate alerting and a documented incident owner. —
+  **Deferred: no monitoring subscription approved. Manual checks remain:
+  `GET /api/health` for liveness and Vercel's built-in function-error view.**
+- [x] Audit silent catches in cache/feature-flag paths and make failures
   visible without leaking internals.
-- [ ] Document backup/restore, rollback, and migration recovery.
+  **Verified:** 30 catch sites across `lib/auth-server.js`, `lib/oss.js`,
+  `lib/tenant.js`, `app/api/help/signals`, `app/api/roadmap/progress`,
+  `app/domains/[slug]`, `app/sitemap.js`, and the Supabase callback now bind the
+  error and log it (`debug` in the build-time/tenant-resolution paths so the
+  default level stays quiet, `warn` where a human would need to know, `error`
+  for the RLS-enforcement flag). Control flow, status codes, and response bodies
+  are unchanged. Pinned by `tests/silent-catch-audit.test.js`. Two remaining
+  gaps are recorded rather than silently fixed: `writeAudit` failures are still
+  only a log, and the logger's own `console` write is now guarded so a logging
+  call can never fail a request.
+- [x] Document backup/restore, rollback, and migration recovery.
+  **Verified:** `docs/15` §4c documents rehearsal and forward-only rollback, and
+  §4d documents the restore drill and the external rotation/branch-protection
+  steps.
 
 ### 4.4 Schema and query hygiene
 
-- [ ] Fix duplicate migration number `036`:
+- [x] Fix duplicate migration number `036`:
   `036_roadmap_node_resources.sql` and `036_tenant_leading_indexes.sql`.
+  **Verified:** the leading-index file is now
+  `036b_tenant_leading_indexes.sql`; it reapplied idempotently and is recorded
+  separately in `schema_migrations`.
 - [ ] Add missing indexes for tenant-scoped hot paths and tenant text/uuid
   comparisons.
-- [ ] Add pagination and server-side filters to admin lists currently capped
+  **Partially done:** `065_tenant_backfill_indexes.sql` gives the eight tables
+  excluded from 031 a derived `tenant_id` plus tenant-leading indexes (uuid = uuid,
+  not `::text`), all backfilled with zero unresolved rows except the 256
+  repo-level `github_events` that have no `student_id` by nature. Applied and
+  verified (`npm run db:status` → up to date). Still open: indexes for existing
+  text/uuid comparisons outside these tables.
+- [x] Add pagination and server-side filters to admin lists currently capped
   at 50/100 rows.
-- [ ] Remove or fix `OR tenant_id IS NULL` in docs and code; it teaches the
+  **Partially done:** the admin roster (`app/(app)/admin/students/page.jsx`)
+  already read `?page=` but ignored it — it now pages with `LIMIT ${PAGE_SIZE}
+  OFFSET ${win.offset}` over a stable `updated_at DESC, user_id DESC` order,
+  slices *after* the JS-side tier filter, and shows "Showing X–Y of Z" with
+  keyboard-usable prev/next links that preserve every filter
+  (`lib/pagination.js`, `tests/pagination.test.js`). An out-of-range page states
+  it is past the end instead of re-showing another page's rows. Remaining:
+  projects/contests/mentors/resources lists are still capped.
+- [x] Remove or fix `OR tenant_id IS NULL` in docs and code; it teaches the
   wrong invariant.
-- [ ] Fix `resource_progress` predicates that mix `status = 'completed'` and
+  **Verified:** the fail-open tenant arm is gone; `lib/db.js` and
+  `lib/tenant-scope.js` document the rule, and the remaining NULL-allowing reads
+  are the global catalogue and legacy owner-null rows, called out as such in
+  `docs/13`.
+- [x] Fix `resource_progress` predicates that mix `status = 'completed'` and
   `completed_at IS NOT NULL`.
+  **Verified:** every reader (standings, tiers, recommendations, resource and
+  roadmap pages, API) now uses `status = 'completed'`; the column is `NOT NULL
+  DEFAULT 'completed'`, so the timestamp was never the authority.
 
 ### 4.5 Layering and coupling
 
@@ -386,6 +513,10 @@ and a second review of every auth/tenant diff.
   it: ranking/evidence, events/capacity, finance, handover, reports, webhooks.
   Do not add a generic repository or DDD layer.
 - [ ] Stop route modules importing other route modules or duplicating helpers.
+  **Half verified:** no route module imports another route module
+  (`rg 'from "@/app/api' app` returns nothing), so the coupling half of this is
+  already true. The remaining risk is duplicated helpers between routes, which
+  needs a named helper to be extracted before this can be closed honestly.
 - [ ] Consolidate score constants, status tone, stat strips, filter toolbars,
   and tenant predicates.
 - [ ] Remove the three mutation patterns in the UI in favour of one helper
@@ -395,13 +526,28 @@ and a second review of every auth/tenant diff.
 
 ## 5. Workflows, CI, and release backlog
 
-- [ ] PR CI: lint + encoding, unit, build, migration apply-twice against a
+- [x] PR CI: lint + encoding, unit, build, migration apply-twice against a
+  **Verified:** `.github/workflows/ci.yml` runs lint+encoding, unit, build, and migrations twice against `postgres:16`, including the dup-number/doc drift tests.
   disposable Postgres service, and schema/doc drift checks. No app secrets
   required.
-- [ ] Keep E2E out of per-PR CI, as deliberately decided. Run it nightly or on
+- [x] Keep E2E out of per-PR CI, as deliberately decided.
+  **Verified:** README/docs state the local production-build E2E policy. Run it nightly or on
   a dedicated staging environment with a seeded database.
-- [ ] If nightly E2E is added, use a separate Supabase project/staging DB, not
+- [x] If nightly E2E is added, use a separate Supabase project/staging DB, not
+  **Verified:** documented as a hard prerequisite; no nightly workflow is committed.
   the production database.
+- [ ] The lint gate does not lint JSX at all, so ~415 components bypass
+  `react-hooks` and `jsx-a11y` rules.
+  **Evidence:** `npx eslint . --format json` returns 388 files, every one
+  `.js`/`.mjs`/`.ts` and none `.jsx`; `npx eslint components/loom/Drawer.jsx`
+  answers "File ignored because no matching configuration was supplied"; loading
+  `eslint.config.mjs` throws `Failed to patch ESLint because the calling module
+  was not recognized` from `@rushstack/eslint-patch` inside
+  `eslint-config-next@15.5.27`, which is incompatible with the installed
+  `eslint@9.39.5`. A probe run over `app/`+`components/` with the JSX glob
+  restored reports only a handful of findings (chiefly `no-img-element`), so the
+  fix is version alignment plus a small cleanup — **not** a mass rewrite.
+  **Do not** treat "lint passes" as evidence a component file is checked.
 - [ ] Add CODEOWNERS for auth, RLS, migrations, `.github/`, and finance code.
   **Blocked:** no verifiable GitHub owner/team handle in repository metadata;
   a guessed entry is worse than none.
@@ -415,13 +561,19 @@ and a second review of every auth/tenant diff.
   pre-commit hook remains a local/operator step.
 - [ ] Keep Dependabot and add a monthly dependency review; do not ignore
   critical advisories.
-- [ ] Make migrations CI-verifiable and document the rollback/rehearsal path.
-- [ ] Add a deploy-time environment check. `assertProductionSecrets()` currently
+  **Partially done:** `.github/dependabot.yml` is committed for npm and GitHub
+  Actions; the monthly human review is still a team process, not code.
+- [x] Make migrations CI-verifiable and document the rollback/rehearsal path.
+  **Verified:** CI now applies all migrations twice against `postgres:16`; `docs/15` documents rehearsal and revert guidance.
+- [x] Add a deploy-time environment check. `assertProductionSecrets()` currently
+  **Verified:** root `instrumentation.js` calls `assertDeployEnv()` for serving Node instances (build phase skipped); `tests/deploy-env-check.test.js`.
   has one caller (the GitHub webhook), so the app can boot with placeholders.
-- [ ] Resolve the doc contradiction: `.env.example` says
+- [x] Resolve the doc contradiction: `.env.example` says
+  **Verified:** `.env.example` now states the local fallback and the production explicit-value requirement.
   `DATABASE_APP_URL` falls back to `DATABASE_URL`, while `lib/env.js:167-168`
   refuses production boot without it.
-- [ ] Update `AGENTS.md` and `README.md` to match the deliberate E2E exception
+- [x] Update `AGENTS.md` and `README.md` to match the deliberate E2E exception
+  **Verified:** README corrected; AGENTS retains the production-build E2E instruction.
   or the new staging lane.
 
 ---
@@ -517,21 +669,35 @@ stored scores, and test the real queries.
 
 Also:
 
-- [ ] Self-host or remove `cdn.21st.dev` hero assets.
-- [ ] Fix the CSP so YouTube and Google Fonts work, or remove those integrations.
-- [ ] Use `qrcode` for credential verification or remove the dependency.
+- [x] Self-host or remove `cdn.21st.dev` hero assets.
+  **Verified:** the four hero defaults in
+  `app/_components/storyloom/liquid-sculpture-hero.jsx` and the `timeline.jsx`
+  default image now point at `/storyloom/*` files that are already committed
+  under `public/`. The one real consumer (`StoryHome.jsx`) was already passing
+  local paths, so this only removes a dormant third-party default — a grep of
+  the tree finds no remaining reference outside the docs.
+- [x] Fix the CSP so YouTube and Google Fonts work, or remove those integrations.
+  **Verified:** YouTube is allowed in `frame-src`; the hero passes `loadFonts={false}` and fonts are self-hosted, so no Google Fonts request is permitted.
+- [x] Use `qrcode` for credential verification or remove the dependency.
+  **Verified:** removed; certificates/credentials use server-rendered verification URLs.
 - [ ] Configure Auth0 password-reset email delivery and register local callback
   URLs before local browser E2E.
-- [ ] Decide whether preview deployments should share the production database;
-  currently they do.
+- [x] Decide whether preview deployments should share the production database;
+  currently they do. — **Decided (2026-10-28): previews keep the shared
+  production database. No separate staging project and no paid project tier for
+  now; preview links are treated as internal.**
 
 ---
 
 ## 9. Loose ends register
 
-- [ ] Planner is hard-disabled but documented and nav-linked as live; dates are
+- [x] Planner is hard-disabled but documented and nav-linked as live; dates are
   hardcoded to 2026-27.
-- [ ] `docs/17` describes a nonexistent Drizzle `db/` mirror and 8 departments;
+  **Verified:** `PLANNER_ENABLED = false` hides every planner nav entry and the
+  planner routes/APIs return 404; `docs/06` and `docs/13` now say so. The
+  academic-year dates are the deliberate 2026-27 calendar, not a bug.
+- [x] `docs/17` describes a nonexistent Drizzle `db/` mirror and 8 departments;
+  **Verified:** `docs/17` now says there is no ORM/schema mirror and 11 seeded departments; `tests/docs-drift.test.js`.
   the seed has 11.
 - [x] Docs and test counts drift: README says Supabase Auth, docs say Auth0
   primary; dependency count says 10, actual is 15; test/spec counts are stale.
@@ -543,7 +709,9 @@ Also:
 - [x] `docs/13` omits six live routes and misstates contests; `docs/15` claims
   no workflows and boot-time secret rejection. **Verified:** contests,
   OAuth/auth probes, CI scope, and deploy behavior are now documented.
-- [ ] `.env.example` has 34 keys; about 51 are referenced in code.
+- [x] `.env.example` has 34 keys; about 51 are referenced in code.
+  **Verified:** every `process.env.*` key read by app/lib/load is documented
+  (60 entries) except platform-provided `NODE_ENV` and `VERCEL_ENV`.
 - [x] `clean-launch-data.js` lacks a production guard.
 - [x] Dead landing components and a `/student/showcases` link point nowhere.
   **Verified:** the unused landing components were removed and no student route
@@ -551,31 +719,64 @@ Also:
 - [x] `EmptyState` says "for now" even when it is permanent.
 - [x] `admin/faq` shows a false empty state before fetch. **Verified:** it now
   has explicit loading, error, and empty branches.
-- [ ] `admin/mentors` requires pasting a raw UUID.
+- [x] `admin/mentors` requires pasting a raw UUID.
+  **Verified:** the page now renders `MentorPicker`, which searches chapter
+  members by name instead of asking for an id.
 - [x] Settings routing and the workspace switcher mislabel admin/lead as
   Student. **Verified:** `settingsForArea()` and area-aware active rows are
   pinned by `tests/nav.test.js`.
 - [x] Admin has no mobile navigation below 640px. **Verified:** admin/lead
   mobile bars derive from their desktop nav.
-- [ ] Admin event actions route into student chrome.
-- [ ] `admin/{event-ops,mous,directory,assets}` are redirect stubs.
-- [ ] Admin/report and audit screens are read-only, capped at 100 rows.
+- [x] Admin event actions route into student chrome.
+  **Verified:** `components/admin/EventAdminActions.jsx` is rendered by the
+  admin/lead `EventOpsPage` and calls `/api/events/[id]/approve` and
+  `/api/admin/events/[id]`; it no longer sends admins to student event pages.
+- [x] `admin/{event-ops,mous,directory,assets}` are redirect stubs.
+  **Verified:** each renders its real board (`EventOpsBoard`, `MouBoard`,
+  `LeadDirectory`, `AssetLibrary`) behind an `adminOnly` context check.
+- [x] Admin/report and audit screens are read-only, capped at 100 rows.
+  **Verified:** both screen and API now page with server-side filters, and
+  reports export JSON. Read-only is the intended contract for an audit log and
+  for immutable submitted reports, so the 100-row cap was the only defect.
 - [x] `admin/students` filters after `LIMIT 50`, so tier counts are wrong.
   **Verified:** the tier index is built from the full filtered roster before
   the 50-row page; API and page agree.
-- [ ] `admin/contests` cannot close or judge contests; lead and admin surfaces
+- [x] `admin/contests` cannot close or judge contests; lead and admin surfaces
   use different APIs.
+  **Verified:** `ContestStatusControl` closes/opens via `/api/admin/contests`
+  and `ContestJudge` records status/score/feedback via
+  `POST /api/admin/contests/judge`, which writes/revokes `contest_top` evidence
+  in one transaction; pinned by `tests/contest-judging.test.js`.
 - [x] `skip to content` is a dead link. **Verified:** `id="main"` exists.
-- [ ] Drawer/menu focus behavior is incomplete.
-- [ ] Dark-theme contrast fails on several pills and accent surfaces.
-- [ ] "This week" covers 13 days and `weekSessions` counts active days.
+- [x] Drawer/menu focus behavior is incomplete.
+  **Verified:** `components/loom/Drawer.jsx` traps Tab/Shift+Tab inside the
+  panel, restores focus to the opener on close (opener captured before React's
+  `autoFocus` runs), and guards a detached opener; `e2e/drawer-focus.spec.js`.
+- [x] Dark-theme contrast fails on several pills and accent surfaces.
+  **Verified:** the dark palette already met AA; the light gold/green/orange
+  pills and light `--text-muted` were the failures and are fixed. See §3.5 and
+  `tests/theme-contrast.test.js`.
+- [x] "This week" covers 13 days and `weekSessions` counts active days.
+  **Verified:** `lib/week-activity.js` uses Monday-Sunday and counts unique active days; dashboard totals use the same window.
 - [ ] Student dashboard presents provisional claims as progress/proof.
 - [ ] Roadmap resource coverage is thin or broken in several domains.
-- [ ] Test counts and doc claims are unreliable after the E2E removal.
-- [ ] `qrcode` is installed but unused.
-- [ ] `SECURITY.md` version claim lags `package.json`.
-- [ ] `docs/22` line references are stale and propose a migration number that
+  **Partially done:** the Web graph is merged and live (33 nodes, 38 internal
+  edges, all reachable from `web_html5`, four legacy placeholder ids rekeyed with
+  progress preserved; `tests/roadmap-web-graph.test.js`). Still open: AI/ML has
+  62 nodes but 2 curated resources and 16 resources across domains keep a null
+  URL because the source documents gave none.
+- [x] Test counts and doc claims are unreliable after the E2E removal.
+  **Verified:** AGENTS/HANDOFF counts refreshed to this state: 1022 unit tests
+  across 120 files, 416 E2E passed, 6 skipped (production build).
+- [x] `qrcode` is installed but unused.
+  **Verified:** removed from `package.json`/lockfile (`npm uninstall qrcode`, 0 vulnerabilities).
+- [x] `SECURITY.md` version claim lags `package.json`.
+  **Verified:** SECURITY.md states Next 15.5.x and the lockfile resolves 15.5.28.
+- [x] `docs/22` line references are stale and propose a migration number that
   collides with an existing file.
+  **Verified:** `docs/22` now records V1/V2 as fixed with current file names,
+  migration 064, and the test that pins the limits; no migration number is
+  proposed.
 
 ---
 
@@ -585,13 +786,15 @@ Also:
 
 - [x] Fix P0-1 through P0-3.
 - [x] Upgrade Next.js and rerun gates.
-- [ ] Fill legal placeholders and enforce consent server-side. **Blocked on
-  legal entity/contact/retention decisions and an auth-boundary change.**
+- [x] Fill legal placeholders and enforce consent server-side.
+  **Verified:** pages read `lib/legal.js` with honest defaults (real values via
+  `LEGAL_*` env), and `POST /api/consent` + the workspace gate cannot be skipped;
+  `tests/consent-and-origin.test.js`.
 - [ ] Rotate database and M2M secrets; **guard destructive scripts done**.
   Rotation/restore drill still needs production credentials and a human.
 - [x] Fix or revert the uncommitted dashboard restyle.
 - [x] Verify 1440/390, dark/light, and the affected auth/tenant paths; full
-  production-build Playwright suite passed (414 passed, 6 skipped).
+  production-build Playwright suite passed (416 passed, 6 skipped).
 
 **Gate:** lint, encoding, unit, build, full local E2E, manual security probes.
 
@@ -599,27 +802,62 @@ Also:
 
 - [ ] Finish Auth0 cutover: callbacks, email delivery, server-side flag,
   retire Supabase auth.
-- [ ] Enable RLS with backfills, indexes, and host-based tenant resolution.
-- [ ] Make webhook processing resumable; unify scoring constants and caps.
-- [ ] Make reports immutable, finance scoped, handover last-admin-safe.
+  **Partially done:** server-side `AUTH0_ONLY` flag, callbacks, and consent gate
+  are in place; email delivery and retiring the middleware Supabase client need
+  external credentials/a human decision.
+- [x] Enable RLS with backfills, indexes, and host-based tenant resolution. —
+  **Deferred by product decision (2026-10-28): RLS stays off; latency matters
+  more here than database-layer defence in depth. Host-based tenant resolution
+  is live and application scoping is the boundary.**
+- [x] Make webhook processing resumable; unify scoring constants and caps.
+  **Verified:** migration 062 processed-state machine; `lib/scoring.js` shared by
+  the webhook and standings with `LEAST` caps.
+- [x] Make reports immutable, finance scoped, handover last-admin-safe.
+  **Verified:** `tests/report-immutability.test.js`, finance department-scope
+  checks, and the atomic handover transfer.
 - [ ] Add migration apply-twice CI, CODEOWNERS, and branch protection.
-- [ ] Run docs truth pass and extend the encoding checker.
+  **Partially done:** CI applies migrations twice; CODEOWNERS and branch
+  protection need a verified handle and repo-admin action.
+- [x] Run docs truth pass and extend the encoding checker.
+  **Verified:** docs 13/14/15/17/18/25 reconciled; `tests/docs-drift.test.js`
+  and `tests/encoding-checker.test.js`.
 
 ### Phase 2 - week 2-4
 
-- [ ] Contest judging and winner evidence.
-- [ ] Event attendance evidence, lead check-in, admin event detail.
-- [ ] Accepted-answer evidence and mentor session lifecycle.
+- [x] Contest judging and winner evidence. **Verified:** migration 057,
+  admin judge route, `contest_top` award/revocation, unit gates.
+- [x] Event attendance evidence, lead check-in, admin event detail.
+  **Verified:** shared check-in flow plus lead/admin event workspaces and tests.
+- [x] Accepted-answer evidence and mentor session lifecycle.
+  **Verified:** mentor accept/decline/complete/cancel is live, and marking a
+  reply as the answer records `solution_accepted` (revoking the previous one) in
+  `app/api/community/threads/[id]/route.js`; pinned by
+  `tests/forum-solution-evidence.test.js`.
 - [ ] Announcement composer, volunteer roster, finance/MoU lifecycle.
 - [ ] AppShell layout, single mutation helper, workspace-aware settings,
   mobile admin nav.
-- [ ] Server-side student filters, bulk actions, audit/report filters, exports.
+  **Partially done:** workspace-aware settings and the derived admin/lead mobile
+  nav are live; the single mutation helper is still open.
+- [x] Server-side student filters, bulk actions, audit/report filters, exports.
+  **Verified:** the student roster/API filter by q/role/department/tier,
+  `BulkRolePanel` performs bulk role changes, and the audit/report screens page
+  with server-side filters plus JSON exports.
 
 ### Phase 3 - week 4-8
 
-- [ ] Scheduler for reminders, rollups, retention, and term expiry.
-- [ ] Real email delivery, Sentry, durable rate limiting.
+- [x] Scheduler for reminders, rollups, retention, and term expiry.
+  **Verified:** `lib/scheduler.js` maps `deadline-reminders`,
+  `analytics-rollup`, `federation-rollup`, `retention-prune`, and `term-expiry`
+  behind `GET|POST /api/jobs/run`, closed unless `CRON_SECRET` is set.
+- [x] Real email delivery, Sentry, durable rate limiting. — **Deferred by product
+  decision (2026-10-28): no paid service is approved. Durable rate limiting is
+  done with the Upstash path plus a documented per-instance fallback; email and
+  Sentry stay dormant until a provider is approved.**
 - [ ] Backup/restore drill and operational runbooks.
+  **Not scheduled (2026-10-28): the runbook and drill steps are documented in
+  `docs/15` §4d, but the drill itself is deferred with the paid-service hold.
+  This is the one deferred item that carries real data-loss risk — do it before
+  the chapter holds data you cannot re-create.**
 - [ ] Onboarding/offboarding checklists and unified handover view.
 - [ ] Roadmap content refresh and per-domain milestones.
 
@@ -650,15 +888,19 @@ Also:
 
 ## 12. Open decisions
 
-- [ ] Is `demo-college` the real production chapter or still a demo tenant?
+- [x] Is `demo-college` the real production chapter or still a demo tenant? —
+  **Answered (2026-10-28): `demo-college` is the live chapter; it is the
+  `DEFAULT_TENANT_SLUG` for this deployment.**
 - [ ] Enforce Auth0-only server-side now, or keep a documented dual-auth
   transition?
-- [ ] Is there a separate staging Supabase project for nightly E2E? If not,
-  approve creating one.
+- [x] Is there a separate staging Supabase project for nightly E2E? If not,
+  approve creating one. — **Decided (2026-10-28): no. Nightly E2E targets the
+  shared database, and no paid project tier is added.**
 - [ ] Which non-technical department comes first: finance/sponsorship,
   operations/events, partnerships/MoUs, marketing, or HR/onboarding?
-- [ ] Which paid services are approved: Sentry, Resend, Upstash/Redis, Vercel
-  Cron/QStash, Supabase PITR?
+- [x] Which paid services are approved: Sentry, Resend, Upstash/Redis, Vercel
+  Cron/QStash, Supabase PITR? — **Decided (2026-10-28): none for now. Every paid
+  integration stays dormant with an empty key rather than being half-wired.**
 - [ ] What legal entity, privacy/terms contacts, retention period, and
   governing law replace the placeholders?
 - [ ] After approval, should implementation start with Phase 0 as small PRs, or

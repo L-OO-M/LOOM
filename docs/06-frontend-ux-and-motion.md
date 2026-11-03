@@ -5,7 +5,7 @@
 Student navigation follows five verbs (source: `lib/nav.js`):
 
 - Home (`/student`)
-- Learn — Roadmap, Planner, Resources
+- Learn — Roadmap, Resources (Planner is code-gated off: `PLANNER_ENABLED = false` in `lib/feature-flags.js`, so it is hidden from nav and routes 404)
 - Build — Projects, GitHub, Open Source
 - Prove — Proof (credentials), Challenges (contests), Standings (leaderboard)
 - Connect — Mentors, Community (forums/wiki/snippets), Events

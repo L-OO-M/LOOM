@@ -90,8 +90,8 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced). POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and **rejects any event whose start falls inside the 20 Nov – 20 Dec 2026 relaxation window** (`RELAXATION_WINDOW`, 409). |
 | GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount) / feedback |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
-| GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. |
-| GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. |
+| GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. **Currently disabled:** `PLANNER_ENABLED = false` (`lib/feature-flags.js`) makes every planner route return 404 and hides its nav entry. |
+| GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. **Currently 404** while `PLANNER_ENABLED` is false. |
 | PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
 | POST | `/api/admin/events/[id]/attendance` | dept_lead+ (`manage_event_ops`): check in by door code → attended + certificate (once) + notify |
 | GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
@@ -233,7 +233,7 @@ is single-use, expires in 24h, and only its SHA-256 hash is stored.
 |--------|-------|------|-------|
 | GET | `/api/admin/audit` | admin | audit trail, filterable |
 | GET/POST/PATCH | `/api/admin/contests` | admin | contest manager; PATCH closes/reopens a contest |
-| POST | `/api/admin/contests/judge` | admin | judge a submission `{submissionId, status:"submitted"\|"shortlisted"\|"winner"\|"rejected", score?, feedback?}`: writes `contest_top` evidence for winners, revokes it when a winner is displaced, skips self-verification, audits and notifies |
+| POST | `/api/admin/contests/judge` | admin | judge a submission `{submissionId, status:"submitted"\|"shortlisted"\|"winner"\|"rejected", score?, feedback?}`: writes `contest_top` evidence for winners, revokes it when a winner is displaced, skips self-verification, audits and notifies; an identical repeat returns `{unchanged:true}` with no second audit/notification |
 | GET/POST/PATCH | `/api/admin/mentors` | admin | mentor roster |
 | GET/POST/PATCH | `/api/admin/projects` | admin | project curation |
 | GET/POST/PATCH | `/api/admin/resources` | admin | resource library manager (optional `nodeId` pins a resource to a roadmap node) |

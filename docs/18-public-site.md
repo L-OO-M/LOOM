@@ -12,7 +12,7 @@ Signed-out visitors get real pages backed by real DB rows: FAQ, About, Events, d
 | `/domains/[slug]` | `departments` (active only) + `roadmap_nodes` (by domain slug) + `events` (by `department_id` OR domain) | Join CTA: logged-out sees a `/register` link; logged-in sees a button POSTing `/api/departments/[id]/join` (401 falls back to `/register`) |
 | `/` (landing) | new Upcoming events / Project showcase / Department quick-links sections | Client components fetch the public APIs with `.catch(()=>{})` honest fallbacks, same pattern as `LiveStats` |
 
-Pages resolve the tenant from the request host (`resolveTenantFromHost`) with a `demo-college` fallback, and scope every query with `(tenant_id = X OR X IS NULL)`. All data fetches are wrapped so a DB hiccup renders an honest empty state — never a 500.
+Pages resolve the tenant from the request host (`resolveTenantFromHost`), then from the deployment-configured `DEFAULT_TENANT_SLUG`; there is no hardcoded chapter. Every query is scoped with `(tenant_id = X OR X IS NULL)`. All data fetches are wrapped so a DB hiccup renders an honest empty state — never a 500.
 
 ## APIs
 
