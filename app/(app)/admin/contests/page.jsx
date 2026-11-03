@@ -1,14 +1,20 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Users, FileCheck, Clock3, Search, ExternalLink } from "lucide-react";
+import { Users, FileCheck, Clock3, Search, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ContestForm } from "@/components/admin-forms";
 import { ContestFunnelBars, ContestConversionBars } from "@/components/admin/RemainingCharts";
+import { pageHref, pageWindow } from "@/lib/pagination";
 import { ContestStatusControl } from "./_components/ContestStatusControl";
 import { ContestJudge } from "./_components/ContestJudge";
 import "../_components/admin-ledger.css";
+// Reuse the roster pager styles; `.rosterx` only supplies the --adst-* aliases.
+import "../students/students.css";
+
+const PAGE_SIZE = 50;
+const BASE_PATH = "/admin/contests";
 
 function statusTone(s) {
   const m = {
@@ -30,6 +36,7 @@ export default async function AdminContestsPage({ searchParams }) {
   const sp = await searchParams;
   const q = (sp?.q || "").trim();
   const status = sp?.status || "";
+  const requestedPage = sp?.page;
   const tid = tenant?.id ?? null;
 
   const [stats] = await sql`
@@ -42,18 +49,36 @@ export default async function AdminContestsPage({ searchParams }) {
     WHERE tenant_id = ${tid}::uuid
   `;
 
-  const rows = await sql`
-    SELECT c.*,
-      COALESCE(r.cnt, 0)::int AS registrations,
-      COALESCE(s.cnt, 0)::int AS submissions
+  // Filtered COUNT in the same tenant scope as the list below: `total` is what
+  // the pager can actually reach, not the chapter-wide total in `stats`.
+  const [{ total = 0 } = {}] = await sql`
+    SELECT COUNT(*)::int AS total
     FROM contests c
-    LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_registrations GROUP BY contest_id) r ON r.contest_id = c.id
-    LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_submissions GROUP BY contest_id) s ON s.contest_id = c.id
     WHERE c.tenant_id = ${tid}::uuid
       AND (${q ? sql`(c.title ILIKE ${"%" + q + "%"} OR c.description ILIKE ${"%" + q + "%"})` : sql`TRUE`})
       AND (${status ? sql`c.status = ${status}` : sql`TRUE`})
-    ORDER BY c.created_at DESC LIMIT 50
   `;
+  const win = pageWindow(total, requestedPage, PAGE_SIZE);
+
+  // A page past the end asks for nothing rather than replaying another page's
+  // rows; the empty state says which page exists instead.
+  let rows = [];
+  if (win.total > 0 && !win.outOfRange) {
+    rows = await sql`
+      SELECT c.*,
+        COALESCE(r.cnt, 0)::int AS registrations,
+        COALESCE(s.cnt, 0)::int AS submissions
+      FROM contests c
+      LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_registrations GROUP BY contest_id) r ON r.contest_id = c.id
+      LEFT JOIN (SELECT contest_id, COUNT(*)::int AS cnt FROM contest_submissions GROUP BY contest_id) s ON s.contest_id = c.id
+      WHERE c.tenant_id = ${tid}::uuid
+        AND (${q ? sql`(c.title ILIKE ${"%" + q + "%"} OR c.description ILIKE ${"%" + q + "%"})` : sql`TRUE`})
+        AND (${status ? sql`c.status = ${status}` : sql`TRUE`})
+      ORDER BY c.created_at DESC, c.id DESC
+      LIMIT ${PAGE_SIZE} OFFSET ${win.offset}
+    `;
+  }
+  const filterParams = { q, status };
 
   const subs = await sql`
     SELECT s.*, c.title AS contest_title, c.status AS contest_status, p.name AS student_name FROM contest_submissions s
@@ -70,7 +95,7 @@ export default async function AdminContestsPage({ searchParams }) {
           kicker={`Compete / ${stats?.total ?? 0} contests / ${stats?.live ?? 0} live / ${stats?.submissions ?? 0} submissions`}
           title="Contests"
           lede="Create, publish, and judge. Draft first, then open registration — submissions flow into the inbox below."
-          meta={`${rows.length} shown in this view / newest first / cap 50`}
+          meta={`${win.total} matched / page ${win.page} of ${win.pages || 1} / newest first`}
           tone="field"
           art="/events/event-contest.png"
           artAlt=""
@@ -111,14 +136,24 @@ export default async function AdminContestsPage({ searchParams }) {
             <option value="closed">Closed</option>
           </select>
           <button className="btn-ink !py-2 text-xs">Filter</button>
-          {(q || status) && <Link href="/admin/contests" prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}
-          <span className="aled-meta ml-auto hidden sm:block">{rows.length} shown</span>
+          {(q || status) && <Link href={BASE_PATH} prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}
+          <span className="aled-meta ml-auto hidden sm:block">{win.total} matched · {PAGE_SIZE} per page</span>
         </form>
 
         <div className="aled-split">
           <section aria-label="Contest ledger">
             <div className="aled-meta">Contests / newest first</div>
-            {rows.length === 0 ? (
+            {win.outOfRange ? (
+              <WorkspaceEmpty
+                title={`Page ${win.requestedPage} is past the end of this ledger`}
+                body={`${win.total} matching contest${win.total === 1 ? "" : "s"} fit on ${win.pages} page${win.pages === 1 ? "" : "s"} at ${PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
+                action={
+                  <Link href={pageHref(BASE_PATH, filterParams, win.pages)} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                    Go to the last page ({win.pages})
+                  </Link>
+                }
+              />
+            ) : rows.length === 0 ? (
               <WorkspaceEmpty
                 title="No contests yet"
                 body="Create a draft on the right — publish when the brief, dates, and judging criteria are ready. Students register from /student/contests."
@@ -147,6 +182,36 @@ export default async function AdminContestsPage({ searchParams }) {
                   );
                 })}
               </ul>
+            )}
+            {!win.outOfRange && win.pages > 1 && (
+              <div className="rosterx">
+                <nav className="adst-pager" aria-label="Contest pages">
+                  {win.hasPrev ? (
+                    <Link href={pageHref(BASE_PATH, filterParams, win.page - 1)} prefetch={false} rel="prev" className="adst-pager-step">
+                      <ChevronLeft size={12} aria-hidden="true" /> Previous
+                    </Link>
+                  ) : (
+                    <span className="adst-pager-step is-disabled" aria-disabled="true">
+                      <ChevronLeft size={12} aria-hidden="true" /> Previous
+                      <span className="sr-only"> — already on the first page</span>
+                    </span>
+                  )}
+                  <p className="adst-pager-count">
+                    Showing <strong>{win.from}&ndash;{win.to}</strong> of {win.total}
+                    <span className="adst-pager-position" aria-current="page">Page {win.page} of {win.pages}</span>
+                  </p>
+                  {win.hasNext ? (
+                    <Link href={pageHref(BASE_PATH, filterParams, win.page + 1)} prefetch={false} rel="next" className="adst-pager-step">
+                      Next <ChevronRight size={12} aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span className="adst-pager-step is-disabled" aria-disabled="true">
+                      Next <ChevronRight size={12} aria-hidden="true" />
+                      <span className="sr-only"> — already on the last page</span>
+                    </span>
+                  )}
+                </nav>
+              </div>
             )}
           </section>
 

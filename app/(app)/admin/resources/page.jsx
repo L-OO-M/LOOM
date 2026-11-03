@@ -1,13 +1,18 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Library, Search, Clock3, ExternalLink, GraduationCap } from "lucide-react";
+import { Library, Search, Clock3, ExternalLink, GraduationCap, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ResourceForm } from "@/components/admin-forms";
+import { pageHref, pageWindow } from "@/lib/pagination";
 import "../_components/admin-ledger.css";
+// Reuse the roster pager styles; `.rosterx` only supplies the --adst-* aliases.
+import "../students/students.css";
 
 const KIND_TAG = { article: "aled-tag--info", video: "aled-tag--accent", doc: "aled-tag--success" };
+const PAGE_SIZE = 50;
+const BASE_PATH = "/admin/resources";
 
 export default async function AdminResourcesPage({ searchParams }) {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -19,6 +24,7 @@ export default async function AdminResourcesPage({ searchParams }) {
   const q = (sp?.q || "").trim();
   const domain = sp?.domain || "";
   const kind = sp?.kind || "";
+  const requestedPage = sp?.page;
 
   const [stats] = await sql`
     SELECT COUNT(*)::int AS total, COUNT(DISTINCT domain)::int AS domains,
@@ -28,14 +34,31 @@ export default async function AdminResourcesPage({ searchParams }) {
   const domains = await sql`SELECT DISTINCT domain FROM resources ORDER BY domain`;
   const nodes = await sql`SELECT id, title, domain, sort_order FROM roadmap_nodes ORDER BY domain ASC, sort_order ASC`;
   const nodeLabel = new Map(nodes.map((n) => [n.id, `${n.domain} · ${n.title}`]));
-  const rows = await sql`
-    SELECT * FROM resources
+
+  // resources is the global catalog (no tenant_id), so the filtered COUNT below
+  // shares the list query's predicate and nothing else.
+  const [{ total = 0 } = {}] = await sql`
+    SELECT COUNT(*)::int AS total FROM resources
     WHERE (${q ? sql`(title ILIKE ${"%" + q + "%"} OR domain ILIKE ${"%" + q + "%"})` : sql`TRUE`})
       AND (${domain ? sql`domain = ${domain}` : sql`TRUE`})
       AND (${kind ? sql`kind = ${kind}` : sql`TRUE`})
-    ORDER BY domain ASC, minutes ASC
-    LIMIT 100
   `;
+  const win = pageWindow(total, requestedPage, PAGE_SIZE);
+
+  // A page past the end asks for nothing rather than replaying another page's
+  // rows; the empty state says which page exists instead.
+  let rows = [];
+  if (win.total > 0 && !win.outOfRange) {
+    rows = await sql`
+      SELECT * FROM resources
+      WHERE (${q ? sql`(title ILIKE ${"%" + q + "%"} OR domain ILIKE ${"%" + q + "%"})` : sql`TRUE`})
+        AND (${domain ? sql`domain = ${domain}` : sql`TRUE`})
+        AND (${kind ? sql`kind = ${kind}` : sql`TRUE`})
+      ORDER BY domain ASC, minutes ASC, id ASC
+      LIMIT ${PAGE_SIZE} OFFSET ${win.offset}
+    `;
+  }
+  const filterParams = { q, domain, kind };
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -44,7 +67,7 @@ export default async function AdminResourcesPage({ searchParams }) {
           kicker={`Content / ${stats?.total ?? 0} resources / ${stats?.domains ?? 0} domains / ${Math.round((stats?.minutes ?? 0) / 60)}h total`}
           title="Resources"
           lede="Global catalog students learn from — curated per domain and level. Keep titles precise; minutes should be honest."
-          meta={`${rows.length} resources in view / ${nodes.length} roadmap nodes linked / by domain, then shortest first`}
+          meta={`${win.total} matched / page ${win.page} of ${win.pages || 1} / ${nodes.length} roadmap nodes linked / by domain, then shortest first`}
           tone="field"
           art="/storyloom/learning.png"
           artAlt=""
@@ -71,13 +94,23 @@ export default async function AdminResourcesPage({ searchParams }) {
             <option value="doc">Doc</option>
           </select>
           <button className="btn-ink !py-1.5 text-xs">Filter</button>
-          {(q || domain || kind) && <Link href="/admin/resources" prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}
-          <span className="aled-meta ml-auto hidden sm:block">{rows.length} shown · cap 100</span>
+          {(q || domain || kind) && <Link href={BASE_PATH} prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}
+          <span className="aled-meta ml-auto hidden sm:block">{win.total} matched · {PAGE_SIZE} per page</span>
         </form>
 
         <div className="aled-split">
-          <WorkspaceSection index="01" title="Catalog" note="By domain, then shortest first. Linked nodes are shown inline." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><Library size={12} aria-hidden="true" /> {rows.length}</span>}>
-            {rows.length === 0 ? (
+          <WorkspaceSection index="01" title="Catalog" note="By domain, then shortest first. Linked nodes are shown inline." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><Library size={12} aria-hidden="true" /> {win.total}</span>}>
+            {win.outOfRange ? (
+              <WorkspaceEmpty
+                title={`Page ${win.requestedPage} is past the end of this catalog`}
+                body={`${win.total} matching resource${win.total === 1 ? "" : "s"} fit on ${win.pages} page${win.pages === 1 ? "" : "s"} at ${PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
+                action={
+                  <Link href={pageHref(BASE_PATH, filterParams, win.pages)} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                    Go to the last page ({win.pages})
+                  </Link>
+                }
+              />
+            ) : rows.length === 0 ? (
               <WorkspaceEmpty title="No resources match" body="Try clearing filters or add the first resource in the panel beside this list." />
             ) : (
               <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
@@ -110,6 +143,36 @@ export default async function AdminResourcesPage({ searchParams }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {!win.outOfRange && win.pages > 1 && (
+              <div className="rosterx">
+                <nav className="adst-pager" aria-label="Resource pages">
+                  {win.hasPrev ? (
+                    <Link href={pageHref(BASE_PATH, filterParams, win.page - 1)} prefetch={false} rel="prev" className="adst-pager-step">
+                      <ChevronLeft size={12} aria-hidden="true" /> Previous
+                    </Link>
+                  ) : (
+                    <span className="adst-pager-step is-disabled" aria-disabled="true">
+                      <ChevronLeft size={12} aria-hidden="true" /> Previous
+                      <span className="sr-only"> — already on the first page</span>
+                    </span>
+                  )}
+                  <p className="adst-pager-count">
+                    Showing <strong>{win.from}&ndash;{win.to}</strong> of {win.total}
+                    <span className="adst-pager-position" aria-current="page">Page {win.page} of {win.pages}</span>
+                  </p>
+                  {win.hasNext ? (
+                    <Link href={pageHref(BASE_PATH, filterParams, win.page + 1)} prefetch={false} rel="next" className="adst-pager-step">
+                      Next <ChevronRight size={12} aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span className="adst-pager-step is-disabled" aria-disabled="true">
+                      Next <ChevronRight size={12} aria-hidden="true" />
+                      <span className="sr-only"> — already on the last page</span>
+                    </span>
+                  )}
+                </nav>
+              </div>
             )}
           </WorkspaceSection>
 
