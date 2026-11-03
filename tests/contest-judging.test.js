@@ -55,10 +55,22 @@ function makeDb({ submission = null, tenantId = TENANT } = {}) {
   }
 
   const sql = (strings, ...values) => Promise.resolve(dispatch(strings, values));
-  sql.begin = (fn) => fn((strings, ...values) => Promise.resolve(dispatch(strings, values)));
+  // Snapshot and restore on throw so a failing transaction is observable here
+  // instead of relying on the real database's rollback.
+  sql.begin = async (fn) => {
+    const snapshot = current ? { ...current } : null;
+    try {
+      return await fn((strings, ...values) => Promise.resolve(dispatch(strings, values)));
+    } catch (e) {
+      current = snapshot;
+      throw e;
+    }
+  };
   sql.statements = statements;
   return { sql, statements, get submission() { return current; } };
 }
+
+let evidenceError = null;
 
 const pendingContexts = [];
 const evidence = [];
@@ -75,6 +87,7 @@ async function loadRoute() {
   }));
   vi.doMock("@/lib/ranking", () => ({
     recordEvidence: async (args) => {
+      if (evidenceError) throw evidenceError;
       evidence.push(args);
       return { id: "evidence-1" };
     },
@@ -122,6 +135,7 @@ afterEach(() => {
   revocations.length = 0;
   recomputes.length = 0;
   notifications.length = 0;
+  evidenceError = null;
 });
 
 describe("POST /api/admin/contests/judge", () => {
@@ -191,6 +205,21 @@ describe("POST /api/admin/contests/judge", () => {
     expect(body.data.unchanged).toBe(true);
     expect(db.statements.some((s) => /UPDATE contest_submissions/.test(s.text))).toBe(false);
     expect(evidence).toHaveLength(0);
+    expect(recomputes).toHaveLength(0);
+    expect(notifications).toHaveLength(0);
+  });
+
+  it("rolls the score change back when the evidence write fails", async () => {
+    evidenceError = new Error("evidence write failed");
+    const db = makeDb({ submission: submission() });
+
+    await expect(judge(
+      { submissionId: SUBMISSION_ID, status: "winner", score: 91 },
+      { db }
+    )).rejects.toThrow("evidence write failed");
+
+    expect(db.submission.status).toBe("shortlisted");
+    expect(db.submission.score).toBeUndefined();
     expect(recomputes).toHaveLength(0);
     expect(notifications).toHaveLength(0);
   });
