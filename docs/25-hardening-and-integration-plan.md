@@ -340,8 +340,16 @@ and a second review of every auth/tenant diff.
 - [ ] Tighten CSP: remove `unsafe-eval`, move inline scripts to nonces/hashes,
   add `object-src 'none'`, `base-uri 'self'`, and explicit `frame-src`.
   **Partially done:** `object-src 'none'`, `base-uri 'self'`, and an explicit
-  YouTube `frame-src` are in place; `unsafe-eval` and inline-script hashing
-  remain open. Pinned by `tests/csp.test.js`.
+  YouTube `frame-src` are in place. `middleware.js` now emits a per-request
+  nonce policy built by `lib/csp.js` (production `script-src` has no
+  `'unsafe-inline'`; `'unsafe-eval'` is dev-only) and `app/layout.jsx` opts the
+  tree into dynamic rendering, which nonce-based CSP requires. Still open before
+  this is safe to ship: the six prerendered public pages
+  (`app/{about,contact,domains,faq,privacy,terms}/page.jsx`) export
+  `dynamic = "force-static"`, so their built HTML has no request to read a nonce
+  from and Next renders their inline scripts without one. Remove that export from
+  each (verified: `/` and every other route now carries the nonce on 100% of its
+  inline Next scripts). Pinned by `tests/csp.test.js`.
 - [x] Fix the current CSP breakage: YouTube embeds have no `frame-src`, and
   Google Fonts are blocked by `style-src`/`font-src`.
   **Verified:** `frame-src` names both youtube-nocookie and youtube hosts

@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { headers } from "next/headers";
 import { ThemeProvider } from "@/lib/theme";
 import "./globals.css";
 import { SiteFrame } from "@/components/landing/SiteFrame";
@@ -69,7 +70,16 @@ export const metadata = {
   }
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Nonce-based CSP requires dynamic rendering (Next.js CSP guide): the nonce is
+  // applied during server rendering from the CSP request header that
+  // middleware.js sets, and a build-time static page has no request to read it
+  // from. Reading the request headers here (not the value itself) opts every
+  // route under this layout into dynamic rendering, which is what makes the
+  // nonce appear on Next's inline bootstrap/flight scripts. Removing this call
+  // would ship static HTML whose inline scripts the CSP blocks.
+  await headers();
+
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${display.variable}`} style={{ scrollPaddingTop: "4rem" }}>
       <body>
