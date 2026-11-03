@@ -174,17 +174,18 @@ describe("planner ownership", () => {
     expect(owners[1]).toMatchObject({ user_id: null, sessions: 3 });
     expect(sql.calls[0].values).toContain("tenant-1");
     expect(sql.calls[0].text).toContain("owner_user_id");
-    // profiles.user_id is text while planner_sessions.owner_user_id is uuid.
-    // Without the cast Postgres rejects the join ("operator does not exist:
-    // text = uuid") and every planner page fails to render.
-    expect(sql.calls[0].text).toContain("p.user_id = s.owner_user_id::text");
+    // 058 converted planner_sessions.owner_user_id to text, so the join is a
+    // plain text = text comparison. A cast here would only hide a future
+    // re-divergence of the two column types.
+    expect(sql.calls[0].text).toContain("p.user_id = s.owner_user_id");
+    expect(sql.calls[0].text).not.toContain("owner_user_id::");
   });
 
-  it("loads sessions with the same text-to-uuid join fix", async () => {
+  it("loads sessions with the same text join", async () => {
     const sql = recorder([[weeks[0]], [{ ...sessions[0], owner_user_id: null, owner_name: null }], []]);
     const data = await loadPlanner({ sql, tenantId: "tenant-1" });
     const sessionQuery = sql.calls.find((c) => c.text.includes("LEFT JOIN profiles"));
-    expect(sessionQuery.text).toContain("p.user_id = s.owner_user_id::text");
+    expect(sessionQuery.text).toContain("p.user_id = s.owner_user_id");
     expect(data.sessions).toHaveLength(1);
     expect(data.sessions[0].owner_name).toBeNull();
   });

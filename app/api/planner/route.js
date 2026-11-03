@@ -136,7 +136,7 @@ export async function PATCH(request) {
   const rows = await sql`
     UPDATE planner_sessions SET owner_user_id = ${body.toUserId}, updated_at = now()
     WHERE tenant_id = ${tenant.id}::uuid AND academic_year = ${PLANNER_YEAR}
-      AND ((${fromUserId}::uuid IS NULL AND owner_user_id IS NULL) OR owner_user_id = ${fromUserId}::uuid)
+      AND ((${fromUserId}::text IS NULL AND owner_user_id IS NULL) OR owner_user_id = ${fromUserId}::text)
     RETURNING id
   `;
 
