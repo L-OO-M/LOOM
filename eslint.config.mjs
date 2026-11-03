@@ -12,6 +12,13 @@ export default [
   {
     ignores: [".next/**", "node_modules/**", "playwright-report/**", "test-results/**"]
   },
+  // ESLint 9 only walks .js/.mjs/.cjs by default. Without this block the 281
+  // .jsx files in app/ and components/ were never linted, so react-hooks and
+  // jsx-a11y violations in components could not fail the gate. The rules from
+  // the configs above are global and apply once a file is matched here.
+  {
+    files: ["**/*.jsx"]
+  },
   {
     rules: {
       "no-restricted-syntax": [

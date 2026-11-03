@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:migrate": "node load/migrate.js",
-  "db:status": "node load/schema-status.js",
+    "db:status": "node load/schema-status.js",
     "db:seed": "node load/seed-control-plane.js && node load/seed-content.js",
     "db:seed:roadmaps": "node load/seed-roadmaps.js && node load/seed-node-resources.js",
     "db:verify": "node load/verify-roadmap-shelf.js",
@@ -60,7 +60,7 @@
     "@types/node": "20.17.6",
     "@types/react": "19.3.0",
     "eslint": "^9.15.0",
-    "eslint-config-next": "^15.5.27",
+    "eslint-config-next": "^15.5.28",
     "satori": "0.33.3",
     "tailwindcss": "^4.0.0",
     "vitest": "^4.1.12"
