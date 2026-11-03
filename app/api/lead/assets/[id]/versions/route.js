@@ -49,20 +49,23 @@ export async function POST(request, { params }) {
 
   await uploadObject({ path, body: Buffer.from(await file.arrayBuffer()), contentType: check.mime });
   try {
-    await sql`
-      INSERT INTO asset_versions
-        (tenant_id, asset_id, version, storage_path, file_name, mime_type, size_bytes, uploaded_by)
-      VALUES
-        (${tenant.id}::uuid, ${id}::uuid, ${version}, ${path}, ${String(file.name).slice(0, 200)},
-         ${check.mime}, ${file.size}, ${user.id})
-    `;
-    await sql`
-      UPDATE media_assets SET
-        storage_path = ${path}, mime_type = ${check.mime}, size_bytes = ${file.size},
-        current_version = ${version}, updated_at = NOW()
-      WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
-    `;
+    await sql.begin(async (tx) => {
+      await tx`
+        INSERT INTO asset_versions
+          (tenant_id, asset_id, version, storage_path, file_name, mime_type, size_bytes, uploaded_by)
+        VALUES
+          (${tenant.id}::uuid, ${id}::uuid, ${version}, ${path}, ${String(file.name).slice(0, 200)},
+           ${check.mime}, ${file.size}, ${user.id})
+      `;
+      await tx`
+        UPDATE media_assets SET
+          storage_path = ${path}, mime_type = ${check.mime}, size_bytes = ${file.size},
+          current_version = ${version}, updated_at = NOW()
+        WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
+      `;
+    });
   } catch (e) {
+    // The object is already uploaded; drop it so a failed transaction leaves no orphan.
     await removeObjects(path).catch(() => {});
     throw e;
   }
