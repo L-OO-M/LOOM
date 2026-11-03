@@ -9,6 +9,7 @@
   --line: #262b2e;
   --accent: #d6b25e;
   --accent-dark: #b89445;
+  --on-accent: #101314;
   --accent-glow: rgba(214, 178, 94, 0.1);
   --wash: rgba(214, 178, 94, 0.06);
   --gold: #d6b25e;
@@ -24,16 +25,17 @@
   --bg-elevated: #fffdf8;
   --bg-muted: #f0e9d8;
   --text: #191b18;
-  --text-muted: #6e6e66;
+  --text-muted: #66665e;
   --line: #e5dcc6;
   --accent: #8a6d1f;
   --accent-dark: #6b5416;
+  --on-accent: #fffdf8;
   --accent-glow: rgba(138, 109, 31, 0.1);
   --wash: rgba(176, 141, 62, 0.08);
   --gold: #a37c26;
   --danger: #b42318;
-  --success: #0c8a6a;
-  --warn: #b87312;
+  --success: #077354;
+  --warn: #8a570e;
   --info: #4a6d96;
   --nav-bg: rgba(250, 246, 238, 0.82);
 }
@@ -596,7 +598,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 .pill.is-live { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--accent); }
 .pill.is-solid { background: var(--text); border-color: var(--text); color: var(--bg); }
-.pill.is-gold { background: var(--accent); border-color: var(--accent); color: #101314; }
+.pill.is-gold { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* ---- Focus halo (signature moments) ---- */
 .halo { position: relative; }

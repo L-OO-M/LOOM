@@ -86,7 +86,7 @@ const bottomJourneyData = [
     { id: "a04", year: "04", month: "Projects & Showcases", content: "Collaborate in teams, develop real-world solutions, and showcase your work." },
 ];
 const allJourneyItems = [...topJourneyData, ...bottomJourneyData].sort((a, b) => a.id.localeCompare(b.id));
-export default function Timeline({ title = "Product Storyline", periodLabel = "2020-2026", textColor = "var(--color-foreground, #000000)", mutedTextColor = "var(--color-muted-foreground, #3f3f46)", activeColor = "#ff5f00", backgroundColor = "var(--color-background, #ffffff)", imageUrl = "https://cdn.21st.dev/assets/mirror/b0/b0c41784074f76ac5fb6b447da87780c901135841317a096241371f24bc13ddd.jpg", imageAlt = "Modern office workspace", imageVariant = "photo", duration, scrollDuration = 1.2, }) {
+export default function Timeline({ title = "Product Storyline", periodLabel = "2020-2026", textColor = "var(--color-foreground, #000000)", mutedTextColor = "var(--color-muted-foreground, #3f3f46)", activeColor = "#ff5f00", backgroundColor = "var(--color-background, #ffffff)", imageUrl = "/storyloom/hackathon.png", imageAlt = "Modern office workspace", imageVariant = "photo", duration, scrollDuration = 1.2, }) {
     const sectionRef = useRef(null);
     const wholeSliderRef = useRef(null);
     const reducedMotion = usePrefersReducedMotion();

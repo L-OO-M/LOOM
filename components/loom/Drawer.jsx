@@ -1,24 +1,94 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 
-/* Right-side drawer — node details, previews, inbox. Focus-trapped by
-   intent: Escape closes, initial focus lands on the close button. */
+/* Right-side drawer — node details, previews, inbox. A real modal: Escape
+   closes, initial focus lands on the close button, Tab is trapped inside the
+   panel, and focus returns to the opener once the drawer closes. */
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Drawer({ open, onClose, label, children }) {
+  const panelRef = useRef(null);
+  const triggerRef = useRef(null);
+  const wasOpenRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+
+  // The parent passes an inline onClose, so its identity changes on every
+  // render; read the latest one from a ref instead of re-running the effect
+  // (a re-run would restore focus to the opener while the drawer is open).
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Capture the opener during render, before autoFocus moves focus into the
+  // mounted panel (React applies autoFocus in commit, before passive effects,
+  // so an effect would only ever see the close button).
+  if (open !== wasOpenRef.current) {
+    if (open) {
+      const active = typeof document !== "undefined" ? document.activeElement : null;
+      triggerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+    wasOpenRef.current = open;
+  }
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      // Recomputed on every Tab: the notification list can load or change
+      // while the drawer is open, so a cached list would go stale.
+      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE)).filter(
+        (el) => el.getClientRects().length > 0
+      );
+      if (focusables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const outside = !panel.contains(active);
+
+      if (e.shiftKey) {
+        if (active === first || outside) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || outside) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      // AnimatePresence keeps the panel mounted through its exit animation and
+      // unmounts it afterwards, so restore here in cleanup — onExitComplete
+      // is not guaranteed to run (component unmount, rapid toggles).
+      const trigger = triggerRef.current;
+      if (trigger && trigger.isConnected) trigger.focus();
+      triggerRef.current = null;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -34,6 +104,7 @@ export function Drawer({ open, onClose, label, children }) {
             aria-hidden="true"
           />
           <motion.aside
+            ref={panelRef}
             className="drawer"
             role="dialog"
             aria-modal="true"
