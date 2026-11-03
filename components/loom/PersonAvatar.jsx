@@ -22,8 +22,11 @@ function avatarTint(name) {
  */
 export function PersonAvatar({ name, avatarUrl = null, size = 44, variant = "tint", className = "" }) {
   if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
+    // Stored avatars are arbitrary member-supplied hosts, so next/image would
+    // need a per-tenant remotePatterns allowlist and an optimizer round-trip.
+    // A plain <img> with fixed width/height is the honest choice here.
     return (
+      // eslint-disable-next-line @next/next/no-img-element -- member-supplied avatar host, no remotePatterns allowlist exists
       <img
         src={avatarUrl}
         alt={`Portrait of ${name}`}

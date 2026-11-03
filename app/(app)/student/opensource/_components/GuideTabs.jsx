@@ -74,7 +74,6 @@ export default function GuideTabs() {
             id={`guide-tab-${s.id}`}
             aria-selected={active === s.id}
             aria-controls={`guide-panel-${s.id}`}
-            aria-pressed={active === s.id}
             onClick={() => setActive(s.id)}
           >
             {s.label}

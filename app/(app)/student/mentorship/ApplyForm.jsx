@@ -46,7 +46,7 @@ export function ApplyForm() {
   if (done) {
     return (
       <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>
-        Applied — reviewers judge proof, not promises. You'll hear back here.
+        Applied — reviewers judge proof, not promises. You&apos;ll hear back here.
       </p>
     );
   }

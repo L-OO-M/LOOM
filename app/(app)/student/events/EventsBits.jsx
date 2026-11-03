@@ -68,7 +68,7 @@ export function RegisterButton({ eventId, registered, full }) {
   if (registered) {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <StatusPill tone="live">You're in ✓</StatusPill>
+        <StatusPill tone="live">You&apos;re in ✓</StatusPill>
         <button
           type="button"
           disabled={busy}
@@ -332,7 +332,7 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
 
       {seats.length > 0 && scope === "upcoming" && (
         <section className="mt-8 border-y py-5" style={{ borderColor: "var(--line)" }} aria-label="Your seats">
-          <Meta style={{ color: "var(--accent)" }}>You're in · {seats.length}</Meta>
+          <Meta style={{ color: "var(--accent)" }}>You&apos;re in · {seats.length}</Meta>
           <ul className="mt-3 space-y-3">
             {seats.map((r) => {
               const cert = certByEvent?.[r.event_id];

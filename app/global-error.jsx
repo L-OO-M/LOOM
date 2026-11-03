@@ -63,6 +63,7 @@ export default function GlobalError({ error, reset }) {
             >
               Try again
             </button>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- global-error renders outside the router shell, where next/link is not available; a raw anchor is the only safe way home */}
             <a
               href="/"
               style={{

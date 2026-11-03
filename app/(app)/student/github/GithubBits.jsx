@@ -29,7 +29,6 @@ export function GithubTabs({ items, repos, daily = [] }) {
           type="button"
           role="tab"
           aria-selected={tab === "activity"}
-          aria-pressed={tab === "activity"}
           onClick={() => setTab("activity")}
         >
           Recent activity
@@ -38,7 +37,6 @@ export function GithubTabs({ items, repos, daily = [] }) {
           type="button"
           role="tab"
           aria-selected={tab === "daily"}
-          aria-pressed={tab === "daily"}
           onClick={() => setTab("daily")}
         >
           Daily log
@@ -47,7 +45,6 @@ export function GithubTabs({ items, repos, daily = [] }) {
           type="button"
           role="tab"
           aria-selected={tab === "repos"}
-          aria-pressed={tab === "repos"}
           onClick={() => setTab("repos")}
         >
           Repositories{repos.length > 0 ? ` · ${repos.length}` : ""}

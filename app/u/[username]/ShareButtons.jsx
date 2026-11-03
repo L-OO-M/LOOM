@@ -135,6 +135,7 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
           >
             {/* Plain <img>: this is a generated raster asset, not a next/image
                 optimised import. next/image would try to fetch and re-encode it. */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- generated OG raster on our own route, not an optimisable remote import */}
             <img
               src={ogUrl}
               alt={`Shareable card for ${name}`}

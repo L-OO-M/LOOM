@@ -111,9 +111,11 @@ export default async function AdminReportsPage({ searchParams }) {
               <Download size={12} style={{ color: "var(--accent)" }} aria-hidden="true" /> Export submitted reports
             </span>
             <span className="aled-actions" style={{ marginLeft: "auto" }}>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
               <a href="/api/reports/export?scope=semester" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
                 <Download size={12} aria-hidden="true" /> Semester
               </a>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
               <a href="/api/reports/export?scope=annual" className="aled-tag aled-tag--accent" style={{ padding: "0.4rem 0.6rem" }}>
                 <Download size={12} aria-hidden="true" /> Annual
               </a>

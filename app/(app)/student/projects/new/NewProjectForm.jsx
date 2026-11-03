@@ -70,7 +70,6 @@ export default function NewProjectForm({ milestones = [], githubConnected = fals
     loadRepos(1, false);
     // loadRepos is intentionally not a dependency: it is recreated each render
     // and this effect should run only when the linked state changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubConnected]);
 
   const filtered = useMemo(() => {
@@ -201,7 +200,6 @@ export default function NewProjectForm({ milestones = [], githubConnected = fals
             type="button"
             role="tab"
             aria-selected={mode === "picker"}
-            aria-pressed={mode === "picker"}
             onClick={() => setMode("picker")}
           >
             My GitHub repos
@@ -210,7 +208,6 @@ export default function NewProjectForm({ milestones = [], githubConnected = fals
             type="button"
             role="tab"
             aria-selected={mode === "url"}
-            aria-pressed={mode === "url"}
             onClick={() => setMode("url")}
           >
             Paste a URL

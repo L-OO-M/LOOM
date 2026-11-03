@@ -32,13 +32,13 @@ export default function RoleForm({ userId, currentRole, termEnd: currentTermEnd 
       const list = d?.data?.departments ?? d?.departments ?? [];
       if (Array.isArray(list)) setDepartments(list);
     }).catch(() => {});
-    // Fallback: legacy endpoint
-    if (departments.length === 0) {
-      fetch("/api/departments").then((r) => r.json()).then((d) => {
-        const list = d?.data?.departments ?? [];
-        if (Array.isArray(list) && list.length) setDepartments(list);
-      }).catch(() => {});
-    }
+    // Fallback: legacy endpoint. Both requests start on mount before either
+    // resolves, so `departments` is necessarily empty here -- the old
+    // `departments.length === 0` guard was dead code and a false dependency.
+    fetch("/api/departments").then((r) => r.json()).then((d) => {
+      const list = d?.data?.departments ?? [];
+      if (Array.isArray(list) && list.length) setDepartments(list);
+    }).catch(() => {});
   }, []);
 
   async function save(e) {
