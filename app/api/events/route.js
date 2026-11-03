@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -97,7 +98,7 @@ export async function POST(request) {
       const [d] = await sql`
         SELECT id, vertical FROM departments
         WHERE id = ${body.departmentId}
-          AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+          AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
         LIMIT 1
       `;
       if (!d) return fail("NOT_FOUND", "Department not found", 404);

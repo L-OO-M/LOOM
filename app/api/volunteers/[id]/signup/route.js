@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 
@@ -12,7 +13,7 @@ export async function POST(request, { params }) {
   const tid = tenant?.id ?? null;
   const [slot] = await sql`
     SELECT * FROM volunteer_slots WHERE id = ${id}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+      AND tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!slot) return fail("NOT_FOUND", "Volunteer slot not found", 404);
   const [existing] = await sql`SELECT * FROM volunteer_signups WHERE slot_id = ${id} AND user_id = ${user.id} LIMIT 1`;
@@ -49,7 +50,7 @@ export async function DELETE(request, { params }) {
   const tid = tenant?.id ?? null;
   const [slot] = await sql`
     SELECT id FROM volunteer_slots WHERE id = ${id}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+      AND tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!slot) return fail("NOT_FOUND", "Volunteer slot not found", 404);
   await sql`DELETE FROM volunteer_signups WHERE slot_id = ${id} AND user_id = ${user.id}`;

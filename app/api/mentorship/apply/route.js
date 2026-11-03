@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -45,7 +46,7 @@ export async function POST(request) {
     // Reviewers are chapter admins — they decide on proof, not promises.
     const admins = await sql`
       SELECT user_id FROM profiles
-      WHERE role = 'admin' AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      WHERE role = 'admin' AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
       LIMIT 10
     `;
     const [applicant] = await sql`SELECT name FROM profiles WHERE user_id = ${user.id} LIMIT 1`;

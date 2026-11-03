@@ -38,7 +38,7 @@ function CalendarEvent({ event }) {
 }
 
 const steps = [
-  ["01", "Create your account", "Register with your college email. One form, no approval queue."],
+  ["01", "Create your account", "Register with your email. One form, no approval queue."],
   ["02", "Sign in", "Your dashboard is the hub — roadmap, projects, mentors, and every event you have joined."],
   ["03", "Claim your seat", "Open the event from your dashboard and register. You get a check-in code on the spot."],
   ["04", "Show up, get proof", "Check in with your code. Attendees receive a verifiable certificate they can share anywhere."]

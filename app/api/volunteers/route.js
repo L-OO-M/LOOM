@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -28,7 +29,7 @@ export async function GET(request) {
       EXISTS (SELECT 1 FROM volunteer_signups v WHERE v.slot_id = s.id AND v.user_id = ${user.id}) AS signed_up
     FROM volunteer_slots s
     JOIN events e ON e.id = s.event_id
-    WHERE (s.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE s.tenant_id = ${scope(tid)}::uuid
       AND (${eventId ? sql`s.event_id = ${eventId}` : sql`TRUE`})
     ORDER BY s.created_at ASC
   `;
@@ -49,7 +50,7 @@ export async function POST(request) {
   const tid = tenant?.id ?? null;
   const [event] = await sql`
     SELECT * FROM events WHERE id = ${body.eventId}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+      AND tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
 

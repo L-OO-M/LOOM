@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -34,7 +35,7 @@ export async function GET(request) {
          WHERE m.user_id = p.user_id) AS departments
       FROM profiles p
       WHERE p.user_id = ANY(${visibleIds})
-        AND (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND p.tenant_id = ${scope(tenant?.id ?? null)}::uuid
       ORDER BY p.updated_at DESC LIMIT 50
     `;
   } else {
@@ -44,7 +45,7 @@ export async function GET(request) {
          FROM department_memberships m JOIN departments d ON d.id = m.department_id
          WHERE m.user_id = p.user_id) AS departments
       FROM profiles p
-      WHERE (p.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      WHERE p.tenant_id = ${scope(tenant?.id ?? null)}::uuid
         AND (${q ? sql`(p.name ILIKE ${"%" + q + "%"} OR p.user_id ILIKE ${"%" + q + "%"})` : sql`TRUE`})
         AND (${role ? sql`p.role = ${role}` : sql`TRUE`})
         AND (${dept ? sql`EXISTS (SELECT 1 FROM department_memberships m JOIN departments d ON d.id = m.department_id WHERE m.user_id = p.user_id AND d.slug = ${dept})` : sql`TRUE`})
@@ -87,7 +88,7 @@ export async function PATCH(request) {
   } catch (e) {
     return validationError(e);
   }
-  const [target] = await sql`SELECT * FROM profiles WHERE user_id = ${body.userId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+  const [target] = await sql`SELECT * FROM profiles WHERE user_id = ${body.userId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
   if (!target) return fail("NOT_FOUND", "Student not in your college", 404);
 
   // --- founder / self / last-admin guards ----------------------------------
@@ -105,7 +106,7 @@ export async function PATCH(request) {
   if (target.role === "admin" && body.role !== "admin") {
     const [{ admins = 0 } = {}] = await sql`
       SELECT COUNT(*)::int AS admins FROM profiles
-      WHERE role = 'admin' AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      WHERE role = 'admin' AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     `;
     if (admins <= 1) return fail("FORBIDDEN", "Cannot remove the last admin in this chapter", 403);
   }
@@ -123,7 +124,7 @@ export async function PATCH(request) {
   let departmentId = null;
   if (body.role === "dept_lead") {
     if (!body.departmentId) return fail("VALIDATION_ERROR", "Choose the department this Head / Co-Head will lead", 400);
-    const [dept] = await sql`SELECT id, slug FROM departments WHERE id = ${body.departmentId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+    const [dept] = await sql`SELECT id, slug FROM departments WHERE id = ${body.departmentId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
     if (!dept) return fail("NOT_FOUND", "Department not found in your college", 404);
     departmentId = dept.id;
   }

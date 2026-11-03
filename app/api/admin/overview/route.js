@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 
@@ -22,13 +23,25 @@ export async function GET() {
     FROM departments d
     LEFT JOIN profiles hp ON hp.user_id = d.head_user_id
     LEFT JOIN profiles cp ON cp.user_id = d.co_head_user_id
-    WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE d.tenant_id = ${scope(tid)}::uuid
     ORDER BY d.vertical, d.name
   `;
-  const [mentorApps] = await sql`SELECT COUNT(*)::int AS c FROM mentor_applications WHERE status = 'pending' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)`;
-  const [ossClaims] = await sql`SELECT COUNT(*)::int AS c FROM student_oss_contributions WHERE status = 'claimed' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)`;
-  const [proposed] = await sql`SELECT COUNT(*)::int AS c FROM events WHERE status = 'proposed' AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)`;
-  const [flags] = await sql`SELECT COUNT(*)::int AS c FROM forum_flags WHERE created_at >= NOW() - INTERVAL '7 days'`;
+  const [mentorApps] = await sql`SELECT COUNT(*)::int AS c FROM mentor_applications WHERE status = 'pending' AND tenant_id = ${scope(tid)}::uuid`;
+  const [ossClaims] = await sql`SELECT COUNT(*)::int AS c FROM student_oss_contributions WHERE status = 'claimed' AND tenant_id = ${scope(tid)}::uuid`;
+  const [proposed] = await sql`SELECT COUNT(*)::int AS c FROM events WHERE status = 'proposed' AND tenant_id = ${scope(tid)}::uuid`;
+  const [flags] = await sql`
+    SELECT COUNT(*)::int AS c FROM forum_flags f
+    WHERE f.created_at >= NOW() - INTERVAL '7 days'
+      AND (
+        (f.target_type = 'thread' AND EXISTS (
+          SELECT 1 FROM forum_threads t WHERE t.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
+        ))
+        OR (f.target_type = 'reply' AND EXISTS (
+          SELECT 1 FROM forum_replies r JOIN forum_threads t ON t.id = r.thread_id
+          WHERE r.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
+        ))
+      )
+  `;
 
   return ok({
     departments,

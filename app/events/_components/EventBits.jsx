@@ -98,7 +98,7 @@ export function EventCard({ event }) {
 /** The four steps a visitor actually goes through, stated plainly. */
 export function JoinSteps() {
   const steps = [
-    { n: "01", t: "Create your account", d: "Register with your college email at /register. One form, no approval queue." },
+    { n: "01", t: "Create your account", d: "Register with your email at /register. One form, no approval queue." },
     { n: "02", t: "Sign in", d: "Your dashboard is the hub — roadmap, projects, mentors, and every event you have joined." },
     { n: "03", t: "Claim your seat", d: "Open the event from your dashboard and register. You get a check-in code on the spot." },
     { n: "04", t: "Show up, get proof", d: "Check in with your code. Attendees receive a verifiable certificate they can share anywhere." }

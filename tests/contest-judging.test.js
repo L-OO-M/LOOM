@@ -27,6 +27,8 @@ function makeDb({ submission = null, tenantId = TENANT } = {}) {
         student_id: current.student_id,
         contest_id: current.contest_id,
         previous_status: current.status,
+        previous_score: current.score ?? null,
+        previous_feedback: current.feedback ?? null,
         contest_title: "Hack Night"
       }];
     }
@@ -173,6 +175,24 @@ describe("POST /api/admin/contests/judge", () => {
     expect(response.status).toBe(200);
     expect(evidence).toHaveLength(0);
     expect(recomputes).toHaveLength(0);
+  });
+
+  it("treats an identical re-judgement as a no-op", async () => {
+    const db = makeDb({
+      submission: submission({ status: "winner", score: 93, feedback: "Sharp build." })
+    });
+    const { response, body } = await judge(
+      { submissionId: SUBMISSION_ID, status: "winner", score: 93, feedback: "Sharp build." },
+      { db }
+    );
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data.unchanged).toBe(true);
+    expect(db.statements.some((s) => /UPDATE contest_submissions/.test(s.text))).toBe(false);
+    expect(evidence).toHaveLength(0);
+    expect(recomputes).toHaveLength(0);
+    expect(notifications).toHaveLength(0);
   });
 
   it("does not judge a submission from another chapter", async () => {

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
@@ -32,13 +33,13 @@ export async function GET() {
     SELECT a.*, b.name AS badge_name, b.tier FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${user.id}
-      AND (a.tenant_id = ${tid}::uuid OR a.tenant_id IS NULL)
+      AND a.tenant_id = ${scope(tid)}::uuid
     ORDER BY a.earned_at DESC LIMIT 100
   `;
   const credentials = await sql`
     SELECT * FROM verifiable_credentials
     WHERE student_id = ${user.id}
-      AND (tenant_id = ${tid}::uuid OR tenant_id IS NULL)
+      AND tenant_id = ${scope(tid)}::uuid
     ORDER BY issued_at DESC LIMIT 100
   `;
   return ok({ achievements, credentials, appUrl: env.NEXT_PUBLIC_APP_URL });
@@ -62,7 +63,7 @@ export async function POST(request) {
     SELECT a.*, b.name AS badge_name FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.id = ${body.achievementId} AND a.student_id = ${user.id}
-      AND (a.tenant_id = ${tenant?.id ?? null}::uuid OR a.tenant_id IS NULL)
+      AND a.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     LIMIT 1
   `;
   if (!a) return fail("NOT_FOUND", "Achievement not found", 404);

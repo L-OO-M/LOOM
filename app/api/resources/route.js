@@ -28,7 +28,7 @@ export async function GET(request) {
   return ok({ resources: resources.map((r) => ({ ...r, completed: doneSet.has(r.id) })) });
 }
 
-const completeSchema = z.object({ resourceId: z.string().min(1) });
+const completeSchema = z.object({ resourceId: z.string().uuid() });
 
 export async function POST(request) {
   const ctx = await getRequestContext();

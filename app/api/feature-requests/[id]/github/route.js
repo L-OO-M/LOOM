@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { syncFeatureRequestToGitHub } from "@/lib/github-issues";
@@ -23,7 +24,7 @@ export async function POST(request, { params }) {
     FROM feature_requests fr
     LEFT JOIN profiles p ON p.user_id = fr.requester_id
     WHERE fr.id = ${id}::uuid
-      AND (fr.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND fr.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     LIMIT 1
   `;
   if (!row) return fail("NOT_FOUND", "Not found", 404);

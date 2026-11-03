@@ -2,6 +2,8 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
+import { createLogger, requestIdFrom } from "@/lib/log";
+import { announcementKeyPrefix } from "@/lib/announcement-fanout";
 
 const postSchema = z.object({
   scope: z.enum(["society", "vertical", "department"]),
@@ -44,6 +46,7 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const log = createLogger("announcements", { requestId: requestIdFrom(request) });
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
@@ -96,27 +99,47 @@ export async function POST(request) {
   `;
 
   // Fan-out into per-user notifications (existing inbox, no new surface).
+  //
+  // Safe to retry: every row carries a deterministic dedupe key matching
+  // lib/announcement-fanout.js, and the partial unique index on
+  // (user_id, dedupe_key) makes a re-run insert nothing. Delivery failures are
+  // logged, never thrown — the announcement is already committed.
   try {
     const link = "/student/notifications";
     const title = body.scope === "society" ? `Announcement: ${body.title}` : `[${body.scope}] ${body.title}`;
+    // One prefix per post; the recipient id is appended in SQL so the fan-out
+    // stays a single statement. Format owned by lib/announcement-fanout.js.
+    const dedupePrefix = announcementKeyPrefix(announcement.id);
     if (body.scope === "society") {
       await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT ${tid}, p.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
-        FROM profiles p WHERE p.tenant_id = ${tid}::uuid AND p.user_id <> ${user.id}`;
+        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
+        SELECT ${tid}, p.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
+          ${dedupePrefix} || p.user_id::text
+        FROM profiles p WHERE p.tenant_id = ${tid}::uuid AND p.user_id <> ${user.id}
+        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
     } else if (body.scope === "vertical") {
       await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT DISTINCT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
+        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
+        SELECT DISTINCT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
+          ${dedupePrefix} || m.user_id::text
         FROM department_memberships m JOIN departments d ON d.id = m.department_id
-        WHERE d.tenant_id = ${tid}::uuid AND d.vertical = ${vertical} AND m.user_id <> ${user.id}`;
+        WHERE d.tenant_id = ${tid}::uuid AND d.vertical = ${vertical} AND m.user_id <> ${user.id}
+        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
     } else {
       await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link)
-        SELECT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link}
-        FROM department_memberships m WHERE m.department_id = ${departmentId} AND m.user_id <> ${user.id}`;
+        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
+        SELECT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
+          ${dedupePrefix} || m.user_id::text
+        FROM department_memberships m WHERE m.department_id = ${departmentId} AND m.user_id <> ${user.id}
+        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
     }
-  } catch { /* delivery must never break posting */ }
+  } catch (error) {
+    log.warn("notification fan-out failed", {
+      announcementId: announcement.id,
+      scope: body.scope,
+      err: error
+    });
+  }
 
   await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "posted_announcement", resource: "announcement", resourceId: announcement.id, after: { scope: body.scope, title: body.title } });
   return ok({ announcement }, { status: 201 });

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -62,7 +63,7 @@ export async function PUT(request) {
       amount = COALESCE(${body.amount ?? null}, amount),
       status = COALESCE(${body.status ?? null}, status),
       contact = COALESCE(${body.contact ?? null}, contact)
-    WHERE id = ${body.id} AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE id = ${body.id} AND tenant_id = ${scope(tid)}::uuid
     RETURNING *
   `;
   if (!row) return fail("NOT_FOUND", "Sponsorship not found", 404);

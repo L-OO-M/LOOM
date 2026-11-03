@@ -26,6 +26,7 @@ function makeDb({ reports = [] } = {}) {
       [DEPT]: { id: DEPT, tenant_id: TENANT, vertical: "technical", name: "Web" }
     },
     reports,
+    revisions: [],
     queries: []
   };
 
@@ -86,6 +87,13 @@ function makeDb({ reports = [] } = {}) {
       if (status) report.status = status;
       if (status === "submitted") report.submitted_by = submittedBy;
       return [{ ...report }];
+    }
+
+    if (/INSERT INTO report_revisions/.test(text)) {
+      const [reportId, tenantId, status, draft, actorId] = values;
+      const revision = state.revisions.filter((r) => r.report_id === reportId).length + 1;
+      state.revisions.push({ report_id: reportId, tenant_id: tenantId, revision, status, draft, actor_id: actorId });
+      return [{ revision, status, actor_id: actorId, created_at: "2026-05-20T00:00:00.000Z" }];
     }
 
     throw new Error(`unexpected query: ${text}`);
@@ -272,5 +280,50 @@ describe("POST /api/reports — compile never overwrites a submitted report", ()
       new_members: 0
     });
     expect(db.state.reports[0].draft.compiled_at).toEqual(expect.any(String));
+  });
+});
+
+describe("report revision history", () => {
+  it("records a revision when a lead compiles a draft", async () => {
+    const db = makeDb({ reports: [] });
+
+    const { response } = await compile({
+      db,
+      profile: LEAD,
+      body: { departmentId: DEPT, month: "2026-05" }
+    });
+
+    expect(response.status).toBe(201);
+    expect(db.state.revisions).toHaveLength(1);
+    expect(db.state.revisions[0]).toMatchObject({
+      report_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      tenant_id: TENANT,
+      revision: 1,
+      status: "draft",
+      actor_id: LEAD.id
+    });
+  });
+
+  it("records distinct revisions on submit and on an admin reopen", async () => {
+    const db = makeDb({ reports: [report({ status: "draft" })] });
+
+    const submitted = await patch({ db, profile: LEAD, body: { status: "submitted" } });
+    const reopened = await patch({ db, profile: ADMIN, body: { status: "draft" } });
+
+    expect(submitted.response.status).toBe(200);
+    expect(reopened.response.status).toBe(200);
+    expect(db.state.revisions.map((r) => r.revision)).toEqual([1, 2]);
+    expect(db.state.revisions.map((r) => r.status)).toEqual(["submitted", "draft"]);
+    expect(db.state.revisions[0].actor_id).toBe(LEAD.id);
+    expect(db.state.revisions[1].actor_id).toBe(ADMIN.id);
+  });
+
+  it("writes no revision when the submission is locked", async () => {
+    const db = makeDb({ reports: [report({ status: "submitted" })] });
+
+    const { response } = await patch({ db, profile: LEAD, body: { draft: { note: "tampered" } } });
+
+    expect(response.status).toBe(403);
+    expect(db.state.revisions).toHaveLength(0);
   });
 });

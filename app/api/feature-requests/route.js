@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -51,7 +52,7 @@ export async function POST(request) {
   });
   const saved = synced?.row || row;
   // notify admins
-  const admins = await sql`SELECT user_id FROM profiles WHERE role = 'admin' AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 10`;
+  const admins = await sql`SELECT user_id FROM profiles WHERE role = 'admin' AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 10`;
   for (const a of admins) {
     await notify({ sql, tenantId: tenant?.id, userId: a.user_id, type: "feature_request", title: `New feature idea: ${body.title}`, body: `From ${ctx.profile?.name || user.id}`, link: "/admin/feature-requests" });
   }

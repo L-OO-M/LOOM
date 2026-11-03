@@ -92,7 +92,13 @@ describe("admin students route wiring", () => {
     const page = readFileSync("app/(app)/admin/students/page.jsx", "utf8");
     expect(page).toContain("rosterTierIndex");
     expect(page).not.toMatch(/rows\s*=\s*rows\.filter/);
-    expect(page).toMatch(/LIMIT 50/);
+    // Bounded AND paged: the limit comes from PAGE_SIZE (same constant the
+    // offset arithmetic uses, so the stride cannot drift) and the offset comes
+    // from the clamped page window. Pinning the literal "LIMIT 50" would let a
+    // future edit change one and not the other.
+    expect(page).toMatch(/const PAGE_SIZE = \d+/);
+    expect(page).toMatch(/LIMIT \$\{PAGE_SIZE\} OFFSET \$\{win\.offset\}/);
+    expect(page).toContain("pageWindow(");
   });
 
   it("accepts tier as an API query parameter", () => {

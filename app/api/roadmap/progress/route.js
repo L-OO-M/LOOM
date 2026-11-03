@@ -6,6 +6,9 @@ import { earnedMilestoneKeys, milestoneFor } from "@/lib/mentorship";
 import { recomputeScore, revokeEvidence, unmetPrerequisites } from "@/lib/ranking";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
+import { createLogger, requestIdFrom } from "@/lib/log";
+
+const baseLog = createLogger("roadmap-progress");
 
 const progressSchema = z.object({
   nodeId: z.string().min(1),
@@ -18,6 +21,7 @@ const progressSchema = z.object({
 });
 
 export async function POST(request) {
+  const log = baseLog.child({ requestId: requestIdFrom(request) });
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
@@ -179,7 +183,10 @@ export async function POST(request) {
           ON CONFLICT (tenant_id, user_id, kind, ref_id) DO UPDATE SET failures_count = help_signals.failures_count + 1, last_failed_at=now(), updated_at=now()
         `;
       }
-    } catch {}
+    } catch (err) {
+      // Advisory struggle signal only; the progress write already succeeded.
+      log.warn("help signal upsert failed; progress still saved", { userId: user.id, nodeId: body.nodeId, err });
+    }
   }
 
   return ok({ progress: row, studentId: user.id, role: profile.role, milestone });
@@ -204,8 +211,9 @@ async function notifyLeadsOfReview({ sql, tenantId, studentId, nodeTitle }) {
        WHERE p.tenant_id = ${tenantId}::uuid
          AND p.role IN ('dept_lead', 'vertical_lead', 'admin', 'platform_admin')
     `;
-  } catch {
+  } catch (err) {
     /* never fail a student's progress update because staff could not be told */
+    log.warn("lead review notification failed", { tenantId, studentId, err });
   }
 }
 

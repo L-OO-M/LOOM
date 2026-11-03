@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -20,7 +21,7 @@ export async function GET() {
   const tid = tenant?.id ?? null;
   const items = await sql`
     SELECT * FROM handover_checklists
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
     ORDER BY done ASC, created_at ASC
   `;
   return ok({ items });

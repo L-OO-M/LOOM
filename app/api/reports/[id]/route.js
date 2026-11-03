@@ -1,7 +1,9 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
+import { listReportRevisions, recordReportRevision } from "@/lib/report-revisions";
 
 const patchSchema = z.object({
   draft: z.record(z.string(), z.unknown()).optional(),
@@ -22,7 +24,7 @@ export async function GET(request, { params }) {
   const [report] = await sql`
     SELECT r.*, d.name AS department_name, d.vertical FROM dept_reports r
     JOIN departments d ON d.id = r.department_id
-    WHERE r.id = ${id} AND (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+    WHERE r.id = ${id} AND r.tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
@@ -30,7 +32,8 @@ export async function GET(request, { params }) {
   const wide = admin || (verticalLead && report.vertical === profile.vertical);
   const mine = (profile.memberships || []).some((m) => m.department_id === report.department_id);
   if (!wide && !mine) return fail("FORBIDDEN", "Only that department's leads, vertical leads, and admins can read reports", 403);
-  return ok({ report });
+  const revisions = await listReportRevisions({ sql, reportId: report.id, tenantId: tid });
+  return ok({ report, revisions });
 }
 
 export async function PATCH(request, { params }) {
@@ -50,7 +53,7 @@ export async function PATCH(request, { params }) {
     SELECT r.*, d.vertical FROM dept_reports r
     JOIN departments d ON d.id = r.department_id
     WHERE r.id = ${id}
-      AND (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+      AND r.tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
@@ -71,10 +74,12 @@ export async function PATCH(request, { params }) {
     WHERE id = ${id}
     RETURNING *
   `.then((rows) => rows[0]);
+  const revision = await recordReportRevision({ sql, report: next, actorId: user.id });
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id,
     action: body.status === "submitted" ? "submitted_report" : "edited_report",
-    resource: "report", resourceId: id, before: { status: report.status }, after: { status: next.status }
+    resource: "report", resourceId: id, before: { status: report.status },
+    after: { status: next.status, revision: revision?.revision ?? null }
   });
   return ok({ report: next });
 }

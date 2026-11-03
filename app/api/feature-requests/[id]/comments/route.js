@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -11,7 +12,7 @@ export async function POST(request, { params }) {
   const { user, tenant, sql } = ctx;
   let body;
   try { body = schema.parse(await request.json()); } catch (e) { return validationError(e); }
-  const [req] = await sql`SELECT id, requester_id FROM feature_requests WHERE id = ${id}::uuid AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+  const [req] = await sql`SELECT id, requester_id FROM feature_requests WHERE id = ${id}::uuid AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
   if (!req) return fail("NOT_FOUND", "Not found", 404);
   const isOwner = req.requester_id === user.id;
   const isAdmin = ctx.profile?.role === "admin";

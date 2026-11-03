@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -29,7 +30,7 @@ export async function PATCH(request, { params }) {
     UPDATE handover_checklists SET
       done = COALESCE(${body.done ?? null}, done),
       detail = COALESCE(${body.detail ?? null}, detail)
-    WHERE id = ${id} AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE id = ${id} AND tenant_id = ${scope(tid)}::uuid
     RETURNING *
   `;
   if (!item) return fail("NOT_FOUND", "Handover item not found", 404);

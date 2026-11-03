@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -43,7 +44,7 @@ export async function PATCH(request, { params }) {
   const { user, tenant, sql } = ctx;
   let body;
   try { body = patchSchema.parse(await request.json()); } catch (e) { return validationError(e); }
-  const [existing] = await sql`SELECT * FROM feature_requests WHERE id = ${id}::uuid AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+  const [existing] = await sql`SELECT * FROM feature_requests WHERE id = ${id}::uuid AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
   if (!existing) return fail("NOT_FOUND", "Not found", 404);
   const status = body.status ?? existing.status;
   const note = body.decision_note !== undefined ? body.decision_note : existing.decision_note;

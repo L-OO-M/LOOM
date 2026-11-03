@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
@@ -25,7 +26,7 @@ export async function GET(request) {
     JOIN departments d ON d.id = r.department_id
     LEFT JOIN profiles p ON p.user_id = r.submitted_by
     WHERE r.status = 'submitted'
-      AND (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND r.tenant_id = ${scope(tid)}::uuid
       AND r.month >= ${since}::date
       AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
     ORDER BY r.month DESC, d.name ASC
@@ -33,7 +34,7 @@ export async function GET(request) {
   const contributions = await sql`
     SELECT c.department_id, c.kind, COUNT(*)::int AS n FROM member_contributions c
     JOIN departments d ON d.id = c.department_id
-    WHERE (c.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE c.tenant_id = ${scope(tid)}::uuid
       AND c.created_at >= ${since}::timestamptz
       AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
     GROUP BY c.department_id, c.kind
@@ -41,7 +42,7 @@ export async function GET(request) {
   const memberships = await sql`
     SELECT m.department_id, COUNT(*)::int AS n FROM department_memberships m
     JOIN departments d ON d.id = m.department_id
-    WHERE (d.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE d.tenant_id = ${scope(tid)}::uuid
       AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
     GROUP BY m.department_id
   `;

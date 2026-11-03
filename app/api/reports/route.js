@@ -1,7 +1,9 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
+import { recordReportRevision } from "@/lib/report-revisions";
 
 const compileSchema = z.object({
   departmentId: z.string().uuid(),
@@ -53,7 +55,7 @@ export async function GET(request) {
     FROM dept_reports r
     JOIN departments d ON d.id = r.department_id
     LEFT JOIN profiles p ON p.user_id = r.submitted_by
-    WHERE (r.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE r.tenant_id = ${scope(tid)}::uuid
       AND (${departmentId ? sql`r.department_id = ${departmentId}` : sql`TRUE`})
       AND (${status ? sql`r.status = ${status}` : sql`TRUE`})
       AND (${verticalLead ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
@@ -78,7 +80,7 @@ export async function POST(request) {
   const tid = tenant?.id ?? null;
   const [dept] = await sql`
     SELECT * FROM departments WHERE id = ${body.departmentId}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+      AND tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
   if (!canWriteReport(ctx, body.departmentId, dept.vertical)) {
@@ -89,14 +91,14 @@ export async function POST(request) {
   const byKind = await sql`
     SELECT kind, COUNT(*)::int AS c FROM member_contributions
     WHERE department_id = ${body.departmentId}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND tenant_id = ${scope(tid)}::uuid
       AND created_at >= ${start}::timestamptz AND created_at < ${end}::timestamptz
     GROUP BY kind
   `;
   const held = await sql`
     SELECT id, title, starts_at FROM events
     WHERE department_id = ${body.departmentId}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND tenant_id = ${scope(tid)}::uuid
       AND status = 'past'
       AND starts_at >= ${start}::timestamptz AND starts_at < ${end}::timestamptz
     ORDER BY starts_at ASC
@@ -104,7 +106,7 @@ export async function POST(request) {
   const upcoming = await sql`
     SELECT id, title, starts_at, status FROM events
     WHERE department_id = ${body.departmentId}
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND tenant_id = ${scope(tid)}::uuid
       AND status IN ('upcoming', 'live') AND starts_at >= NOW()
     ORDER BY starts_at ASC LIMIT 10
   `;
@@ -135,10 +137,11 @@ export async function POST(request) {
   if (!report) {
     return fail("REPORT_LOCKED", "This report is submitted and can no longer be recompiled — an admin must reopen it first", 409);
   }
+  const revision = await recordReportRevision({ sql, report, actorId: user.id });
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: "compiled_report",
     resource: "report", resourceId: report.id,
-    after: { departmentId: body.departmentId, month: firstDay }
+    after: { departmentId: body.departmentId, month: firstDay, revision: revision?.revision ?? null }
   });
   return ok({ report }, { status: 201 });
 }

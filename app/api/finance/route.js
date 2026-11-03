@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
@@ -23,9 +24,9 @@ export async function GET() {
     SELECT h.*,
       COALESCE((SELECT SUM(e.amount) FROM expenses e
         WHERE e.head_id = h.id AND e.status = 'approved'
-          AND (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)), 0)::numeric AS spent
+          AND e.tenant_id = ${scope(tid)}::uuid), 0)::numeric AS spent
     FROM budget_heads h
-    WHERE (h.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE h.tenant_id = ${scope(tid)}::uuid
       AND (${vertical ? sql`(h.vertical = ${vertical} OR h.vertical IS NULL)` : sql`TRUE`})
     ORDER BY h.name ASC
   `;
@@ -36,14 +37,14 @@ export async function GET() {
     LEFT JOIN budget_heads h ON h.id = e.head_id
     LEFT JOIN departments d ON d.id = e.department_id
     LEFT JOIN profiles p ON p.user_id = e.created_by
-    WHERE (e.tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE e.tenant_id = ${scope(tid)}::uuid
       AND (${vertical ? sql`((h.vertical = ${vertical} OR (h.vertical IS NULL AND (d.vertical = ${vertical} OR e.department_id IS NULL))))` : sql`TRUE`})
     ORDER BY e.created_at DESC
     LIMIT 200
   `;
   const sponsorships = await sql`
     SELECT * FROM sponsorships
-    WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+    WHERE tenant_id = ${scope(tid)}::uuid
       AND (${vertical ? sql`(vertical = ${vertical} OR vertical IS NULL)` : sql`TRUE`})
     ORDER BY created_at DESC
     LIMIT 200

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -38,7 +39,7 @@ export async function POST(request) {
   if (body.headId) {
     const [head] = await sql`
       SELECT id, vertical FROM budget_heads WHERE id = ${body.headId}
-        AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+        AND tenant_id = ${scope(tid)}::uuid LIMIT 1
     `;
     if (!head) return fail("NOT_FOUND", "Budget head not found", 404);
     headVertical = head.vertical;
@@ -47,7 +48,7 @@ export async function POST(request) {
   if (body.departmentId) {
     const [dept] = await sql`
       SELECT id, vertical FROM departments WHERE id = ${body.departmentId}
-        AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL) LIMIT 1
+        AND tenant_id = ${scope(tid)}::uuid LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
     deptVertical = dept.vertical;
@@ -106,7 +107,7 @@ export async function PATCH(request) {
   const [expense] = await sql`
     UPDATE expenses SET status = ${body.decision}, decided_by = ${user.id}
     WHERE id = ${body.id} AND status = 'proposed'
-      AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+      AND tenant_id = ${scope(tid)}::uuid
     RETURNING *
   `;
   if (!expense) return fail("NOT_FOUND", "No proposed expense with that id", 404);

@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
@@ -22,7 +23,7 @@ export async function PATCH(request, { params }) {
   }
   const [dept] = await sql`
     SELECT * FROM departments WHERE id = ${id}
-      AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     LIMIT 1
   `;
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
@@ -38,7 +39,7 @@ export async function PATCH(request, { params }) {
 
   const [target] = await sql`
     SELECT * FROM profiles WHERE user_id = ${userId}
-      AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     LIMIT 1
   `;
   if (!target) return fail("NOT_FOUND", "User not in your college", 404);

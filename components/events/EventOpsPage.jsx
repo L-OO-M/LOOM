@@ -6,6 +6,7 @@ import { can } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
+import { EventAdminActions } from "@/components/admin/EventAdminActions";
 import { displayState, TYPE_LABEL } from "@/lib/events";
 
 // One event-operations surface for both consoles. Before this, the only
@@ -85,6 +86,8 @@ export async function EventOpsPage({ id, area = "admin" }) {
           {event.speaker_name && <span className="meta">with {event.speaker_name}</span>}
           <span className="meta inline-flex items-center gap-1"><Users size={12} aria-hidden="true" /> {seats} registered</span>
         </div>
+
+        <EventAdminActions event={event} />
 
         <WorkspaceSection index="01" title="Door check-in" note="Type or scan the student's door code. Check-in also writes attendance evidence and issues the certificate once.">
           <EventCheckIn eventId={event.id} />

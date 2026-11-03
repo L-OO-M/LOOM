@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -25,7 +26,7 @@ export async function POST(request, { params }) {
 
   const [event] = await sql`
     SELECT * FROM events WHERE id = ${id}
-      AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
       AND status = 'proposed' LIMIT 1
   `;
   if (!event) return fail("NOT_FOUND", "No proposed event found", 404);
@@ -38,7 +39,7 @@ export async function POST(request, { params }) {
       const [d] = await sql`
         SELECT vertical FROM departments
         WHERE id = ${event.department_id}
-          AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+          AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
         LIMIT 1
       `;
       eventVertical = d?.vertical ?? null;

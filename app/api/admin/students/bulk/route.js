@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
@@ -51,12 +52,12 @@ export async function POST(request) {
   if (body.role !== "admin") {
     const [{ admins = 0 } = {}] = await sql`
       SELECT COUNT(*)::int AS admins FROM profiles
-      WHERE role = 'admin' AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+      WHERE role = 'admin' AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     `;
     const demoting = await sql`
       SELECT COUNT(*)::int AS c FROM profiles
       WHERE user_id = ANY(${body.userIds}) AND role = 'admin'
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     `;
     if (admins - (demoting[0]?.c ?? 0) <= 0) {
       return fail("FORBIDDEN", "Cannot remove the last admin in this chapter", 403);
@@ -80,7 +81,7 @@ export async function POST(request) {
   }
   let departmentId = null;
   if (body.role === "dept_lead") {
-    const [dept] = await sql`SELECT id FROM departments WHERE id = ${body.departmentId} AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL) LIMIT 1`;
+    const [dept] = await sql`SELECT id FROM departments WHERE id = ${body.departmentId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
     if (!dept) return fail("NOT_FOUND", "Department not found in your college", 404);
     departmentId = dept.id;
   }
@@ -93,7 +94,7 @@ export async function POST(request) {
         role_term_end = ${termEnd},
         updated_at = NOW()
       WHERE user_id = ANY(${body.userIds})
-        AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+        AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
       RETURNING user_id
     `;
     const ids = rows.map((r) => r.user_id);

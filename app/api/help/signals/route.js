@@ -4,6 +4,7 @@ import { writeAudit } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { upsertSignal } from "@/lib/recommend";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { createLogger, requestIdFrom } from "@/lib/log";
 
 const schema = z.object({
   kind: z.enum(["roadmap_node", "resource", "contest", "topic"]),
@@ -11,6 +12,7 @@ const schema = z.object({
 });
 
 export async function POST(request) {
+  const log = createLogger("help-signals", { requestId: requestIdFrom(request) });
   let ctx;
   try { ctx = await requireCan("help:request"); } catch (e) { const g = toGuardResponse(e); if (g) return fail(g.error.code, g.error.message, g.status); throw e; }
   const { user, tenant, sql } = ctx;
@@ -27,7 +29,10 @@ export async function POST(request) {
       VALUES (${user.id}, ${tid}::uuid, true, now(), now())
       ON CONFLICT (user_id) DO UPDATE SET last_active_at=now(), updated_at=now(), tenant_id=EXCLUDED.tenant_id
     `;
-  } catch {}
+  } catch (err) {
+    // The signal is what the request is for; the helper row is a side effect.
+    log.warn("helper profile upsert failed; signal still recorded", { userId: user.id, err });
+  }
   const sig = await upsertSignal({ sql, tenantId: tid, userId: user.id, kind: body.kind, refId: body.ref_id });
   await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "help_signal", resource: "help_signal", resourceId: sig.id, after: body });
   return ok({ signal: sig }, { status: 201 });

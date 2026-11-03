@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 
@@ -16,7 +17,7 @@ export async function GET() {
       (SELECT level FROM department_memberships WHERE department_id = d.id AND user_id = ${user.id}) AS my_level,
       (SELECT core_requested FROM department_memberships WHERE department_id = d.id AND user_id = ${user.id}) AS core_requested
     FROM departments d
-    WHERE d.is_active AND (d.tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE d.is_active AND d.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     ORDER BY d.vertical, d.name
   `;
   return ok({ departments: rows });

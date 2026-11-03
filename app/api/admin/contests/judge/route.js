@@ -34,7 +34,9 @@ export async function POST(request) {
 
   const result = await sql.begin(async (tx) => {
     const [submission] = await tx`
-      SELECT s.id, s.student_id, s.contest_id, s.status AS previous_status, c.title AS contest_title
+      SELECT s.id, s.student_id, s.contest_id, s.status AS previous_status,
+             s.score AS previous_score, s.feedback AS previous_feedback,
+             c.title AS contest_title
       FROM contest_submissions s
       JOIN contests c ON c.id = s.contest_id
       WHERE s.id = ${body.submissionId}
@@ -42,6 +44,29 @@ export async function POST(request) {
       FOR UPDATE OF s
     `;
     if (!submission) return null;
+
+    // A retried request (double click, network retry) with the same judgement
+    // must not re-audit, re-notify, or recompute. Compare before writing so the
+    // repeat is a true no-op rather than an upsert that still has side effects.
+    const unchanged =
+      submission.previous_status === body.status &&
+      (submission.previous_score ?? null) === (body.score ?? null) &&
+      (submission.previous_feedback || "") === (body.feedback || "");
+
+    if (unchanged) {
+      return {
+        unchanged: true,
+        submission,
+        updated: {
+          id: submission.id,
+          contest_id: submission.contest_id,
+          student_id: submission.student_id,
+          status: submission.previous_status,
+          score: submission.previous_score,
+          feedback: submission.previous_feedback
+        }
+      };
+    }
 
     const [updated] = await tx`
       UPDATE contest_submissions
@@ -103,6 +128,7 @@ export async function POST(request) {
   });
 
   if (!result?.updated) return fail("NOT_FOUND", "Submission not found", 404);
+  if (result.unchanged) return ok({ submission: result.updated, unchanged: true });
 
   if (result.canVerify) {
     await recomputeScore(sql, tenant.id, result.submission.student_id);
