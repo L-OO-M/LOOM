@@ -55,6 +55,12 @@ const CP1252_HIGH =
 // A maximal run of suspect characters.
 const RUN = new RegExp("[" + CP1252_HIGH + "]{2,}", "g");
 const LOSSY = /\uFFFD/g;
+// C0 controls that never belong in source or prose. TAB (09), LF (0A) and
+// CR (0D) are excluded because they are legitimate; DEL (7F) is included
+// because it is invisible and almost always a paste/editor accident. This is
+// the class of corruption docs/25 §9 found in docs/17 and docs/18: the old
+// check only looked for mojibake, so a stray control byte was invisible to it.
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 const SCAN_EXT = /\.(js|jsx|mjs|cjs|json|md|mdx|css|html|yml|yaml|sql|txt)$/i;
 const SKIP_DIRS = new Set([
   "node_modules", ".git", ".next", ".next-docs", "coverage",
@@ -178,6 +184,7 @@ const files = walk(root);
 
 const repaired = [];
 const lossy = [];
+const control = [];
 const suspicious = [];
 
 for (const file of files) {
@@ -195,6 +202,14 @@ for (const file of files) {
   const lossyLines = [];
   text.split("\n").forEach((line, i) => {
     if (/\uFFFD/.test(line)) lossyLines.push({ line: i + 1, seq: ["\uFFFD"] });
+  });
+
+  const controlLines = [];
+  text.split("\n").forEach((line, i) => {
+    const found = line.match(CONTROL);
+    if (found && found.length) {
+      controlLines.push({ line: i + 1, seq: [...new Set(found)] });
+    }
   });
 
   const runLines = [];
@@ -220,15 +235,18 @@ for (const file of files) {
 
   if (!check && (fixedCount > 0 || bomFixed)) fs.writeFileSync(file, fixed, "utf8");
 
-  // Lossy damage is always a hard failure, repaired file or not.
+  // Lossy damage and control characters are always hard failures, repaired
+  // file or not. Neither can be repaired mechanically: the original bytes or
+  // the author's intent are gone, so a human must decide what the text meant.
   if (lossyLines.length) lossy.push({ file: relative, lines: lossyLines });
+  if (controlLines.length) control.push({ file: relative, lines: controlLines });
 }
 
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const total = repaired.length + lossy.length + suspicious.length;
+const total = repaired.length + lossy.length + control.length + suspicious.length;
 if (total === 0) {
   console.log("encoding check: clean - no mojibake in " + files.length + " files");
   process.exit(0);
@@ -273,6 +291,18 @@ if (lossy.length) {
   console.log("  These are unrecoverable: the original bytes were already discarded.\n");
 }
 
+if (control.length) {
+  console.log("FAILED: " + control.length + " file(s) contain C0/DEL control characters");
+  for (const { file, lines } of control) {
+    console.log("  CONTROL " + file);
+    for (const l of lines.slice(0, 4)) {
+      console.log("          L" + l.line + "  " + codepoints(l.seq.join("")));
+    }
+    if (lines.length > 4) console.log("          ... +" + (lines.length - 4) + " more");
+  }
+  console.log("  These are invisible and cannot be repaired mechanically; remove them by hand.\n");
+}
+
 if (suspicious.length) {
   console.log("note: " + suspicious.length + " run(s) look unusual but are probably legitimate text (not modified)");
   for (const { file, lines } of suspicious) {
@@ -289,4 +319,6 @@ if (check && (repaired.length || lossy.length)) {
 if (!check && repaired.length) {
   console.log("Re-run with --check to confirm clean.");
 }
-process.exit(lossy.length ? 1 : 0);
+// Control characters are never auto-fixed; even the repair mode exits non-zero
+// so an operator cannot mistake "I ran the fixer" for "the tree is clean".
+process.exit(lossy.length || control.length ? 1 : 0);

@@ -85,3 +85,40 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  migrations:
+    name: Migrations (apply twice)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: loom_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/loom_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The base schema revokes from Supabase's roles, so they must exist even
+      # on a plain Postgres service container.
+      - name: Create Supabase-compatible roles
+        run: |
+          node -e "const p=require('postgres');const s=p(process.env.DATABASE_URL,{max:1});(async()=>{await s\`CREATE ROLE anon NOLOGIN\`;await s\`CREATE ROLE authenticated NOLOGIN\`;await s.end()})()"
+      - name: Apply migrations
+        run: node load/migrate.js | tee /tmp/first.log
+      - name: Apply migrations again
+        run: |
+          node load/migrate.js | tee /tmp/second.log
+          grep -q "0 applied" /tmp/second.log

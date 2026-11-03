@@ -28,6 +28,21 @@ export function databaseUrl() {
   return url;
 }
 
+// Tenant slug for seed and operator scripts. There is deliberately no hardcoded
+// chapter: a deployment names its own institution through SEED_TENANT_SLUG,
+// DEFAULT_TENANT_SLUG, or DEV_TENANT_SLUG.
+export function seedTenantSlug() {
+  const slug = process.env.SEED_TENANT_SLUG || process.env.DEFAULT_TENANT_SLUG || process.env.DEV_TENANT_SLUG;
+  if (!slug) {
+    console.error(
+      "No tenant slug configured. Set SEED_TENANT_SLUG, DEFAULT_TENANT_SLUG, " +
+      "or DEV_TENANT_SLUG in the environment or .env.local."
+    );
+    process.exit(1);
+  }
+  return slug;
+}
+
 // Used by the region-migration tooling (load/db-transfer.js, load/migrate.js).
 // --target selects an explicit target when one is configured; once the cut-over
 // is done DATABASE_URL is itself the target, so falling back to it keeps

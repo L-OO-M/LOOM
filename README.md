@@ -17,7 +17,7 @@ This repository contains:
 - Tracked SQL migrations in `load/migrations/` applied via `node load/migrate.js`
 - Server-side auth library (`lib/auth-server.js`): session → profile → tenant → role, audit + notification helpers; RBAC matrix in `lib/permissions.js` (29 actions, 6 levels)
 - Tenant resolution, API envelopes, raw-SQL data access (`lib/db.js`, pooler-safe), and HMAC-verified GitHub webhook processing (opt-in, paused by default)
-- Vitest (80 test files) and Playwright (10 spec files, run against chromium + mobile projects) coverage
+- Vitest unit/contract tests under `tests/` and Playwright E2E specs under `e2e/` (chromium + mobile projects). Counts drift; trust the runner output, not this line.
 
 ## Prerequisites
 
@@ -75,6 +75,28 @@ npm run build         # Production build
 npx playwright test   # Playwright E2E (needs `npx playwright install chromium` once)
 npm run dev           # Development server
 ```
+
+## Continuous integration
+
+Per-PR CI (`.github/workflows/ci.yml`) requires no application secrets and runs:
+
+- gitleaks secret scan (read-only, redacted)
+- lint + encoding/control-character check
+- Vitest unit tests
+- production build
+- migrations applied **twice** to a disposable `postgres:16` service, failing
+  unless the second pass applies zero files
+- schema/doc drift tests (migration numbering, documented files, doc truth)
+
+E2E is deliberately absent from per-PR CI. Run it locally against a production
+build before pushing (`E2E_PROD=1 npx playwright test`). There is no nightly
+workflow yet: adding one requires a **dedicated staging** Supabase project and
+`E2E_STAGING_*` secrets, and it must never point at production. See
+`docs/15-deploy-and-operations.md` section 4d.
+
+Dependabot opens monthly update PRs (npm and GitHub Actions). The per-PR CI
+runs the unit/build/migration gates; run `npm audit --audit-level=high` before a
+release. A separate dependency-review workflow is not present yet.
 
 ## Architecture
 
