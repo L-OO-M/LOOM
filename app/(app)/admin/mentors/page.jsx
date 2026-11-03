@@ -1,14 +1,57 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Clock3, Award, MessageCircle, Inbox, Check, X, Sparkles } from "lucide-react";
+import { Clock3, Award, MessageCircle, Inbox, Check, X, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { MentorPicker } from "@/components/admin/MentorPicker";
+import { pageHref, pageWindow } from "@/lib/pagination";
 import { ReviewButtons } from "./ReviewButtons";
 import "../_components/admin-ledger.css";
+// Reuse the roster pager styles; `.rosterx` only supplies the --adst-* aliases.
+import "../students/students.css";
 
-export default async function AdminMentorsPage() {
+const PAGE_SIZE = 50;
+const SESSION_PAGE_SIZE = 20;
+const BASE_PATH = "/admin/mentors";
+
+// Two lists page independently on this page, so the pager is a small local
+// component instead of a third copy of the same markup.
+function Pager({ label, win, params, pageParam = "page" }) {
+  if (win.outOfRange || win.pages <= 1) return null;
+  return (
+    <div className="rosterx">
+      <nav className="adst-pager" aria-label={label}>
+        {win.hasPrev ? (
+          <Link href={pageHref(BASE_PATH, params, win.page - 1, pageParam)} prefetch={false} rel="prev" className="adst-pager-step">
+            <ChevronLeft size={12} aria-hidden="true" /> Previous
+          </Link>
+        ) : (
+          <span className="adst-pager-step is-disabled" aria-disabled="true">
+            <ChevronLeft size={12} aria-hidden="true" /> Previous
+            <span className="sr-only"> — already on the first page</span>
+          </span>
+        )}
+        <p className="adst-pager-count">
+          Showing <strong>{win.from}&ndash;{win.to}</strong> of {win.total}
+          <span className="adst-pager-position" aria-current="page">Page {win.page} of {win.pages}</span>
+        </p>
+        {win.hasNext ? (
+          <Link href={pageHref(BASE_PATH, params, win.page + 1, pageParam)} prefetch={false} rel="next" className="adst-pager-step">
+            Next <ChevronRight size={12} aria-hidden="true" />
+          </Link>
+        ) : (
+          <span className="adst-pager-step is-disabled" aria-disabled="true">
+            Next <ChevronRight size={12} aria-hidden="true" />
+            <span className="sr-only"> — already on the last page</span>
+          </span>
+        )}
+      </nav>
+    </div>
+  );
+}
+
+export default async function AdminMentorsPage({ searchParams }) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/admin/mentors");
   if (ctx.error === "FORBIDDEN") redirect("/student");
@@ -16,6 +59,7 @@ export default async function AdminMentorsPage() {
   const { user, tenant, sql } = ctx;
   if (!tenant?.id) redirect("/login?redirect=/admin/mentors");
   const tid = tenant.id;
+  const sp = await searchParams;
 
   const [stats] = await sql`
     SELECT
@@ -25,23 +69,36 @@ export default async function AdminMentorsPage() {
       (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid) AS sessions
   `;
 
-  const mentors = await sql`
-    SELECT m.*, p.name AS mentor_name, p.github_username,
-           (SELECT COUNT(*)::int FROM mentor_sessions s WHERE s.mentor_id = m.user_id) AS session_count
-    FROM mentors m LEFT JOIN profiles p ON p.user_id = m.user_id
-    WHERE m.tenant_id = ${tid}::uuid
-    ORDER BY m.available DESC, m.created_at DESC LIMIT 50
-  `;
+  // Both totals already come from the tenant-scoped COUNTs above, so the page
+  // windows need no extra round-trip. Roster and sessions page independently.
+  const rosterWin = pageWindow(stats?.mentors ?? 0, sp?.page, PAGE_SIZE);
+  const sessionWin = pageWindow(stats?.sessions ?? 0, sp?.sessionPage, SESSION_PAGE_SIZE);
 
-  const sessions = await sql`
-    SELECT s.*, pm.name AS mentor_name, ps.name AS student_name
-    FROM mentor_sessions s
-    LEFT JOIN mentors m ON m.user_id = s.mentor_id
-    LEFT JOIN profiles pm ON pm.user_id = s.mentor_id
-    LEFT JOIN profiles ps ON ps.user_id = s.student_id
-    WHERE m.tenant_id = ${tid}::uuid
-    ORDER BY s.created_at DESC LIMIT 20
-  `;
+  let mentors = [];
+  if (rosterWin.total > 0 && !rosterWin.outOfRange) {
+    mentors = await sql`
+      SELECT m.*, p.name AS mentor_name, p.github_username,
+             (SELECT COUNT(*)::int FROM mentor_sessions s WHERE s.mentor_id = m.user_id) AS session_count
+      FROM mentors m LEFT JOIN profiles p ON p.user_id = m.user_id
+      WHERE m.tenant_id = ${tid}::uuid
+      ORDER BY m.available DESC, m.created_at DESC, m.id DESC
+      LIMIT ${PAGE_SIZE} OFFSET ${rosterWin.offset}
+    `;
+  }
+
+  let sessions = [];
+  if (sessionWin.total > 0 && !sessionWin.outOfRange) {
+    sessions = await sql`
+      SELECT s.*, pm.name AS mentor_name, ps.name AS student_name
+      FROM mentor_sessions s
+      LEFT JOIN mentors m ON m.user_id = s.mentor_id
+      LEFT JOIN profiles pm ON pm.user_id = s.mentor_id
+      LEFT JOIN profiles ps ON ps.user_id = s.student_id
+      WHERE m.tenant_id = ${tid}::uuid
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT ${SESSION_PAGE_SIZE} OFFSET ${sessionWin.offset}
+    `;
+  }
 
   const applications = await sql`
     SELECT a.*, p.name AS applicant_name, p.primary_domain, p.branch, p.year
@@ -79,7 +136,17 @@ export default async function AdminMentorsPage() {
           note="Available mentors sort first. Sessions count only activity logged against this chapter."
           action={<Link href="/admin/students" prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">Find students →</Link>}
         >
-          {mentors.length === 0 ? (
+          {rosterWin.outOfRange ? (
+            <WorkspaceEmpty
+              title={`Page ${rosterWin.requestedPage} is past the end of this roster`}
+              body={`${rosterWin.total} mentor${rosterWin.total === 1 ? "" : "s"} fit on ${rosterWin.pages} page${rosterWin.pages === 1 ? "" : "s"} at ${PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
+              action={
+                <Link href={pageHref(BASE_PATH, { sessionPage: sp?.sessionPage }, rosterWin.pages)} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                  Go to the last page ({rosterWin.pages})
+                </Link>
+              }
+            />
+          ) : mentors.length === 0 ? (
             <WorkspaceEmpty
               title="No mentors yet"
               body="Add a mentor from an enrolled student, or approve a candidacy below. Mentors guide juniors — they don't replace Heads."
@@ -105,10 +172,21 @@ export default async function AdminMentorsPage() {
               ))}
             </ul>
           )}
+          <Pager label="Mentor pages" win={rosterWin} params={{ sessionPage: sp?.sessionPage }} />
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Recent sessions" note="Newest first, cap 20. Sessions appear once a student requests a mentor." action={<Clock3 size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
-          {sessions.length === 0 ? (
+        <WorkspaceSection index="02" title="Recent sessions" note="Newest first. Sessions appear once a student requests a mentor." action={<Clock3 size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
+          {sessionWin.outOfRange ? (
+            <WorkspaceEmpty
+              title={`Page ${sessionWin.requestedPage} is past the end of this log`}
+              body={`${sessionWin.total} session${sessionWin.total === 1 ? "" : "s"} fit on ${sessionWin.pages} page${sessionWin.pages === 1 ? "" : "s"} at ${SESSION_PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
+              action={
+                <Link href={pageHref(BASE_PATH, { page: sp?.page }, sessionWin.pages, "sessionPage")} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                  Go to the last page ({sessionWin.pages})
+                </Link>
+              }
+            />
+          ) : sessions.length === 0 ? (
             <WorkspaceEmpty title="No sessions yet" body="They appear once a student requests a mentor." />
           ) : (
             <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
@@ -123,6 +201,7 @@ export default async function AdminMentorsPage() {
               ))}
             </ul>
           )}
+          <Pager label="Session pages" win={sessionWin} params={{ page: sp?.page }} pageParam="sessionPage" />
         </WorkspaceSection>
 
         <div className="aled-split">

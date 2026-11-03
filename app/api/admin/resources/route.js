@@ -3,6 +3,9 @@ import { revalidateTag } from "next/cache";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
+import { pageWindow, paginationMeta, requestPage } from "@/lib/pagination";
+
+const PAGE_SIZE = 50;
 
 const resourceSchema = z.object({
   id: z.string().min(1).max(80).optional(),
@@ -17,12 +20,28 @@ const resourceSchema = z.object({
   nodeId: z.string().max(120).nullable().optional()
 });
 
-export async function GET() {
+// `resources` is the global catalog: it has no tenant_id (see
+// load/migrations/031_rls_scope.sql), so the page and its COUNT share the same
+// unscoped predicate — there is no tenant arm to keep in sync here.
+export async function GET(request) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error) return fail(ctx.error, ctx.error === "FORBIDDEN" ? "Admin only" : "Auth required", ctx.error === "FORBIDDEN" ? 403 : 401);
   const { sql } = ctx;
-  const rows = await sql`SELECT * FROM resources ORDER BY domain ASC, minutes ASC LIMIT 200`;
-  return ok({ resources: rows });
+  const url = new URL(request?.url ?? "http://localhost/api/admin/resources");
+  const { page, pageSize } = requestPage(url.searchParams, { defaultPageSize: PAGE_SIZE });
+
+  const [{ total = 0 } = {}] = await sql`SELECT COUNT(*)::int AS total FROM resources`;
+  const win = pageWindow(total, page, pageSize);
+
+  let rows = [];
+  if (win.total > 0 && !win.outOfRange) {
+    rows = await sql`
+      SELECT * FROM resources
+      ORDER BY domain ASC, minutes ASC, id ASC
+      LIMIT ${pageSize} OFFSET ${win.offset}
+    `;
+  }
+  return ok({ resources: rows, pagination: paginationMeta(win) });
 }
 
 export async function POST(request) {

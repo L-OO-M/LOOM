@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { pageWindow, paginationMeta, requestPage } from "@/lib/pagination";
 
 const STATUSES = ["draft", "published", "active", "open", "closed"];
+const PAGE_SIZE = 50;
 
 const contestSchema = z.object({
   title: z.string().min(3).max(160),
@@ -17,13 +19,33 @@ const statusSchema = z.object({
   status: z.enum(STATUSES)
 });
 
-export async function GET() {
+export async function GET(request) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error) return fail(ctx.error, ctx.error === "FORBIDDEN" ? "Admin only" : "Auth required", ctx.error === "FORBIDDEN" ? 403 : 401);
   const { tenant, sql } = ctx;
   if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
-  const rows = await sql`SELECT c.*, (SELECT COUNT(*)::int FROM contest_registrations r WHERE r.contest_id = c.id) AS registrations FROM contests c WHERE c.tenant_id = ${tenant.id}::uuid ORDER BY c.created_at DESC LIMIT 50`;
-  return ok({ contests: rows });
+  const url = new URL(request?.url ?? "http://localhost/api/admin/contests");
+  const { page, pageSize } = requestPage(url.searchParams, { defaultPageSize: PAGE_SIZE });
+
+  // COUNT first, in the same tenant scope, so the page window is known before
+  // the row query decides whether it needs to run at all.
+  const [{ total = 0 } = {}] = await sql`
+    SELECT COUNT(*)::int AS total FROM contests c
+    WHERE c.tenant_id = ${tenant.id}::uuid
+  `;
+  const win = pageWindow(total, page, pageSize);
+
+  let rows = [];
+  if (win.total > 0 && !win.outOfRange) {
+    rows = await sql`
+      SELECT c.*, (SELECT COUNT(*)::int FROM contest_registrations r WHERE r.contest_id = c.id) AS registrations
+      FROM contests c
+      WHERE c.tenant_id = ${tenant.id}::uuid
+      ORDER BY c.created_at DESC, c.id DESC
+      LIMIT ${pageSize} OFFSET ${win.offset}
+    `;
+  }
+  return ok({ contests: rows, pagination: paginationMeta(win) });
 }
 
 export async function POST(request) {
