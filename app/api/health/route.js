@@ -49,7 +49,7 @@ export async function GET(request) {
     const sql = getSql();
     const [row] = await sql`
       SELECT enabled FROM public.feature_flags
-      WHERE tenant_id = (SELECT id FROM public.tenants WHERE slug = ${env.DEV_TENANT_SLUG || "demo-college"} LIMIT 1)
+      WHERE tenant_id = (SELECT id FROM public.tenants WHERE slug = ${env.DEFAULT_TENANT_SLUG} LIMIT 1)
         AND key = 'tenant_rls_enforced'
       LIMIT 1`;
     rlsEnforced = row?.enabled === true;
