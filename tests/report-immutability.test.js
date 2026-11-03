@@ -20,14 +20,15 @@ const LEAD = {
   memberships: [{ department_id: DEPT, level: "dept_lead" }]
 };
 
-function makeDb({ reports = [] } = {}) {
+function makeDb({ reports = [], failRevision = false } = {}) {
   const state = {
     departments: {
       [DEPT]: { id: DEPT, tenant_id: TENANT, vertical: "technical", name: "Web" }
     },
     reports,
     revisions: [],
-    queries: []
+    queries: [],
+    transactions: 0
   };
 
   function dispatch(strings, values) {
@@ -90,6 +91,7 @@ function makeDb({ reports = [] } = {}) {
     }
 
     if (/INSERT INTO report_revisions/.test(text)) {
+      if (failRevision) throw new Error("revision insert failed");
       const [reportId, tenantId, status, draft, actorId] = values;
       const revision = state.revisions.filter((r) => r.report_id === reportId).length + 1;
       state.revisions.push({ report_id: reportId, tenant_id: tenantId, revision, status, draft, actor_id: actorId });
@@ -101,6 +103,24 @@ function makeDb({ reports = [] } = {}) {
 
   const sql = (strings, ...values) => Promise.resolve(dispatch(strings, values));
   sql.json = (value) => value;
+  // postgres.js hands the callback a transaction client that is callable the
+  // same way as `sql`, and discards its writes if the callback throws. Model
+  // both halves so the route's atomic report+revision pair is exercised, and so
+  // a rollback case can prove the report row really is gone.
+  sql.begin = async (fn) => {
+    state.transactions += 1;
+    const snapshot = {
+      reports: state.reports.map((r) => ({ ...r })),
+      revisions: state.revisions.map((r) => ({ ...r }))
+    };
+    try {
+      return await fn(sql);
+    } catch (err) {
+      state.reports = snapshot.reports;
+      state.revisions = snapshot.revisions;
+      throw err;
+    }
+  };
   return { sql, state };
 }
 
@@ -280,6 +300,34 @@ describe("POST /api/reports — compile never overwrites a submitted report", ()
       new_members: 0
     });
     expect(db.state.reports[0].draft.compiled_at).toEqual(expect.any(String));
+  });
+
+  it("writes the report and its revision in one transaction", async () => {
+    const db = makeDb();
+    const { response } = await compile({ db, profile: LEAD, body: { departmentId: DEPT, month: "2026-05" } });
+
+    expect(response.status).toBe(201);
+    expect(db.state.transactions).toBe(1);
+    expect(db.state.reports).toHaveLength(1);
+    expect(db.state.revisions).toHaveLength(1);
+    expect(db.state.revisions[0]).toMatchObject({ report_id: db.state.reports[0].id, revision: 1 });
+  });
+
+  it("rolls the report back when the revision write fails", async () => {
+    // A revision that survives a failed report upsert would claim a version
+    // that never existed, and the unique (report_id, revision) key would push
+    // the next writer to n+2.
+    const db = makeDb({ failRevision: true });
+
+    // POST has no try/catch: a failed write surfaces as Next's 500 rather than
+    // a fabricated success envelope.
+    await expect(
+      compile({ db, profile: LEAD, body: { departmentId: DEPT, month: "2026-05" } })
+    ).rejects.toThrow("revision insert failed");
+
+    expect(db.state.transactions).toBe(1);
+    expect(db.state.reports).toHaveLength(0);
+    expect(db.state.revisions).toHaveLength(0);
   });
 });
 

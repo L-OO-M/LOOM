@@ -127,17 +127,28 @@ export async function POST(request) {
     workshops_upcoming: upcoming.length,
     workshops_upcoming_titles: upcoming.map((e) => e.title)
   };
-  const [report] = await sql`
-    INSERT INTO dept_reports (tenant_id, department_id, month, draft, status)
-    VALUES (${tid}, ${body.departmentId}, ${firstDay}, ${sql.json(draft)}, 'draft')
-    ON CONFLICT (department_id, month) DO UPDATE SET draft = ${sql.json(draft)}
-    WHERE dept_reports.status = 'draft'
-    RETURNING *
-  `;
-  if (!report) {
+  // The live row and its append-only revision must move together: a revision
+  // written against a report whose draft upsert then failed would claim a
+  // version that never existed, and the unique (report_id, revision) key would
+  // push the next writer to n+2. The audit stays outside on purpose --
+  // writeAudit swallows its own errors, so inside a transaction a failed audit
+  // INSERT would abort the commit instead of being non-fatal.
+  const compiled = await sql.begin(async (tx) => {
+    const [row] = await tx`
+      INSERT INTO dept_reports (tenant_id, department_id, month, draft, status)
+      VALUES (${tid}, ${body.departmentId}, ${firstDay}, ${tx.json(draft)}, 'draft')
+      ON CONFLICT (department_id, month) DO UPDATE SET draft = ${tx.json(draft)}
+      WHERE dept_reports.status = 'draft'
+      RETURNING *
+    `;
+    if (!row) return null;
+    const rev = await recordReportRevision({ sql: tx, report: row, actorId: user.id });
+    return { report: row, revision: rev };
+  });
+  if (!compiled) {
     return fail("REPORT_LOCKED", "This report is submitted and can no longer be recompiled — an admin must reopen it first", 409);
   }
-  const revision = await recordReportRevision({ sql, report, actorId: user.id });
+  const { report, revision } = compiled;
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: "compiled_report",
     resource: "report", resourceId: report.id,
