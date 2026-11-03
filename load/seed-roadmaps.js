@@ -178,6 +178,55 @@ try {
   }
   console.log(`Upserted ${r} curated resources`);
 
+  // ---- retire superseded node ids -----------------------------------------
+  // The first Web roadmap shipped four placeholder nodes (node_html_css,
+  // node_javascript, node_git_github, node_react). The sourced graph replaced
+  // them with web_* ids, but the old rows stayed behind: no edge reached them
+  // from web_html5 and a student's progress was split across two ids for the
+  // same subject. Remap the references, then delete the placeholder.
+  //
+  // Safe to re-run: after the first pass there is nothing left to match, and a
+  // missing replacement keeps the old node rather than orphaning its progress.
+  const LEGACY_NODE_MAP = {
+    node_html_css: "web_html5",
+    node_javascript: "web_javascript_core",
+    node_git_github: "web_git_github",
+    node_react: "web_react_fundamentals"
+  };
+  let rekeyed = 0;
+  for (const [oldId, newId] of Object.entries(LEGACY_NODE_MAP)) {
+    const [replacement] = await sql`SELECT id FROM roadmap_nodes WHERE id = ${newId} LIMIT 1`;
+    if (!replacement) continue;
+
+    await sql`
+      INSERT INTO roadmap_node_resources (node_id, resource_id)
+      SELECT ${newId}, resource_id FROM roadmap_node_resources WHERE node_id = ${oldId}
+      ON CONFLICT DO NOTHING
+    `;
+    await sql`DELETE FROM roadmap_node_resources WHERE node_id = ${oldId}`;
+
+    // Merge rather than drop: a completion stays completed and the earlier of
+    // the two completion dates wins, so a student does not lose a finished step.
+    await sql`
+      INSERT INTO student_roadmap_progress
+        (student_id, node_id, status, evidence_source, completed_at, updated_at,
+         tenant_id, evidence_state, evidence_note, evidence_url, verified_by, verified_at)
+      SELECT student_id, ${newId}, status, evidence_source, completed_at, updated_at,
+             tenant_id, evidence_state, evidence_note, evidence_url, verified_by, verified_at
+      FROM student_roadmap_progress WHERE node_id = ${oldId}
+      ON CONFLICT (student_id, node_id) DO UPDATE SET
+        status = CASE WHEN EXCLUDED.status = 'completed' THEN 'completed'
+                      ELSE student_roadmap_progress.status END,
+        completed_at = LEAST(student_roadmap_progress.completed_at, EXCLUDED.completed_at)
+    `;
+    await sql`DELETE FROM student_roadmap_progress WHERE node_id = ${oldId}`;
+
+    await sql`DELETE FROM roadmap_edges WHERE from_id = ${oldId} OR to_id = ${oldId}`;
+    await sql`DELETE FROM roadmap_nodes WHERE id = ${oldId}`;
+    rekeyed++;
+  }
+  if (rekeyed) console.log(`Rekeyed ${rekeyed} legacy web placeholder node(s) onto their web_* replacement`);
+
   console.log("nodes per domain:", Object.entries(stats).sort().map(([d, c]) => `${d}=${c}`).join(", "));
   console.log(`tracks: ${tracks.map((t) => t.domain).join(", ")}`);
   console.log("done. All titles/URLs transcribed from the supplied source documents.");
