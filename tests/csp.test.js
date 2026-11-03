@@ -46,12 +46,12 @@ describe("CSP", () => {
     expect(directives.get("base-uri")).toBe("'self'");
   });
 
-  it("preserves the existing directives, including unsafe-eval for now", async () => {
+  it("keeps production free of unsafe-eval and pins the remaining sources", async () => {
     const directives = await cspDirectives();
 
     expect(directives.get("default-src")).toBe("'self'");
     expect(directives.get("script-src")).toBe(
-      "'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co"
+      "'self' 'unsafe-inline' https://*.supabase.co"
     );
     expect(directives.get("style-src")).toBe("'self' 'unsafe-inline'");
     expect(directives.get("img-src")).toBe("'self' data: https: blob:");
