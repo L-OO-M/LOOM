@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X, ShieldAlert, ExternalLink, Loader2 } from "lucide-react";
+import { Meta } from "@/components/loom/primitives";
 
 const STATUS = { idle: "", busy: "", done: "", error: "" };
 
