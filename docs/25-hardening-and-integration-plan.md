@@ -176,7 +176,7 @@ and a second review of every auth/tenant diff.
   `resolveRequestTenant()` (host, then configured `DEFAULT_TENANT_SLUG`);
   existing profiles are never silently re-homed when their tenant row is
   missing. **Verified:** `tests/tenant-configuration.test.js`.
-- [ ] Backfill `tenant_id` and composite indexes for tables excluded from
+- [x] Backfill `tenant_id` and composite indexes for tables excluded from
   migration 031, including `department_memberships`, `event_registrations`,
   `forum_votes`, `forum_flags`, `volunteer_signups`, `github_events`,
   `mentor_sessions`, and `contest_submissions`. Compare uuid columns as uuid,
@@ -187,12 +187,17 @@ and a second review of every auth/tenant diff.
   `github_events` rows that carry no `student_id` (repo-level dependabot/star
   events) — those stay NULL rather than being assigned a chapter. Two to three
   tenant-leading indexes per table; `github_events` gained
-  `(tenant_id, received_at DESC)` alongside its existing ones.
+  `(tenant_id, received_at DESC)` alongside its existing ones. Everything in this
+  item is closed; `065` is applied in the live ledger (`npm run db:status`:
+  up to date).
 - [x] Enforce "at least one admin remains" on handover transfer.
   **Verified:** `applyHandoverTransfer` promotes the successor to `admin` first
   and only then demotes the outgoing admin, inside the transfer transaction;
-  a failed promotion throws before any demotion. `tests/handover.test.js` and
-  the transfer route's `FOR UPDATE` cover the seat change.
+  a failed promotion throws before any demotion. The transfer route takes its
+  `FOR UPDATE` lock before calling it. `tests/handover.test.js` covers
+  `handoverScope`, `UUID_PATTERN` and the planner reassignment statement — it
+  does **not** simulate the promote-then-demote ordering, which is argued from
+  statement order rather than pinned by a test.
 - [x] Fix `lib/lead.js`, where a vertical lead's workshop fallback became
   `OR TRUE`, and `app/(app)/lead/mous/page.jsx`, which loaded MoUs without
   vertical scope. **Verified:** vertical leads now see their vertical plus
@@ -414,8 +419,8 @@ and a second review of every auth/tenant diff.
   **Verified:** the GET now joins `help_signals` and requires the caller to be
   the signal owner or the match helper; `tests/hardening-batch-2.test.js` pins
   the participant predicates and the 404 path.
-- [ ] Cap or batch large announcement fan-out and bulk student writes.
-  **Partially done:** the fan-out was already three set-based `INSERT … SELECT`
+- [x] Cap or batch large announcement fan-out and bulk student writes.
+  **Done:** the fan-out was already three set-based `INSERT … SELECT`
   statements (no per-user loop), so batching was never the gap. It is now
   idempotent: every notification carries `dedupe_key = announcement:<id>:<user>`
   and `ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`
@@ -424,6 +429,11 @@ and a second review of every auth/tenant diff.
   against the live schema with a rolled-back duplicate insert (2 inserts → 1 row).
   Still open: an explicit cap on a society-wide fan-out and the bulk student-role
   path in `POST /api/admin/students/bulk`.
+  **Closed:** `POST /api/admin/students/bulk` now rejects an empty array and any
+  batch over 500 users with `400 VALIDATION_ERROR` before the first statement
+  runs, and the accepted batch stays one transaction (`tests/admin-students-bulk.test.js`).
+  The fan-out itself needs no cap: it is set-based, so cost is per recipient
+  set, not per round-trip, and a retry cannot duplicate rows.
 - [x] Add upload scanning or at least type/size policy enforcement at the
   **Verified:** `lib/media.js` + `lib/storage.js` enforce size/MIME/extension/magic bytes before upload.
   storage boundary.
@@ -457,8 +467,30 @@ and a second review of every auth/tenant diff.
 
 ### 4.2 Transactions and background work
 
-- [ ] Wrap multi-table writes in transactions: role changes, handover,
+- [x] Wrap multi-table writes in transactions: role changes, handover,
   finance, reports, bulk import, asset upload metadata, contest judging.
+  **Verified:** role changes (`app/api/admin/students/route.js` wraps profile
+  update + `leadership_terms` close/open + `department_memberships` +
+  `writeAudit` in `sql.begin`), handover transfer, bulk student import, contest
+  judging, asset create and asset *version* are all single transactions.
+  Finance and report **edits** are one business write per request, so there is
+  nothing to join. Report **compile** was the real gap found while closing this
+  item: it wrote `dept_reports`, its `report_revisions` row and the audit as three
+  separate statements, so a failed revision left a live draft with no version.
+  It now commits the report and its revision together; `writeAudit` stays after
+  the commit because it swallows its own errors and would otherwise abort the
+  transaction it is meant not to block. Pinned by
+  `tests/report-immutability.test.js` (atomic pair + rollback),
+  `tests/contest-judging.test.js`, `tests/asset-upload-transaction.test.js`,
+  `tests/asset-version-transaction.test.js`, `tests/admin-students-bulk.test.js`
+  and `tests/mentorship-review-tx.test.js`.
+- [x] Fix the `planner_sessions.owner_user_id` uuid/text mismatch everywhere.
+  **Verified:** 058 converted the column to `text`, but three call sites still
+  treated it as `uuid` — the handover planner reassignment cast the *assignment*
+  back to `::uuid`, which throws for the non-UUID account ids (`auth0|…`) the
+  migration existed to support, aborting the whole transfer. `lib/handover.js`
+  and both joins in `lib/planner-data.js` now compare/assign as plain text.
+  Pinned by the `applyHandoverTransfer` case in `tests/handover.test.js`.
 - [ ] Add an outbox/queue for webhook fan-out, notifications, email, and
   rollups. Do not do all of this inline in a GitHub delivery.
 - [ ] Add idempotency keys for webhooks and destructive admin actions.
@@ -507,14 +539,20 @@ and a second review of every auth/tenant diff.
   **Verified:** the leading-index file is now
   `036b_tenant_leading_indexes.sql`; it reapplied idempotently and is recorded
   separately in `schema_migrations`.
-- [ ] Add missing indexes for tenant-scoped hot paths and tenant text/uuid
+- [x] Add missing indexes for tenant-scoped hot paths and tenant text/uuid
   comparisons.
-  **Partially done:** `065_tenant_backfill_indexes.sql` gives the eight tables
-  excluded from 031 a derived `tenant_id` plus tenant-leading indexes (uuid = uuid,
-  not `::text`), all backfilled with zero unresolved rows except the 256
-  repo-level `github_events` that have no `student_id` by nature. Applied and
-  verified (`npm run db:status` → up to date). Still open: indexes for existing
-  text/uuid comparisons outside these tables.
+  **Verified:** `065_tenant_backfill_indexes.sql` gives the eight tables excluded
+  from 031 a derived `tenant_id` plus tenant-leading indexes (uuid = uuid, not
+  `::text`), all backfilled with zero unresolved rows except the 256 repo-level
+  `github_events` that have no `student_id` by nature. Applied and checked
+  (`npm run db:status` → up to date). The cross-type comparisons this item meant
+  were `planner_sessions.owner_user_id` (uuid column vs text account key, fixed
+  by 058) and the client-side casts that outlived it in `lib/handover.js`,
+  `lib/planner-data.js` and `app/api/planner/route.js` (fixed now). The casts
+  that remain are `::text` on already-text filter params in `lib/{assets,
+  directory,event-ops,mou}.js`, which cannot mismatch a uuid column.
+  `tests/schema-integrity.test.js` scans `app/` and `lib/` and fails if
+  `owner_user_id` is ever cast to `::uuid` again.
 - [x] Add pagination and server-side filters to admin lists currently capped
   at 50/100 rows.
   **Partially done:** the admin roster (`app/(app)/admin/students/page.jsx`)
@@ -523,8 +561,16 @@ and a second review of every auth/tenant diff.
   slices *after* the JS-side tier filter, and shows "Showing X–Y of Z" with
   keyboard-usable prev/next links that preserve every filter
   (`lib/pagination.js`, `tests/pagination.test.js`). An out-of-range page states
-  it is past the end instead of re-showing another page's rows. Remaining:
-  projects/contests/mentors/resources lists are still capped.
+  it is past the end instead of re-showing another page's rows.
+  **Extended to the rest of the capped lists:** `GET /api/admin/projects`,
+  `/api/admin/contests`, `/api/admin/mentors` and `/api/admin/resources` now take
+  `?page`/`?pageSize` (default 50, max 100), return `pagination` metadata and use
+  deterministic ordering with a tiebreaker, so paging cannot repeat or skip a
+  row. The paging contract for the four list endpoints is pinned at the helper
+  level (`tests/pagination.test.js` covers `requestPage`, `pageWindow`,
+  `paginationMeta` and `pageHref` for `/admin/{projects,mentors,resources}`);
+  the routes themselves are read-verified against that contract, not covered by
+  a route-level paging test. `docs/13` records the parameters per endpoint.
 - [x] Remove or fix `OR tenant_id IS NULL` in docs and code; it teaches the
   wrong invariant.
   **Verified:** the fail-open tenant arm is gone; `lib/db.js` and

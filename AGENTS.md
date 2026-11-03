@@ -67,7 +67,7 @@ git status --porcelain
 # 1. Lint — must show 0 errors (2 pre-existing warnings are the ceiling; add none).
 npm run lint
 
-# 2. Unit — all must pass (currently 1069 across 127 files).
+# 2. Unit — all must pass (currently 1073 across 127 files).
 npm test
 
 # 3. Build — must compile clean (catches bad imports, bad metadata, bad JSX).
