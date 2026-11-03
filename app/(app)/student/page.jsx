@@ -1,8 +1,9 @@
+import { scope } from "@/lib/tenant-scope";
 import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
-import { dayKey, toIsoDay } from "@/lib/github-activity";
+import { summarizeWeek } from "@/lib/week-activity";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
@@ -43,32 +44,23 @@ export default async function StudentPage() {
   const nextNode = nodes.find((n) => !doneIds.includes(n.id)) ?? null;
   const nextMilestone = nextNode?.title ?? null;
 
-  // This week: Monday–Sunday strip from real daily activity.
+  // This week: one Monday–Sunday strip from real daily activity. The helper
+  // owns the window so the marks and the "sessions" total can never disagree
+  // (the old query fetched 13 days and counted every active day as this week).
+  const now = new Date();
   const weekRows = await sql`
     SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews FROM student_daily_activity
-    WHERE student_id = ${user?.id ?? ""} AND day >= CURRENT_DATE - INTERVAL '13 days'
+    WHERE student_id = ${user?.id ?? ""} AND day >= CURRENT_DATE - INTERVAL '6 days'
     ORDER BY day ASC
   `;
-  const byDay = new Map(weekRows.map((r) => [dayKey(r), r]));
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weekDays = dayNames.map((label, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const iso = toIsoDay(d);
-    const r = byDay.get(iso);
-    const count = (r?.commits || 0) + (r?.pull_requests || 0) + (r?.reviews || 0);
-    return { label, hit: count > 0, count, today: iso === toIsoDay(now) };
-  });
-  const weekHits = weekRows.filter((r) => (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0) > 0);
-  const weekSessions = new Set(weekHits.map((r) => dayKey(r))).size;
-  const weekContributions = weekHits.reduce((s, r) => s + (r.commits || 0) + (r.pull_requests || 0) + (r.reviews || 0), 0);
+  const week = summarizeWeek(weekRows, now);
+  const weekDays = week.days;
+  const weekSessions = week.sessions;
+  const weekContributions = week.contributions;
   const [weekMilestones] = await sql`
     SELECT COUNT(*)::int AS c FROM student_roadmap_progress
     WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
-      AND completed_at >= CURRENT_DATE - INTERVAL '7 days'
+      AND completed_at >= ${week.start}::date
   `;
 
   // Coming up: open contests, upcoming events, scheduled mentor sessions.
@@ -97,9 +89,10 @@ export default async function StudentPage() {
     ORDER BY s.scheduled_at ASC LIMIT 2
   `;
 
-  // Recent proof: completions, verified OSS, projects.
+  // Recent work. A roadmap tick is a claim until a lead verifies the evidence,
+  // so each row carries its real state and the UI labels it honestly.
   const recentNodes = await sql`
-    SELECT r.completed_at, n.title FROM student_roadmap_progress r
+    SELECT r.completed_at, r.evidence_state, n.title FROM student_roadmap_progress r
     JOIN roadmap_nodes n ON n.id = r.node_id
     WHERE r.student_id = ${user?.id ?? ""} AND r.status = 'completed'
     ORDER BY r.completed_at DESC NULLS LAST LIMIT 3
@@ -115,29 +108,35 @@ export default async function StudentPage() {
     ORDER BY created_at DESC LIMIT 3
   `;
   const proof = [
-    ...recentNodes.map((r) => ({
-      at: r.completed_at,
-      when: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
-      text: `completed ${r.title}`,
-      meta: "Roadmap",
-      href: "/student/roadmap",
-      hot: true
-    })),
-    ...recentOss.map((o) => ({
-      at: o.verified_at || o.created_at,
-      when: new Date(o.verified_at || o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
-      text: o.status === "merged" || o.verified_at ? `merged ${o.title || "a pull request"}` : `claimed ${o.title || "a pull request"}`,
-      meta: "Open source",
-      href: o.pr_url || "/student/opensource",
-      hot: !!(o.verified_at || o.status === "merged")
-    })),
+    ...recentNodes.map((r) => {
+      const verified = r.evidence_state === "verified";
+      return {
+        at: r.completed_at,
+        when: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
+        text: `${verified ? "completed" : "claimed"} ${r.title}`,
+        meta: "Roadmap",
+        state: verified ? "verified" : "pending",
+        href: "/student/roadmap"
+      };
+    }),
+    ...recentOss.map((o) => {
+      const verified = !!(o.verified_at || o.status === "merged");
+      return {
+        at: o.verified_at || o.created_at,
+        when: new Date(o.verified_at || o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+        text: verified ? `merged ${o.title || "a pull request"}` : `claimed ${o.title || "a pull request"}`,
+        meta: "Open source",
+        state: verified ? "verified" : "pending",
+        href: o.pr_url || "/student/opensource"
+      };
+    }),
     ...recentProjects.map((p) => ({
       at: p.created_at,
       when: p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
       text: `published ${p.title}`,
       meta: "Project",
-      href: `/student/projects/${p.id}`,
-      hot: false
+      state: "self-reported",
+      href: `/student/projects/${p.id}`
     }))
   ].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0))
     .slice(0, 5)
@@ -217,11 +216,11 @@ export default async function StudentPage() {
   `;
   const [openContests] = await sql`
     SELECT COUNT(*)::int AS c FROM contests
-    WHERE status IN ('open', 'published') AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE status IN ('open', 'published') AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
   `;
   const [mentorCount] = await sql`
     SELECT COUNT(*)::int AS c FROM mentors
-    WHERE available = true AND (tenant_id = ${tenant?.id ?? null}::uuid OR ${tenant?.id ?? null}::uuid IS NULL)
+    WHERE available = true AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
   `;
   const [talkCount] = await sql`
     SELECT COUNT(*)::int AS c FROM events

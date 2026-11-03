@@ -1,3 +1,4 @@
+import { scope } from "@/lib/tenant-scope";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
@@ -39,7 +40,7 @@ export default async function CredentialsPage() {
     SELECT a.*, b.name AS badge_name, b.tier FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${user.id}
-      AND (a.tenant_id = ${tenant?.id ?? null}::uuid OR a.tenant_id IS NULL)
+      AND a.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     ORDER BY a.earned_at DESC LIMIT 100
   `;
   const credentials = await sql`
@@ -48,7 +49,7 @@ export default async function CredentialsPage() {
     LEFT JOIN student_achievements a ON a.id = v.achievement_id
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE v.student_id = ${user.id}
-      AND (v.tenant_id = ${tenant?.id ?? null}::uuid OR v.tenant_id IS NULL)
+      AND v.tenant_id = ${scope(tenant?.id ?? null)}::uuid
     ORDER BY v.issued_at DESC LIMIT 100
   `;
   const pending = await sql`

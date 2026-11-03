@@ -143,11 +143,11 @@ export function StudentDashboard({
               )}
             </div>
 
-            <aside className="desk-pass" aria-label="Milestone record">
-              <p className="desk-label">Milestone record</p>
+              <aside className="desk-pass" aria-label="Milestone claims">
+              <p className="desk-label">Milestone claims</p>
               <p className="desk-pass-value">{overallPercent}<span>%</span></p>
-              <p className="desk-pass-note">{doneIds.length} of {nodes.length} milestones complete</p>
-              <div className="desk-pass-track" role="img" aria-label={`${overallPercent} percent of the roadmap complete`}>
+              <p className="desk-pass-note">{doneIds.length} of {nodes.length} milestones claimed</p>
+              <div className="desk-pass-track" role="img" aria-label={`${overallPercent} percent of the roadmap claimed complete`}>
                 <span style={{ width: `${overallPercent}%` }} />
               </div>
               <dl className="desk-pass-list">

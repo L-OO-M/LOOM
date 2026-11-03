@@ -15,6 +15,7 @@ export const metadata = {
 export default async function StudentLayout({ children }) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/student");
+  if (ctx.error === "CONSENT_REQUIRED") redirect("/consent");
   if (ctx.error === "PROFILE_NOT_FOUND") redirect("/login?redirect=/student");
 
   // First-run gate: a student who has not finished onboarding has no domain, no

@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
+import { isUuid } from "@/lib/ids";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { ResourceCompleteButton } from "@/components/actions";
@@ -9,6 +10,7 @@ export default async function ResourceDetailPage({ params }) {
   const { resourceId } = await params;
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=/student/resources/${resourceId}`);
+  if (!isUuid(resourceId)) notFound();
   const { user, tenant, sql } = ctx;
   const [r] = await sql`SELECT * FROM resources WHERE id = ${resourceId} LIMIT 1`;
   if (!r) notFound();
