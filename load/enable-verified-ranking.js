@@ -17,7 +17,13 @@ import { databaseUrl } from "./env-local.js";
 
 const apply = process.argv.includes("--apply");
 const tenantArgIndex = process.argv.indexOf("--tenant");
-const tenantSlug = tenantArgIndex > -1 ? process.argv[tenantArgIndex + 1] : "demo-college";
+const tenantSlug = tenantArgIndex > -1
+  ? process.argv[tenantArgIndex + 1]
+  : process.env.SEED_TENANT_SLUG || process.env.DEFAULT_TENANT_SLUG || process.env.DEV_TENANT_SLUG;
+if (!tenantSlug) {
+  console.error("No tenant slug. Pass --tenant <slug> or set DEFAULT_TENANT_SLUG / DEV_TENANT_SLUG.");
+  process.exit(1);
+}
 const sql = postgres(databaseUrl(), { max: 1 });
 
 try {

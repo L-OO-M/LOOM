@@ -19,8 +19,9 @@
 // once, and every data row is guarded by an existence check. Secrets come from
 // env / .env.local only.
 import postgres from "postgres";
-import { databaseUrl } from "./env-local.js";
+import { databaseUrl, seedTenantSlug } from "./env-local.js";
 
+const TENANT_SLUG = seedTenantSlug();
 const DOMAIN = process.env.E2E_STUDENT_DOMAIN || "ai_ml";
 const NAME = process.env.E2E_STUDENT_NAME || "E2E Student";
 const USERNAME = "e2e-student";
@@ -87,8 +88,8 @@ async function main() {
 
   const sql = postgres(databaseUrl(), { max: 1, prepare: false });
   try {
-    const [tenant] = await sql`SELECT id, slug FROM tenants WHERE slug = ${process.env.DEV_TENANT_SLUG || "demo-college"} LIMIT 1`;
-    if (!tenant) fail("demo-college tenant missing — run node load/seed-control-plane.js first.");
+    const [tenant] = await sql`SELECT id, slug FROM tenants WHERE slug = ${TENANT_SLUG} LIMIT 1`;
+    if (!tenant) fail(`Tenant "${TENANT_SLUG}" missing — run node load/seed-control-plane.js first.`);
     const tid = tenant.id;
 
     // --- profile (the row every student page resolves on) -------------------

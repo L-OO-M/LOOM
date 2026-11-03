@@ -11,8 +11,9 @@
 // Usage: node load/verify-rls.js
 // Requires: DATABASE_URL (owner) and DATABASE_APP_URL in env or .env.local.
 import postgres from "postgres";
-import { databaseUrl } from "./env-local.js";
+import { databaseUrl, seedTenantSlug } from "./env-local.js";
 
+const tenantSlug = seedTenantSlug();
 const appUrl = process.env.DATABASE_APP_URL;
 if (!appUrl) {
   console.error("DATABASE_APP_URL is not set. Run: node load/create-app-role.js");
@@ -132,14 +133,14 @@ try {
     INSERT INTO tenants (slug, name) VALUES ('rls-verify-probe', 'RLS Verify Probe')
     ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id`;
   const probeId = probeTenant[0].id;
-  const realTenant = (await owner`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`)[0]?.id;
+  const realTenant = (await owner`SELECT id FROM tenants WHERE slug = ${tenantSlug} LIMIT 1`)[0]?.id;
   try {
     if (!realTenant) {
       // Hard fail, not a skip. This block is the only proof that an unset claim
       // DENIES and that one tenant cannot read another's rows. Skipping it and
       // printing RESULT: PASS is the most dangerous outcome this script can
       // produce: an operator would read it as clearance to flip the flag.
-      console.log("  FAIL  no demo-college tenant to compare against, so isolation was NOT verified");
+      console.log(`  FAIL  no "${tenantSlug}" tenant to compare against, so isolation was NOT verified`);
       failed = true;
     } else {
       await owner`

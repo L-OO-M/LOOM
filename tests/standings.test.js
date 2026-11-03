@@ -202,11 +202,11 @@ describe("standings board SQL contract", () => {
     await fetchBoard(board.sql, { viewerId, tenantId, scope: "college", period: "all" });
     const boardQuery = board.calls.find((c) => c.text.includes("RANK() OVER"));
     expect(boardQuery.text).toMatch(/p\.tenant_id = \?::uuid/);
-    expect(boardQuery.text).toMatch(/OR \?::uuid IS NULL/);
+    expect(boardQuery.text).not.toMatch(/OR \?::uuid IS NULL/);
     // Tenant values stay bound parameters, even inside the nested predicate
     // fragment; nothing is string-interpolated into the SQL text.
     const boardTenant = board.calls.find((c) => c.text.includes("p.tenant_id = ?::uuid"));
-    expect(boardTenant.values).toEqual([tenantId, tenantId]);
+    expect(boardTenant.values).toEqual([tenantId]);
 
     const self = makeRecordingSql();
     await fetchSelfStanding(self.sql, { viewerId, tenantId, scope: "college", period: "all" });
@@ -214,7 +214,7 @@ describe("standings board SQL contract", () => {
     expect(selfQuery.text).toMatch(/p\.tenant_id = \?::uuid/);
     expect(selfQuery.text).toMatch(/WHERE user_id = \?/);
     const selfTenant = self.calls.find((c) => c.text.includes("p.tenant_id = ?::uuid"));
-    expect(selfTenant.values).toEqual([tenantId, tenantId]);
+    expect(selfTenant.values).toEqual([tenantId]);
     expect(selfQuery.values).toContain(viewerId);
   });
 });

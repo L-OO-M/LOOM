@@ -1,7 +1,9 @@
 import postgres from "postgres";
-import { databaseUrl } from "./env-local.js";
+import { databaseUrl, seedTenantSlug } from "./env-local.js";
 
 const DATABASE_URL = databaseUrl();
+const TENANT_SLUG = seedTenantSlug();
+const TENANT_NAME = process.env.SEED_TENANT_NAME || "Community Chapter";
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
@@ -9,14 +11,14 @@ try {
   // NOTE: name is insert-only — reruns never clobber a renamed chapter.
   await sql`
     INSERT INTO tenants (id, slug, name, status)
-    VALUES ('550e8400-e29b-41d4-a716-446655440000', 'demo-college', 'MSIT', 'active')
+    VALUES ('550e8400-e29b-41d4-a716-446655440000', ${TENANT_SLUG}, ${TENANT_NAME}, 'active')
     ON CONFLICT (slug) DO NOTHING
   `;
-  const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`;
+  const [tenant] = await sql`SELECT id FROM tenants WHERE slug = ${TENANT_SLUG} LIMIT 1`;
 
   await sql`
     INSERT INTO tenant_domains (tenant_id, domain, is_primary)
-    VALUES (${tenant.id}, 'localhost', true)
+    VALUES (${tenant.id}, ${process.env.DEV_TENANT_DOMAIN || "localhost"}, true)
     ON CONFLICT (domain) DO NOTHING
   `;
 

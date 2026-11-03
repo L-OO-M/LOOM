@@ -3,9 +3,10 @@
 // good-first-issues) so nothing is invented; falls back to static values offline.
 // Usage: node load/seed-community.js  (needs DATABASE_URL in env or .env.local)
 import postgres from "postgres";
-import { databaseUrl } from "./env-local.js";
+import { databaseUrl, seedTenantSlug } from "./env-local.js";
 
 const DATABASE_URL = databaseUrl();
+const TENANT_SLUG = seedTenantSlug();
 
 const sql = postgres(DATABASE_URL, { max: 1 });
 
@@ -63,15 +64,15 @@ try {
   }
   console.log(`Seeded ${CURATED.length} curated OSS projects`);
 
-  // Public chapter profile for the demo tenant (slug must match tenants.slug).
-  const [tenant] = await sql`SELECT id, slug, name FROM tenants WHERE slug = 'demo-college' LIMIT 1`;
+  // Public chapter profile for the configured tenant (slug must match tenants.slug).
+  const [tenant] = await sql`SELECT id, slug, name FROM tenants WHERE slug = ${TENANT_SLUG} LIMIT 1`;
   if (tenant) {
     const [{ count: members }] = await sql`SELECT COUNT(*)::int AS count FROM profiles WHERE tenant_id = ${tenant.id}`;
     const [{ count: oss }] = await sql`SELECT COUNT(*)::int AS count FROM student_oss_contributions WHERE tenant_id = ${tenant.id}`;
     await sql`
       INSERT INTO chapter_profiles (tenant_id, slug, public_name, mission, public_stats, is_featured, is_public)
       VALUES (
-        ${tenant.id}, 'demo-college', ${tenant.name || "Demo College Chapter"},
+        ${tenant.id}, ${tenant.slug}, ${tenant.name || "Community Chapter"},
         'Learn, build, and ship open source — together.',
         ${sql.json({ members, oss_contributions: oss })},
         true, true
@@ -82,9 +83,9 @@ try {
         is_public = true,
         updated_at = now()
     `;
-    console.log(`Seeded chapter profile for demo-college (${members} members, ${oss} OSS contributions)`);
+    console.log(`Seeded chapter profile for ${tenant.slug} (${members} members, ${oss} OSS contributions)`);
   } else {
-    console.log("demo-college tenant not found; skipped chapter profile");
+    console.log(`Tenant "${TENANT_SLUG}" not found; skipped chapter profile`);
   }
 } catch (e) {
   console.error(e);

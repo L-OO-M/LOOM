@@ -1,14 +1,20 @@
+import { scope } from "@/lib/tenant-scope";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getSql, queryTenant } from "@/lib/db";
 import { listPublicDepartments } from "@/lib/departments";
 import { resolveTenantFromHost } from "@/lib/tenant";
+import { env } from "@/lib/env";
 import { getSessionIdentity } from "@/lib/auth-server";
 import { BrandMark } from "@/components/BrandMark";
 import { HeadBylines } from "@/components/landing/HeadBylines";
 import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { JoinButtonClient } from "./_components/JoinButtonClient";
 import { absoluteUrl, canonicalFor } from "@/lib/seo";
+import { createLogger } from "@/lib/log";
+
+// Server component (async, no "use client"), so the server-only logger is safe.
+const log = createLogger("domain-page");
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +29,14 @@ export async function generateMetadata({ params }) {
     const [row] = await sql`
       SELECT name, description FROM departments
       WHERE slug = ${slug} AND is_active
-        AND (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+        AND tenant_id = ${scope(tid)}::uuid
       LIMIT 1
     `;
     name = row?.name ?? null;
     description = row?.description ?? null;
-  } catch {
+  } catch (err) {
+    // Not-found is the honest answer here; the reason is what a human needs.
+    log.warn("department metadata lookup failed", { slug, err });
     name = null;
   }
   if (!name) {
@@ -50,10 +58,13 @@ async function resolvePublicTenant() {
     const host = (await headers()).get("host") || "";
     const t = await resolveTenantFromHost(host);
     if (t) return t;
-  } catch { /* fall through to default tenant */ }
+  } catch (err) { /* fall through to default tenant */
+    log.debug("host tenant lookup failed; using default tenant", { err });
+  }
   try {
-    return await queryTenant(process.env.DEV_TENANT_SLUG || "demo-college");
-  } catch {
+    return await queryTenant(env.DEFAULT_TENANT_SLUG);
+  } catch (err) {
+    log.warn("default tenant lookup failed; page has no tenant", { err });
     return null;
   }
 }
@@ -64,7 +75,8 @@ function formatWhen(value) {
       weekday: "short", month: "short", day: "numeric",
       hour: "numeric", minute: "2-digit"
     });
-  } catch {
+  } catch (err) {
+    log.debug("date formatting failed; showing raw value", { err });
     return String(value);
   }
 }
@@ -95,7 +107,7 @@ export default async function DomainPage({ params }) {
       workshops = await sql`
         SELECT id, title, event_type, description, starts_at, ends_at, location, is_online, speaker_name
         FROM events
-        WHERE (tenant_id = ${tid}::uuid OR ${tid}::uuid IS NULL)
+        WHERE tenant_id = ${scope(tid)}::uuid
           AND status IN ('upcoming', 'live')
           AND starts_at >= NOW() - INTERVAL '2 hours'
           AND (department_id = ${dept.id} OR domain = ${slug})
@@ -103,7 +115,8 @@ export default async function DomainPage({ params }) {
         LIMIT 12
       `;
     }
-  } catch {
+  } catch (err) {
+    log.warn("department roadmap/workshops query failed; showing empty state", { slug, err });
     dept = dept || null;
     nodes = [];
     workshops = [];
@@ -115,7 +128,8 @@ export default async function DomainPage({ params }) {
     // reported false for Auth0 sessions and hid the signed-in affordances.
     const identity = await getSessionIdentity();
     loggedIn = !!identity?.userId;
-  } catch {
+  } catch (err) {
+    log.debug("session identity lookup failed; rendering signed-out", { err });
     loggedIn = false;
   }
 

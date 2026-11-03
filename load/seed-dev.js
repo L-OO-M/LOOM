@@ -1,7 +1,7 @@
 // Dev-only dummy seed. REFUSES to run in production.
 // Usage: node load/seed-dev.js
 // Idempotent: fixed seed-* ids + ON CONFLICT, safe to re-run.
-// Requires: base seeds (tenants demo-college, roadmap nodes, resources) already applied.
+// Requires: base seeds (configured tenant, roadmap nodes, resources) already applied.
 const fs = require("fs");
 const path = require("path");
 
@@ -22,6 +22,11 @@ async function main() {
     process.exit(1);
   }
   loadEnvLocal();
+  const tenantSlug = process.env.SEED_TENANT_SLUG || process.env.DEFAULT_TENANT_SLUG || process.env.DEV_TENANT_SLUG;
+  if (!tenantSlug) {
+    console.error("No tenant slug configured. Set SEED_TENANT_SLUG, DEFAULT_TENANT_SLUG, or DEV_TENANT_SLUG.");
+    process.exit(1);
+  }
   const { default: postgres } = await import("postgres");
   const url = process.env.DATABASE_URL;
   if (!url) {
@@ -30,9 +35,9 @@ async function main() {
   }
   const sql = postgres(url, { max: 1 });
   try {
-    const [tenant] = await sql`SELECT id FROM tenants WHERE slug = 'demo-college' LIMIT 1`;
+    const [tenant] = await sql`SELECT id FROM tenants WHERE slug = ${tenantSlug} LIMIT 1`;
     if (!tenant) {
-      console.error("demo-college tenant missing. Run node load/seed-control-plane.js first.");
+      console.error(`Tenant "${tenantSlug}" missing. Run node load/seed-control-plane.js first.`);
       process.exit(1);
     }
     const tid = tenant.id;

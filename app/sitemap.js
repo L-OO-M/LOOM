@@ -1,5 +1,11 @@
 import { getSql } from "@/lib/db";
 import { absoluteUrl, defaultTenantSlug } from "@/lib/seo";
+import { createLogger } from "@/lib/log";
+
+// debug: this also runs during `next build` and on every revalidation. A
+// missing/inactive table is normal early in a deployment, so it stays quiet
+// unless LOG_LEVEL=debug asks for it.
+const log = createLogger("sitemap");
 
 export const revalidate = 3600;
 
@@ -17,7 +23,8 @@ async function activeDepartmentSlugs() {
       ORDER BY d.slug ASC
     `;
     return rows.map((r) => r.slug);
-  } catch {
+  } catch (err) {
+    log.debug("active department slugs unavailable; omitting domain pages", { err });
     return [];
   }
 }
@@ -35,7 +42,8 @@ async function publicUsernames(tenantId) {
         AND p.tenant_id = ${tenantId}::uuid
       ORDER BY up.updated_at DESC LIMIT 500`;
     return rows;
-  } catch {
+  } catch (err) {
+    log.debug("public usernames unavailable; omitting /u pages", { err });
     return [];
   }
 }
@@ -50,7 +58,8 @@ async function publicCredentialIds(tenantId) {
       WHERE tenant_id = ${tenantId}::uuid
       ORDER BY issued_at DESC LIMIT 500`;
     return rows;
-  } catch {
+  } catch (err) {
+    log.debug("public credential ids unavailable; omitting verify pages", { err });
     return [];
   }
 }
@@ -66,7 +75,8 @@ async function publicCertificateCodes(tenantId) {
       WHERE tenant_id = ${tenantId}::uuid AND revoked_at IS NULL
       ORDER BY issued_at DESC LIMIT 500`;
     return rows;
-  } catch {
+  } catch (err) {
+    log.debug("public certificates unavailable; omitting verify pages", { err });
     return [];
   }
 }
@@ -82,7 +92,8 @@ async function publicEventIds(tenantId) {
         AND tenant_id = ${tenantId}::uuid
       ORDER BY starts_at ASC LIMIT 200`;
     return rows;
-  } catch {
+  } catch (err) {
+    log.debug("public event ids unavailable; omitting event pages", { err });
     return [];
   }
 }
@@ -97,7 +108,9 @@ export default async function sitemap() {
     const sql = getSql();
     const [t] = await sql`SELECT id FROM tenants WHERE slug = ${defaultTenantSlug()} LIMIT 1`;
     tenantId = t?.id ?? null;
-  } catch { /* fall back to null: helpers then match any tenant */ }
+  } catch (err) { /* fall back to null: helpers then match any tenant */
+    log.debug("tenant id lookup failed; sitemap omits db-derived pages", { err });
+  }
 
   const pages = [
     { path: "/", priority: 1.0, changeFrequency: "daily" },
