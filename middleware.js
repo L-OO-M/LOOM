@@ -20,6 +20,10 @@ const AUTH0_PATHS = new Set([
   "/auth/backchannel-logout"
 ]);
 
+// Machine-readable SEO files. They bypass auth (crawlers arrive anonymous) but
+// still need the CSP header, which is no longer emitted by next.config.mjs.
+const SEO_TEXT_PATHS = new Set(["/sitemap.xml", "/robots.txt", "/llms.txt", "/llms-full.txt"]);
+
 const publicPaths = [
   "/",
   "/about",
@@ -103,6 +107,15 @@ export async function middleware(request) {
     response.headers.set("Content-Security-Policy", contentSecurityPolicy);
     return response;
   };
+
+  // SEO text files are advertised in /llms.txt and fetched by anonymous
+  // crawlers. They are plain text/XML, not HTML, so there is no inline script to
+  // nonce -- but the CSP now lives here instead of next.config.mjs, and these
+  // paths have to keep the same header contract as every other response.
+  // This branch runs before auth so a crawler can never be redirected to /login.
+  if (SEO_TEXT_PATHS.has(pathname) || pathname.endsWith(".txt")) {
+    return withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
+  }
 
   // CSRF/origin gate for cookie-authenticated mutations. Runs before auth so a
   // foreign-origin write is rejected even if the session would otherwise pass.
@@ -284,13 +297,18 @@ export async function middleware(request) {
 
 export const config = {
   matcher: [
-    // Never auth-gate framework internals, SEO files, or any static asset in public/
+    // Never auth-gate framework internals or any static asset in public/
     // (logo, icons, og image, fonts). Without the extension branch, requests like
     // /logo.png fall through to the login redirect and return HTML instead of the file.
     //
     // `html` is excluded for the Search Console verification file
     // (public/google<token>.html). Google fetches it as an anonymous crawler;
     // auth-gating it returned a login redirect, so verification silently failed.
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:png|jpe?g|gif|webp|svg|ico|css|js|map|txt|html|woff2?)$).*)"
+    //
+    // sitemap.xml, robots.txt and *.txt are NOT excluded: they used to be, but
+    // the CSP moved from next.config.mjs into this middleware, and excluded paths
+    // stopped carrying it. They return early as public above, so the crawler
+    // contract is unchanged.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|webp|svg|ico|css|js|map|html|woff2?)$).*)"
   ]
 };

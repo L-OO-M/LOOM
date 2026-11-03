@@ -26,8 +26,10 @@ describe("Search Console HTML-file verification", () => {
     const middleware = readFileSync("middleware.js", "utf8");
     const matcher = middleware.slice(middleware.indexOf("matcher:"));
     // Without html in the extension alternation, a crawler request is redirected
-    // to /login and verification silently fails.
-    expect(matcher).toMatch(/txt\|html\|woff2\?/);
+    // to /login and verification silently fails. `txt` left the alternation when
+    // the CSP moved into middleware: *.txt now passes through an early public
+    // branch that returns before auth, which is stronger than an exclusion.
+    expect(matcher).toMatch(/html\|woff2\?/);
   });
 
   it("is not blocked by robots.txt", () => {

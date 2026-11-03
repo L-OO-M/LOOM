@@ -1,7 +1,10 @@
 import { canonicalFor } from "@/lib/seo";
 import DomainsContent from "./_components/DomainsContent";
 
-export const dynamic = "force-static";
+// Rendered per request so the nonce-based CSP (middleware.js) can stamp the
+// inline bootstrap scripts. A prerendered page would ship unnonced scripts and
+// the browser would block them.
+export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Choose Your Domain",
   description:

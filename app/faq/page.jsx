@@ -5,7 +5,10 @@ import { JsonLd, faqPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 import "./_components/faq.css";
 
-export const dynamic = "force-static";
+// Rendered per request so the nonce-based CSP (middleware.js) can stamp the
+// inline bootstrap scripts. A prerendered page would ship unnonced scripts and
+// the browser would block them.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Questions, answered honestly",

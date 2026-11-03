@@ -298,12 +298,20 @@ describe("auth endpoints are rate limited server-side", () => {
   });
 });
 
-describe("public legal pages are statically cached", () => {
-  it("caches the zero-database legal pages", () => {
+describe("public legal pages render per request", () => {
+  it("keeps the zero-database pages dynamic for the nonce CSP", () => {
+    // These pages were force-static so the CDN could cache them. The nonce-based
+    // CSP reverses that deliberately: Next only stamps the nonce onto dynamically
+    // rendered HTML, so a prerendered copy would ship unnonced scripts that the
+    // browser blocks (theme toggle and mobile nav would die silently).
+    // The property the old test protected still holds: none of these pages
+    // resolve a tenant from the Host header, so a shared cache could never have
+    // served one chapter's content to another.
     for (const p of ["app/privacy/page.jsx", "app/terms/page.jsx", "app/contact/page.jsx", "app/about/page.jsx", "app/domains/page.jsx", "app/faq/page.jsx"]) {
       const src = readFileSync(p, "utf8");
-      expect(src, p).toContain('dynamic = "force-static"');
-      expect(src).not.toContain("force-dynamic");
+      expect(src, p).toContain('dynamic = "force-dynamic"');
+      expect(src, p).not.toContain('dynamic = "force-static"');
+      expect(src, p).not.toMatch(/resolveTenantFromHost|resolveRequestTenant/);
     }
   });
 

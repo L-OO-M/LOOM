@@ -4,13 +4,11 @@ import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 import { legalConfig } from "@/lib/legal";
 
-// Pure static legal/contact copy: no database, no tenant, no request input.
-// Safe to serve from the CDN cache. The tenant-scoped public pages (/events,
-// /domains, /faq, /about) MUST stay dynamic -- they resolve their chapter from
-// the Host header, and a shared cache keyed by path would serve one chapter's
-// content to another.
-export const dynamic = "force-static";
-export const revalidate = 86400;
+// This page has no database, tenant, or request input of its own, but it is
+// rendered per request: the nonce-based CSP in middleware.js only stamps the
+// inline bootstrap scripts on dynamically rendered HTML. Prerendering it would
+// ship scripts with no nonce, and the browser would block them.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Terms",
