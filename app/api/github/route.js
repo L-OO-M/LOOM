@@ -2,7 +2,8 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isGithubEnabled } from "@/lib/github";
-import { cryptoConfigured } from "@/lib/crypto";
+import { cryptoConfigured, open } from "@/lib/crypto";
+import { removeWebhook } from "@/lib/github-oauth";
 import { env } from "@/lib/env";
 
 export async function GET() {
@@ -137,6 +138,32 @@ export async function DELETE() {
   if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   const [before] = await sql`SELECT github_username FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
 
+  // Disconnecting must also stop future deliveries. This is best-effort: an
+  // expired token or lost repo admin cannot be allowed to strand the account in
+  // a linked state. Nothing here blocks the local revocation below.
+  const webhooks = [];
+  if (cryptoConfigured()) {
+    try {
+      const [conn] = await sql`
+        SELECT access_token_cipher FROM github_connections WHERE user_id = ${user.id} LIMIT 1
+      `;
+      if (conn?.access_token_cipher) {
+        const token = open(conn.access_token_cipher);
+        const grants = await sql`
+          SELECT repo_full_name FROM github_repo_grants WHERE user_id = ${user.id}
+        `;
+        const webhookUrl = `${env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/github/webhook`;
+        for (const grant of grants) {
+          const result = await removeWebhook({ accessToken: token, fullName: grant.repo_full_name, webhookUrl });
+          if (!result.ok) webhooks.push({ repo: grant.repo_full_name, reason: result.reason });
+        }
+      }
+    } catch {
+      // Decryption/API failure is not a reason to leave the connection intact.
+      webhooks.push({ repo: null, reason: "REVOCATION_FAILED" });
+    }
+  }
+
   // Revoking access means the proofs derived from it must go too. Leaving
   // ranking_events rows behind would let a member hand their token to someone
   // else, unlink, and hand it back -- a laundering path that only exists because
@@ -178,7 +205,18 @@ export async function DELETE() {
     sql, actorId: user.id, tenantId: tid,
     action: "unlinked_github", resource: "github_connection", resourceId: user.id,
     before: before ? { githubUsername: before.github_username } : null,
-    after: { connected: false, revokedEvidence: revokedCount, downgradedProjects: downgraded.length }
+    after: {
+      connected: false,
+      revokedEvidence: revokedCount,
+      downgradedProjects: downgraded.length,
+      webhookRevocationFailures: webhooks.length
+    }
   });
-  return ok({ connected: false, githubUsername: null, revokedEvidence: revokedCount, downgradedProjects: downgraded.length });
+  return ok({
+    connected: false,
+    githubUsername: null,
+    revokedEvidence: revokedCount,
+    downgradedProjects: downgraded.length,
+    webhookRevocationFailures: webhooks
+  });
 }

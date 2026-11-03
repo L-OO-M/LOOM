@@ -200,6 +200,85 @@ describe("oauth state", () => {
 });
 
 // ---------------------------------------------------------------------------
+// PKCE — code interception defence
+// ---------------------------------------------------------------------------
+
+describe("PKCE", () => {
+  let generatePkcePair;
+  let isValidPkceVerifier;
+  let authorizeUrl;
+  let exchangeCode;
+
+  beforeEach(async () => {
+    const mod = await import("@/lib/github-oauth");
+    generatePkcePair = mod.generatePkcePair;
+    isValidPkceVerifier = mod.isValidPkceVerifier;
+    authorizeUrl = mod.authorizeUrl;
+    exchangeCode = mod.exchangeCode;
+  });
+
+  it("generates an S256 pair whose challenge is the verifier hash", async () => {
+    const { createHash } = await import("node:crypto");
+    const { verifier, challenge, method } = generatePkcePair();
+    expect(method).toBe("S256");
+    expect(isValidPkceVerifier(verifier)).toBe(true);
+    expect(challenge).toBe(createHash("sha256").update(verifier).digest("base64url"));
+    expect(challenge).not.toBe(verifier);
+  });
+
+  it("produces a new verifier each time", () => {
+    expect(generatePkcePair().verifier).not.toBe(generatePkcePair().verifier);
+  });
+
+  it("rejects short or malformed verifiers", () => {
+    expect(isValidPkceVerifier("")).toBe(false);
+    expect(isValidPkceVerifier("short")).toBe(false);
+    expect(isValidPkceVerifier("x".repeat(42))).toBe(false);
+    expect(isValidPkceVerifier("x".repeat(43))).toBe(true);
+    expect(isValidPkceVerifier("x".repeat(129))).toBe(false);
+    expect(isValidPkceVerifier("bad verifier with spaces")).toBe(false);
+  });
+
+  it("puts the challenge, not the verifier, in the authorization URL", () => {
+    const { verifier, challenge } = generatePkcePair();
+    const url = new URL(authorizeUrl({
+      clientId: "client",
+      redirectUri: "https://loom.example/api/github/oauth/callback",
+      state: "signed-state",
+      codeChallenge: challenge
+    }));
+    expect(url.searchParams.get("code_challenge")).toBe(challenge);
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.toString()).not.toContain(verifier);
+  });
+
+  it("sends the verifier on token exchange", async () => {
+    let body = null;
+    const fetchImpl = async (url, opts) => {
+      body = new URLSearchParams(opts.body);
+      return { ok: true, json: async () => ({ access_token: "gho_x" }) };
+    };
+    await exchangeCode({
+      code: "c", clientId: "i", clientSecret: "s", redirectUri: "https://x/cb",
+      codeVerifier: "v".repeat(43), fetchImpl
+    });
+    expect(body.get("code_verifier")).toBe("v".repeat(43));
+  });
+
+  it("keeps supporting a legacy exchange without a verifier", async () => {
+    let body = null;
+    const fetchImpl = async (url, opts) => {
+      body = new URLSearchParams(opts.body);
+      return { ok: true, json: async () => ({ access_token: "gho_x" }) };
+    };
+    await exchangeCode({
+      code: "c", clientId: "i", clientSecret: "s", redirectUri: "https://x/cb", fetchImpl
+    });
+    expect(body.has("code_verifier")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Webhook installation — the double-count hazard
 // ---------------------------------------------------------------------------
 
@@ -392,22 +471,44 @@ describe("extractGitHubIdentity", () => {
     extractGitHubIdentity = mod.extractGitHubIdentity;
   });
 
-  it("reads the login from user_metadata", () => {
+  it("reads the login and immutable id from provider identities", () => {
     const out = extractGitHubIdentity({
       app_metadata: { provider: "github", providers: ["github"] },
-      user_metadata: { user_name: "asha", id: 42 }
+      identities: [{
+        provider: "github",
+        provider_id: "98765",
+        identity_data: { user_name: "asha", id: 42 }
+      }]
     });
     expect(out.login).toBe("asha");
-    expect(out.githubUserId).toBe(42);
+    // provider_id is Supabase's stable link and wins over identity_data.id.
+    expect(out.githubUserId).toBe(98765);
   });
 
-  it("reads the immutable id from identities[].provider_id", () => {
+  it("NEVER trusts user-editable user_metadata", () => {
+    // The vulnerability this pins: Supabase lets a signed-in member update their
+    // own user_metadata, so a handle there is an assertion, not proof. Reading
+    // it would recreate the typed-handle hole migrations 035/038 closed.
+    const out = extractGitHubIdentity({
+      app_metadata: { provider: "github", providers: ["github"] },
+      user_metadata: { user_name: "mallory", id: 7 }
+    });
+    expect(out.login).toBeNull();
+    expect(out.githubUserId).toBeNull();
+  });
+
+  it("ignores a spoofed user_metadata login when provider identities exist", () => {
     const out = extractGitHubIdentity({
       app_metadata: { provider: "github" },
-      identities: [{ provider: "github", provider_id: "98765" }],
-      user_metadata: { user_name: "asha" }
+      identities: [{
+        provider: "github",
+        provider_id: "5",
+        identity_data: { user_name: "real-asha" }
+      }],
+      user_metadata: { user_name: "mallory", id: 7 }
     });
-    expect(out.githubUserId).toBe(98765);
+    expect(out.login).toBe("real-asha");
+    expect(out.githubUserId).toBe(5);
   });
 
   it("returns nothing for a NON-github sign-in", () => {
@@ -424,11 +525,20 @@ describe("extractGitHubIdentity", () => {
   it("is honest when the id is absent rather than inventing one", () => {
     const out = extractGitHubIdentity({
       app_metadata: { provider: "github" },
-      user_metadata: { user_name: "asha" }
+      identities: [{ provider: "github", identity_data: { user_name: "asha" } }]
     });
     expect(out.login).toBe("asha");
     // NULL is the honest state; the UI then says "not verified by GitHub".
     expect(out.githubUserId).toBeNull();
+  });
+
+  it("accepts an identity_data.id when provider_id is absent", () => {
+    const out = extractGitHubIdentity({
+      app_metadata: { provider: "github" },
+      identities: [{ provider: "github", identity_data: { login: "asha", id: 4242 } }]
+    });
+    expect(out.login).toBe("asha");
+    expect(out.githubUserId).toBe(4242);
   });
 
   it("never throws on an unexpected shape", () => {
@@ -440,9 +550,71 @@ describe("extractGitHubIdentity", () => {
   it("ignores a non-numeric id", () => {
     const out = extractGitHubIdentity({
       app_metadata: { provider: "github" },
-      user_metadata: { user_name: "asha", id: "not-a-number" }
+      identities: [{ provider: "github", identity_data: { user_name: "asha", id: "not-a-number" } }]
     });
     expect(out.githubUserId).toBeNull();
+  });
+});
+
+describe("provisionGitHubIdentity /user fallback", () => {
+  beforeEach(() => vi.resetModules());
+
+  function recorder() {
+    const calls = [];
+    const sql = (strings, ...values) => {
+      calls.push({ text: strings.join("?").replace(/\s+/g, " ").trim(), values });
+      return Promise.resolve([]);
+    };
+    sql.calls = calls;
+    return sql;
+  }
+
+  it("asks GitHub /user when provider identities carry no login", async () => {
+    const sql = recorder();
+    const { provisionGitHubIdentity } = await import("@/lib/github-identity");
+    const fetchImpl = async (url) => {
+      expect(url).toContain("/user");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: 777, login: "from-github", name: "From GitHub" })
+      };
+    };
+
+    const out = await provisionGitHubIdentity({
+      sql,
+      tenantId: "tenant-1",
+      userId: "user-1",
+      user: { app_metadata: { provider: "github" }, identities: [] },
+      accessToken: "token",
+      fetchImpl
+    });
+
+    expect(out).toMatchObject({ linked: true, login: "from-github", immutable: false });
+    expect(sql.calls.some((c) => c.text.startsWith("INSERT INTO github_connections"))).toBe(true);
+    // The resolved id comes from /user, not from editable metadata.
+    const insert = sql.calls.find((c) => c.text.startsWith("INSERT INTO github_connections"));
+    expect(insert.values).toContain(777);
+  });
+
+  it("does not call GitHub when provider identities already prove identity", async () => {
+    const sql = recorder();
+    const { provisionGitHubIdentity } = await import("@/lib/github-identity");
+    let called = false;
+
+    await provisionGitHubIdentity({
+      sql,
+      tenantId: "tenant-1",
+      userId: "user-1",
+      user: {
+        app_metadata: { provider: "github" },
+        identities: [{ provider: "github", provider_id: "12", identity_data: { user_name: "asha" } }]
+      },
+      accessToken: "token",
+      fetchImpl: async () => { called = true; throw new Error("should not be called"); }
+    });
+
+    expect(called).toBe(false);
   });
 });
 

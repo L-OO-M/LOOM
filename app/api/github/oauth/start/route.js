@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
-import { authorizeUrl, signState } from "@/lib/github-oauth";
+import { authorizeUrl, generatePkcePair, signState } from "@/lib/github-oauth";
 import { env } from "@/lib/env";
 
 // Start the repository grant.
@@ -43,29 +43,40 @@ export async function GET(request) {
 
   const nonce = crypto.randomBytes(16).toString("base64url");
   const state = signState({ userId: user.id, nonce });
+  // PKCE: the verifier never leaves this HttpOnly cookie; only its SHA-256
+  // challenge travels to GitHub. A stolen authorization code is useless without
+  // it, on top of the HMAC-signed state.
+  const pkce = generatePkcePair();
 
   const redirectUri = `${env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/api/github/oauth/callback`;
   const target = authorizeUrl({
     clientId: env.GITHUB_CLIENT_ID,
     redirectUri,
-    state
+    state,
+    codeChallenge: pkce.challenge,
+    codeChallengeMethod: pkce.method
   });
 
   // sameSite=lax is REQUIRED, not a preference. The callback arrives as a
   // cross-site top-level GET from github.com; under `strict` the cookie is not
   // sent and the exchange fails with an opaque "invalid state". `none` would
   // require Secure and widens CSRF exposure for no benefit.
-  // The requested repositories travel in the SAME cookie as the nonce, not as a
-  // query parameter on the GitHub URL. An unknown parameter is dropped by GitHub
-  // and never echoed to the redirect_uri, so appending it here would silently
-  // discard the student's selection -- and would also leak their repository
-  // names into GitHub's request logs for no benefit.
+  // The requested repositories and the PKCE verifier travel in the SAME
+  // HttpOnly cookie as the nonce, not as query parameters on the GitHub URL. An
+  // unknown parameter is dropped by GitHub and never echoed to the
+  // redirect_uri, so appending repositories there would silently discard the
+  // selection -- and would also leak their names into GitHub's request logs.
+  // The verifier must never appear in a URL at all.
+  //
+  // Format: <nonce>.<verifier>.<encoded repos>. Neither nonce nor verifier
+  // contains a dot (both are base64url), so the split is unambiguous.
+  const cookieValue = `${nonce}.${pkce.verifier}.${encodeURIComponent(requested.join(","))}`;
   const response = new Response(null, {
     status: 302,
     headers: {
       Location: target,
       "Cache-Control": "no-store",
-      "Set-Cookie": `${STATE_COOKIE}=${nonce}.${encodeURIComponent(requested.join(","))}; Path=/; Max-Age=${STATE_TTL_SECONDS}; HttpOnly; SameSite=Lax${env.NEXT_PUBLIC_APP_URL.startsWith("https") ? "; Secure" : ""}`
+      "Set-Cookie": `${STATE_COOKIE}=${cookieValue}; Path=/; Max-Age=${STATE_TTL_SECONDS}; HttpOnly; SameSite=Lax${env.NEXT_PUBLIC_APP_URL.startsWith("https") ? "; Secure" : ""}`
     }
   });
   return response;

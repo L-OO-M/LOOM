@@ -5,7 +5,8 @@ import {
   exchangeCode,
   fetchAuthenticatedUser,
   fetchRepoPermissions,
-  verifyState
+  verifyState,
+  isValidPkceVerifier
 } from "@/lib/github-oauth";
 import { seal } from "@/lib/crypto";
 import { recomputeScore, recordEvidence } from "@/lib/ranking";
@@ -72,13 +73,28 @@ export async function GET(request) {
     .map((c) => c.trim())
     .find((c) => c.startsWith(`${STATE_COOKIE}=`));
   const cookieValue = rawCookie ? rawCookie.slice(STATE_COOKIE.length + 1) : "";
-  const [cookieNonce, encodedRepos] = cookieValue.split(".");
+  // Format: <nonce>.<pkce verifier>.<encoded repos>. Split only the first two
+  // dots: repository names may legitimately contain a dot, and truncating them
+  // would silently drop part of the student's selection.
+  const cookieParts = cookieValue.split(".");
+  const cookieNonce = cookieParts.shift() || "";
+  const cookieVerifier = cookieParts.shift() || "";
+  const encodedRepos = cookieParts.join(".");
   if (!cookieNonce || !timingSafe(cookieNonce, checked.nonce)) {
     // The cookie is the second, independent half of the CSRF defence. A valid
     // signature replayed without the matching cookie does not get through.
     await writeAudit({
       sql, actorId: user.id, tenantId: tenant?.id,
       action: "github_oauth_state_rejected", resource: "github_oauth", resourceId: "NONCE_MISMATCH"
+    });
+    return redirect(`${origin}/student/github?error=github_invalid_state`);
+  }
+  // PKCE is the third half: a code intercepted from the redirect is useless
+  // without the verifier that stayed in this HttpOnly cookie.
+  if (!isValidPkceVerifier(cookieVerifier)) {
+    await writeAudit({
+      sql, actorId: user.id, tenantId: tenant?.id,
+      action: "github_oauth_state_rejected", resource: "github_oauth", resourceId: "PKCE_VERIFIER_MISSING"
     });
     return redirect(`${origin}/student/github?error=github_invalid_state`);
   }
@@ -93,7 +109,8 @@ export async function GET(request) {
     code,
     clientId: env.GITHUB_CLIENT_ID,
     clientSecret: env.GITHUB_CLIENT_SECRET,
-    redirectUri
+    redirectUri,
+    codeVerifier: cookieVerifier
   });
   if (!exchanged.ok) {
     await writeAudit({

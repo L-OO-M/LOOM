@@ -2,9 +2,19 @@ import { env, assertProductionSecrets } from "@/lib/env";
 import { ok, fail } from "@/lib/api";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isGithubEnabled, normalizeGitHubEvent, resolveStudentIdByLogin, verifyGitHubSignature } from "@/lib/github";
+import {
+  GITHUB_EVENT_MAX_ATTEMPTS,
+  GITHUB_EVENT_STATUS,
+  classifyGitHubDelivery,
+  githubEventNextAttemptAt,
+  isGithubEnabled,
+  normalizeGitHubEvent,
+  notifyOnce,
+  resolveStudentIdByLogin,
+  verifyGitHubSignature,
+  webhookNotificationKey
+} from "@/lib/github";
 import { awardOssBadges } from "@/lib/oss";
-import { notify } from "@/lib/auth-server";
 import { recordEvidence, recomputeScore } from "@/lib/ranking";
 import { applyIssueEvent } from "@/lib/github-issues";
 import { toIsoDay } from "@/lib/github-activity";
@@ -84,64 +94,99 @@ export async function POST(request) {
     return ok({ accepted: false, reason: "GITHUB_INGESTION_PAUSED", tenantId: tenant.id });
   }
 
-const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw });
+  const idempotencyKey = `${deliveryId}-${eventName}`;
+  const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw });
 
-  // github_events gains repository_name / student_id / tenant_id (migration
-  // 037) so "which repositories does this student have signed deliveries for?"
-  // is an indexed lookup rather than a scan over the jsonb payload. Both
-  // project activation and the audit queue depend on that being cheap.
-  const [storedEvent] = await sql`
-    INSERT INTO github_events (idempotency_key, event_name, delivery_id, actor_login, payload, repository_name, tenant_id)
-    VALUES (
-      ${`${deliveryId}-${eventName}`},
-      ${normalized.eventName},
-      ${normalized.deliveryId},
-      ${normalized.actorLogin},
-      ${sql.json(raw)},
-      ${normalized.repositoryName},
-      ${tenant.id}
+  // CLAIM THE DELIVERY.
+  //
+  // github_events is the durable work item: INSERT (or find) the row and move it
+  // to `processing` in one statement. The row is claimed only when it is new,
+  // when a previous attempt failed and its backoff has elapsed, or when a
+  // `processing` row's lease has expired (a crashed/timed-out processor). This
+  // is what makes a redelivery able to resume work instead of being dismissed
+  // as a duplicate forever.
+  //
+  // github_events gains repository_name / student_id / tenant_id (migration 037)
+  // so "which repositories does this student have signed deliveries for?" is an
+  // indexed lookup rather than a scan over the jsonb payload.
+  const [claimed] = await sql`
+    WITH inserted AS (
+      INSERT INTO github_events (idempotency_key, event_name, delivery_id, actor_login, payload, repository_name, tenant_id)
+      VALUES (
+        ${idempotencyKey},
+        ${normalized.eventName},
+        ${normalized.deliveryId},
+        ${normalized.actorLogin},
+        ${sql.json(raw)},
+        ${normalized.repositoryName},
+        ${tenant.id}
+      )
+      ON CONFLICT (idempotency_key) DO NOTHING
+      RETURNING idempotency_key
     )
-    ON CONFLICT (idempotency_key) DO UPDATE
-      SET repository_name = EXCLUDED.repository_name,
-          tenant_id = EXCLUDED.tenant_id
-    RETURNING (xmax = 0) AS inserted
+    UPDATE github_events e
+       SET status = 'processing',
+           attempts = e.attempts + 1,
+           claimed_at = NOW(),
+           last_error = NULL
+     WHERE e.idempotency_key = ${idempotencyKey}
+       AND (
+         (
+           e.status IN ('pending', 'failed')
+           AND (e.next_attempt IS NULL OR e.next_attempt <= NOW())
+         )
+         OR (
+           e.status = 'processing'
+           AND e.claimed_at < NOW() - interval '5 minutes'
+         )
+       )
+    RETURNING e.*
   `;
-  // xmax = 0 means this INSERT created the row; a non-zero xmax means ON
-  // CONFLICT took the UPDATE branch, i.e. GitHub redelivered something we had
-  // already recorded.
-  const inserted = storedEvent?.inserted === true;
 
-  // OSS auto-verify: a merged PR in a tracked repo verifies the student's
-  // claimed contribution (or records it) and awards badges. Best-effort —
-  // must never break webhook acknowledgement.
-  let verified = null;
-  try {
-    verified = await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
-  } catch {
-    /* ignore */
+  if (!claimed) {
+    const [row] = await sql`
+      SELECT status, claimed_at, next_attempt, attempts
+      FROM github_events WHERE idempotency_key = ${idempotencyKey} LIMIT 1
+    `;
+    if (!row) {
+      return fail("GITHUB_DELIVERY_STATE_MISSING", "The delivery row could not be read after insert", 500);
+    }
+    // No side effects this time. The response says which state stopped us so a
+    // postmortem can distinguish "already done" from "another worker owns it".
+    return ok({
+      accepted: true,
+      duplicate: true,
+      tenantId: tenant.id,
+      event: normalized,
+      processing: classifyGitHubDelivery(row)
+    });
   }
+
+  let verified = null;
+  let featureRequest = null;
+  let activation = null;
+  let activity = { applied: false, reason: "NO_DELTA" };
+
   try {
+    // OSS auto-verify: a merged PR in a tracked repo verifies the student's
+    // claimed contribution (or records it) and awards badges. Every write here
+    // is idempotent (ON CONFLICT / recordEvidence / badge DO NOTHING), so a
+    // retry after a partial fan-out cannot double-count.
+    verified = await maybeVerifyOssMerge({ sql, tenantId: tenant.id, eventName, raw });
     const reviewed = await maybeVerifyOssReview({ sql, tenantId: tenant.id, eventName, raw });
     if (reviewed) verified = verified || reviewed;
-  } catch {
-    /* ignore */
-  }
 
-  // Feature requests mirror a GitHub issue, so closing or reopening the issue
-  // is a product decision the board must follow. Without this the two surfaces
-  // drifted: an issue closed on GitHub stayed "pending" in LOOM forever because
-  // sync was outbound only. Matched by (repo, number); the request's own tenant
-  // is used, never the delivery's. Best-effort like every other side effect.
-  let featureRequest = null;
-  if (eventName === "issues" && raw?.issue) {
-    try {
+    // Feature requests mirror a GitHub issue, so closing or reopening the issue
+    // is a product decision the board must follow. Matched by (repo, number);
+    // the request's own tenant is used, never the delivery's.
+    if (eventName === "issues" && raw?.issue) {
       featureRequest = await applyIssueEvent({
         sql,
         repo: raw.repository?.full_name,
-        issue: raw.issue,
+        issue: raw.issue
       });
       if (featureRequest && (raw.action === "closed" || raw.action === "reopened")) {
-        await notify({
+        await notifyOnce({
           sql,
           tenantId: featureRequest.tenant_id,
           userId: featureRequest.requester_id,
@@ -149,96 +194,74 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
           title: `Your idea "${featureRequest.title}" is now ${featureRequest.status}`,
           body: raw.action === "closed" ? "Synced from GitHub." : "The GitHub issue was reopened.",
           link: "/student/feature-requests",
+          dedupeKey: webhookNotificationKey("feature_request", featureRequest.id, raw.action)
         });
       }
-    } catch (e) {
-      console.error("[github/webhook] feature request sync failed", e?.message || e);
     }
-  }
 
-  // Project activation: a signed delivery that carries real work in a
-  // repository a student has claimed is the proof that promotes that project
-  // from provisional to verified. Same trust level as the merge check above and
-  // the same best-effort treatment — neither may break acknowledgement.
-  let activation = null;
-  try {
+    // Project activation: a signed delivery that carries real work in a
+    // repository a student has claimed is the proof that promotes that project
+    // from provisional to verified.
     activation = await maybeActivateProject({ sql, tenantId: tenant.id, eventName, raw });
-  } catch (e) {
-    console.error("[github/webhook] project activation failed", e?.message || e);
-  }
 
-  // Aggregate into student_daily_activity.
-  //
-  // This is the table every "your proof of building" number is read from:
-  // the heatmap and commit/PR/streak tiles on /student/github, the dashboard's
-  // weekly strip, and the capped commits/PRs half of the standings score. The
-  // weights come from lib/scoring.js, the same contract the board's SQL uses.
-  // The webhook previously wrote ONLY github_events,
-  // so all of those stayed at zero forever regardless of real activity -- the
-  // standalone /api/jobs/github/process worker that used to do this had no
-  // callers, no cron and no vercel.json.
-  //
-  // Attributed to the student who LINKED the GitHub username, tenant-scoped so
-  // a login belonging to another chapter cannot inflate this one's numbers.
-  //
-  // Replay safety: the aggregate upsert below is ADDITIVE (commits = commits +
-  // EXCLUDED.commits), which was deliberate but unbounded — a redelivered
-  // signed payload added the same commits again, and nothing anywhere recorded
-  // that the delivery had already been counted. `counted` now comes from the
-  // github_events insert above: xmax = 0 means this delivery was new. A
-  // duplicate is recorded in github_events (so it stays auditable) but is NOT
-  // aggregated a second time.
-  let activity = { applied: false, reason: "NO_DELTA" };
-  try {
-    const delta = summarizeDelivery(eventName, raw);
-    const studentId = normalized.actorLogin
-      ? await resolveStudentIdByLogin(sql, normalized.actorLogin, tenant.id)
-      : null;
-    if (!studentId) {
-      activity = { applied: false, reason: "UNKNOWN_LOGIN" };
-    } else if (delta.commits + delta.pullRequests + delta.reviews === 0) {
-      activity = { applied: false, reason: "NO_DELTA" };
-    } else if (!inserted) {
-      activity = { applied: false, reason: "DUPLICATE_DELIVERY" };
-    } else {
-      const day = toIsoDay(new Date());
-      const points = activityDeltaPoints(delta);
+    // Aggregate into student_daily_activity, which every "proof of building"
+    // number is read from (heatmap, commit/PR/streak tiles, standings). The
+    // additive upsert runs inside the same transaction that claims
+    // activity_applied_at, so a retry resumes without adding the same commits
+    // twice.
+    activity = await applyActivity({ sql, tenantId: tenant.id, idempotencyKey, eventName, normalized, raw });
+  } catch (error) {
+    const attempts = Number(claimed.attempts) || 1;
+    const terminal = attempts >= GITHUB_EVENT_MAX_ATTEMPTS;
+    const message = errorMessage(error);
+    try {
       await sql`
-        INSERT INTO public.student_daily_activity
-          (student_id, day, tenant_id, commits, pull_requests, reviews, score)
-        VALUES (${studentId}, ${day}, ${tenant.id}, ${delta.commits}, ${delta.pullRequests}, ${delta.reviews}, ${points})
-        ON CONFLICT (student_id, day) DO UPDATE SET
-          commits       = public.student_daily_activity.commits + EXCLUDED.commits,
-          pull_requests = public.student_daily_activity.pull_requests + EXCLUDED.pull_requests,
-          reviews       = public.student_daily_activity.reviews + EXCLUDED.reviews,
-          score         = public.student_daily_activity.score + EXCLUDED.score,
-          tenant_id     = EXCLUDED.tenant_id
+        UPDATE github_events
+           SET status = ${terminal ? GITHUB_EVENT_STATUS.DEAD : GITHUB_EVENT_STATUS.FAILED},
+               last_error = ${message},
+               next_attempt = ${terminal ? null : githubEventNextAttemptAt(attempts)},
+               claimed_at = NULL
+         WHERE idempotency_key = ${idempotencyKey}
+           AND status = 'processing'
       `;
-      // Record the attribution on the event row too, so the attested-repo index
-      // (tenant_id, student_id, repository_name) is populated for this student
-      // and this repository rather than only for un-attributed deliveries.
-      await sql`
-        UPDATE public.github_events SET student_id = ${studentId}
-        WHERE idempotency_key = ${`${deliveryId}-${eventName}`}
-      `;
-      activity = { applied: true, studentId, day, ...delta };
+    } catch (markError) {
+      // The row stays `processing`; after the lease expires a redelivery can
+      // claim it again. Losing the failure timestamp is better than a 500 with
+      // no record of why.
+      console.error("[github/webhook] could not record failure state", markError?.message || markError);
     }
-  } catch (e) {
-    console.error("[github/webhook] activity aggregate failed", e?.message || e);
-    activity = { applied: false, reason: "WRITE_FAILED" };
+    console.error("[github/webhook] delivery processing failed", {
+      deliveryId,
+      eventName,
+      tenantId: tenant.id,
+      attempts,
+      terminal,
+      reason: message
+    });
+    return fail("GITHUB_PROCESSING_FAILED", "Webhook processing failed; redelivery will retry it", 503);
   }
 
+  // Mark processed only AFTER the fan-out. If this write fails the row remains
+  // `processing`; the lease expiry lets a redelivery retry, and every side
+  // effect above is safe to repeat.
+  try {
+    await sql`
+      UPDATE github_events
+         SET status = 'processed',
+             processed_at = NOW(),
+             last_error = NULL,
+             next_attempt = NULL,
+             claimed_at = NULL
+       WHERE idempotency_key = ${idempotencyKey}
+         AND status = 'processing'
+    `;
+  } catch (e) {
+    console.error("[github/webhook] could not mark delivery processed", e?.message || e);
+  }
 
   // Audit the ingestion itself. This path is reachable by anything that knows
   // the webhook secret, and it promotes a claim to `verified` and grants badges
-  // -- so it must leave a trace. Before this, /admin/audit showed nothing at all
-  // for webhook activity, which made a bad or forged merge indistinguishable
-  // from no merge.
-  //
-  // actor_id is NOT NULL: attribute the row to the GitHub login that caused it,
-  // falling back to a literal marker rather than inventing a user. If this ever
-  // fails we log it instead of swallowing it -- a silent audit insert is exactly
-  // the hole this change exists to close.
+  // -- so it must leave a trace.
   try {
     await sql`
       INSERT INTO audit_logs (actor_id, tenant_id, action, resource, resource_id, metadata)
@@ -247,7 +270,7 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
         ${tenant.id},
         ${verified ? "github_oss_auto_verified" : "github_event_received"},
         'github_event',
-        ${`${deliveryId}-${eventName}`},
+        ${idempotencyKey},
         ${sql.json({
           event: eventName,
           repository: normalized.repositoryName,
@@ -259,7 +282,8 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
           activity_reason: activity.reason ?? null,
           activity_student: activity.studentId ?? null,
           feature_request: featureRequest?.id ?? null,
-          feature_request_status: featureRequest?.status ?? null
+          feature_request_status: featureRequest?.status ?? null,
+          project_activated: activation?.projectId ?? null
         })}
       )
     `;
@@ -277,6 +301,63 @@ const normalized = normalizeGitHubEvent({ eventName, deliveryId, payload: raw })
       ? { id: featureRequest.id, status: featureRequest.status, state: featureRequest.github_issue_state }
       : null
   });
+}
+
+/**
+ * Add one delivery to the daily activity ledger at most once.
+ *
+ * The claim of activity_applied_at and the additive upsert share one
+ * transaction: either both commit or neither does. A crash between them cannot
+ * leave a claimed-but-not-counted row, and a retry of an already-counted
+ * delivery returns DUPLICATE_DELIVERY instead of inflating the student's score.
+ */
+async function applyActivity({ sql, tenantId, idempotencyKey, eventName, normalized, raw }) {
+  const delta = summarizeDelivery(eventName, raw);
+  if (delta.commits + delta.pullRequests + delta.reviews === 0) {
+    return { applied: false, reason: "NO_DELTA" };
+  }
+  const studentId = normalized.actorLogin
+    ? await resolveStudentIdByLogin(sql, normalized.actorLogin, tenantId)
+    : null;
+  if (!studentId) return { applied: false, reason: "UNKNOWN_LOGIN" };
+
+  const day = toIsoDay(new Date());
+  const points = activityDeltaPoints(delta);
+
+  return sql.begin(async (tx) => {
+    const [claim] = await tx`
+      UPDATE github_events
+         SET activity_applied_at = NOW()
+       WHERE idempotency_key = ${idempotencyKey}
+         AND activity_applied_at IS NULL
+      RETURNING idempotency_key
+    `;
+    if (!claim) return { applied: false, reason: "DUPLICATE_DELIVERY" };
+
+    await tx`
+      INSERT INTO public.student_daily_activity
+        (student_id, day, tenant_id, commits, pull_requests, reviews, score)
+      VALUES (${studentId}, ${day}, ${tenantId}, ${delta.commits}, ${delta.pullRequests}, ${delta.reviews}, ${points})
+      ON CONFLICT (student_id, day) DO UPDATE SET
+        commits       = public.student_daily_activity.commits + EXCLUDED.commits,
+        pull_requests = public.student_daily_activity.pull_requests + EXCLUDED.pull_requests,
+        reviews       = public.student_daily_activity.reviews + EXCLUDED.reviews,
+        score         = public.student_daily_activity.score + EXCLUDED.score,
+        tenant_id     = EXCLUDED.tenant_id
+    `;
+    // Record the attribution on the event row too, so the attested-repo index
+    // (tenant_id, student_id, repository_name) is populated for this student and
+    // this repository rather than only for un-attributed deliveries.
+    await tx`
+      UPDATE public.github_events SET student_id = ${studentId}
+      WHERE idempotency_key = ${idempotencyKey}
+    `;
+    return { applied: true, studentId, day, ...delta };
+  });
+}
+
+function errorMessage(error) {
+  return String(error?.message || error || "unknown error").slice(0, 500);
 }
 
 /**
@@ -352,12 +433,13 @@ async function maybeActivateProject({ sql, tenantId, eventName, raw }) {
   });
   await recomputeScore(sql, tenantId, studentId);
 
-  await notify({
+  await notifyOnce({
     sql, tenantId, userId: studentId,
     type: "project_verified",
     title: "Project verified",
     body: `We saw your work in ${fullName} — "${updated.title}" now counts toward your standing.`,
-    link: "/student/projects"
+    link: "/student/projects",
+    dedupeKey: webhookNotificationKey("project_verified", updated.id)
   });
 
   return { projectId: updated.id, userId: studentId, repository: fullName, event: eventName };
@@ -407,11 +489,12 @@ async function maybeVerifyOssReview({ sql, tenantId, eventName, raw }) {
   `;
   if (!row || row.contribution_type !== "review") return null;
   const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId, projectUrl: project.github_repo_url });
-  await notify({
+  await notifyOnce({
     sql, tenantId, userId: profile.user_id,
     type: "oss_verified", title: "Code review verified",
     body: `Your review on ${fullName}#${pr.number} counts${granted.length ? ` — badge earned: ${granted.join(", ")}` : ""}.`,
-    link: "/student/opensource"
+    link: "/student/opensource",
+    dedupeKey: webhookNotificationKey("oss_review", canonical)
   });
   return { userId: profile.user_id, review: true, granted };
 }
@@ -471,11 +554,12 @@ const granted = await awardOssBadges({ sql, studentId: profile.user_id, tenantId
   });
   await recomputeScore(sql, tenantId, profile.user_id);
 
-  await notify({
+  await notifyOnce({
     sql, tenantId, userId: profile.user_id,
     type: "oss_verified", title: "PR merged — OSS verified",
     body: `Your PR in ${fullName} was merged${granted.length ? ` — badge earned: ${granted.join(", ")}` : ""}.`,
-    link: "/student/opensource"
+    link: "/student/opensource",
+    dedupeKey: webhookNotificationKey("oss_merge", canonical)
   });
   return { userId: profile.user_id, prUrl, granted };
 }
