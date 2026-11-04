@@ -209,11 +209,21 @@ Authorization: Bearer <CRON_SECRET>
 ```
 
 Job names live in `lib/scheduler.js`: `deadline-reminders`,
-`analytics-rollup`, `federation-rollup`, `retention-prune`, `term-expiry`.
+`analytics-rollup`, `federation-rollup`, `retention-prune`, `term-expiry`,
+`outbox-drain`.
+
 With `CRON_SECRET` unset the endpoint returns 503; a wrong/missing secret
 returns 401. There is still **no committed `vercel.json`**, so wire the calls
 to your platform's scheduler (Vercel Cron, GitHub Actions, or an external
 cron). The load scripts remain supported for manual/rehearsal runs.
+
+`outbox-drain` is a consequence of that gap: the `outbox` table (migrations
+066/067) exists so a side effect can be committed with the business write and
+retried later, but nothing enqueues onto it yet **and** nothing calls the drain
+job on a schedule. Queued rows stay `pending` until a cron above points at
+`/api/jobs/run?job=outbox-drain`. Wire the schedule before migrating a consumer
+onto the outbox, or the side effect it replaces gets delayed instead of
+delivered. See `docs/25` item 4.2.
 
 ### Deadline reminders
 

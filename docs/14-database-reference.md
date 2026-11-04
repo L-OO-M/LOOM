@@ -76,6 +76,8 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 064 | `064_username_change_limits.sql` | `user_profiles.username_changed_at` + `username_change_count` (non-negative check) — durable state behind the 30-day rename cooldown and five-change cap |
 | 065 | `065_tenant_backfill_indexes.sql` | tenant columns + backfill for the eight tables 031 had to skip (`department_memberships`, `event_registrations`, `forum_votes`, `forum_flags`, `volunteer_signups`, `contest_submissions`, `mentor_sessions`; `github_events` already had one) and tenant-leading indexes for each. Derived from the owning row (department/event/contest/slot) then the student's profile; unroutable rows stay NULL rather than being assigned a default chapter — e.g. 256 repo-level `github_events` (dependabot/star/watch) have no `student_id`, so they remain NULL by design. RLS remains off |
 | 036b | `036b_tenant_leading_indexes.sql` | renumbered from the duplicate `036` prefix; content unchanged and idempotent |
+| 066 | `066_outbox.sql` | durable `outbox(id bigserial, tenant_id, topic, payload jsonb, dedupe_key, status pending\|processing\|done\|dead, attempts, available_at, locked_at, last_error, created_at, completed_at)` with partial unique `(topic, dedupe_key)`, a due-work index for the drainer, a `processing` lock-age index for stale reclamation, a retention index, and the standard fail-closed tenant policy. `lib/outbox.js` enqueues inside the caller's transaction, claims with `FOR UPDATE SKIP LOCKED`, and backs off exponentially (1m→1h, dead-letter at 8 attempts) |
+| 067 | `067_outbox_tenant_fk.sql` | `outbox.tenant_id → tenants(id) ON DELETE CASCADE`, so a bad tenant fails at enqueue instead of looping in the drainer |
 
 ### Migration 037 — verified evidence
 
@@ -142,7 +144,7 @@ Tracked migrations are the single source of truth for schema — there is no ORM
 
 **Proof & insight**: `skill_badges(tier 1–3)`, `student_achievements(unique(student,badge,source,ref)` + partial unique for sourcerows)`, `verifiable_credentials(id text PK `cred_*`, signature HMAC, view_count)`, `credential_views`, `student_analytics_snapshots(unique(student,date))`, `cohort_metrics(unique(tenant,date))`, `roadmap_node_analytics(unique(node,tenant))`, `mentor_effectiveness(unique(mentor,tenant))`.
 
-**System**: `notifications`, `audit_logs`, `schema_migrations`.
+**System**: `notifications`, `audit_logs`, `schema_migrations`, `outbox` (durable side-effect queue — see migration 066; nothing is enqueued onto it yet).
 
 ## Key relationships
 

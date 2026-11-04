@@ -493,6 +493,31 @@ and a second review of every auth/tenant diff.
   Pinned by the `applyHandoverTransfer` case in `tests/handover.test.js`.
 - [ ] Add an outbox/queue for webhook fan-out, notifications, email, and
   rollups. Do not do all of this inline in a GitHub delivery.
+  **Infrastructure shipped, consumers deliberately not migrated.**
+  `066_outbox.sql` creates a durable `outbox` (partial unique
+  `(topic, dedupe_key)`, due-work index, lock-age index, retention index,
+  fail-closed tenant policy) and `067` adds `tenant_id → tenants(id)` so a bad
+  tenant fails at enqueue instead of looping in the drainer. `lib/outbox.js`
+  enqueues **inside the caller's transaction** (`enqueue(tx, …)`), claims with
+  `FOR UPDATE SKIP LOCKED`, reclaims rows stuck in `processing`, backs off
+  1m→2m→…→1h, and dead-letters at 8 attempts with `last_error` retained.
+  `outbox-drain` is a named job in `lib/scheduler.js`, and `retention-prune`
+  now prunes done rows after 7 days and dead rows after 30.
+  **Drainer and RLS:** the drain reads every tenant's pending rows by design, so
+  it must stay on the owner connection (or a dedicated service path). It must
+  **not** be moved onto the NOBYPASSRLS app role when that rollout happens, or
+  the fail-closed policy will make it see an empty queue forever.
+  **Why nothing is wired through it yet:** no scheduler calls
+  `/api/jobs/run` in this repository (there is no `vercel.json`), so a row
+  enqueued today would sit `pending` indefinitely. Moving a notification that is
+  currently inserted inline onto the outbox would turn an immediate delivery
+  into an unbounded delay. The correct order is scheduler first, consumer second.
+  Next step (once a cron exists): route the GitHub webhook's `notifyOnce` calls
+  through `enqueue` in the delivery transaction, which also removes the
+  fire-and-forget loss window in `notify()`.
+  Pinned by `tests/outbox.test.js` (18 cases) and verified end-to-end against the
+  dev database — enqueue dedupe, claim, done, retry with a future
+  `available_at`, stale-lock reclamation and FK rejection.
 - [ ] Add idempotency keys for webhooks and destructive admin actions.
 - [x] Move scheduled work out of request paths: deadline reminders, analytics
   **Verified:** `GET|POST /api/jobs/run` maps every job in `lib/scheduler.js`; disabled unless `CRON_SECRET` is set.
@@ -612,6 +637,20 @@ and a second review of every auth/tenant diff.
 - [x] If nightly E2E is added, use a separate Supabase project/staging DB, not
   **Verified:** documented as a hard prerequisite; no nightly workflow is committed.
   the production database.
+- [x] The authenticated E2E specs competed for the login rate limit instead of
+  sharing a session, so a full run failed on whichever spec signed in ninth.
+  **Verified:** `POST /api/auth/login` allows 8 attempts per 10 minutes per IP,
+  and the limiter is per server instance (Upstash is not configured).
+  `login.spec.js`, `drawer-focus.spec.js` and `student-audit.spec.js` each signed
+  in, in both the chromium and mobile projects, which left no headroom for a
+  retry or a second run inside the window. The symptom looked like an auth bug:
+  `page.waitForURL` timing out with the form still showing "Too many requests.
+  Retry after Ns". `e2e/auth.setup.js` now performs the single real sign-in for
+  the run, saves the storage state to `e2e/.auth/student.json` (gitignored), and
+  a `setup` project runs it before chromium and mobile. Specs that only need "a
+  signed-in student" load that file; `login.spec.js` deliberately keeps its own
+  sign-in because it is the login regression test. Without credentials in
+  `.env.local` these specs still skip themselves.
 - [x] The lint gate did not lint JSX at all, so every component bypassed
   `react-hooks` and `jsx-a11y` rules.
   **Verified:** `eslint.config.mjs` now declares `files: ["**/*.jsx"]`; ESLint 9's
@@ -639,10 +678,24 @@ and a second review of every auth/tenant diff.
   **Verified:** CI has a read-only gitleaks job scanning the checked-out tree
   with redacted output; `.gitleaks.toml` extends the default rules. The
   pre-commit hook remains a local/operator step.
+  **Allowlisted, by value only:** the shared fake `AUTH0_CLIENT_ID` fixture in
+  `tests/env-secrets.test.js` and `tests/deploy-env-check.test.js` tripped the
+  `generic-api-key` rule on entropy alone, which failed the job on every push.
+  The allowlist matches that exact string, not the files, so a real credential
+  committed even inside `tests/` is still reported.
 - [ ] Keep Dependabot and add a monthly dependency review; do not ignore
   critical advisories.
   **Partially done:** `.github/dependabot.yml` is committed for npm and GitHub
   Actions; the monthly human review is still a team process, not code.
+  **Majors are now excluded from version-update PRs**
+  (`version-update:semver-major` ignore rule, added after one monthly batch
+  opened eleven PRs at once — Next 16, `postgres` 4, eslint 10, vitest 5,
+  motion 14, three icon/type bumps and two Actions tags). Only minor+patch are
+  grouped, so every major used to arrive as its own mergeable-looking PR and
+  bury the reviews that were actually actionable. Majors now go through a
+  dedicated upgrade sprint: `npx npm-check-updates`, a branch, the full gate
+  suite, and the version-matched `next` docs per `AGENTS.md` §8. Security
+  updates are a separate mechanism and still open automatically, major or not.
 - [x] Make migrations CI-verifiable and document the rollback/rehearsal path.
   **Verified:** CI now applies all migrations twice against `postgres:16`; `docs/15` documents rehearsal and revert guidance.
 - [x] Add a deploy-time environment check. `assertProductionSecrets()` currently
@@ -838,6 +891,20 @@ Also:
   `tests/theme-contrast.test.js`.
 - [x] "This week" covers 13 days and `weekSessions` counts active days.
   **Verified:** `lib/week-activity.js` uses Monday-Sunday and counts unique active days; dashboard totals use the same window.
+- [x] Relative date labels ("Today", "Tomorrow", "Saturday", "5 Dec") are
+  formatted only on the server.
+  **Verified:** they used to be computed during render in `StudentDashboard`, a
+  client component that also renders on the server. The Node process and the
+  browser can sit on different calendar dates (a Vercel function runs UTC, most
+  readers here are IST), so the same row could read "Today" on the server and
+  "Tomorrow" during hydration — React error #418, which silently discards the
+  server HTML. Labels now travel down as `when` strings computed in
+  `app/(app)/student/page.jsx` via `lib/dates.js`, matching how the proof rail
+  and `greeting`/`todayLabel` already worked. `tests/dates.test.js` pins the
+  boundary rules (Today/Tomorrow, the 6-vs-7-day switch from weekday to date).
+  **Not claimed:** this is not a confirmed diagnosis of the single #418 seen in
+  one E2E run; that did not reproduce in dev on the same route. It removes a
+  whole class of mismatch, and the route assertion that caught it stays in place.
 - [ ] Student dashboard presents provisional claims as progress/proof.
 - [ ] Roadmap resource coverage is thin or broken in several domains.
   **Partially done:** the Web graph is merged and live (33 nodes, 38 internal

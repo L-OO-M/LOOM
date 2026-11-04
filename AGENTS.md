@@ -67,14 +67,14 @@ git status --porcelain
 # 1. Lint — must show 0 errors (2 pre-existing warnings are the ceiling; add none).
 npm run lint
 
-# 2. Unit — all must pass (currently 1073 across 127 files).
+# 2. Unit - all must pass (currently 1099 across 129 files).
 npm test
 
 # 3. Build — must compile clean (catches bad imports, bad metadata, bad JSX).
 npm run build
 
 # 4. E2E - FULL suite. Counts drift; trust the runner output, not this comment.
-#    Current local run: 416 passed, 6 skipped (chromium + mobile).
+#    Current local run: 417 passed, 6 skipped (chromium + mobile).
 #    Free port 3000 first; first run pays ~2 min cold compile — wait, don't assume failure.
 Stop-Process -Name node -Force -ErrorAction SilentlyContinue
 npx playwright test
