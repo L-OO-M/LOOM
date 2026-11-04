@@ -613,6 +613,11 @@ and a second review of every auth/tenant diff.
 - [ ] Introduce a small service layer only where transactions or reuse demand
   it: ranking/evidence, events/capacity, finance, handover, reports, webhooks.
   Do not add a generic repository or DDD layer.
+  **Not started, and deliberately so:** no current call site needs a shared
+  transaction that two routes cannot express inline. `lib/outbox.js` is the one
+  place where cross-cutting reuse was real, and it already exists. Build the
+  service layer when a second caller of the same multi-statement transaction
+  appears, not before.
 - [ ] Stop route modules importing other route modules or duplicating helpers.
   **Half verified:** no route module imports another route module
   (`rg 'from "@/app/api' app` returns nothing), so the coupling half of this is
@@ -620,23 +625,33 @@ and a second review of every auth/tenant diff.
   needs a named helper to be extracted before this can be closed honestly.
 - [ ] Consolidate score constants, status tone, stat strips, filter toolbars,
   and tenant predicates.
+  **Measured (2026-11-04):** scoring constants are already single-source in
+  `lib/ranking.js` (`WEIGHTS`/`KIND_CAPS`) and read by `lib/standings.js`; what
+  remains is per-surface duplication of status tone and filter toolbars in UI
+  files, which is cosmetic until a third copy appears.
 - [ ] Remove the three mutation patterns in the UI in favour of one helper
   that always releases busy state and normalizes the envelope.
+  **Not started.** `components/actions.jsx` is the intended home; the three
+  patterns live in admin forms, lead ops boards, and student actions. Cheapest
+  first step is the one that leaks busy state on error, not a blanket rewrite.
 
 ---
 
 ## 5. Workflows, CI, and release backlog
 
 - [x] PR CI: lint + encoding, unit, build, migration apply-twice against a
-  **Verified:** `.github/workflows/ci.yml` runs lint+encoding, unit, build, and migrations twice against `postgres:16`, including the dup-number/doc drift tests.
   disposable Postgres service, and schema/doc drift checks. No app secrets
   required.
-- [x] Keep E2E out of per-PR CI, as deliberately decided.
-  **Verified:** README/docs state the local production-build E2E policy. Run it nightly or on
+  **Verified:** `.github/workflows/ci.yml` runs lint+encoding, unit, build, and
+  migrations twice against `postgres:16`, including the dup-number/doc drift
+  tests.
+- [x] Keep E2E out of per-PR CI, as deliberately decided. Run it nightly or on
   a dedicated staging environment with a seeded database.
+  **Verified:** README/docs state the local production-build E2E policy.
 - [x] If nightly E2E is added, use a separate Supabase project/staging DB, not
-  **Verified:** documented as a hard prerequisite; no nightly workflow is committed.
   the production database.
+  **Verified:** documented as a hard prerequisite; no nightly workflow is
+  committed.
 - [x] The authenticated E2E specs competed for the login rate limit instead of
   sharing a session, so a full run failed on whichever spec signed in ninth.
   **Verified:** `POST /api/auth/login` allows 8 attempts per 10 minutes per IP,
@@ -669,7 +684,7 @@ and a second review of every auth/tenant diff.
   applying.
 - [ ] Add CODEOWNERS for auth, RLS, migrations, `.github/`, and finance code.
   **Blocked:** no verifiable GitHub owner/team handle in repository metadata;
-  a guessed entry is worse than none.
+  a guessed entry is worse than none. Tracked as issue #54.
 - [ ] Enable branch protection and stop self-approved direct pushes to `main`.
   This session bypassed the rules because the workflow was broken; that must
   not become normal.
@@ -696,6 +711,17 @@ and a second review of every auth/tenant diff.
   dedicated upgrade sprint: `npx npm-check-updates`, a branch, the full gate
   suite, and the version-matched `next` docs per `AGENTS.md` §8. Security
   updates are a separate mechanism and still open automatically, major or not.
+  **Open advisories closed:** both unresolved alerts were `satori@0.33.3`
+  (`GHSA-wx4j-mvgx-mqwp`, improper SVG escaping, patched in `0.33.5`) coming in
+  through `@vercel/og`, which pins it **exactly**. Upgrading the direct dev pin
+  on its own just left a second, still-vulnerable copy nested under
+  `@vercel/og`, so the upgrade is enforced with an `overrides` entry and
+  `npm ls satori` now resolves a single `0.33.5`. The app renders OG cards
+  through `next/og`'s bundled `ImageResponse`, not through the installed
+  `@vercel/og`, so this is a patch-level change on an unused direct path.
+  Production dependencies report 0 advisories (`npm audit --omit=dev`); the 14
+  remaining moderate findings are all dev-only lint tooling via `minimatch`,
+  below the `--audit-level=high` bar the P0 gate uses.
 - [x] Make migrations CI-verifiable and document the rollback/rehearsal path.
   **Verified:** CI now applies all migrations twice against `postgres:16`; `docs/15` documents rehearsal and revert guidance.
 - [x] Add a deploy-time environment check. `assertProductionSecrets()` currently
@@ -723,6 +749,12 @@ and a second review of every auth/tenant diff.
 | Admin / Reporting | Narrative report field; CSV/PDF export; department x month coverage; audit filters/export; unified attention queue | Cross-chapter federation operations | Data warehouse |
 | Succession | One read model combining checklist, brief, transfer flags, and term status; enforce last-admin guard | Automated reminders | - |
 
+**Every "build now" cell above has an issue with the implementation plan, so
+this section is now a tracker rather than a wish list:** Operations #46,
+Finance #47, MoUs #48, Marketing #49, HR #50, Reporting #51, Succession #52.
+Anything in the "Defer" column is out of scope until a department holds real
+data and asks for it.
+
 Specific evidence and gaps:
 
 - Operations: `components/lead/EventOpsBoard.jsx:9-90` has tasks and owners, but
@@ -748,35 +780,44 @@ inventory/checkout.
 
 ## 7. Technical departments - integration roadmap
 
-| Priority | Workflow | Why |
-|---|---|---|
-| P0 | Contest judging: submission status/score/placement/judge/feedback; winner notification | The loop dead-ends at submission and promises points that cannot exist |
-| P0 | Event attendance writes `event_attended`; lead check-in surface | Copy promises standing that is never scored |
-| P0 | Accepted answer writes `solution_accepted`; revoke on unsolve | Disclosed leaderboard row is unreachable |
-| P0 | Mentor session lifecycle: accept, schedule, complete, cancel; mentor view | Sessions never leave `requested`; notifications link to an admin-only page |
-| P0 | One `nextNode` and verified-only progress; per-domain milestone denominator | Dashboard, roadmap page, and API give three different answers |
-| P1 | Project lifecycle: team, milestones, review, showcase, credential | Projects are claimed but not managed |
-| P1 | GitHub proof hardening: signed state, revocation on relink, webhook processed state, one scoring constant | Proof integrity is the product's strongest asset |
-| P1 | OSS pipeline: issue matching, review verification, rejection revocation | Existing flow is close; close the trust gaps |
-| P1 | Roadmap content refresh: AI/ML has 62 nodes but 2 resources; embedded has null URLs | Content quality limits real learning |
-| P2 | GitHub App for installation tokens/CI checks | Only after OAuth/webhook limits are proven |
-| P2 | LeetCode/Codeforces, registries, cloud labs, Discord/Slack | Defer until anti-gaming and tenancy mapping exist |
+| Priority | Workflow | Why | Status |
+|---|---|---|---|
+| P0 | Contest judging: submission status/score/placement/judge/feedback; winner notification | The loop dead-ends at submission and promises points that cannot exist | **Shipped.** `load/migrations/057_contest_judging.sql` adds status/score/feedback/judged_by/judged_at; `app/api/admin/contests/judge/route.js` records a judgement. |
+| P0 | Event attendance writes `event_attended`; lead check-in surface | Copy promises standing that is never scored | **Scoring shipped**, `app/api/admin/events/[id]/attendance/route.js:64`. Operator/roster surface still open — issue #46. |
+| P0 | Accepted answer writes `solution_accepted`; revoke on unsolve | Disclosed leaderboard row is unreachable | **Shipped**, including revoke: dedupe clears at `app/api/community/threads/[id]/route.js:140`, grant at `:148`; pinned by `tests/forum-solution-evidence.test.js`. |
+| P0 | Mentor session lifecycle: accept, schedule, complete, cancel; mentor view | Sessions never leave `requested`; notifications link to an admin-only page | Open — issue #40. |
+| P0 | One `nextNode` and verified-only progress; per-domain milestone denominator | Dashboard, roadmap page, and API give three different answers | Open — issues #38 (next step) and #39 (provisional claims). Mentor denominator is #37. |
+| P1 | Project lifecycle: team, milestones, review, showcase, credential | Projects are claimed but not managed | Open — issue #41. |
+| P1 | GitHub proof hardening: signed state, revocation on relink, webhook processed state, one scoring constant | Proof integrity is the product's strongest asset | Open — issue #42. Note the "one scoring constant" half is already true (`lib/ranking.js` is the only writer of `WEIGHTS`/`KIND_CAPS`). |
+| P1 | OSS pipeline: issue matching, review verification, rejection revocation | Existing flow is close; close the trust gaps | Open — issue #43. |
+| P1 | Roadmap content refresh: AI/ML has 62 nodes but 2 resources; embedded has null URLs | Content quality limits real learning | Open — issue #44. The Web graph half is done. |
+| P2 | GitHub App for installation tokens/CI checks | Only after OAuth/webhook limits are proven | Not scheduled. |
+| P2 | LeetCode/Codeforces, registries, cloud labs, Discord/Slack | Defer until anti-gaming and tenancy mapping exist | Not scheduled. |
 
 Additional technical gaps:
 
-- `contest_submissions` has no judging fields;
-  `app/(app)/admin/contests/page.jsx` promises judging that no route supports.
-- Mentor sessions have schema support but no lifecycle routes.
+- ~~`contest_submissions` has no judging fields~~ — **stale, fixed by `057`**.
+  `app/(app)/admin/contests/page.jsx` now has a route behind it.
+- Mentor sessions have schema support but no lifecycle routes — **still true**,
+  issue #40.
 - `lib/mentorship.js:12,34` divides by all roadmap nodes, so finishing one
-  track is about 10% and the 40% mentor bar is effectively unreachable.
+  track is about 10% and the 40% mentor bar is effectively unreachable —
+  **still true and worse than described**: that function is the gate deciding
+  who may mentor, so it does not just under-report, it disables mentorship.
+  Issue #37.
 - Student dashboard computes progress from all completed nodes, including
-  provisional claims; "Recent proof" also shows provisional completions.
+  provisional claims; "Recent proof" also shows provisional completions —
+  **still true**, issue #39.
 - The dashboard "next step" ignores prerequisites and domain; the roadmap page
-  treats optional edges as required; the API only checks required edges.
+  treats optional edges as required; the API only checks required edges —
+  **still true**, issue #38.
 - `PLANNER_ENABLED = false` hard-disables planner and ICS while docs advertise
-  them.
-- Admin projects is read-only; verification actually lives in `/admin/ranking`.
-- Admin and lead contests are the same feature on different endpoints.
+  them — **still true** (`lib/feature-flags.js:20`), issue #45. Pick ship or
+  withdraw; do not leave the copy promising it.
+- Admin projects is read-only; verification actually lives in `/admin/ranking` —
+  **still true**, folded into issue #41.
+- Admin and lead contests are the same feature on different endpoints —
+  **still true**, cosmetic until a third caller appears.
 
 **Anti-gaming:** apply caps in the SQL that serves the board, align webhook and
 stored scores, and test the real queries.
@@ -905,7 +946,35 @@ Also:
   **Not claimed:** this is not a confirmed diagnosis of the single #418 seen in
   one E2E run; that did not reproduce in dev on the same route. It removes a
   whole class of mismatch, and the route assertion that caught it stays in place.
+- [x] Homepage re-hydration warning (#418) is diagnosed; no local fix is
+  warranted, and the guard stays.
+  **Verified:** it reproduces only against a production build and only under
+  concurrency. Replaying the `dark at 1440px` screenshot variant at 4 workers
+  failed 4 times in 191 runs (2.1%); the same replay against `next dev` failed 0
+  times in 160, which is why every isolated attempt came back clean. Both throw
+  sites are React's hydration path — `popHydrationState` and
+  `updateSuspenseComponent` — and both raise `418("HTML")` with an empty second
+  argument when a host or Suspense fiber completes while
+  `nextHydratableInstance` still points at an unclaimed node. In other words the
+  streamed HTML carries an element the client tree does not expect at that
+  position. React re-renders the `SiteFrame` subtree once and the page recovers,
+  which is why the symptom is a console error and not broken UI.
+  **Ruled out by measurement:** the four `React.lazy` boundaries in
+  `StoryHome`. Removing all five `Suspense` boundaries there cut the streamed
+  containers from 7 to 2 and left the rate unchanged (3 in 192, 1.6%), because
+  Next streams its own boundaries on every public route (`/about` and `/faq`
+  also ship 3). Inlining or deferring those components would cost first-load JS
+  and fix nothing, so the change was reverted. A `<div hidden>` with no `id`
+  survives in the DOM after every load, on every public route, so it is Next's
+  container and not page-specific.
+  **Deliberately not fixed:** the trigger is the production transport racing
+  hydration, and the production bundle carries no component stack, so any local
+  edit would be a guess dressed as a fix. The `expect(errors).toEqual([])`
+  assertion in `e2e/home-redesign.spec.js` is what would notice the day this
+  gets worse, so it stays. To reproduce: production build, then replay that one
+  variant with `--workers=4 --repeat-each=12`.
 - [ ] Student dashboard presents provisional claims as progress/proof.
+  **Open — issue #39.**
 - [ ] Roadmap resource coverage is thin or broken in several domains.
   **Partially done:** the Web graph is merged and live (33 nodes, 38 internal
   edges, all reachable from `web_html5`, four legacy placeholder ids rekeyed with
@@ -981,6 +1050,7 @@ Also:
   `app/api/community/threads/[id]/route.js`; pinned by
   `tests/forum-solution-evidence.test.js`.
 - [ ] Announcement composer, volunteer roster, finance/MoU lifecycle.
+  **Open — issues #49 (composer), #46 (roster), #47 (finance), #48 (MoUs).**
 - [ ] AppShell layout, single mutation helper, workspace-aware settings,
   mobile admin nav.
   **Partially done:** workspace-aware settings and the derived admin/lead mobile
@@ -1001,12 +1071,16 @@ Also:
   done with the Upstash path plus a documented per-instance fallback; email and
   Sentry stay dormant until a provider is approved.**
 - [ ] Backup/restore drill and operational runbooks.
+  **Open — issue #53. Blocked on a production `DATABASE_URL`; the runbook half
+  is done.**
   **Not scheduled (2026-10-28): the runbook and drill steps are documented in
   `docs/15` §4d, but the drill itself is deferred with the paid-service hold.
   This is the one deferred item that carries real data-loss risk — do it before
   the chapter holds data you cannot re-create.**
 - [ ] Onboarding/offboarding checklists and unified handover view.
+  **Open — issues #50 (people ops) and #52 (handover read model + last-admin guard).**
 - [ ] Roadmap content refresh and per-domain milestones.
+  **Open — issue #44.**
 
 ### Phase 4 - only with explicit approval
 
