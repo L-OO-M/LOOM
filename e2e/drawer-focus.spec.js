@@ -1,4 +1,5 @@
 const { test, expect } = require("@playwright/test");
+const { AUTH_STATE_FILE, hasAuthState } = require("./auth-state");
 
 // The shared Drawer is the app's only modal surface (inbox, node details,
 // feature requests). It closed on Escape but never trapped Tab and never gave
@@ -17,16 +18,11 @@ test.skip(!EMAIL || !PASSWORD, "set E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD to run 
 // compile on a dev server shared with the rest of the suite.
 test.describe.configure({ timeout: 120_000 });
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// Session comes from the `setup` project (e2e/auth.setup.js), so this spec does
+// not spend a login-rate-limit slot of its own. See e2e/auth-state.js.
+test.use({ storageState: hasAuthState() ? AUTH_STATE_FILE : undefined });
 
-// Same sign-in shape as login.spec.js: real form, real redirect.
-async function signIn(page) {
-  await page.goto("/login");
-  await page.fill("#email", EMAIL);
-  await page.fill("#password", PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 30_000 });
-}
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // The bell's accessible name is "Inbox" or "Inbox, N unread" (AppShell.jsx).
 function inboxBell(page) {
@@ -42,7 +38,6 @@ async function focusIsInsideDialog(page) {
 }
 
 test("inbox drawer traps Tab and restores focus to the bell on Escape", async ({ page }) => {
-  await signIn(page);
   await page.goto("/student", { waitUntil: "domcontentloaded" });
 
   const bell = inboxBell(page);

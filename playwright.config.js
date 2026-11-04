@@ -23,7 +23,12 @@ export default defineConfig({
     trace: "on-first-retry"
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } }
+    // One real sign-in per run, shared with the authenticated specs through
+    // e2e/.auth/student.json. Without it the specs each logged in, in both
+    // projects, and tripped the login rate limit (8 attempts / 10 minutes per
+    // IP) partway through the suite. See e2e/auth-state.js.
+    { name: "setup", testMatch: /auth\.setup\.js$/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, dependencies: ["setup"] }
   ]
 });

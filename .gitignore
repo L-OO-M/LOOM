@@ -19,6 +19,9 @@ coverage/
 # Local proof screenshots (large binaries)
 .screenshots/
 
+# Playwright's saved login session: a live cookie, never committed
+e2e/.auth/
+
 # Database exports contain live PII and auth hashes — never commit
 load/snapshots/
 .auth0-migration/
