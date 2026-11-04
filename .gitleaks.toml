@@ -16,5 +16,10 @@ regexes = [
   '''(?i)^a-real-long-(webhook|credential)-secret(-value)?$''',
   '''(?i)^explicit-credential-secret-value$''',
   '''(?i)^fixture-client-secret-not-real-0+$''',
+  # The fake client id shared by tests/env-secrets.test.js and
+  # tests/deploy-env-check.test.js. It trips the generic-api-key rule on entropy
+  # alone: it is a well-formed-looking id in a tracked test file, which is exactly
+  # what the surrounding comments forbid (they must never be live credentials).
+  '''^0123456789abcdefTESTfixture$''',
   '''^0{40}$''',
 ]
