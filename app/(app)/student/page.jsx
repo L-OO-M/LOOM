@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
 import { summarizeWeek } from "@/lib/week-activity";
+import { relDay, relShort } from "@/lib/dates";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
@@ -64,30 +65,43 @@ export default async function StudentPage() {
   `;
 
   // Coming up: open contests, upcoming events, scheduled mentor sessions.
-  const contests = await sql`
+  //
+  // The "when" label is computed here, on the server, and passed down as a
+  // string. Formatting it inside the dashboard (a client component, so it also
+  // renders during hydration) is a hydration mismatch waiting to happen: the
+  // Node process and the browser can be on different calendar dates, so
+  // "Today"/"Tomorrow" and even "5 Dec" can disagree between the two renders.
+  // See lib/dates.js.
+  const contests = (
+    await sql`
     SELECT c.id, c.title, c.status, c.starts_at, c.ends_at,
       EXISTS(SELECT 1 FROM contest_registrations r WHERE r.contest_id = c.id AND r.student_id = ${user?.id ?? ""}) AS registered
     FROM contests c
     WHERE c.tenant_id = ${tenant?.id ?? null}::uuid
       AND c.status IN ('open', 'upcoming', 'published')
     ORDER BY c.starts_at ASC NULLS LAST LIMIT 3
-  `;
-  const events = await sql`
+  `
+  ).map((c) => ({ ...c, when: relDay(c.ends_at || c.starts_at) }));
+  const events = (
+    await sql`
     SELECT e.id, e.title, e.event_type, e.starts_at, e.location, e.is_online,
       EXISTS(SELECT 1 FROM event_registrations r WHERE r.event_id = e.id AND r.student_id = ${user?.id ?? ""}) AS registered
     FROM events e
     WHERE e.tenant_id = ${tenant?.id ?? null}::uuid AND e.status IN ('upcoming', 'live')
       AND e.starts_at >= NOW() - INTERVAL '2 hours'
     ORDER BY e.starts_at ASC LIMIT 3
-  `;
-  const sessions = await sql`
+  `
+  ).map((e) => ({ ...e, when: relDay(e.starts_at) }));
+  const sessions = (
+    await sql`
     SELECT s.id, s.scheduled_at, s.status, m.expertise, p.name AS mentor_name
     FROM mentor_sessions s
     LEFT JOIN mentors m ON m.user_id = s.mentor_id
     LEFT JOIN profiles p ON p.user_id = s.mentor_id
     WHERE s.student_id = ${user?.id ?? ""} AND s.scheduled_at >= NOW() - INTERVAL '2 hours'
     ORDER BY s.scheduled_at ASC LIMIT 2
-  `;
+  `
+  ).map((s) => ({ ...s, when: relDay(s.scheduled_at) }));
 
   // Recent work. A roadmap tick is a claim until a lead verifies the evidence,
   // so each row carries its real state and the UI labels it honestly.
@@ -232,7 +246,9 @@ export default async function StudentPage() {
     WHERE is_curated = true AND (tenant_id IS NULL OR tenant_id = ${tenant?.id ?? null}::uuid)
   `;
   const cadence = {
-    workshop: nextWorkshop ? { title: nextWorkshop.title, when: nextWorkshop.starts_at } : null,
+    // `when` is already the rendered label: see the note above the upcoming-event
+  // queries about why a relative date must not be formatted during hydration.
+  workshop: nextWorkshop ? { title: nextWorkshop.title, when: relShort(nextWorkshop.starts_at) } : null,
     contests: openContests?.c ?? 0,
     mentors: mentorCount?.c ?? 0,
     projects: myProjects[0]?.c ?? 0,

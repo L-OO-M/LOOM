@@ -11,21 +11,11 @@ import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { domainArt, eventArt } from "@/lib/artwork";
 import "./student-folio.css";
 
-function relDay(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const now = new Date(); now.setHours(0,0,0,0);
-  const day = new Date(d); day.setHours(0,0,0,0);
-  const diff = Math.round((day - now) / 86400000);
-  if (diff <= 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  if (diff < 7) return d.toLocaleDateString("en-IN", { weekday: "long" });
-  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-}
-function relShort(iso) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-}
+// Date labels ("Today", "Tomorrow", "Saturday", "5 Dec") arrive as `when` on the
+// rows below. They are formatted in the server component (lib/dates.js) and must
+// not be recomputed here: this component also runs during hydration, and the
+// Node process and the browser can disagree about the current date, which React
+// reports as a hydration mismatch (error #418).
 
 const LOOP_STAGES = ["Beginner", "Learn", "Practice", "Build", "Collaborate", "Mentor"];
 
@@ -67,21 +57,21 @@ export function StudentDashboard({
   }));
   const upcoming = [
     ...(sessions || []).map((s) => ({
-      when: relDay(s.scheduled_at),
+      when: s.when,
       title: s.mentor_name ? `Mentor session with ${s.mentor_name}` : "Mentor session",
       sub: s.expertise || "mentorship",
       href: "/student/mentorship",
       art: eventArt("mentoring")
     })),
     ...(contests || []).map((c) => ({
-      when: relDay(c.ends_at || c.starts_at),
+      when: c.when,
       title: c.title,
       sub: c.registered ? "registered / contest" : "contest / registration open",
       href: "/student/contests",
       art: eventArt("contest")
     })),
     ...(events || []).map((e) => ({
-      when: relDay(e.starts_at),
+      when: e.when,
       title: e.title,
       sub: `${e.event_type || "event"}${e.is_online ? " / online" : e.location ? ` / ${e.location}` : ""}`,
       href: "/student/events",
@@ -439,7 +429,7 @@ export function StudentDashboard({
                   </div>
                   <div className="mt-2">
                     {[
-                      [cadence?.workshop?`${cadence.workshop.title} / ${relShort(cadence.workshop.when)}`:"no workshop - propose one","Workshops","/student/events"],
+                      [cadence?.workshop?`${cadence.workshop.title} / ${cadence.workshop.when}`:"no workshop - propose one","Workshops","/student/events"],
                       [`${cadence?.contests??0} open`, "Challenges","/student/contests"],
                       [`${cadence?.mentors??0} guides`, "Mentors","/student/mentorship"],
                       [`${cadence?.projects??0} shipped`, "Projects","/student/projects"],
