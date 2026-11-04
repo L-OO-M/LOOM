@@ -10,6 +10,21 @@ updates:
         update-types:
           - minor
           - patch
+    # Majors are upgrade projects, not reviewable PRs. Only minor+patch are
+    # grouped above, so every major arrives as its own PR and one monthly batch
+    # buries the reviews that are actually actionable: next 16 changes App Router
+    # behaviour we pin deliberately, postgres 4 is a breaking driver major behind
+    # every query, and eslint / vitest / motion majors each need their own pass.
+    # Take a major in a dedicated upgrade sprint (npx npm-check-updates, a branch,
+    # the full gate suite) instead of as a drive-by PR.
+    #
+    # This rule only affects version-update PRs. Security updates are a separate
+    # Dependabot mechanism and still open automatically for an advisory that
+    # affects a dependency, major or not.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
