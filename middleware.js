@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { auth0 } from "@/lib/auth0";
 import { checkSameOrigin, UNSAFE_METHODS } from "@/lib/csrf";
 import { buildCsp, createNonce } from "@/lib/csp";
+import { AUTH_UNAVAILABLE, isTransientAuthError } from "@/lib/auth-errors";
 
 // Paths owned by the Auth0 SDK's middleware (login, logout, OAuth callback,
 // profile, token). They MUST be delegated to the SDK -- treating them as public
@@ -259,8 +260,41 @@ export async function middleware(request) {
   // the token refresh when the access token is near expiry. getSession() alone
   // would keep returning the stale cookie forever.
   const {
-    data: { user }
+    data: { user },
+    error: sessionError
   } = await supabase.auth.getUser();
+
+  if (!user && isTransientAuthError(sessionError)) {
+    // We could not ask who this is, which is not the same answer as "nobody".
+    // Redirecting to /login here signs a valid session out (that is exactly
+    // what failed e2e/student-audit.spec.js), and answering 401 would make an
+    // outage look like a permission problem. Say "try again" instead, and say
+    // it in a way a client can retry on.
+    if (pathname.startsWith("/api/")) {
+      return withCsp(
+        NextResponse.json(
+          {
+            ok: false,
+            error: { code: AUTH_UNAVAILABLE, message: "Session check temporarily unavailable" }
+          },
+          { status: 503, headers: { "retry-after": "2" } }
+        )
+      );
+    }
+    // Script-free on purpose: the CSP nonce is stamped by withCsp, and an inline
+    // <script> or style attribute here would be the one page that violates it.
+    return withCsp(
+      new NextResponse(
+        '<!doctype html><meta charset="utf-8"><title>Temporarily unavailable</title>' +
+          "<h1>We could not verify your session</h1>" +
+          "<p>This is temporary, and you have not been signed out. Reload in a moment.</p>",
+        {
+          status: 503,
+          headers: { "content-type": "text/html; charset=utf-8", "retry-after": "2" }
+        }
+      )
+    );
+  }
 
   if (!user) {
     // API routes get machine-readable 401; pages get a login redirect.
