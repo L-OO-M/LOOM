@@ -197,7 +197,10 @@ and a second review of every auth/tenant diff.
   `FOR UPDATE` lock before calling it. `tests/handover.test.js` covers
   `handoverScope`, `UUID_PATTERN` and the planner reassignment statement — it
   does **not** simulate the promote-then-demote ordering, which is argued from
-  statement order rather than pinned by a test.
+  statement order rather than pinned by a test. Role changes, account-status
+  changes and bulk role writes share `lib/last-admin.js`, which locks every
+  active admin row (`FOR UPDATE`) inside the write transaction before deciding;
+  `tests/last-admin.test.js` and `tests/people-ops.test.js` pin the refusal.
 - [x] Fix `lib/lead.js`, where a vertical lead's workshop fallback became
   `OR TRUE`, and `app/(app)/lead/mous/page.jsx`, which loaded MoUs without
   vertical scope. **Verified:** vertical leads now see their vertical plus
@@ -744,10 +747,10 @@ and a second review of every auth/tenant diff.
 | Operations | Event edit/cancel after publish; volunteer slots and signup roster; task templates/runbooks; admin check-in and attendee export | Recurring events; waitlists; event budget linkage | Full project-management suite |
 | Finance | Sponsor status editing; expense receipt/attachment; payout state; budget-head scoping; budget vs actual | Reconciliation view; approval chains; CSV/accounting export | Payroll, full ledger, invoicing engine |
 | Partnerships / MoUs | Renewal task creation; sponsor-to-MoU link; owner and next action; expiry attention queue | E-signature; partner portal | Full CRM |
-| Marketing / Community | Announcement composer UI (the API exists, but no UI posts announcements); campaign calendar; asset rights/usage metadata; approval before publish | Social scheduling; reusable campaign templates | Marketing automation |
-| HR / People | Onboarding/offboarding checklists; suspend/deactivate; mentor accept/decline/complete; bulk role/department UI; term tracking | Availability editing; mentor matching metrics | Performance reviews, HRIS |
-| Admin / Reporting | Narrative report field; CSV/PDF export; department x month coverage; audit filters/export; unified attention queue | Cross-chapter federation operations | Data warehouse |
-| Succession | One read model combining checklist, brief, transfer flags, and term status; enforce last-admin guard | Automated reminders | - |
+| Marketing / Community | Composer UI shipped (#49: preview, drafts, expiry, publish); campaign calendar; asset rights/usage metadata; approval before publish | Social scheduling; reusable campaign templates | Marketing automation |
+| HR / People | Per-role onboarding/offboarding checklists; suspend/reactivate/close with next-request enforcement; mentor session operations view; confirmed bulk role/department assignment; term tracking | Availability editing; mentor matching metrics | Performance reviews, HRIS |
+| Admin / Reporting | Narrative report field, CSV/PDF export, and department x month coverage shipped (#51); audit filters/export; unified attention queue | Cross-chapter federation operations | Data warehouse |
+| Succession | One read model combining checklist, brief, transfer flags, and term status; enforce last-admin guard (#52 shipped) | Automated reminders | - |
 
 **Every "build now" cell above has an issue with the implementation plan, so
 this section is now a tracker rather than a wish list:** Operations #46,
@@ -757,20 +760,33 @@ data and asks for it.
 
 Specific evidence and gaps:
 
-- Operations: `components/lead/EventOpsBoard.jsx:9-90` has tasks and owners, but
-  no event edit/cancel after publish and no operator UI for volunteer slots.
-- Finance: sponsor status cannot be advanced in the UI; expenses have no
-  receipt or payout state; `proposeExpense` lacks full scope checks.
-- MoUs: records, statuses, expiry, and documents exist; no renewal tasks or
-  sponsor link.
-- Marketing: `app/api/announcements/route.js` exists, but the only consumer is
-  `components/student/OrgPanels.jsx:30`; there is no composer.
-- HR: role/term assignment exists; no onboarding/offboarding checklist,
-  suspension path, or mentor-session lifecycle.
-- Reporting: submitted department reports and JSON export exist; no narrative
-  editing, CSV/PDF, or coverage view.
-- Succession: handover checklist and brief exist in separate views; no unified
-  "what is still untransferred" record.
+- Operations: `components/lead/EventOpsBoard.jsx:9-90` has tasks and owners;
+  event edit/cancel after publish now lives on the shared event ops page and
+  fires notifications when the time, place, or status materially changes.
+  Volunteer slots reuse the 019 tables through `/api/volunteers`, with an
+  operator roster and attendee CSV export on the same page (issue #46).
+- Finance: sponsor status can be advanced from the admin ledger (VLs scoped by
+  vertical through the API); expenses enforce budget-head ownership, carry a
+  receipt, and move approved → paid with audited paid_by/paid_at (issue #47).
+- MoUs: records, statuses, expiry, and documents exist; an expiring agreement
+  now carries an owned renewal task with next action and due date, and can link
+  to its sponsorship row. Closing records who/when (issue #48).
+- Marketing: `/lead/announcements` and `/admin/announcements` compose with a
+  student-eye preview, department/chapter audience, optional expiry, and a
+  draft → published transition. Drafts are excluded from student reads and
+  publish fans out through the existing notification path (issue #49).
+- HR: role/term assignment, per-role checklists, suspension (next-request
+  enforcement), mentor session operations, and confirmed bulk role/department
+  assignment shipped (#50).
+- Reporting: monthly reports carry a 4000-character lead narrative that locks on
+  submit; JSON, CSV and PDF all render from the same `loadReportExport` payload
+  (figures cannot disagree), and `/admin/reports` shows the department x month
+  coverage grid with missing months explicit (#51).
+- Succession: `lib/succession.js` now returns one outstanding-first queue that
+  merges the checklist (with a named owner per item), handover briefs, transfer
+  flags and leadership-term expiries; `/admin/handover` renders it and
+  `GET /api/admin/succession` exposes the same read model (#52). Role, status
+  and bulk demotions share a transaction-scoped last-active-admin guard.
 
 **Do not build yet:** payroll, full accounting ledger, performance reviews,
 marketing automation, public partner portal, generic workflow builder, asset
@@ -783,7 +799,7 @@ inventory/checkout.
 | Priority | Workflow | Why | Status |
 |---|---|---|---|
 | P0 | Contest judging: submission status/score/placement/judge/feedback; winner notification | The loop dead-ends at submission and promises points that cannot exist | **Shipped.** `load/migrations/057_contest_judging.sql` adds status/score/feedback/judged_by/judged_at; `app/api/admin/contests/judge/route.js` records a judgement. |
-| P0 | Event attendance writes `event_attended`; lead check-in surface | Copy promises standing that is never scored | **Scoring shipped**, `app/api/admin/events/[id]/attendance/route.js:64`. Operator/roster surface still open — issue #46. |
+| P0 | Event attendance writes `event_attended`; lead check-in surface | Copy promises standing that is never scored | **Shipped** (`app/api/admin/events/[id]/attendance/route.js:64`), with event edit/cancel notifications, volunteer roster, and attendee CSV export on the shared ops page — issue #46. |
 | P0 | Accepted answer writes `solution_accepted`; revoke on unsolve | Disclosed leaderboard row is unreachable | **Shipped**, including revoke: dedupe clears at `app/api/community/threads/[id]/route.js:140`, grant at `:148`; pinned by `tests/forum-solution-evidence.test.js`. |
 | P0 | Mentor session lifecycle: accept, schedule, complete, cancel; mentor view | Sessions never leave `requested`; notifications link to an admin-only page | Open — issue #40. |
 | P0 | One `nextNode` and verified-only progress; per-domain milestone denominator | Dashboard, roadmap page, and API give three different answers | Open — issues #38 (next step) and #39 (provisional claims). Mentor denominator is #37. |
@@ -811,9 +827,10 @@ Additional technical gaps:
 - The dashboard "next step" ignores prerequisites and domain; the roadmap page
   treats optional edges as required; the API only checks required edges —
   **still true**, issue #38.
-- `PLANNER_ENABLED = false` hard-disables planner and ICS while docs advertise
-  them — **still true** (`lib/feature-flags.js:20`), issue #45. Pick ship or
-  withdraw; do not leave the copy promising it.
+- `PLANNER_ENABLED = false` hard-disables planner and ICS — **withdrawn**,
+  issue #45. The flag stays as the record (and the routes still return 404);
+  no nav, public copy, or student-facing surface advertises a planner or an ICS
+  feed. Re-enabling is a future ship decision, not a hidden promise.
 - Admin projects is read-only; verification actually lives in `/admin/ranking` —
   **still true**, folded into issue #41.
 - Admin and lead contests are the same feature on different endpoints —
@@ -1049,8 +1066,11 @@ Also:
   reply as the answer records `solution_accepted` (revoking the previous one) in
   `app/api/community/threads/[id]/route.js`; pinned by
   `tests/forum-solution-evidence.test.js`.
-- [ ] Announcement composer, volunteer roster, finance/MoU lifecycle.
-  **Open — issues #49 (composer), #46 (roster), #47 (finance), #48 (MoUs).**
+- [x] Announcement composer.
+  **Verified:** `/lead/announcements` + `/admin/announcements` preview, save
+  drafts, publish through `POST /api/announcements`, and promote a draft with
+  `PATCH /api/announcements/[id]`; student reads exclude drafts and expired
+  rows. Pinned by `tests/announcement-composer.test.js` (issue #49).
 - [ ] AppShell layout, single mutation helper, workspace-aware settings,
   mobile admin nav.
   **Partially done:** workspace-aware settings and the derived admin/lead mobile
@@ -1077,10 +1097,16 @@ Also:
   `docs/15` §4d, but the drill itself is deferred with the paid-service hold.
   This is the one deferred item that carries real data-loss risk — do it before
   the chapter holds data you cannot re-create.**
-- [ ] Onboarding/offboarding checklists and unified handover view.
-  **Open — issues #50 (people ops) and #52 (handover read model + last-admin guard).**
-- [ ] Roadmap content refresh and per-domain milestones.
-  **Open — issue #44.**
+- [x] Onboarding/offboarding checklists, suspension, mentor operations, and confirmed bulk assignment.
+  **Verified (issue #50):** `/admin/students/[id]` owns both checklists and the
+  account-status panel; closing requires every offboarding item; `/admin/mentors`
+  filters sessions by state; bulk changes use an explicit review step. Pinned by
+  `tests/people-ops.test.js`, `tests/people-checklist-api.test.js`, and the bulk
+  route tests. Unified handover read model + last-admin guard shipped as #52
+  (`lib/succession.js`, `lib/last-admin.js`).
+- [x] Roadmap content refresh and per-domain milestones.
+  **Verified (issue #44):** every embedded roadmap resource has a real URL and
+  `tests/roadmap-resource-coverage.test.js` guards it.
 
 ### Phase 4 - only with explicit approval
 
