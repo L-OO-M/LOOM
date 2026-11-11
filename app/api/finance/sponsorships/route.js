@@ -8,7 +8,8 @@ const createSchema = z.object({
   name: z.string().min(2).max(200),
   amount: z.number().min(0).max(1000000000).default(0),
   status: z.enum(["pipeline", "committed", "received"]).default("pipeline"),
-  contact: z.string().max(300).nullable().optional()
+  contact: z.string().max(300).nullable().optional(),
+  vertical: z.enum(["technical", "non_technical"]).nullable().optional()
 });
 
 const updateSchema = z.object({
@@ -16,25 +17,34 @@ const updateSchema = z.object({
   name: z.string().min(2).max(200).optional(),
   amount: z.number().min(0).max(1000000000).optional(),
   status: z.enum(["pipeline", "committed", "received"]).optional(),
-  contact: z.string().max(300).nullable().optional()
+  contact: z.string().max(300).nullable().optional(),
+  vertical: z.enum(["technical", "non_technical"]).nullable().optional()
 });
 
-// Sponsorship pipeline: admin only, both create and update.
+// Sponsorship pipeline: admins edit everything; vertical leads may edit rows
+// inside their own vertical (never society-wide rows or another vertical).
 export async function POST(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  if (!isAdmin({ role: profile.role })) return fail("FORBIDDEN", "Admin only", 403);
+  const admin = isAdmin({ role: profile.role });
+  if (!admin && profile.role !== "vertical_lead") {
+    return fail("FORBIDDEN", "Only admins and vertical leads can create sponsorships", 403);
+  }
   let body;
   try {
     body = createSchema.parse(await request.json());
   } catch (e) {
     return validationError(e);
   }
+  if (!admin && body.vertical !== profile.vertical) {
+    return fail("FORBIDDEN", "Vertical leads must create sponsorships inside their own vertical", 403);
+  }
   const [row] = await sql`
-    INSERT INTO sponsorships (tenant_id, name, amount, status, contact)
-    VALUES (${tenant?.id ?? null}, ${body.name}, ${body.amount}, ${body.status}, ${body.contact || null})
+    INSERT INTO sponsorships (tenant_id, name, amount, status, contact, vertical, updated_by)
+    VALUES (${tenant?.id ?? null}, ${body.name}, ${body.amount}, ${body.status},
+      ${body.contact || null}, ${body.vertical ?? null}, ${user.id})
     RETURNING *
   `;
   await writeAudit({
@@ -49,12 +59,18 @@ export async function PUT(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  if (!isAdmin({ role: profile.role })) return fail("FORBIDDEN", "Admin only", 403);
+  const admin = isAdmin({ role: profile.role });
+  if (!admin && profile.role !== "vertical_lead") {
+    return fail("FORBIDDEN", "Only admins and vertical leads can update sponsorships", 403);
+  }
   let body;
   try {
     body = updateSchema.parse(await request.json());
   } catch (e) {
     return validationError(e);
+  }
+  if (!admin && body.vertical && body.vertical !== profile.vertical) {
+    return fail("FORBIDDEN", "You can only move sponsorships inside your own vertical", 403);
   }
   const tid = tenant?.id ?? null;
   const [row] = await sql`
@@ -62,8 +78,12 @@ export async function PUT(request) {
       name = COALESCE(${body.name ?? null}, name),
       amount = COALESCE(${body.amount ?? null}, amount),
       status = COALESCE(${body.status ?? null}, status),
-      contact = COALESCE(${body.contact ?? null}, contact)
+      contact = COALESCE(${body.contact ?? null}, contact),
+      vertical = COALESCE(${body.vertical ?? null}, vertical),
+      updated_at = now(),
+      updated_by = ${user.id}
     WHERE id = ${body.id} AND tenant_id = ${scope(tid)}::uuid
+      AND (${admin ? sql`TRUE` : sql`vertical = ${profile.vertical}`})
     RETURNING *
   `;
   if (!row) return fail("NOT_FOUND", "Sponsorship not found", 404);

@@ -1,9 +1,12 @@
 import { scope } from "@/lib/tenant-scope";
 import Link from "next/link";
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Check, X, Plus } from "lucide-react";
+import { Check, X, Plus, BadgeCheck } from "lucide-react";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { validateUpload, buildStoragePath } from "@/lib/media";
+import { uploadObject } from "@/lib/storage";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { ExpenseStatusDonut, SponsorshipPipelineBars, MonthlyExpenseBars } from "@/components/admin/FinanceCharts";
@@ -26,21 +29,110 @@ async function decideExpense(formData) {
   revalidatePath("/admin/finance");
 }
 
+async function markExpensePaid(formData) {
+  "use server";
+  const ctx = await getRequestContext();
+  if (ctx.error || ctx.profile.role !== "admin") return;
+  const { sql, user, tenant } = ctx;
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  const [row] = await sql`
+    UPDATE expenses SET status = 'paid', paid_at = now(), paid_by = ${user.id}
+    WHERE id = ${id} AND status = 'approved'
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+    RETURNING id
+  `;
+  if (!row) return;
+  await writeAudit({
+    sql, actorId: user.id, tenantId: tenant?.id, action: "expense_paid",
+    resource: "expense", resourceId: id, after: { status: "paid" }
+  });
+  revalidatePath("/admin/finance");
+}
+
+async function updateSponsorship(formData) {
+  "use server";
+  const ctx = await getRequestContext();
+  if (ctx.error || ctx.profile.role !== "admin") return;
+  const { sql, user, tenant } = ctx;
+  const id = String(formData.get("id") || "");
+  const status = String(formData.get("status") || "");
+  if (!id || !["pipeline", "committed", "received"].includes(status)) return;
+  const [row] = await sql`
+    UPDATE sponsorships SET status = ${status}, updated_at = now(), updated_by = ${user.id}
+    WHERE id = ${id} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+    RETURNING id, status
+  `;
+  if (!row) return;
+  await writeAudit({
+    sql, actorId: user.id, tenantId: tenant?.id, action: "updated_sponsorship",
+    resource: "sponsorship", resourceId: id, after: { status }
+  });
+  revalidatePath("/admin/finance");
+  revalidatePath("/student/sponsors");
+}
+
 async function proposeExpense(formData) {
   "use server";
   const ctx = await getRequestContext();
   if (ctx.error || !["dept_lead", "vertical_lead", "admin"].includes(ctx.profile.role)) return;
-  const { sql, user, tenant } = ctx;
+  const { sql, user, tenant, profile } = ctx;
   const amount = Number(formData.get("amount"));
   const note = String(formData.get("note") || "").slice(0, 1000);
   const headId = String(formData.get("headId") || "") || null;
   const departmentId = String(formData.get("departmentId") || "") || null;
+  const receipt = formData.get("receipt");
   if (!Number.isFinite(amount) || amount <= 0 || note.length < 3) return;
+
+  const [head] = headId
+    ? await sql`SELECT id, vertical, department_id FROM budget_heads WHERE id = ${headId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`
+    : [];
+  if (headId && !head) return;
+  const targetDepartmentId = head?.department_id || departmentId;
+  if (head?.department_id && departmentId && head.department_id !== departmentId) return;
+  if (profile.role !== "admin" && !targetDepartmentId) return;
+  if (profile.role === "vertical_lead") {
+    if (!targetDepartmentId) return;
+    const [dept] = await sql`SELECT vertical FROM departments WHERE id = ${targetDepartmentId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
+    if (!dept || dept.vertical !== profile.vertical) return;
+  } else if (profile.role !== "admin") {
+    const leads = (profile.memberships || []).some(
+      (m) => m.department_id === targetDepartmentId && m.level === "dept_lead"
+    );
+    if (!leads) return;
+  }
+
+  const id = randomUUID();
+  let receiptMeta = null;
+  if (receipt && typeof receipt !== "string" && receipt.size > 0) {
+    const check = validateUpload({ name: receipt.name, mime: receipt.type, size: receipt.size });
+    if (!check.ok) return;
+    const path = buildStoragePath({
+      scope: "finance",
+      tenantId: tenant?.id,
+      entityId: id,
+      fileId: randomUUID(),
+      version: 1,
+      fileName: receipt.name
+    });
+    await uploadObject({
+      path,
+      body: Buffer.from(await receipt.arrayBuffer()),
+      contentType: check.mime
+    });
+    receiptMeta = { path, name: String(receipt.name).slice(0, 200), mime: check.mime, size: receipt.size };
+  }
+
   await sql`
-    INSERT INTO expenses (tenant_id, head_id, department_id, amount, note, status, created_by)
-    VALUES (${tenant?.id ?? null}, ${headId}, ${departmentId}, ${amount}, ${note}, 'proposed', ${user.id})
+    INSERT INTO expenses
+      (id, tenant_id, head_id, department_id, amount, note, status, created_by,
+       receipt_path, receipt_name, receipt_mime, receipt_size, receipt_uploaded_by)
+    VALUES
+      (${id}::uuid, ${tenant?.id ?? null}, ${headId}, ${targetDepartmentId}, ${amount}, ${note}, 'proposed', ${user.id},
+       ${receiptMeta?.path ?? null}, ${receiptMeta?.name ?? null}, ${receiptMeta?.mime ?? null},
+       ${receiptMeta?.size ?? null}, ${receiptMeta ? user.id : null})
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "proposed_expense", resource: "expense", resourceId: null, after: { amount, note } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "proposed_expense", resource: "expense", resourceId: id, after: { amount, note } });
   revalidatePath("/admin/finance");
 }
 
@@ -52,11 +144,20 @@ async function addBudgetHead(formData) {
   const name = String(formData.get("name") || "").slice(0, 200);
   const allocated = Number(formData.get("allocated") || 0);
   const vertical = String(formData.get("vertical") || "") || null;
+  const departmentId = String(formData.get("departmentId") || "") || null;
   if (name.length < 2 || !Number.isFinite(allocated) || allocated < 0) return;
   if (vertical && !["technical", "non_technical"].includes(vertical)) return;
+  if (departmentId) {
+    const [dept] = await sql`
+      SELECT id FROM departments
+      WHERE id = ${departmentId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+      LIMIT 1
+    `;
+    if (!dept) return;
+  }
   const [row] = await sql`
-    INSERT INTO budget_heads (tenant_id, name, allocated, vertical)
-    VALUES (${tenant?.id ?? null}, ${name}, ${allocated}, ${vertical})
+    INSERT INTO budget_heads (tenant_id, name, allocated, vertical, department_id)
+    VALUES (${tenant?.id ?? null}, ${name}, ${allocated}, ${vertical}, ${departmentId})
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "created_budget_head", resource: "budget_head", resourceId: row.id, after: { name, allocated } });
@@ -93,17 +194,18 @@ export default async function AdminFinancePage() {
   const [stats] = await sql`
     SELECT
       (SELECT COALESCE(SUM(allocated),0)::numeric FROM budget_heads WHERE tenant_id = ${scope(tid)}::uuid) AS allocated,
-      (SELECT COALESCE(SUM(amount),0)::numeric FROM expenses WHERE status = 'approved' AND tenant_id = ${scope(tid)}::uuid) AS spent,
+      (SELECT COALESCE(SUM(amount),0)::numeric FROM expenses WHERE status IN ('approved','paid') AND tenant_id = ${scope(tid)}::uuid) AS spent,
       (SELECT COUNT(*)::int FROM expenses WHERE status = 'proposed' AND tenant_id = ${scope(tid)}::uuid) AS pending,
       (SELECT COALESCE(SUM(amount),0)::numeric FROM sponsorships WHERE status = 'received' AND tenant_id = ${scope(tid)}::uuid) AS sponsorships
   `;
 
   const heads = await sql`
-    SELECT h.*,
+    SELECT h.*, d.name AS department_name,
       COALESCE((SELECT SUM(e.amount) FROM expenses e
-        WHERE e.head_id = h.id AND e.status = 'approved'
+        WHERE e.head_id = h.id AND e.status IN ('approved','paid')
           AND e.tenant_id = ${scope(tid)}::uuid), 0)::numeric AS spent
     FROM budget_heads h
+    LEFT JOIN departments d ON d.id = h.department_id
     WHERE h.tenant_id = ${scope(tid)}::uuid
     ORDER BY h.name ASC
   `;
@@ -132,6 +234,7 @@ export default async function AdminFinancePage() {
   const expenseStatus = [
     { name: "proposed", value: expenses.filter((e) => e.status === "proposed").length },
     { name: "approved", value: expenses.filter((e) => e.status === "approved").length },
+    { name: "paid", value: expenses.filter((e) => e.status === "paid").length },
     { name: "rejected", value: expenses.filter((e) => e.status === "rejected").length },
   ];
   const sponsorshipPipeline = ["pipeline", "committed", "received"].map((s) => ({
@@ -154,7 +257,6 @@ export default async function AdminFinancePage() {
   }
   const monthlySpend = [...monthlyMap.values()];
   const inr = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
-  const sponsorTag = { pipeline: "", committed: "aled-tag--warn", received: "aled-tag--success" };
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -232,13 +334,31 @@ export default async function AdminFinancePage() {
           )}
 
           {decided.length > 0 && (
-            <div className="aled-hidden">
-              <p className="aled-meta">Recent decisions · cap 10</p>
+            <div>
+              <p className="aled-meta">Recent decisions — cap 10</p>
               <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0 }}>
                 {decided.slice(0, 10).map((e) => (
                   <li key={e.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
-                    <span className="aled-sub" style={{ margin: 0 }}>{inr(e.amount)} · {e.note}</span>
-                    <span className={`aled-tag ${e.status === "approved" ? "aled-tag--success" : "aled-tag--danger"}`}>{e.status}</span>
+                    <div className="aled-copy">
+                      <span className="aled-title">{inr(e.amount)} — {e.note}</span>
+                      <p className="aled-sub">
+                        {e.status === "paid" && e.paid_at
+                          ? `Paid ${new Date(e.paid_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}`
+                          : e.status}
+                        {e.receipt_name ? ` / receipt: ${e.receipt_name}` : ""}
+                      </p>
+                    </div>
+                    <div className="aled-actions">
+                      <span className={`aled-tag ${e.status === "approved" || e.status === "paid" ? "aled-tag--success" : "aled-tag--danger"}`}>{e.status}</span>
+                      {e.status === "approved" && (
+                        <form action={markExpensePaid}>
+                          <input type="hidden" name="id" value={e.id} />
+                          <button className="btn-ink inline-flex items-center gap-1 !py-1.5 text-xs">
+                            <BadgeCheck size={12} aria-hidden="true" /> Mark paid
+                          </button>
+                        </form>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -266,6 +386,12 @@ export default async function AdminFinancePage() {
                 <option value="non_technical">Non-technical</option>
               </select>
             </label>
+            <label>Owning department
+              <select name="departmentId" className="aled-field" defaultValue="">
+                <option value="">Society-wide / no department</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </label>
             <button className="btn-ink inline-flex items-center justify-center gap-1.5" style={{ alignSelf: "end" }}>
               <Plus size={14} aria-hidden="true" /> Add head
             </button>
@@ -285,8 +411,9 @@ export default async function AdminFinancePage() {
                     <div className="aled-copy">
                       <span className="aled-title">{h.name}</span>
                       <p className="aled-sub">
-                        {h.vertical || "society"} · {inr(allocated)} allocated · {inr(spent)} spent ·{" "}
+                        {h.vertical || "society"} - {inr(allocated)} allocated - {inr(spent)} spent -{" "}
                         <span style={{ color: left < 0 ? "var(--danger)" : "var(--text-muted)" }}>{inr(left)} left</span>
+                        {h.department_name ? ` - ${h.department_name}` : ""}
                       </p>
                       <span className="aled-meter" aria-hidden="true">
                         <span className={pct > 90 ? "is-danger" : ""} style={{ width: `${pct}%` }} />
@@ -316,7 +443,17 @@ export default async function AdminFinancePage() {
                     <span className="aled-title">{s.name}</span>
                     <p className="aled-sub">{inr(s.amount)}{s.contact ? ` · ${s.contact}` : ""}</p>
                   </div>
-                  <span className={`aled-tag ${sponsorTag[s.status] || ""}`}>{s.status}</span>
+                  <form action={updateSponsorship} className="aled-actions">
+                    <input type="hidden" name="id" value={s.id} />
+                    <select name="status" defaultValue={s.status} aria-label={`Status for ${s.name}`} className="aled-field" style={{ width: "auto" }}>
+                      <option value="pipeline">pipeline</option>
+                      <option value="committed">committed</option>
+                      <option value="received">received</option>
+                    </select>
+                    <button className="rounded-lg border px-3 py-1.5 text-xs font-semibold" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+                      Save
+                    </button>
+                  </form>
                 </li>
               ))}
             </ul>
@@ -365,6 +502,9 @@ export default async function AdminFinancePage() {
                 <option value="">Society-wide</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
+            </label>
+            <label>Receipt (optional)
+              <input name="receipt" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.txt" className="aled-field" />
             </label>
             <button className="btn-ink !py-2 text-sm" style={{ gridColumn: "1 / -1" }}>Propose expense</button>
           </form>

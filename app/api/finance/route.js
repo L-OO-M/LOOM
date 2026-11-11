@@ -23,7 +23,7 @@ export async function GET() {
   const heads = await sql`
     SELECT h.*,
       COALESCE((SELECT SUM(e.amount) FROM expenses e
-        WHERE e.head_id = h.id AND e.status = 'approved'
+        WHERE e.head_id = h.id AND e.status IN ('approved','paid')
           AND e.tenant_id = ${scope(tid)}::uuid), 0)::numeric AS spent
     FROM budget_heads h
     WHERE h.tenant_id = ${scope(tid)}::uuid

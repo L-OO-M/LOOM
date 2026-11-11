@@ -40,6 +40,7 @@ export const CONNECT_TABS = [
   { href: "/student/mentorship", label: "Mentors" },
   { href: "/student/help", label: "Peer help" },
   { href: "/student/community", label: "Community" },
+  { href: "/student/sponsors", label: "Sponsors" },
   { href: "/student/events", label: "Events" }
 ];
 
