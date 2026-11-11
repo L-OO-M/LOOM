@@ -45,6 +45,13 @@ test.describe("LOOM public pages", () => {
     await open(page, "/admin");
     await expect(page).toHaveURL(/\/login\?redirect=%2Fadmin/);
   });
+
+  test("account status page explains a paused account without a session", async ({ page }) => {
+    const res = await open(page, "/account-status?state=suspended");
+    expect(res?.status()).toBe(200);
+    await expect(page.locator("h1")).toContainText("suspended");
+    await expect(page.getByRole("link", { name: "Sign out" })).toBeVisible();
+  });
 });
 
 test.describe("LOOM public site", () => {

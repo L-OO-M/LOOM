@@ -36,6 +36,10 @@ const publicPaths = [
   "/login",
   "/register",
   "/setup",
+  // A suspended/deactivated member still has a valid session cookie. The app
+  // layouts send them here, so this page must render without a session-scoped
+  // request context (it is noindex and shows only the generic status copy).
+  "/account-status",
   // Sign-out is a POST from the app chrome. It must reach its handler without a
   // session check: its entire job is to clear the session(s), and the middleware
   // gate would otherwise 307 it to /login before it ever ran.

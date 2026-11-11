@@ -4,6 +4,7 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { homeForRole } from "@/lib/auth";
 import { normalizeTier, rosterTierIndex, filterIdsByTier } from "@/lib/tiers";
+import { assertAdminFloor, isLastAdminError } from "@/lib/last-admin";
 
 export async function GET(request) {
   const ctx = await getRequestContext({ adminOnly: true });
@@ -103,13 +104,7 @@ export async function PATCH(request) {
   if (body.userId === user.id) {
     return fail("FORBIDDEN", "You cannot change your own role", 403);
   }
-  if (target.role === "admin" && body.role !== "admin") {
-    const [{ admins = 0 } = {}] = await sql`
-      SELECT COUNT(*)::int AS admins FROM profiles
-      WHERE role = 'admin' AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
-    `;
-    if (admins <= 1) return fail("FORBIDDEN", "Cannot remove the last admin in this chapter", 403);
-  }
+  const removingAdminSeat = target.role === "admin" && body.role !== "admin";
 
   const termStart = ROTATING_ROLES.has(body.role) || body.role === "core"
     ? new Date().toISOString().slice(0, 10)
@@ -134,7 +129,12 @@ export async function PATCH(request) {
   // Single transaction: profiles + memberships + departments + audit + notify.
   // Prevents partial-state gaps (role updated but membership not). Tenant-scoped
   // target was already verified above; all writes use that tenant.
-  const updated = await sql.begin(async (tx) => {
+  let updated;
+  try {
+    updated = await sql.begin(async (tx) => {
+    if (removingAdminSeat) {
+      await assertAdminFloor(tx, { tenantId: tenant?.id, removingUserIds: [body.userId] });
+    }
     const [up] = await tx`
       UPDATE profiles SET role = ${body.role},
         vertical = ${body.role === "vertical_lead" ? body.vertical : null},
@@ -220,6 +220,10 @@ export async function PATCH(request) {
       after: { role: body.role, vertical: body.role === "vertical_lead" ? body.vertical : null, departmentId, termStart, termEnd },
     });
     return up;
-  });
+    });
+  } catch (error) {
+    if (isLastAdminError(error)) return fail("FORBIDDEN", "Cannot remove the last admin in this chapter", 403);
+    throw error;
+  }
   return ok({ profile: updated });
 }

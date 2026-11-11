@@ -12,6 +12,8 @@ export default async function LeadLayout({ children }) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/lead");
   if (ctx.error === "CONSENT_REQUIRED") redirect("/consent");
+  if (ctx.error === "ACCOUNT_SUSPENDED") redirect("/account-status?state=suspended");
+  if (ctx.error === "ACCOUNT_DEACTIVATED") redirect("/account-status?state=deactivated");
   if (ctx.error) redirect("/login?redirect=/lead");
   if (!["dept_lead", "vertical_lead", "admin"].includes(ctx.profile.role)) redirect("/student");
   return <>{children}</>;

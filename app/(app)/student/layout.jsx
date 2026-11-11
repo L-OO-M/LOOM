@@ -16,6 +16,8 @@ export default async function StudentLayout({ children }) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/student");
   if (ctx.error === "CONSENT_REQUIRED") redirect("/consent");
+  if (ctx.error === "ACCOUNT_SUSPENDED") redirect("/account-status?state=suspended");
+  if (ctx.error === "ACCOUNT_DEACTIVATED") redirect("/account-status?state=deactivated");
   if (ctx.error === "PROFILE_NOT_FOUND") redirect("/login?redirect=/student");
 
   // First-run gate: a student who has not finished onboarding has no domain, no

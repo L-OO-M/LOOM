@@ -24,7 +24,11 @@ function makeDb({ failOn = null, profiles = ["u1", "u2"] } = {}) {
     if (/FROM platform_admins/.test(text)) return [];
     if (/COUNT\(\*\)::int AS admins/.test(text)) return [{ admins: 2 }];
     if (/COUNT\(\*\)::int AS c FROM profiles/.test(text)) return [{ c: 0 }];
-    if (/FROM departments/.test(text)) return [{ id: values[0] }];
+    if (/SELECT user_id FROM profiles/.test(text)) {
+      const ids = values.find((v) => Array.isArray(v)) || [];
+      return ids.filter((id) => state.profiles[id]).map((id) => ({ user_id: id }));
+    }
+    if (/FROM departments/.test(text)) return [{ id: values[0], name: "Web Development" }];
 
     if (/UPDATE profiles SET role/.test(text)) {
       const ids = values.find((v) => Array.isArray(v)) || [];
@@ -144,5 +148,26 @@ describe("POST /api/admin/students/bulk", () => {
     expect(db.state.profiles.u1.role).toBe("student");
     expect(db.state.profiles.u2.role).toBe("student");
     expect(db.state.notifications).toHaveLength(0);
+  });
+
+  it("assigns department membership without changing any profile role", async () => {
+    const db = makeDb({ profiles: ["u1", "u2"] });
+    const response = await post({
+      mode: "department",
+      userIds: ["u1", "u2"],
+      departmentId: "11111111-1111-4111-8111-111111111111",
+      membershipLevel: "core",
+      confirm: true
+    }, db);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.updated).toBe(2);
+    expect(body.data.level).toBe("core");
+    expect(db.state.begins).toBe(1);
+    expect(db.state.profiles.u1.role).toBe("student");
+    expect(db.state.profiles.u2.role).toBe("student");
+    expect(db.state.notifications).toHaveLength(2);
+    expect(db.state.statements.some((s) => /INSERT INTO department_memberships/.test(s))).toBe(true);
   });
 });
