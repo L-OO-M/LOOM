@@ -5,6 +5,7 @@ import { FileText, Download, Search } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
+import { loadReportExport } from "@/lib/report-export";
 import "../_components/admin-ledger.css";
 
 const PAGE_SIZE = 25;
@@ -70,6 +71,13 @@ export default async function AdminReportsPage({ searchParams }) {
     LIMIT ${PAGE_SIZE} OFFSET ${safeOffset}
   `;
 
+  const reportExport = await loadReportExport({
+    sql,
+    tenantId: tid,
+    scopeParam: "semester",
+    viewer: { role: "admin", vertical: null }
+  });
+
   const activeFilters = [q && `search: ${q}`, dept && `department: ${dept}`, month && `month: ${month}`].filter(Boolean);
 
   function pageHref(nextPage) {
@@ -105,22 +113,82 @@ export default async function AdminReportsPage({ searchParams }) {
           }
         />
 
-        <WorkspaceSection index="01" title="Export" note="Draft -> submitted -> exported. Exports include submitted reports only." action={<span className="aled-meta">JSON</span>}>
-          <div className="aled-panel" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem" }}>
+        <WorkspaceSection index="01" title="Export" note="Draft -> submitted -> exported. Exports include submitted reports only; every format is rendered from the same query." action={<span className="aled-meta">JSON / CSV / PDF</span>}>
+          <div className="aled-panel" style={{ display: "grid", gap: "0.75rem" }}>
             <span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}>
-              <Download size={12} style={{ color: "var(--accent)" }} aria-hidden="true" /> Export submitted reports
+              <Download size={12} style={{ color: "var(--accent)" }} aria-hidden="true" /> Export submitted reports / narrative / coverage
             </span>
-            <span className="aled-actions" style={{ marginLeft: "auto" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.6rem" }}>
+              <span className="aled-meta">Semester</span>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
-              <a href="/api/reports/export?scope=semester" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
-                <Download size={12} aria-hidden="true" /> Semester
+              <a href="/api/reports/export?scope=semester&format=csv" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
+                <Download size={12} aria-hidden="true" /> CSV
               </a>
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
-              <a href="/api/reports/export?scope=annual" className="aled-tag aled-tag--accent" style={{ padding: "0.4rem 0.6rem" }}>
-                <Download size={12} aria-hidden="true" /> Annual
+              <a href="/api/reports/export?scope=semester&format=pdf" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
+                <Download size={12} aria-hidden="true" /> PDF
               </a>
-            </span>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
+              <a href="/api/reports/export?scope=semester&format=json" className="aled-tag aled-tag--accent" style={{ padding: "0.4rem 0.6rem" }}>
+                JSON
+              </a>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.6rem" }}>
+              <span className="aled-meta">Annual</span>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
+              <a href="/api/reports/export?scope=annual&format=csv" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
+                <Download size={12} aria-hidden="true" /> CSV
+              </a>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
+              <a href="/api/reports/export?scope=annual&format=pdf" className="btn-ink inline-flex items-center gap-1.5 !py-1.5 text-xs">
+                <Download size={12} aria-hidden="true" /> PDF
+              </a>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file downloads must stay raw <a>; Link would client-navigate instead of downloading */}
+              <a href="/api/reports/export?scope=annual&format=json" className="aled-tag aled-tag--accent" style={{ padding: "0.4rem 0.6rem" }}>
+                JSON
+              </a>
+            </div>
           </div>
+        </WorkspaceSection>
+
+        <WorkspaceSection
+          index="02"
+          title="Coverage"
+          note="Department x month across the semester export window. A missing month is shown, not inferred from an absent row."
+          action={<span className="aled-meta">{reportExport.totals.missing_months} missing</span>}
+        >
+          {reportExport.coverage.length === 0 ? (
+            <WorkspaceEmpty title="No active departments" body="Coverage needs at least one active department to chart." />
+          ) : (
+            <div className="aled-panel" style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}>
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ textAlign: "left", padding: "0.4rem 0.5rem", fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 600 }}>Department</th>
+                    {reportExport.months.map((m) => (
+                      <th key={m} scope="col" style={{ textAlign: "center", padding: "0.4rem 0.5rem", fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                        {new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "2-digit", timeZone: "UTC" })}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportExport.coverage.map((row) => (
+                    <tr key={row.department_id} style={{ borderTop: "1px solid var(--line)" }}>
+                      <th scope="row" style={{ textAlign: "left", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 500, color: "var(--text)" }}>{row.department_name}</th>
+                      {row.months.map((cell) => (
+                        <td key={cell.month} style={{ textAlign: "center", padding: "0.5rem" }}>
+                          <span className={`aled-tag ${cell.status === "submitted" ? "aled-tag--success" : "aled-tag--warn"}`}>
+                            {cell.status === "submitted" ? "filed" : "missing"}
+                          </span>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </WorkspaceSection>
 
         <form method="get" className="aled-toolbar" role="search">
@@ -145,7 +213,7 @@ export default async function AdminReportsPage({ searchParams }) {
           </div>
         )}
 
-        <WorkspaceSection index="02" title="Submitted reports" note="Each row shows the department, month, and the headline numbers recorded at submission." action={<span className="aled-meta">{reports.length} shown / {total} matched</span>}>
+        <WorkspaceSection index="03" title="Submitted reports" note="Each row shows the department, month, and the headline numbers recorded at submission." action={<span className="aled-meta">{reports.length} shown / {total} matched</span>}>
           {reports.length === 0 ? (
             <WorkspaceEmpty
               title={q || dept || month ? "No reports match these filters" : "No submitted reports yet"}
@@ -165,6 +233,13 @@ export default async function AdminReportsPage({ searchParams }) {
                       {r.draft?.contributions_total ?? 0} contributions / {r.draft?.events_held ?? 0} events / {r.draft?.new_members ?? 0} new members
                       {r.submitted_by_name ? ` / by ${r.submitted_by_name}` : ""}
                     </p>
+                    {r.narrative ? (
+                      <p className="aled-sub" style={{ marginTop: "0.2rem" }}>
+                        {r.narrative.length > 240 ? `${r.narrative.slice(0, 240)}...` : r.narrative}
+                      </p>
+                    ) : (
+                      <p className="aled-sub" style={{ marginTop: "0.2rem", opacity: 0.7 }}>No narrative recorded.</p>
+                    )}
                   </div>
                   <span className="aled-tag aled-tag--success">
                     <FileText size={10} aria-hidden="true" /> Submitted

@@ -1,10 +1,14 @@
-import { scope } from "@/lib/tenant-scope";
-import { ok, fail } from "@/lib/api";
+import { fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
+import { loadReportExport, reportCsv, reportPdf } from "@/lib/report-export";
 
-// Report export: submitted dept_reports plus live counts, compiled into a
-// JSON download. Admins and vertical leads only (export_reports).
+const FORMATS = new Set(["json", "csv", "pdf"]);
+
+// Report export: submitted dept_reports plus live counts, rendered as JSON,
+// CSV or PDF. All three formats come from one `loadReportExport` call, so the
+// figures cannot drift between downloads. Admins and vertical leads only
+// (export_reports); a VL only sees their own vertical.
 export async function GET(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
@@ -15,50 +19,42 @@ export async function GET(request) {
     return fail("FORBIDDEN", "Only vertical leads and admins can export reports", 403);
   }
   const { searchParams } = new URL(request.url);
-  const scope = searchParams.get("scope") === "annual" ? "annual" : "semester";
-  const tid = tenant?.id ?? null;
-  const months = scope === "annual" ? 12 : 6;
-  const since = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - (months - 1), 1)).toISOString();
+  const period = searchParams.get("scope") === "annual" ? "annual" : "semester";
+  const format = FORMATS.has(searchParams.get("format")) ? searchParams.get("format") : "json";
 
-  const reports = await sql`
-    SELECT r.*, d.name AS department_name, d.vertical, p.name AS submitted_by_name
-    FROM dept_reports r
-    JOIN departments d ON d.id = r.department_id
-    LEFT JOIN profiles p ON p.user_id = r.submitted_by
-    WHERE r.status = 'submitted'
-      AND r.tenant_id = ${scope(tid)}::uuid
-      AND r.month >= ${since}::date
-      AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
-    ORDER BY r.month DESC, d.name ASC
-  `;
-  const contributions = await sql`
-    SELECT c.department_id, c.kind, COUNT(*)::int AS n FROM member_contributions c
-    JOIN departments d ON d.id = c.department_id
-    WHERE c.tenant_id = ${scope(tid)}::uuid
-      AND c.created_at >= ${since}::timestamptz
-      AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
-    GROUP BY c.department_id, c.kind
-  `;
-  const memberships = await sql`
-    SELECT m.department_id, COUNT(*)::int AS n FROM department_memberships m
-    JOIN departments d ON d.id = m.department_id
-    WHERE d.tenant_id = ${scope(tid)}::uuid
-      AND (${me.role === "vertical_lead" && !isAdmin(me) ? sql`d.vertical = ${profile.vertical}` : sql`TRUE`})
-    GROUP BY m.department_id
-  `;
-  const payload = {
-    scope,
-    exported_at: new Date().toISOString(),
-    tenant_id: tid,
-    submitted_reports: reports,
-    contribution_counts: contributions,
-    membership_counts: memberships
-  };
+  const payload = await loadReportExport({
+    sql,
+    tenantId: tenant?.id ?? null,
+    scopeParam: period,
+    viewer: { role: profile.role, vertical: profile.vertical }
+  });
+
+  if (format === "csv") {
+    return new Response(reportCsv(payload), {
+      status: 200,
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="loom-reports-${period}.csv"`,
+        "cache-control": "private, no-store"
+      }
+    });
+  }
+  if (format === "pdf") {
+    return new Response(reportPdf(payload), {
+      status: 200,
+      headers: {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="loom-reports-${period}.pdf"`,
+        "cache-control": "private, no-store"
+      }
+    });
+  }
   return new Response(JSON.stringify({ ok: true, data: payload }, null, 2), {
     status: 200,
     headers: {
       "content-type": "application/json",
-      "content-disposition": `attachment; filename="loom-reports-${scope}.json"`
+      "content-disposition": `attachment; filename="loom-reports-${period}.json"`,
+      "cache-control": "private, no-store"
     }
   });
 }
