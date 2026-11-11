@@ -10,7 +10,7 @@
         { "id": "py_an_array_of_sequences", "title": "An Array of Sequences", "description": "Built-in sequence types, list comprehensions and generator expressions, tuple unpacking, sequence pattern matching, slicing, and when a list is not the right answer (arrays, memory views, NumPy, deques).", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
         { "id": "py_dictionaries_and_sets", "title": "Dictionaries and Sets", "description": "Modern dict syntax and comprehensions, mapping pattern matching, the standard mapping API with missing-key handling, variants of dict, and set theory operations on sets and dict views.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
         { "id": "py_unicode_text_versus_bytes", "title": "Unicode Text Versus Bytes", "description": "Bytes, encoders and decoders, encoding errors, handling text files, Unicode normalization for reliable comparisons and sorting, and the dual-mode str and bytes APIs.", "difficulty_level": "intermediate", "is_highlighted": false, "is_optional": false },
-        { "id": "py_data_class_builders", "title": "Data Class Builders", "description": "The standard library's class builders — classic and typed named tuples, type hints 101, and the @dataclass decorator with field options, post-init processing, and pattern matching on class instances.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
+        { "id": "py_data_class_builders", "title": "Data Class Builders", "description": "The standard library's class builders Ã¢â‚¬â€ classic and typed named tuples, type hints 101, and the @dataclass decorator with field options, post-init processing, and pattern matching on class instances.", "difficulty_level": "intermediate", "is_highlighted": true, "is_optional": false },
         { "id": "py_object_references_mutability", "title": "Object References, Mutability, and Recycling", "description": "Variables as references, identity versus equality, shallow and deep copies, mutable arguments and defensive copying, and how del triggers garbage collection.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
       ],
       "edges": [
@@ -85,7 +85,7 @@
       "nodes": [
         { "id": "py_dynamic_attributes_and_properties", "title": "Dynamic Attributes and Properties", "description": "Wrangles semi-structured data with __getattr__ and computed @property values, including data-driven attribute creation, linked-record properties, caching, validation, property factories, and attribute deletion.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false, "kind": "group" },
         { "id": "py_attribute_descriptors", "title": "Attribute Descriptors", "description": "Builds attribute-validation descriptors step by step, covering overriding versus nonoverriding descriptors, overwriting descriptors in a class, and why methods are themselves descriptors.", "difficulty_level": "advanced", "is_highlighted": true, "is_optional": false },
-        { "id": "py_class_metaprogramming", "title": "Class Metaprogramming", "description": "Covers type as a class factory, __init_subclass__, class decorators, import time versus runtime, and metaclasses — including how modern features simplify or replace them and when to avoid them.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
+        { "id": "py_class_metaprogramming", "title": "Class Metaprogramming", "description": "Covers type as a class factory, __init_subclass__, class decorators, import time versus runtime, and metaclasses Ã¢â‚¬â€ including how modern features simplify or replace them and when to avoid them.", "difficulty_level": "advanced", "is_highlighted": false, "is_optional": false }
       ],
       "edges": [
         { "from_id": "py_dynamic_attributes_and_properties", "to_id": "py_attribute_descriptors", "kind": "required" },
@@ -97,10 +97,10 @@
   "resources": [
     { "id": "res_py_example_code_2e", "title": "Fluent Python code repository", "kind": "doc", "level": "foundation", "url": "https://github.com/fluentpython/example-code-2e" },
     { "id": "res_py_example_code_short_link", "title": "Fluent Python example code (fpy.li/code)", "kind": "doc", "level": "foundation", "url": "https://fpy.li/code" },
-    { "id": "res_py_errata_page", "title": "Fluent Python, 2nd ed. — web page with errata and examples", "kind": "article", "level": "foundation", "url": "https://fpy.li/p-4" },
-    { "id": "res_py_flags_dataset", "title": "Fluent Python flags dataset", "kind": "doc", "level": "foundation", "url": "http://fluentpython.com/data/flags" },
+    { "id": "res_py_errata_page", "title": "Fluent Python, 2nd ed. Ã¢â‚¬â€ web page with errata and examples", "kind": "article", "level": "foundation", "url": "https://fpy.li/p-4" },
+    { "id": "res_py_flags_dataset", "title": "Fluent Python flags dataset", "kind": "doc", "level": "foundation", "url": "https://fluentpython.com/data/flags" },
     { "id": "res_py_language_creators_repo", "title": "Language Creators (fluentpython/language-creators)", "kind": "doc", "level": "foundation_plus", "url": "https://github.com/fluentpython/language-creators" },
-    { "id": "res_py_pep_263", "title": "PEP 263 — Defining Python Source Encoding", "kind": "doc", "level": "foundation_plus", "url": "https://python.org/dev/peps/pep-0263/" },
+    { "id": "res_py_pep_263", "title": "PEP 263 Ã¢â‚¬â€ Defining Python Source Encoding", "kind": "doc", "level": "foundation_plus", "url": "https://python.org/dev/peps/pep-0263/" },
     { "id": "res_py_dataclasses", "title": "dataclasses (@dataclass)", "kind": "doc", "level": "foundation", "url": "https://docs.python.org/3/library/dataclasses.html" },
     { "id": "res_py_namedtuple", "title": "collections.namedtuple / typing.NamedTuple", "kind": "doc", "level": "foundation", "url": "https://docs.python.org/3/library/collections.html" },
     { "id": "res_py_collections_deque", "title": "collections.deque", "kind": "doc", "level": "foundation", "url": "https://docs.python.org/3/library/collections.html" },
@@ -109,7 +109,7 @@
     { "id": "res_py_collections_chainmap", "title": "collections.ChainMap", "kind": "doc", "level": "foundation_plus", "url": "https://docs.python.org/3/library/collections.html" },
     { "id": "res_py_shelve", "title": "shelve.Shelf", "kind": "doc", "level": "foundation_plus", "url": "https://docs.python.org/3/library/shelve.html" },
     { "id": "res_py_array_module", "title": "array", "kind": "doc", "level": "foundation_plus", "url": "https://docs.python.org/3/library/array.html" },
-    { "id": "res_py_memoryview", "title": "memoryview", "kind": "doc", "level": "foundation_plus", "url": null },
+    { "id": "res_py_memoryview", "title": "memoryview", "kind": "doc", "level": "foundation_plus", "url": "https://docs.python.org/3/library/stdtypes.html#memoryview" },
     { "id": "res_py_numpy", "title": "NumPy", "kind": "doc", "level": "foundation_plus", "url": "https://numpy.org/doc/stable/" },
     { "id": "res_py_unicodedata", "title": "unicodedata", "kind": "doc", "level": "foundation_plus", "url": "https://docs.python.org/3/library/unicodedata.html" },
     { "id": "res_py_re_pattern_matching", "title": "re (str versus bytes in regular expressions)", "kind": "doc", "level": "foundation", "url": "https://docs.python.org/3/library/re.html" },

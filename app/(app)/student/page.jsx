@@ -3,6 +3,8 @@ import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
+import { nextStepForStudent } from "@/lib/roadmap-next";
+import { splitVerifiedProgress } from "@/lib/roadmap";
 import { summarizeWeek } from "@/lib/week-activity";
 import { relDay, relShort } from "@/lib/dates";
 import Link from "next/link";
@@ -35,14 +37,24 @@ export default async function StudentPage() {
   `;
 
   const done = await sql`
-    SELECT node_id FROM student_roadmap_progress
+    SELECT node_id, evidence_state FROM student_roadmap_progress
     WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
   `;
-  const doneIds = done.map((r) => r.node_id);
-  const doneCount = doneIds.length;
+  // A claim is visible in the UI, but it is not progress and it is not proof.
+  // Only lead-confirmed evidence moves the percentage or the proof rail.
+  const progress = splitVerifiedProgress(done);
+  const verifiedIds = progress.verifiedIds;
+  const provisionalCount = progress.provisionalIds.length;
+  const doneCount = verifiedIds.length;
   const totalCount = nodes.length;
   const overallPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-  const nextNode = nodes.find((n) => !doneIds.includes(n.id)) ?? null;
+  // One source of truth: the same prerequisite-aware, verified-only walk the
+  // roadmap page and the API use. The old `find(first uncompleted)` ignored
+  // both prerequisites and the student's domain.
+  const nextStep = user?.id
+    ? await nextStepForStudent(sql, user.id, profile?.primary_domain || null)
+    : { node: null };
+  const nextNode = nextStep.node;
   const nextMilestone = nextNode?.title ?? null;
 
   // This week: one Monday–Sunday strip from real daily activity. The helper
@@ -61,6 +73,7 @@ export default async function StudentPage() {
   const [weekMilestones] = await sql`
     SELECT COUNT(*)::int AS c FROM student_roadmap_progress
     WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
+      AND evidence_state = 'verified'
       AND completed_at >= ${week.start}::date
   `;
 
@@ -122,17 +135,14 @@ export default async function StudentPage() {
     ORDER BY created_at DESC LIMIT 3
   `;
   const proof = [
-    ...recentNodes.map((r) => {
-      const verified = r.evidence_state === "verified";
-      return {
-        at: r.completed_at,
-        when: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
-        text: `${verified ? "completed" : "claimed"} ${r.title}`,
-        meta: "Roadmap",
-        state: verified ? "verified" : "pending",
-        href: "/student/roadmap"
-      };
-    }),
+    ...recentNodes.filter((r) => r.evidence_state === "verified").map((r) => ({
+      at: r.completed_at,
+      when: r.completed_at ? new Date(r.completed_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "Recent",
+      text: `completed ${r.title}`,
+      meta: "Roadmap",
+      state: "verified",
+      href: "/student/roadmap"
+    })),
     ...recentOss.map((o) => {
       const verified = !!(o.verified_at || o.status === "merged");
       return {
@@ -292,7 +302,8 @@ export default async function StudentPage() {
         todayLabel={todayLabel}
         nextNode={nextNode}
         nodes={nodes.map((n) => ({ id: n.id, title: n.title }))}
-        doneIds={doneIds}
+        verifiedIds={verifiedIds}
+        provisionalCount={provisionalCount}
         overallPercent={overallPercent}
         nextMilestone={nextMilestone}
         weekDays={weekDays}

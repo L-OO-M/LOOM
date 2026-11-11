@@ -4,7 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
 import { orderDomains, resolveDomain, domainLabel } from "@/lib/domains";
-import { domainProgress, nextRoadmapNode } from "@/lib/roadmap";
+import { domainProgress } from "@/lib/roadmap";
+import { nextStepForStudent } from "@/lib/roadmap-next";
 import { isZenModeEnabled } from "@/lib/feature-flags";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 
@@ -62,7 +63,8 @@ export default async function RoadmapPage({ searchParams }) {
   // Claims still render as "pending review" below, but they are not progress:
   // one unverified tick must not advance the map or the tier.
   const verifiedSet = new Set(verifiedIds);
-  const nextNode = nextRoadmapNode({ nodes, edges, completedIds: verifiedIds });
+  const nextStep = await nextStepForStudent(sql, user.id, domain);
+  const nextNode = nextStep.node;
   const nextId = nextNode?.id ?? null;
 
   // Per-domain counts drive the switcher rail, so a member can see the shape of

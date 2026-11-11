@@ -60,9 +60,9 @@ try {
     { id: "res_solidity_docs", title: "Solidity Language Documentation", domain: "blockchain", kind: "doc", level: "foundation_plus", minutes: 240, url: "https://docs.soliditylang.org/" },
     { id: "res_btc_dev", title: "Bitcoin Developer Guide", domain: "blockchain", kind: "doc", level: "foundation_plus", minutes: 180, url: "https://developer.bitcoin.org/" },
     // Platform engineering (existing catalog, kept)
-    { id: "res_node_express", title: "Express route design", domain: "backend", kind: "article", level: "foundation", minutes: 30 },
-    { id: "res_db_drizzle", title: "Postgres schema design", domain: "backend", kind: "article", level: "foundation_plus", minutes: 35 },
-    { id: "res_deploy_railway", title: "Deploy to production", domain: "devops", kind: "article", level: "foundation", minutes: 25 }
+    { id: "res_node_express", title: "Express route design", domain: "backend", kind: "article", level: "foundation", minutes: 30, url: "https://expressjs.com/en/guide/routing.html" },
+    { id: "res_db_drizzle", title: "Postgres schema design", domain: "backend", kind: "article", level: "foundation_plus", minutes: 35, url: "https://www.postgresql.org/docs/current/ddl.html" },
+    { id: "res_deploy_railway", title: "Deploy to production", domain: "devops", kind: "article", level: "foundation", minutes: 25, url: "https://vercel.com/docs/deployments/overview" }
   ];
 
   for (const resource of resources) {

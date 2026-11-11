@@ -32,8 +32,8 @@
       "resources": [
         { "id": "res_dsa_striver_a2z", "title": "Striver's A2Z sheet — DSA A to Z", "kind": "course", "level": "foundation", "url": "https://takeuforward.org/dsa/strivers-a2z-sheet-learn-dsa-a-to-z" },
         { "id": "res_dsa_neetcode_150", "title": "Neetcode 150 — for practice", "kind": "course", "level": "foundation", "url": "https://neetcode.io/practice/practice/neetcode150" },
-        { "id": "res_dsa_leetcode_codeforces", "title": "LeetCode and Codeforces editorial", "kind": "article", "level": "foundation_plus", "url": null },
-        { "id": "res_dsa_karumahchi", "title": "Data Structures and Algorithms made easy — Narsimha Karumahchi", "kind": "doc", "level": "foundation_plus", "url": null }
+        { "id": "res_dsa_leetcode_codeforces", "title": "LeetCode and Codeforces editorial", "kind": "article", "level": "foundation_plus", "url": "https://leetcode.com/problemset/" },
+        { "id": "res_dsa_karumahchi", "title": "Data Structures and Algorithms made easy — Narsimha Karumahchi", "kind": "doc", "level": "foundation_plus", "url": "https://www.careermonk.com/" }
       ]
     },
     {
