@@ -162,11 +162,13 @@ describe("MoU vertical filter", () => {
 
 const mocks = vi.hoisted(() => ({
   listMous: vi.fn(async () => []),
+  listRenewals: vi.fn(async () => []),
   ctx: { current: null }
 }));
 
 vi.mock("@/lib/mou", () => ({
   listMous: mocks.listMous,
+  listRenewals: mocks.listRenewals,
   MOU_EXPIRING_DAYS: 30
 }));
 
@@ -194,7 +196,7 @@ function pageContext(role, vertical) {
     user: { id: "u1" },
     profile: { role, vertical, memberships: [] },
     tenant: { id: "tenant-1" },
-    sql: {}
+    sql: async () => []
   };
 }
 

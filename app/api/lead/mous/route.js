@@ -7,6 +7,7 @@ import { canAccessVertical, ownedVerticals } from "@/lib/scope";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const dateField = z.string().regex(DATE).nullable().optional();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const createSchema = z.object({
   title: z.string().min(2).max(160),
@@ -15,6 +16,7 @@ const createSchema = z.object({
   summary: z.string().max(2000).default(""),
   status: z.enum(MOU_STATUSES).default("draft"),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
+  sponsorshipId: z.string().regex(UUID).nullable().optional(),
   valueAmount: z.number().min(0).max(1_000_000_000_000).nullable().optional(),
   valueCurrency: z.string().min(1).max(8).default("INR"),
   signedOn: dateField,
@@ -87,16 +89,30 @@ export async function POST(request) {
     return fail("FORBIDDEN", "You can only file MoUs for your own domain", 403);
   }
 
+  const sponsorshipId = body.sponsorshipId ?? null;
+  if (sponsorshipId) {
+    const [sponsor] = await sql`
+      SELECT id, vertical FROM sponsorships
+      WHERE id = ${sponsorshipId}::uuid AND tenant_id = ${tenant.id}::uuid
+      LIMIT 1
+    `;
+    if (!sponsor) return fail("VALIDATION_ERROR", "That sponsorship does not belong to this chapter", 400);
+    if (!canAccessVertical(profile, sponsor.vertical)) {
+      return fail("FORBIDDEN", "You can only link sponsors from your own domain", 403);
+    }
+  }
+
   const [mou] = await sql`
     INSERT INTO mous
       (tenant_id, title, partner_name, partner_type, summary, status, vertical,
-       value_amount, value_currency, signed_on, starts_on, ends_on, owner_id, notes)
+       sponsorship_id, value_amount, value_currency, signed_on, starts_on, ends_on, owner_id, notes)
     VALUES
       (${tenant.id}::uuid, ${body.title}, ${body.partnerName}, ${body.partnerType}, ${body.summary},
-       ${body.status}, ${vertical}, ${body.valueAmount ?? null}, ${body.valueCurrency},
+       ${body.status}, ${vertical}, ${sponsorshipId}, ${body.valueAmount ?? null}, ${body.valueCurrency},
        ${body.signedOn ?? null}, ${body.startsOn ?? null}, ${body.endsOn ?? null}, ${user.id}, ${body.notes})
-    RETURNING id, title, partner_name, partner_type, status, vertical, value_amount, value_currency,
-              signed_on, starts_on, ends_on, owner_id, is_active, created_at, updated_at
+    RETURNING id, title, partner_name, partner_type, status, vertical, sponsorship_id,
+              value_amount, value_currency, signed_on, starts_on, ends_on, owner_id,
+              is_active, created_at, updated_at
   `;
 
   await writeAudit({
