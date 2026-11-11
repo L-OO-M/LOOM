@@ -3,25 +3,34 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { can, isAdmin } from "@/lib/permissions";
 import { createLogger, requestIdFrom } from "@/lib/log";
-import { announcementKeyPrefix } from "@/lib/announcement-fanout";
+import { fanOutAnnouncement } from "@/lib/announcement-publish";
 
 const postSchema = z.object({
   scope: z.enum(["society", "vertical", "department"]),
   departmentId: z.string().uuid().nullable().optional(),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
   title: z.string().min(3).max(160),
-  body: z.string().max(4000).default("")
+  body: z.string().max(4000).default(""),
+  status: z.enum(["draft", "published"]).default("published"),
+  expiresAt: z.string().max(40).nullable().optional()
 });
 
 // Scoped feed: society-wide + my verticals + my departments. Visibility is
 // derived from memberships, never from client claims.
-export async function GET() {
+export async function GET(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { profile, tenant, sql } = ctx;
   const tid = tenant?.id ?? null;
   if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
+  const manage = new URL(request.url).searchParams.get("manage") === "1";
+  if (manage) {
+    const leadRoles = ["dept_lead", "vertical_lead", "admin"];
+    if (!leadRoles.includes(profile.role) && !isAdmin(profile)) {
+      return fail("FORBIDDEN", "Only leads and admins can see drafts", 403);
+    }
+  }
   const myDeptIds = (profile.memberships || []).map((m) => m.department_id);
   const myVerticals = [...new Set([
     ...(profile.vertical ? [profile.vertical] : []),
@@ -38,6 +47,10 @@ export async function GET() {
         a.scope = 'society'
         OR (a.scope = 'vertical' AND a.vertical = ANY(${myVerticals}))
         OR (a.scope = 'department' AND a.department_id = ANY(${myDeptIds}))
+      )
+      AND (
+        ${manage}::boolean = true
+        OR (a.status = 'published' AND (a.expires_at IS NULL OR a.expires_at > NOW()))
       )
     ORDER BY a.created_at DESC
     LIMIT 50
@@ -58,6 +71,12 @@ export async function POST(request) {
     body = postSchema.parse(await request.json());
   } catch (e) {
     return validationError(e);
+  }
+  let expiresAt = null;
+  if (body.expiresAt) {
+    const parsed = Date.parse(body.expiresAt);
+    if (!Number.isFinite(parsed)) return fail("VALIDATION_ERROR", "expiresAt must be a valid date", 400);
+    expiresAt = new Date(parsed).toISOString();
   }
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
 
@@ -93,54 +112,35 @@ export async function POST(request) {
   }
 
   const [announcement] = await sql`
-    INSERT INTO announcements (tenant_id, scope, department_id, vertical, title, body, author_id)
-    VALUES (${tid}, ${body.scope}, ${departmentId}, ${vertical}, ${body.title}, ${body.body}, ${user.id})
+    INSERT INTO announcements
+      (tenant_id, scope, department_id, vertical, title, body, author_id,
+       status, expires_at, published_at, updated_by)
+    VALUES
+      (${tid}, ${body.scope}, ${departmentId}, ${vertical}, ${body.title}, ${body.body}, ${user.id},
+       ${body.status}, ${expiresAt},
+       CASE WHEN ${body.status} = 'published' THEN NOW() ELSE NULL END, ${user.id})
     RETURNING *
   `;
 
-  // Fan-out into per-user notifications (existing inbox, no new surface).
-  //
-  // Safe to retry: every row carries a deterministic dedupe key matching
-  // lib/announcement-fanout.js, and the partial unique index on
-  // (user_id, dedupe_key) makes a re-run insert nothing. Delivery failures are
-  // logged, never thrown — the announcement is already committed.
-  try {
-    const link = "/student/notifications";
-    const title = body.scope === "society" ? `Announcement: ${body.title}` : `[${body.scope}] ${body.title}`;
-    // One prefix per post; the recipient id is appended in SQL so the fan-out
-    // stays a single statement. Format owned by lib/announcement-fanout.js.
-    const dedupePrefix = announcementKeyPrefix(announcement.id);
-    if (body.scope === "society") {
-      await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
-        SELECT ${tid}, p.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
-          ${dedupePrefix} || p.user_id::text
-        FROM profiles p WHERE p.tenant_id = ${tid}::uuid AND p.user_id <> ${user.id}
-        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
-    } else if (body.scope === "vertical") {
-      await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
-        SELECT DISTINCT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
-          ${dedupePrefix} || m.user_id::text
-        FROM department_memberships m JOIN departments d ON d.id = m.department_id
-        WHERE d.tenant_id = ${tid}::uuid AND d.vertical = ${vertical} AND m.user_id <> ${user.id}
-        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
-    } else {
-      await sql`
-        INSERT INTO notifications (tenant_id, user_id, type, title, body, link, dedupe_key)
-        SELECT ${tid}, m.user_id, 'announcement', ${title}, ${body.body.slice(0, 280)}, ${link},
-          ${dedupePrefix} || m.user_id::text
-        FROM department_memberships m WHERE m.department_id = ${departmentId} AND m.user_id <> ${user.id}
-        ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING`;
+  // Drafts stay private; only a published row fans out into the existing inbox.
+  if (body.status === "published") {
+    try {
+      await fanOutAnnouncement({ sql, tenantId: tid, authorId: user.id, announcement });
+    } catch (error) {
+      // Delivery failures are logged, never thrown — the announcement is committed.
+      log.warn("notification fan-out failed", {
+        announcementId: announcement.id,
+        scope: body.scope,
+        err: error
+      });
     }
-  } catch (error) {
-    log.warn("notification fan-out failed", {
-      announcementId: announcement.id,
-      scope: body.scope,
-      err: error
-    });
   }
 
-  await writeAudit({ sql, actorId: user.id, tenantId: tid, action: "posted_announcement", resource: "announcement", resourceId: announcement.id, after: { scope: body.scope, title: body.title } });
+  await writeAudit({
+    sql, actorId: user.id, tenantId: tid,
+    action: body.status === "published" ? "posted_announcement" : "saved_announcement_draft",
+    resource: "announcement", resourceId: announcement.id,
+    after: { scope: body.scope, title: body.title, status: body.status, expiresAt }
+  });
   return ok({ announcement }, { status: 201 });
 }
