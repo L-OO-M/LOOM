@@ -35,7 +35,7 @@ export async function GET(request, { params }) {
 const patchSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().max(2000).optional(),
-  status: z.enum(["active", "completed", "archived"]).optional(),
+  status: z.enum(["draft", "active", "completed", "archived"]).optional(),
   repoUrl: z.string().nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   tags: z.array(z.string().min(1).max(30)).max(8).optional(),
   roadmapNodeId: z.string().nullable().optional()

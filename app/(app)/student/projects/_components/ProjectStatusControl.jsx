@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 // project completed used to be what a student would do to claim credit for it,
 // and it earned nothing that anybody verified.
 const OPTIONS = [
+  { value: "draft", label: "Draft", hint: "Not ready for review" },
   { value: "active", label: "Active", hint: "In progress" },
   { value: "completed", label: "Completed", hint: "You consider this finished" },
   { value: "archived", label: "Archived", hint: "Shelved — this withdraws any standing it had" },

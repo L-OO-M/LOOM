@@ -7,6 +7,9 @@ import { GithubLinkButton } from "@/components/actions";
 import { cryptoConfigured } from "@/lib/crypto";
 import ProjectStatusControl from "../_components/ProjectStatusControl";
 import ProjectEditForm from "../_components/ProjectEditForm";
+import ProjectTeamPanel from "../_components/ProjectTeamPanel";
+import ProjectMilestonesPanel from "../_components/ProjectMilestonesPanel";
+import ProjectSubmitPanel from "../_components/ProjectSubmitPanel";
 import RefreshRepoButton from "../_components/RefreshRepoButton";
 
 function pillTone(status) {
@@ -41,12 +44,19 @@ export default async function ProjectDetailPage({ params }) {
   if (!p) notFound();
   const isOwner = p.owner_id === user.id;
   const isAdmin = profile.role === "admin";
-  if (!isOwner && !isAdmin) redirect("/student/projects");
+  const [membership] = await sql`
+    SELECT role FROM project_members
+    WHERE project_id = ${id} AND user_id = ${user.id}
+      AND tenant_id = ${tenant?.id ?? null}::uuid
+    LIMIT 1
+  `;
+  if (!isOwner && !isAdmin && !membership) redirect("/student/projects");
+  const canEditProject = isOwner || isAdmin || membership?.role === "maintainer";
 
   const [node] = p.roadmap_node_id
     ? await sql`SELECT id, title FROM roadmap_nodes WHERE id = ${p.roadmap_node_id} LIMIT 1`
     : [null];
-  const milestones = isOwner
+  const milestones = isOwner || isAdmin
     ? await sql`SELECT id, title FROM roadmap_nodes ORDER BY sort_order ASC LIMIT 100`
     : [];
 
@@ -102,6 +112,31 @@ export default async function ProjectDetailPage({ params }) {
         WHERE student_id = ${p.owner_id} AND lower(full_name) = lower(${repoFull})
         LIMIT 1`
     : [null];
+  const [owner] = await sql`
+    SELECT user_id, name FROM profiles WHERE user_id = ${p.owner_id} LIMIT 1
+  `;
+  const team = await sql`
+    SELECT pm.*, pr.name, pr.github_username
+    FROM project_members pm
+    LEFT JOIN profiles pr ON pr.user_id = pm.user_id
+    WHERE pm.project_id = ${p.id} AND pm.tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY pm.created_at ASC
+  `;
+  const projectMilestones = await sql`
+    SELECT * FROM project_milestones
+    WHERE project_id = ${p.id} AND tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY position ASC, created_at ASC
+  `;
+  const candidates = isOwner || isAdmin
+    ? await sql`
+        SELECT user_id, name FROM profiles
+        WHERE tenant_id = ${tenant?.id ?? null}::uuid
+          AND user_id <> ${p.owner_id}
+          AND user_id <> ${user.id}
+        ORDER BY name ASC
+        LIMIT 100
+      `
+    : [];
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -221,6 +256,29 @@ export default async function ProjectDetailPage({ params }) {
             </aside>
           </div>
         </div>
+
+        <ProjectTeamPanel
+          projectId={p.id}
+          members={team}
+          candidates={candidates}
+          owner={owner}
+          canManage={isOwner || isAdmin}
+        />
+
+        <ProjectMilestonesPanel
+          projectId={p.id}
+          milestones={projectMilestones}
+          canEdit={canEditProject}
+        />
+
+        {isOwner && (
+          <ProjectSubmitPanel
+            projectId={p.id}
+            hasRepo={Boolean(p.repo_url)}
+            state={p.evidence_state}
+            status={p.status}
+          />
+        )}
 
         {isOwner && (
           <details className="mt-10 rounded-2xl border p-5 sm:p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>

@@ -6,6 +6,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { pageHref, pageWindow } from "@/lib/pagination";
+import ProjectReviewActions from "./_components/ProjectReviewActions";
 import "../_components/admin-ledger.css";
 // Reuse the roster pager/pager-state styles rather than shipping a second pager
 // look; `.rosterx` only supplies the --adst-* aliases those classes read.
@@ -93,6 +94,9 @@ export default async function AdminProjectsPage({ searchParams }) {
           <select name="status" defaultValue={status} className="aled-select" aria-label="Filter by status">
             <option value="">All statuses</option>
             <option value="active">Active</option>
+            <option value="in_review">In review</option>
+            <option value="completed">Completed</option>
+            <option value="rejected">Rejected</option>
             <option value="archived">Archived</option>
           </select>
           <button className="btn-ink !py-1.5 text-xs">Filter</button>
@@ -137,8 +141,11 @@ export default async function AdminProjectsPage({ searchParams }) {
                       </a>
                     )}
                     <Link href={`/student/projects/${p.id}`} prefetch={false} className="aled-tag aled-tag--accent">
-                      Review <ArrowUpRight size={12} aria-hidden="true" />
+                      Open <ArrowUpRight size={12} aria-hidden="true" />
                     </Link>
+                    {(p.evidence_state === "provisional" || p.evidence_state === "verified") && (
+                      <ProjectReviewActions projectId={p.id} title={p.title} state={p.evidence_state} />
+                    )}
                   </div>
                 </li>
               ))}
