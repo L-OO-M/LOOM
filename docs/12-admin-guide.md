@@ -13,14 +13,14 @@ Run your chapter: setup, content, people, programs, trust, system.
 - **Overview** — totals and recent activity.
 - **People** — Students (roster, detail, role changes with a term end date), Mentors (add/remove, availability, sessions).
 - **Content** — Roadmaps (publish paths/nodes, set `difficulty_level`), Resources (curate per track), OSS (curate repos — live GitHub metadata is fetched and stored with `metadata_synced_at`; catalogue keys are case-insensitive, so `owner/repo` cannot duplicate; review claimed contributions with Verify/Reject, though merged PRs and submitted reviews auto-verify through the webhook; verification awards badges + achievements + notifies the student), Community (flagged threads/replies → Hide; wiki suggestion queue → Approve/Reject; pin featured threads).
-- **Programs** — Projects (review student builds), Contests (create, manage registrations/submissions), Events (schedule with capacity; students register and get door codes; check in by code at the door — attendance auto-issues a printable certificate; attach materials; read feedback averages).
+- **Programs** — Projects (review student builds), Contests (create, manage registrations/submissions), Debug (author/publish challenges against `DEBUG_CHALLENGE_REPO`; publishing stamps the fork-created-after timestamp; review every domain's verified forks), Events (schedule with capacity; students register and get door codes; check in by code at the door — attendance auto-issues a printable certificate; attach materials; read feedback averages).
 - **Trust** — Proof/Verification (define skill badges tier 1–3, issue achievements to students, audit latest issued, count live share links), Data/Analytics (cohort health, domain distribution, bottleneck nodes by drop-off %, mentor effectiveness, contest registration→submission conversion).
 - **System** — Settings (chapter configuration), Flags (feature switches), Audit (every admin action is logged here with before/after).
 
 ## 3. Weekly operating loop
 
 1. **Monday**: check Data — active (7d) students, bottleneck node with the worst drop-off; fix its resources or split the node.
-2. **During the week**: clear OSS claims, wiki queue, and flags (all three show counts on their consoles).
+2. **During the week**: clear OSS claims, wiki queue, debug review, and flags (all four show counts on their consoles).
 3. **Events**: create the week's workshop (capacity on), check in at the door, attach slides afterwards.
 4. **Recognition**: issue achievements for contest winners; students share them as verifiable links themselves.
 

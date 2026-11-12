@@ -101,6 +101,16 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
+## Debug & build (migration 078)
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| POST | `/api/admin/debug/challenges` | admin | Author a debug challenge against `DEBUG_CHALLENGE_REPO` (default `L-OO-M/buggy`). Domain must be a LOOM primary domain. Publishing stamps `published_at`, which is the fork-created-after boundary |
+| POST | `/api/debug/submissions` | user with linked GitHub | Submit a fork URL (optional PR URL). GitHub verifies account ownership, fork parent, creation time and an authored commit; failures stay `error/pending`, never auto-rejected |
+| POST | `/api/lead/debug` | matching `dept_lead` or admin | Approve or return a verified submission with mandatory feedback. `approved` writes `debug_fixed` evidence; returning revokes it. Self-review is refused |
+
+Approved debug fixes enter chapter standing as `debug_fixed` (weight 15, cap 10) through the verified-evidence ledger.
+
 ## Errors & limits
 
 Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `REPORT_LOCKED` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.

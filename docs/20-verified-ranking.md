@@ -93,6 +93,7 @@ Weights live in `lib/ranking.js`; per-kind caps in the same file and in
 | Contest result | 25 | 5 | Admin, after judging |
 | Verified project | 20 | 10 | Signed delivery from that repository |
 | Confirmed roadmap milestone | 18 | 40 | Prerequisites met + lead confirmed |
+| Debug challenge fixed | 15 | 10 | Verified fork, approved by the matching domain lead |
 | Pull request opened | 12 | 10 | Signed delivery |
 | Accepted community answer | 8 | 15 | Another member marked it |
 | Event attended | 3 | 20 | Chapter check-in |
