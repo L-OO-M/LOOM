@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { domainProgress, nextRoadmapNode } from "@/lib/roadmap";
+import { domainProgress, eligibleRoadmapNodes, nextRoadmapNode, splitVerifiedProgress } from "@/lib/roadmap";
 
 const node = (id, sort_order) => ({ id, sort_order });
 
@@ -31,6 +31,35 @@ describe("nextRoadmapNode", () => {
     const nodes = [node("a", 1), node("b", 2)];
     expect(nextRoadmapNode({ nodes, completedIds: ["a", "b"] })).toBeNull();
   });
+
+  it("orders eligible nodes by domain, then difficulty, then sort order", () => {
+    const nodes = [
+      { id: "advanced-web", domain: "web", difficulty_level: "advanced", sort_order: 1 },
+      { id: "beginner-web", domain: "web", difficulty_level: "beginner", sort_order: 2 },
+      { id: "beginner-ai", domain: "ai_ml", difficulty_level: "beginner", sort_order: 3 }
+    ];
+    const ranked = eligibleRoadmapNodes({ nodes, completedIds: [], domainOrder: ["ai_ml", "web"] });
+    expect(ranked.map((n) => n.id)).toEqual(["beginner-ai", "beginner-web", "advanced-web"]);
+  });
+
+  it("never returns a node with an unfinished required prerequisite", () => {
+    const nodes = [
+      { id: "a", sort_order: 1 },
+      { id: "blocked", sort_order: 2 },
+      { id: "free", sort_order: 3 }
+    ];
+    const edges = [{ from_id: "a", to_id: "blocked", kind: "required" }];
+    const ids = eligibleRoadmapNodes({ nodes, edges, completedIds: [] }).map((n) => n.id);
+    expect(ids).toContain("a");
+    expect(ids).toContain("free");
+    expect(ids).not.toContain("blocked");
+  });
+
+  it("lets an optional edge through", () => {
+    const nodes = [node("a", 1), node("b", 2)];
+    const edges = [{ from_id: "a", to_id: "b", kind: "optional" }];
+    expect(nextRoadmapNode({ nodes, edges, completedIds: ["a"] })?.id).toBe("b");
+  });
 });
 
 describe("domainProgress", () => {
@@ -56,5 +85,26 @@ describe("domainProgress", () => {
       remaining: 0,
       percent: 0
     });
+  });
+});
+
+describe("splitVerifiedProgress", () => {
+  it("keeps provisional claims out of verified progress", () => {
+    const split = splitVerifiedProgress([
+      { node_id: "a", status: "completed", evidence_state: "verified" },
+      { node_id: "b", status: "completed", evidence_state: "provisional" },
+      { node_id: "c", status: "active", evidence_state: null }
+    ]);
+    expect(split.verifiedIds).toEqual(["a"]);
+    expect(split.provisionalIds).toEqual(["b"]);
+    expect(split.claimedIds).toEqual(["a", "b"]);
+  });
+
+  it("returns an honest empty state when every claim is provisional", () => {
+    const split = splitVerifiedProgress([
+      { node_id: "a", status: "completed", evidence_state: "provisional" }
+    ]);
+    expect(split.verifiedIds).toEqual([]);
+    expect(split.provisionalIds).toEqual(["a"]);
   });
 });

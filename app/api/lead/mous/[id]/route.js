@@ -17,6 +17,7 @@ const patchSchema = z.object({
   summary: z.string().max(2000).optional(),
   status: z.enum(MOU_STATUSES).optional(),
   vertical: z.enum(["technical", "non_technical"]).nullable().optional(),
+  sponsorshipId: z.string().regex(UUID).nullable().optional(),
   valueAmount: z.number().min(0).max(1_000_000_000_000).nullable().optional(),
   valueCurrency: z.string().min(1).max(8).optional(),
   signedOn: dateField,
@@ -83,6 +84,7 @@ export async function PATCH(request, { params }) {
     summary: body.summary ?? existing.summary,
     status: body.status ?? existing.status,
     vertical: body.vertical === undefined ? existing.vertical : body.vertical,
+    sponsorshipId: body.sponsorshipId === undefined ? existing.sponsorship_id : body.sponsorshipId,
     valueAmount: body.valueAmount === undefined ? existing.value_amount : body.valueAmount,
     valueCurrency: body.valueCurrency ?? existing.value_currency,
     signedOn: body.signedOn === undefined ? existing.signed_on : body.signedOn,
@@ -97,6 +99,17 @@ export async function PATCH(request, { params }) {
   if (!canAccessVertical(ctx.profile, next.vertical)) {
     return fail("FORBIDDEN", "You can only move a MoU within your own domain", 403);
   }
+  if (next.sponsorshipId) {
+    const [sponsor] = await sql`
+      SELECT id, vertical FROM sponsorships
+      WHERE id = ${next.sponsorshipId}::uuid AND tenant_id = ${tenant.id}::uuid
+      LIMIT 1
+    `;
+    if (!sponsor) return fail("VALIDATION_ERROR", "That sponsorship does not belong to this chapter", 400);
+    if (!canAccessVertical(ctx.profile, sponsor.vertical)) {
+      return fail("FORBIDDEN", "You can only link sponsors from your own domain", 403);
+    }
+  }
   // A moved end date resets the reminder so the new date can be announced.
   const endsChanged = String(next.endsOn || "") !== String(existing.ends_on || "");
 
@@ -104,13 +117,15 @@ export async function PATCH(request, { params }) {
     UPDATE mous SET
       title = ${next.title}, partner_name = ${next.partnerName}, partner_type = ${next.partnerType},
       summary = ${next.summary}, status = ${next.status}, vertical = ${next.vertical},
+      sponsorship_id = ${next.sponsorshipId},
       value_amount = ${next.valueAmount}, value_currency = ${next.valueCurrency},
       signed_on = ${next.signedOn}, starts_on = ${next.startsOn}, ends_on = ${next.endsOn},
       notes = ${next.notes}, is_active = ${next.isActive},
       expiry_notified_at = CASE WHEN ${endsChanged} THEN NULL ELSE expiry_notified_at END,
       updated_at = NOW()
     WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
-    RETURNING id, title, partner_name, partner_type, summary, status, vertical, value_amount,
+    RETURNING id, title, partner_name, partner_type, summary, status, vertical, sponsorship_id,
+              value_amount,
               value_currency, signed_on, starts_on, ends_on, notes, owner_id, is_active, created_at, updated_at
   `;
 

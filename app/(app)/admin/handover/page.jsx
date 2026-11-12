@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, ClipboardCheck, Users } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
+import { loadSuccessionOverview } from "@/lib/succession";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { HandoverBoard } from "@/app/(app)/admin/handover/_components/HandoverBoard";
@@ -50,6 +51,17 @@ export default async function AdminHandoverPage() {
       AND COALESCE(pa.is_founder, false) = false
     ORDER BY p.role_term_end ASC
     LIMIT 20
+  `;
+
+  const overview = await loadSuccessionOverview({ sql, tenantId: tid });
+  const owners = await sql`
+    SELECT user_id, name, role
+    FROM profiles
+    WHERE tenant_id = ${scope(tid)}::uuid
+      AND role IN ('core', 'dept_lead', 'vertical_lead', 'admin')
+      AND account_status = 'active'
+    ORDER BY role DESC, name ASC
+    LIMIT 200
   `;
 
   return (
@@ -101,7 +113,57 @@ export default async function AdminHandoverPage() {
           </div>
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Terms ending soon" note="Leadership rotates annually. Hand over before the date; an expired term loses its authority automatically." action={<CalendarClock size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
+        <WorkspaceSection index="02" title="Outstanding succession items" note="One queue: checklist, handover briefs, transfer flags and term expiries, ordered by what still needs a person.">
+          <div className="aled-panel">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span className={`aled-tag ${overview.summary.outstanding_items > 0 ? "aled-tag--warn" : "aled-tag--accent"}`}>
+                <ClipboardCheck size={12} aria-hidden="true" /> {overview.summary.outstanding_items} outstanding
+              </span>
+              <span className="aled-meta">{overview.summary.checklist_outstanding} checklist / {overview.summary.handovers_open} briefs / {overview.summary.terms_expiring} terms</span>
+            </div>
+          </div>
+          {overview.items.length === 0 ? (
+            <WorkspaceEmpty title="Nothing outstanding" body="Every checklist item is transferred, every brief is approved, and no leadership term is near its end." />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {overview.items.map((item) => (
+                <li key={item.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <p className="aled-title">{item.title}</p>
+                    <p className="aled-sub">
+                      {item.kind === "checklist" ? "Checklist" : item.kind === "handover" ? "Handover brief" : "Leadership term"}
+                      {" / "}{item.owner.name}
+                      {item.department_name ? ` / ${item.department_name}` : ""}
+                    </p>
+                    <p className="aled-meta" style={{ marginTop: "0.3rem" }}>{item.outstanding.join("; ")}</p>
+                    {item.kind === "handover" && item.brief?.summary ? (
+                      <p className="aled-meta" style={{ marginTop: "0.2rem" }}>Brief: {item.brief.summary}</p>
+                    ) : null}
+                    {item.flags ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.35rem" }}>
+                        {item.flags.planner ? <span className="aled-tag">planner</span> : null}
+                        {item.flags.eventOps ? <span className="aled-tag">event ops</span> : null}
+                        {item.flags.headSlot ? <span className="aled-tag">head slot</span> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span className={`aled-tag ${item.status === "expired" || item.status === "rejected" ? "aled-tag--danger" : item.status === "ending" || item.status === "draft" ? "aled-tag--warn" : ""}`}>
+                      {item.status.replace("_", " ")}
+                    </span>
+                    {item.due_on ? (
+                      <p className="aled-meta" style={{ marginTop: "0.3rem" }}>
+                        {item.days_remaining < 0 ? `ended ${Math.abs(item.days_remaining)}d ago` : item.days_remaining === 0 ? "due today" : `${item.days_remaining}d left`}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="03" title="Terms ending soon" note="Leadership rotates annually. Hand over before the date; an expired term loses its authority automatically." action={<CalendarClock size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
           {expiringTerms.length === 0 ? (
             <WorkspaceEmpty title="No leadership terms ending" body="No leadership terms end in the next 45 days." />
           ) : (
@@ -131,12 +193,12 @@ export default async function AdminHandoverPage() {
           )}
         </WorkspaceSection>
 
-        <WorkspaceSection index="03" title="Seat handovers" note="A lead nominates a successor and files the brief. Approving moves the role, planner sessions and open event-ops in one transaction. Admin approval required.">
+        <WorkspaceSection index="04" title="Seat handovers" note="A lead nominates a successor and files the brief. Approving moves the role, planner sessions and open event-ops in one transaction. Admin approval required.">
           <HandoverApprovals />
         </WorkspaceSection>
 
-        <WorkspaceSection index="04" title="Transfer checklist" note="Audited on toggle. Add an item and its category progress appears above.">
-          <HandoverBoard />
+        <WorkspaceSection index="05" title="Transfer checklist" note="Audited on toggle. Add an item and its category progress appears above.">
+          <HandoverBoard owners={owners} />
         </WorkspaceSection>
       </main>
     </AppShell>

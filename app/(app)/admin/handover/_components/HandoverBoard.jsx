@@ -11,10 +11,11 @@ async function api(url, method = "GET", body) {
   return res.json().catch(() => ({ ok: false }));
 }
 
-export function HandoverBoard() {
+export function HandoverBoard({ owners = [] }) {
   const [items, setItems] = useState(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("docs");
+  const [ownerId, setOwnerId] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -25,9 +26,9 @@ export function HandoverBoard() {
 
   async function add(e) {
     e.preventDefault();
-    if (title.trim().length < 3) return;
+    if (title.trim().length < 3 || !ownerId) return;
     setBusy(true);
-    const data = await api("/api/handover", "POST", { title: title.trim(), category }).catch(() => ({ ok: false }));
+    const data = await api("/api/handover", "POST", { title: title.trim(), category, ownerId }).catch(() => ({ ok: false }));
     setBusy(false);
     if (data?.ok) {
       setTitle("");
@@ -65,7 +66,7 @@ export function HandoverBoard() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium" style={{ color: "var(--text)", textDecoration: item.done ? "line-through" : "none" }}>{item.title}</span>
-                <span className="meta">{item.category || "general"}</span>
+                <span className="meta">{item.category || "general"} / owner: {item.owner_name || "Unassigned"}</span>
               </span>
             </button>
           </li>
@@ -83,7 +84,13 @@ export function HandoverBoard() {
           <option value="projects">Ongoing projects</option>
           <option value="general">General</option>
         </select>
-        <button disabled={busy} className="btn-ink !py-2 text-sm disabled:opacity-50">{busy ? "Adding…" : "Add item"}</button>
+        <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} required aria-label="Owner" style={{ borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 }}>
+          <option value="">Who owns this?</option>
+          {owners.map((owner) => (
+            <option key={owner.user_id} value={owner.user_id}>{owner.name || owner.user_id}</option>
+          ))}
+        </select>
+        <button disabled={busy || !ownerId} className="btn-ink !py-2 text-sm disabled:opacity-50">{busy ? "Adding…" : "Add item"}</button>
       </form>
     </div>
   );

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { writeAudit } from "@/lib/auth-server";
+import { notify, writeAudit } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 
 const STATUSES = ["upcoming", "live", "completed", "cancelled", "proposed"];
@@ -79,6 +79,37 @@ export async function PATCH(request, { params }) {
     before: { status: event.status, title: event.title },
     after: { status: next.status, title: next.title }
   });
+
+  // Students already hold a seat, so a cancelled event or a changed time/place
+  // is a real notification, not a silent admin edit. Ordinary description
+  // polish still lands on the event page without pinging everyone.
+  const cancelled = next.status === "cancelled" && event.status !== "cancelled";
+  const rescheduled = new Date(next.startsAt).getTime() !== new Date(event.starts_at).getTime();
+  const moved = String(next.location || "") !== String(event.location || "");
+  const titleChanged = next.title !== event.title;
+  if (cancelled || rescheduled || moved || titleChanged) {
+    const recipients = await sql`
+      SELECT student_id FROM event_registrations
+      WHERE event_id = ${id} AND status <> 'cancelled'
+      LIMIT 1000
+    `;
+    const when = new Date(next.startsAt).toLocaleString("en-IN", {
+      weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+    });
+    for (const r of recipients) {
+      await notify({
+        sql,
+        tenantId: tenant?.id,
+        userId: r.student_id,
+        type: "event_update",
+        title: cancelled ? `Event cancelled: ${next.title}` : `Event updated: ${next.title}`,
+        body: cancelled
+          ? "This gathering was cancelled. Your registration is no longer active."
+          : [rescheduled ? `New time: ${when}.` : null, moved ? `New location: ${next.location || "online"}.` : null, "Check the event page for the latest details."].filter(Boolean).join(" "),
+        link: `/student/events/${id}`
+      });
+    }
+  }
 
   return ok({ event: updated });
 }

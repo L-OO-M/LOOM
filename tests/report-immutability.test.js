@@ -63,6 +63,7 @@ function makeDb({ reports = [], failRevision = false } = {}) {
         department_id: departmentId,
         month,
         draft,
+        narrative: "",
         status: "draft",
         submitted_by: null,
         submitted_at: null
@@ -81,11 +82,12 @@ function makeDb({ reports = [], failRevision = false } = {}) {
     }
 
     if (/UPDATE dept_reports SET/.test(text)) {
-      const [draft, status, , submittedBy, , id] = values;
+      const [draft, status, narrative, , submittedBy, , id] = values;
       const report = state.reports.find((r) => r.id === id);
       if (!report) return [];
       if (draft !== null && draft !== undefined) report.draft = draft;
       if (status) report.status = status;
+      if (narrative !== null && narrative !== undefined) report.narrative = narrative;
       if (status === "submitted") report.submitted_by = submittedBy;
       return [{ ...report }];
     }
@@ -182,6 +184,7 @@ function report({ status = "draft", draft = { note: "initial" } } = {}) {
     department_id: DEPT,
     month: "2026-05-01",
     draft,
+    narrative: "",
     status,
     submitted_by: status === "submitted" ? LEAD.id : null,
     submitted_at: status === "submitted" ? "2026-05-20T00:00:00.000Z" : null
@@ -373,5 +376,42 @@ describe("report revision history", () => {
 
     expect(response.status).toBe(403);
     expect(db.state.revisions).toHaveLength(0);
+  });
+});
+
+describe("PATCH /api/reports/[id] - narrative", () => {
+  it("saves a lead's narrative with the report and snapshots a revision", async () => {
+    const db = makeDb({ reports: [report({ status: "draft" })] });
+
+    const { response, body } = await patch({
+      db,
+      profile: LEAD,
+      body: { narrative: "Two workshops shipped. The venue change cost us a week." }
+    });
+
+    expect(response.status).toBe(200);
+    expect(body.data.report.narrative).toBe("Two workshops shipped. The venue change cost us a week.");
+    expect(db.state.reports[0].narrative).toBe("Two workshops shipped. The venue change cost us a week.");
+    expect(db.state.revisions).toHaveLength(1);
+  });
+
+  it("rejects a narrative over the 4000-character limit without touching the row", async () => {
+    const db = makeDb({ reports: [report({ status: "draft" })] });
+
+    const { response, body } = await patch({ db, profile: LEAD, body: { narrative: "x".repeat(4001) } });
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(db.state.reports[0].narrative).toBe("");
+    expect(db.state.queries.some((q) => /UPDATE dept_reports SET/.test(q.text))).toBe(false);
+  });
+
+  it("locks narrative edits for non-admins after submission", async () => {
+    const db = makeDb({ reports: [report({ status: "submitted" })] });
+
+    const { response } = await patch({ db, profile: LEAD, body: { narrative: "late edit" } });
+
+    expect(response.status).toBe(403);
+    expect(db.state.reports[0].narrative).toBe("");
   });
 });

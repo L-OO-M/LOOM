@@ -168,33 +168,39 @@ export async function DELETE() {
   // ranking_events rows behind would let a member hand their token to someone
   // else, unlink, and hand it back -- a laundering path that only exists because
   // the revocation did not cascade.
-  const revoked = await sql`
-    DELETE FROM ranking_events
-    WHERE tenant_id = ${tid}::uuid
-      AND user_id = ${user.id}
-      AND source = 'webhook'
-      AND verified_by LIKE 'github:%'
-    RETURNING ref_id
-  `;
-  const revokedCount = revoked.length;
+  // The proof, the connection, and the grant that produced it leave together.
+  // If the connection were deleted while the evidence survived (or the reverse),
+  // a failed request would leave a link the student cannot see and proof they no
+  // longer control.
+  const { revokedCount, downgraded } = await sql.begin(async (tx) => {
+    const revoked = await tx`
+      DELETE FROM ranking_events
+      WHERE tenant_id = ${tid}::uuid
+        AND user_id = ${user.id}
+        AND source = 'webhook'
+        AND verified_by LIKE 'github:%'
+      RETURNING ref_id
+    `;
 
-  // A project verified by a repo grant is proof only while that grant exists.
-  // Unlink removes the grant, so the project must fall back to provisional;
-  // leaving the verified label would show a badge and a verified state that no
-  // score and no live grant support.
-  const downgraded = await sql`
-    UPDATE projects
-       SET evidence_state = 'provisional', verified_at = NULL, verified_by = NULL, updated_at = NOW()
-     WHERE owner_id = ${user.id}
-       AND tenant_id = ${tid}::uuid
-       AND evidence_state = 'verified'
-       AND verified_by LIKE 'github:%'
-    RETURNING id
-  `;
+    // A project verified by a repo grant is proof only while that grant exists.
+    // Unlink removes the grant, so the project must fall back to provisional;
+    // leaving the verified label would show a badge and a verified state that no
+    // score and no live grant support.
+    const downgradedRows = await tx`
+      UPDATE projects
+         SET evidence_state = 'provisional', verified_at = NULL, verified_by = NULL, updated_at = NOW()
+       WHERE owner_id = ${user.id}
+         AND tenant_id = ${tid}::uuid
+         AND evidence_state = 'verified'
+         AND verified_by LIKE 'github:%'
+      RETURNING id
+    `;
 
-  await sql`DELETE FROM github_connections WHERE user_id = ${user.id}`;
-  await sql`DELETE FROM github_repo_grants WHERE user_id = ${user.id}`;
-  await sql`UPDATE profiles SET github_username = NULL WHERE user_id = ${user.id}`;
+    await tx`DELETE FROM github_connections WHERE user_id = ${user.id}`;
+    await tx`DELETE FROM github_repo_grants WHERE user_id = ${user.id}`;
+    await tx`UPDATE profiles SET github_username = NULL WHERE user_id = ${user.id}`;
+    return { revokedCount: revoked.length, downgraded: downgradedRows };
+  });
 
   if (revokedCount || downgraded.length) {
     const { recomputeScore } = await import("@/lib/ranking");

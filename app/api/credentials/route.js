@@ -17,6 +17,7 @@ function titleFor(a) {
   if (a.source_type === "oss") return `Open source · ${a.source_ref}`;
   if (a.source_type === "contest") return `Contest · ${a.source_ref}`;
   if (a.source_type === "roadmap") return `Roadmap · ${a.source_ref}`;
+  if (a.source_type === "project") return `Verified project · ${a.source_ref}`;
   return "Achievement";
 }
 

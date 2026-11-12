@@ -82,10 +82,11 @@ try {
       `;
       if (!existing) {
         await tx`
-          INSERT INTO handover_checklists (tenant_id, title, category, detail)
+          INSERT INTO handover_checklists (tenant_id, title, category, detail, owner_id)
           VALUES (
             ${t.tenant_id}, ${title}, 'leadership',
-            ${`Term ended ${t.ends_on}. Holder: ${t.name || t.user_id}. Reappoint or transfer ownership.`}
+            ${`Term ended ${t.ends_on}. Holder: ${t.name || t.user_id}. Reappoint or transfer ownership.`},
+            ${t.user_id}
           )
         `;
       }

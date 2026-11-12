@@ -13,7 +13,7 @@ const proposeSchema = z.object({
 
 const decideSchema = z.object({
   id: z.string().uuid(),
-  decision: z.enum(["approved", "rejected"])
+  decision: z.enum(["approved", "rejected", "paid"])
 });
 
 // Expenses: dept leads, vertical leads, and admins can propose; only admins
@@ -35,51 +35,73 @@ export async function POST(request) {
     return fail("FORBIDDEN", "Only department leads and above can propose expenses", 403);
   }
   const tid = tenant?.id ?? null;
-  let headVertical = null;
+  let head = null;
   if (body.headId) {
-    const [head] = await sql`
-      SELECT id, vertical FROM budget_heads WHERE id = ${body.headId}
+    [head] = await sql`
+      SELECT id, vertical, department_id FROM budget_heads WHERE id = ${body.headId}
         AND tenant_id = ${scope(tid)}::uuid LIMIT 1
     `;
     if (!head) return fail("NOT_FOUND", "Budget head not found", 404);
-    headVertical = head.vertical;
   }
-  let deptVertical = null;
+  let dept = null;
   if (body.departmentId) {
-    const [dept] = await sql`
+    [dept] = await sql`
       SELECT id, vertical FROM departments WHERE id = ${body.departmentId}
         AND tenant_id = ${scope(tid)}::uuid LIMIT 1
     `;
     if (!dept) return fail("NOT_FOUND", "Department not found", 404);
-    deptVertical = dept.vertical;
-    if (!admin) {
-      const leadsDept = (profile.memberships || []).some(
-        (m) => m.department_id === body.departmentId && m.level === "dept_lead"
-      );
-      if (profile.role === "vertical_lead") {
-        if (dept.vertical !== profile.vertical) {
-          return fail("FORBIDDEN", "You can only propose expenses for departments in your vertical", 403);
-        }
-      } else if (!leadsDept) {
-        return fail("FORBIDDEN", "You can only propose expenses for departments you lead", 403);
-      }
-    }
+  }
+
+  // The expense charges a head; that head's department (or the named
+  // department when the head is society-wide) must be one the proposer holds.
+  // A dept lead can never charge another department's budget by naming their
+  // own department alongside a foreign head.
+  const targetDepartmentId = head?.department_id || body.departmentId || null;
+  if (head?.department_id && body.departmentId && head.department_id !== body.departmentId) {
+    return fail("FORBIDDEN", "That budget head belongs to a different department", 403);
   }
   if (!admin) {
+    if (!targetDepartmentId) {
+      return fail("FORBIDDEN", "Choose a budget head or department you lead", 403);
+    }
     if (profile.role === "vertical_lead") {
-      if (headVertical && headVertical !== profile.vertical) {
+      const target = dept?.id === targetDepartmentId
+        ? dept
+        : (await sql`
+            SELECT id, vertical FROM departments
+            WHERE id = ${targetDepartmentId} AND tenant_id = ${scope(tid)}::uuid
+            LIMIT 1
+          `)[0];
+      if (!target || target.vertical !== profile.vertical) {
+        return fail("FORBIDDEN", "You can only propose expenses for departments in your vertical", 403);
+      }
+      if (head?.vertical && head.vertical !== profile.vertical) {
         return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
       }
-    } else if (headVertical && deptVertical && headVertical !== deptVertical) {
-      return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
-    }
-    if (!body.departmentId && !body.headId) {
-      return fail("VALIDATION_ERROR", "Choose a department or budget head", 400);
+    } else {
+      const leadsDept = (profile.memberships || []).some(
+        (m) => m.department_id === targetDepartmentId && m.level === "dept_lead"
+      );
+      if (!leadsDept) {
+        return fail("FORBIDDEN", "You can only propose expenses against a budget you lead", 403);
+      }
+      if (head?.vertical) {
+        const target = dept?.id === targetDepartmentId
+          ? dept
+          : (await sql`
+              SELECT id, vertical FROM departments
+              WHERE id = ${targetDepartmentId} AND tenant_id = ${scope(tid)}::uuid
+              LIMIT 1
+            `)[0];
+        if (target && head.vertical !== target.vertical) {
+          return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
+        }
+      }
     }
   }
   const [expense] = await sql`
     INSERT INTO expenses (tenant_id, head_id, department_id, amount, note, status, created_by)
-    VALUES (${tid}, ${body.headId || null}, ${body.departmentId || null}, ${body.amount}, ${body.note}, 'proposed', ${user.id})
+    VALUES (${tid}, ${body.headId || null}, ${targetDepartmentId}, ${body.amount}, ${body.note}, 'proposed', ${user.id})
     RETURNING *
   `;
   await writeAudit({
@@ -104,13 +126,27 @@ export async function PATCH(request) {
     return validationError(e);
   }
   const tid = tenant?.id ?? null;
-  const [expense] = await sql`
-    UPDATE expenses SET status = ${body.decision}, decided_by = ${user.id}
-    WHERE id = ${body.id} AND status = 'proposed'
-      AND tenant_id = ${scope(tid)}::uuid
-    RETURNING *
-  `;
-  if (!expense) return fail("NOT_FOUND", "No proposed expense with that id", 404);
+  const [expense] = body.decision === "paid"
+    ? await sql`
+        UPDATE expenses
+        SET status = 'paid', paid_at = now(), paid_by = ${user.id}
+        WHERE id = ${body.id} AND status = 'approved'
+          AND tenant_id = ${scope(tid)}::uuid
+        RETURNING *
+      `
+    : await sql`
+        UPDATE expenses SET status = ${body.decision}, decided_by = ${user.id}
+        WHERE id = ${body.id} AND status = 'proposed'
+          AND tenant_id = ${scope(tid)}::uuid
+        RETURNING *
+      `;
+  if (!expense) {
+    return fail(
+      "NOT_FOUND",
+      body.decision === "paid" ? "No approved expense with that id" : "No proposed expense with that id",
+      404
+    );
+  }
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: `expense_${body.decision}`,
     resource: "expense", resourceId: body.id, after: { decision: body.decision }

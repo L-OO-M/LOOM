@@ -7,6 +7,7 @@ import { Display, Meta, StatusPill, ActionLink } from "@/components/loom/primiti
 import { env } from "@/lib/env";
 import { RegisterButton, FeedbackForm, MaterialForm } from "../EventsBits";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
+import { EventVolunteerSignup } from "@/components/events/EventVolunteerSignup";
 import { displayState, isFull, nextStepFor, TYPE_LABEL, HISTORY_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,17 @@ export default async function EventDetailPage({ params }) {
     WHERE r.event_id = ${id} ORDER BY r.registered_at ASC LIMIT 200
   ` : [];
   const [cert] = mine ? await sql`SELECT * FROM certificates WHERE event_id = ${id} AND student_id = ${user.id} LIMIT 1` : [];
+  const volunteerSlots = await sql`
+    SELECT s.*,
+      (SELECT COUNT(*)::int FROM volunteer_signups v WHERE v.slot_id = s.id) AS signup_count,
+      EXISTS (
+        SELECT 1 FROM volunteer_signups v
+        WHERE v.slot_id = s.id AND v.user_id = ${user.id}
+      ) AS signed_up
+    FROM volunteer_slots s
+    WHERE s.event_id = ${id} AND s.tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY s.created_at ASC
+  `;
 
   const registered = !!mine && mine.status !== "cancelled";
   const state = displayState(event, mine);
@@ -113,6 +125,13 @@ export default async function EventDetailPage({ params }) {
             </div>
             {mine.status === "attended" && !mine.feedback_score && <div className="mt-3"><FeedbackForm eventId={event.id} /></div>}
           </section>
+        )}
+
+        {!past && (
+          <EventVolunteerSignup
+            slots={volunteerSlots}
+            canVolunteer={!past}
+          />
         )}
 
         {step && !past && (

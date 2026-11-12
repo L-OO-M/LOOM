@@ -58,15 +58,36 @@ export function ReviewButtons({ id }) {
   // Was fire-and-forget: a failed verify/reject left the row in the queue with
   // no message, so the admin could not tell "rejected" from "rejected by 500".
   const [decision, setDecision] = useState(null);
-  const { busy, msg, error, run } = useAction((status) =>
-    postJSON(`/api/opensource/contributions/${id}`, "PATCH", { status }));
+  const [confirmed, setConfirmed] = useState(false);
+  const [note, setNote] = useState("");
+  const { busy, msg, error, run } = useAction((payload) =>
+    postJSON(`/api/opensource/contributions/${id}`, "PATCH", payload));
 
   return (
-    <span className="inline-flex shrink-0 items-center gap-2">
-      <button disabled={busy} onClick={() => { setDecision("verified"); run("verified"); }} className="btn-ink disabled:opacity-50">
+    <span className="inline-flex shrink-0 flex-wrap items-center gap-2">
+      <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={(e) => setConfirmed(e.target.checked)}
+          disabled={busy}
+        />
+        Link matches repo and claim
+      </label>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={500}
+        placeholder="Review note (optional)"
+        aria-label="Review note"
+        disabled={busy}
+        className="rounded-lg border px-2 py-1.5 text-xs"
+        style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
+      />
+      <button disabled={busy || !confirmed} onClick={() => { setDecision("verified"); run({ status: "verified", confirmedMatch: true, reviewNote: note || undefined }); }} className="btn-ink disabled:opacity-50">
         {busy && decision === "verified" ? "Verifying…" : "Verify"}
       </button>
-      <button disabled={busy} onClick={() => { setDecision("rejected"); run("rejected"); }}
+      <button disabled={busy} onClick={() => { setDecision("rejected"); run({ status: "rejected", reviewNote: note || undefined }); }}
         className="rounded-xl border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "var(--line)", color: "var(--text-muted)" }}>
         {busy && decision === "rejected" ? "Rejecting…" : "Reject"}
       </button>

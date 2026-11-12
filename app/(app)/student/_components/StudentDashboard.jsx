@@ -31,15 +31,17 @@ function projectArt(project, fallback) {
 }
 
 export function StudentDashboard({
-  profile, greeting, todayLabel, nextNode, nodes, doneIds, overallPercent,
+  profile, greeting, todayLabel, nextNode, nodes, verifiedIds = [], provisionalCount = 0, overallPercent,
   nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers,
   loop, cadence, notificationsPreview, notifUnread, projectsPreview, projectCount,
   achievementsPreview, achievementCount, credentialCount
 }) {
   const name = profile?.name?.split(" ")[0] || "there";
-  const done = new Set(doneIds);
-  const fresh = !profile?.primary_domain || doneIds.length === 0;
-  const remaining = nodes.length - doneIds.length;
+  // The map draws verified progress. Claims stay in `doneIds` so the UI can
+  // mention them ("awaiting review"), but they are never painted as done.
+  const done = new Set(verifiedIds);
+  const fresh = !profile?.primary_domain || verifiedIds.length === 0;
+  const remaining = nodes.length - verifiedIds.length;
   const domainLabel = nextNode?.domain ? nextNode.domain.replace(/_/g, " ").replace(/\b\w/g, c=>c.toUpperCase()) : "Roadmap";
   const heroArt = domainArt(profile?.primary_domain);
   const currentIndex = nextNode
@@ -122,7 +124,7 @@ export function StudentDashboard({
                 <>
                   <h1 id="desk-hero-title" className="desk-title">The whole path, walked.</h1>
                   <p className="desk-lede">
-                    Every milestone complete - {doneIds.length} of {nodes.length}. Turn momentum into public proof.
+                    Every milestone verified - {verifiedIds.length} of {nodes.length}. Turn momentum into public proof.
                   </p>
                   <div className="desk-actions">
                     <Link href="/student/credentials" prefetch={false} className="btn-ink !px-6 !py-3 !text-base">Share proof &rarr;</Link>
@@ -133,11 +135,14 @@ export function StudentDashboard({
               )}
             </div>
 
-              <aside className="desk-pass" aria-label="Milestone claims">
-              <p className="desk-label">Milestone claims</p>
+              <aside className="desk-pass" aria-label="Verified roadmap progress">
+              <p className="desk-label">Verified progress</p>
               <p className="desk-pass-value">{overallPercent}<span>%</span></p>
-              <p className="desk-pass-note">{doneIds.length} of {nodes.length} milestones claimed</p>
-              <div className="desk-pass-track" role="img" aria-label={`${overallPercent} percent of the roadmap claimed complete`}>
+              <p className="desk-pass-note">
+                {verifiedIds.length} of {nodes.length} milestones verified
+                {provisionalCount > 0 ? ` · ${provisionalCount} awaiting review` : ""}
+              </p>
+              <div className="desk-pass-track" role="img" aria-label={`${overallPercent} percent of the roadmap verified complete`}>
                 <span style={{ width: `${overallPercent}%` }} />
               </div>
               <dl className="desk-pass-list">
@@ -199,7 +204,7 @@ export function StudentDashboard({
               <div className="desk-section-head">
                 <span className="desk-index">02</span>
                 <h2 id="desk-journey-title">Your journey</h2>
-                <span className="desk-note">{doneIds.length} of {nodes.length} complete</span>
+                <span className="desk-note">{verifiedIds.length} of {nodes.length} verified</span>
               </div>
               <p className="desk-section-lede">Five milestones around where you stand - the rest of the path stays queued, not crammed.</p>
               <div className="desk-journey-board">
@@ -210,7 +215,7 @@ export function StudentDashboard({
                     {String(nodes.length ? currentIndex + 1 : 0).padStart(2, "0")}
                     <span> / {nodes.length}</span>
                   </p>
-                  <p className="desk-journey-caption">{doneIds.length} complete / {remaining} to go</p>
+                  <p className="desk-journey-caption">{verifiedIds.length} verified / {remaining} to go</p>
                   <div className="desk-journey-meter" role="img" aria-label={`${overallPercent} percent of the roadmap complete`}>
                     <span style={{ width: `${overallPercent}%` }} />
                   </div>

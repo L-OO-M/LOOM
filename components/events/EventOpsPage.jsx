@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
 import { EventAdminActions } from "@/components/admin/EventAdminActions";
+import { EventVolunteerAdmin } from "@/components/events/EventVolunteerAdmin";
 import { displayState, TYPE_LABEL } from "@/lib/events";
 
 // One event-operations surface for both consoles. Before this, the only
@@ -44,6 +45,22 @@ export async function EventOpsPage({ id, area = "admin" }) {
   `;
   const materials = await sql`
     SELECT * FROM event_materials WHERE event_id = ${id} ORDER BY uploaded_at ASC
+  `;
+  const volunteerSlots = await sql`
+    SELECT s.*,
+      (SELECT COUNT(*)::int FROM volunteer_signups v WHERE v.slot_id = s.id) AS signup_count
+    FROM volunteer_slots s
+    WHERE s.event_id = ${id} AND s.tenant_id = ${tenant.id}::uuid
+    ORDER BY s.created_at ASC
+  `;
+  const volunteerSignups = await sql`
+    SELECT v.*, p.name AS student_name, p.email
+    FROM volunteer_signups v
+    JOIN volunteer_slots s ON s.id = v.slot_id
+    LEFT JOIN profiles p ON p.user_id = v.user_id
+    WHERE s.event_id = ${id} AND s.tenant_id = ${tenant.id}::uuid
+    ORDER BY v.created_at ASC
+    LIMIT 500
   `;
 
   const state = displayState(event, null);
@@ -99,6 +116,15 @@ export async function EventOpsPage({ id, area = "admin" }) {
         </WorkspaceSection>
 
         <WorkspaceSection index="02" title="Attendee ledger" note="Registered first, newest last. Codes are shown only to event operators.">
+          <div className="mb-3">
+            <a
+              href={`/api/admin/events/${event.id}/attendees/export`}
+              className="text-xs font-semibold hover:underline"
+              style={{ color: "var(--accent)" }}
+            >
+              Download attendee CSV
+            </a>
+          </div>
           {attendees.length === 0 ? (
             <WorkspaceEmpty title="No registrations yet" body="Students appear here the moment they register from /student/events." />
           ) : (
@@ -116,6 +142,14 @@ export async function EventOpsPage({ id, area = "admin" }) {
               ))}
             </ul>
           )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="03" title="Volunteer roster" note="Add the jobs this event needs, then see exactly who signed up.">
+          <EventVolunteerAdmin
+            eventId={event.id}
+            slots={volunteerSlots}
+            signups={volunteerSignups}
+          />
         </WorkspaceSection>
       </main>
     </AppShell>

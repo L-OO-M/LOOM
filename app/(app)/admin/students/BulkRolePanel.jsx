@@ -11,27 +11,35 @@ const ROLES = [
   { value: "student", label: "Student" }
 ];
 
-// Bulk role assignment for the rows currently on screen. Reuses
-// /api/admin/students/bulk, which enforces founder/self/last-admin guards and
-// writes one audit entry for the whole batch.
 export function BulkRolePanel({ students, departments }) {
   const router = useRouter();
   const [selected, setSelected] = useState(() => new Set());
+  const [mode, setMode] = useState("role");
   const [role, setRole] = useState("core");
   const [departmentId, setDepartmentId] = useState("");
+  const [membershipLevel, setMembershipLevel] = useState("general");
   const [vertical, setVertical] = useState("technical");
+  const [step, setStep] = useState("edit");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const ids = students.map((s) => s.user_id).filter(Boolean);
   const allSelected = ids.length > 0 && ids.every((id) => selected.has(id));
+  const department = departments.find((d) => String(d.id || d.slug) === String(departmentId));
+  const roleLabel = ROLES.find((r) => r.value === role)?.label || role;
 
   useEffect(() => {
     setSelected(new Set());
     setMessage("");
     setError("");
+    setStep("edit");
   }, [students]);
+
+  useEffect(() => {
+    setStep("edit");
+    setError("");
+  }, [mode, role, departmentId, membershipLevel, vertical]);
 
   function toggle(id) {
     setSelected((prev) => {
@@ -46,26 +54,45 @@ export function BulkRolePanel({ students, departments }) {
     setSelected(allSelected ? new Set() : new Set(ids));
   }
 
-  async function submit(e) {
+  function review(e) {
     e.preventDefault();
     if (selected.size === 0) {
       setError("Select at least one member.");
       return;
     }
-    if (role === "dept_lead" && !departmentId) {
+    if (mode === "role" && role === "dept_lead" && !departmentId) {
       setError("Choose the department this batch will lead.");
       return;
     }
+    if (mode === "department" && !departmentId) {
+      setError("Choose the department to assign.");
+      return;
+    }
+    setError("");
+    setStep("confirm");
+  }
+
+  async function submit() {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      const body = {
-        userIds: [...selected],
-        role,
-        departmentId: role === "dept_lead" ? departmentId : null,
-        vertical: role === "vertical_lead" ? vertical : null
-      };
+      const body = mode === "department"
+        ? {
+            mode: "department",
+            userIds: [...selected],
+            departmentId,
+            membershipLevel,
+            confirm: true
+          }
+        : {
+            mode: "role",
+            userIds: [...selected],
+            role,
+            departmentId: role === "dept_lead" ? departmentId : null,
+            vertical: role === "vertical_lead" ? vertical : null,
+            confirm: true
+          };
       const res = await fetch("/api/admin/students/bulk", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -78,6 +105,7 @@ export function BulkRolePanel({ students, departments }) {
       }
       setMessage(`${data.data?.updated ?? selected.size} member${(data.data?.updated ?? selected.size) === 1 ? "" : "s"} updated.`);
       setSelected(new Set());
+      setStep("edit");
       router.refresh();
     } catch {
       setError("Network error - nothing was changed.");
@@ -88,12 +116,39 @@ export function BulkRolePanel({ students, departments }) {
 
   if (students.length === 0) return null;
 
+  if (step === "confirm") {
+    return (
+      <details className="adst-bulk" open>
+        <summary className="adst-bulk-summary">Confirm batch change</summary>
+        <div className="adst-bulk-form">
+          <p className="adst-bulk-msg">
+            {mode === "department"
+              ? `Add ${selected.size} member${selected.size === 1 ? "" : "s"} to ${department?.name || "the selected department"} as ${membershipLevel}.`
+              : `Change ${selected.size} member${selected.size === 1 ? "" : "s"} to ${roleLabel}.`}
+          </p>
+          <p className="adst-muted">
+            Every row is checked for founder protection, self-changes and the last active admin. One audit entry covers the batch.
+          </p>
+          <div className="adst-bulk-controls">
+            <button type="button" onClick={() => setStep("edit")} disabled={busy} className="rounded-full border px-4 py-2 text-xs font-medium" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+              Back
+            </button>
+            <button type="button" onClick={submit} disabled={busy} className="btn-ink !py-2 text-xs disabled:opacity-50">
+              {busy ? "Applying..." : `Confirm ${mode === "department" ? "assignment" : "role change"}`}
+            </button>
+          </div>
+          {error && <p role="alert" className="adst-bulk-msg" style={{ color: "var(--danger)" }}>{error}</p>}
+        </div>
+      </details>
+    );
+  }
+
   return (
     <details className="adst-bulk">
       <summary className="adst-bulk-summary">
-        Bulk assign roles <span className="adst-muted">({selected.size} selected of {students.length} shown)</span>
+        Bulk assign <span className="adst-muted">({selected.size} selected of {students.length} shown)</span>
       </summary>
-      <form onSubmit={submit} className="adst-bulk-form">
+      <form onSubmit={review} className="adst-bulk-form">
         <div className="adst-bulk-list" role="group" aria-label="Members on this page">
           <label className="adst-bulk-check">
             <input type="checkbox" checked={allSelected} onChange={toggleAll} />
@@ -109,31 +164,59 @@ export function BulkRolePanel({ students, departments }) {
         </div>
         <div className="adst-bulk-controls">
           <label className="adst-bulk-field">
-            New role
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            Change
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="role">Role</option>
+              <option value="department">Department membership</option>
             </select>
           </label>
-          {role === "dept_lead" && (
-            <label className="adst-bulk-field">
-              Department
-              <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required>
-                <option value="">Choose a department</option>
-                {departments.map((d) => <option key={d.slug} value={d.id || d.slug}>{d.name}</option>)}
-              </select>
-            </label>
+          {mode === "role" ? (
+            <>
+              <label className="adst-bulk-field">
+                New role
+                <select value={role} onChange={(e) => setRole(e.target.value)}>
+                  {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </label>
+              {role === "dept_lead" && (
+                <label className="adst-bulk-field">
+                  Department
+                  <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required>
+                    <option value="">Choose a department</option>
+                    {departments.map((d) => <option key={d.slug} value={d.id || d.slug}>{d.name}</option>)}
+                  </select>
+                </label>
+              )}
+              {role === "vertical_lead" && (
+                <label className="adst-bulk-field">
+                  Vertical
+                  <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
+                    <option value="technical">Technical</option>
+                    <option value="non_technical">Non-technical</option>
+                  </select>
+                </label>
+              )}
+            </>
+          ) : (
+            <>
+              <label className="adst-bulk-field">
+                Department
+                <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required>
+                  <option value="">Choose a department</option>
+                  {departments.map((d) => <option key={d.slug} value={d.id || d.slug}>{d.name}</option>)}
+                </select>
+              </label>
+              <label className="adst-bulk-field">
+                Level
+                <select value={membershipLevel} onChange={(e) => setMembershipLevel(e.target.value)}>
+                  <option value="general">General member</option>
+                  <option value="core">Core member</option>
+                </select>
+              </label>
+            </>
           )}
-          {role === "vertical_lead" && (
-            <label className="adst-bulk-field">
-              Vertical
-              <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
-                <option value="technical">Technical</option>
-                <option value="non_technical">Non-technical</option>
-              </select>
-            </label>
-          )}
-          <button disabled={busy} className="btn-ink !py-2 text-xs disabled:opacity-50">
-            {busy ? "Assigning…" : `Assign to ${selected.size || 0}`}
+          <button disabled={busy || selected.size === 0} className="btn-ink !py-2 text-xs disabled:opacity-50">
+            Review {selected.size || 0} change{selected.size === 1 ? "" : "s"}
           </button>
         </div>
         {message && <p role="status" className="adst-bulk-msg">{message}</p>}

@@ -56,6 +56,19 @@ export async function POST(request) {
   if (contributionType !== "issue" && parsed.kind !== "pr") {
     return fail("TYPE_MISMATCH", "That is an issue link — claim it as an issue.", 400);
   }
+  if (contributionType === "issue") {
+    const [other] = await sql`
+      SELECT id, student_id FROM student_oss_contributions
+      WHERE tenant_id = ${tenant?.id ?? null}::uuid
+        AND contribution_type = 'issue'
+        AND canonical_url = ${parsed.canonicalUrl}
+        AND student_id <> ${user.id}
+      LIMIT 1
+    `;
+    if (other) {
+      return fail("ISSUE_ALREADY_CLAIMED", "Another student already claimed that issue", 409);
+    }
+  }
   const [project] = await sql`
     SELECT * FROM open_source_projects
     WHERE lower(owner) = lower(${parsed.owner}) AND lower(repo_name) = lower(${parsed.repo})

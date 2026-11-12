@@ -5,7 +5,9 @@ import { awardOssBadges, revokeUnearnedOssBadges } from "@/lib/oss";
 import { recordEvidence, recomputeScore, revokeEvidence } from "@/lib/ranking";
 
 const reviewSchema = z.object({
-  status: z.enum(["verified", "rejected"])
+  status: z.enum(["verified", "rejected"]),
+  confirmedMatch: z.boolean().optional(),
+  reviewNote: z.string().max(500).optional()
 });
 
 // Admin verifies (or rejects) a claimed contribution. Verifying awards badges.
@@ -30,10 +32,21 @@ export async function PATCH(request, { params }) {
     LIMIT 1
   `;
   if (!row) return fail("NOT_FOUND", "Contribution not found", 404);
+  // Verification is a claim that the linked PR/issue belongs to the tracked
+  // repo and that a human actually checked it. Without this, the button was a
+  // rubber stamp on whatever URL the student pasted.
+  if (body.status === "verified" && body.confirmedMatch !== true) {
+    return fail(
+      "REVIEW_CONFIRMATION_REQUIRED",
+      "Confirm the link points at the claimed repository and contribution before verifying",
+      400
+    );
+  }
   const [updated] = await sql`
     UPDATE student_oss_contributions
     SET status = ${body.status},
-        verified_at = CASE WHEN ${body.status} = 'verified' THEN now() ELSE NULL END
+        verified_at = CASE WHEN ${body.status} = 'verified' THEN now() ELSE NULL END,
+        review_note = COALESCE(${body.reviewNote ?? null}, review_note)
     WHERE id = ${id}
       AND tenant_id = ${tid}::uuid
     RETURNING *
@@ -105,6 +118,6 @@ export async function PATCH(request, { params }) {
       link: "/student/opensource"
     });
   }
-  await writeAudit({ sql, actorId: user.id, tenantId: tid, action: `oss_${body.status}`, resource: "oss_contribution", resourceId: id, after: { status: body.status, revoked } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tid, action: `oss_${body.status}`, resource: "oss_contribution", resourceId: id, after: { status: body.status, confirmedMatch: body.confirmedMatch === true, reviewNote: body.reviewNote || null, revoked } });
   return ok({ contribution: updated, granted, revoked });
 }

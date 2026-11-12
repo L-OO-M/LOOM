@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, X, FileText, Download, Upload, Archive, AlertTriangle } from "lucide-react";
+import { Plus, Search, X, FileText, Download, Upload, Archive, AlertTriangle, CalendarClock, Check } from "lucide-react";
 
 const input = {
   width: "100%", borderRadius: 10, border: "1px solid var(--line)",
@@ -39,8 +39,9 @@ function StatusPill({ status }) {
   );
 }
 
-export function MouBoard({ initialMous = [], canManage = false }) {
+export function MouBoard({ initialMous = [], initialRenewals = [], sponsors = [], expiringDays = 30, canManage = false }) {
   const [mous, setMous] = useState(initialMous);
+  const [renewals, setRenewals] = useState(initialRenewals);
   const [status, setStatus] = useState("");
   const [expiring, setExpiring] = useState(false);
   const [q, setQ] = useState("");
@@ -89,6 +90,7 @@ export function MouBoard({ initialMous = [], canManage = false }) {
       title: fd.get("title"), partnerName: fd.get("partnerName"),
       partnerType: fd.get("partnerType"), status: fd.get("status"),
       vertical: fd.get("vertical") || null,
+      sponsorshipId: fd.get("sponsorshipId") || null,
       valueAmount: fd.get("valueAmount") ? Number(fd.get("valueAmount")) : null,
       valueCurrency: fd.get("valueCurrency") || "INR",
       signedOn: fd.get("signedOn") || null, startsOn: fd.get("startsOn") || null, endsOn: fd.get("endsOn") || null,
@@ -170,7 +172,60 @@ export function MouBoard({ initialMous = [], canManage = false }) {
     }
   }
 
+  async function openRenewal(mou) {
+    const nextAction = window.prompt(
+      "What is the next renewal action?",
+      `Contact ${mou.partner_name} about renewal`
+    );
+    if (nextAction === null) return;
+    if (nextAction.trim().length < 5) { setMsg("Describe the next action in a few words"); return; }
+    const suggested = mou.ends_on
+      ? new Date(new Date(mou.ends_on).getTime() - 14 * 86400000).toISOString().slice(0, 10)
+      : "";
+    const dueOn = window.prompt("Due date (YYYY-MM-DD), blank for none", suggested);
+    if (dueOn === null) return;
+    setMsg("Creating task…");
+    const res = await fetch(`/api/lead/mous/${mou.id}/renewal`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nextAction: nextAction.trim(), dueOn: dueOn.trim() || null })
+    });
+    const d = await res.json().catch(() => ({ ok: false }));
+    if (d.ok) {
+      const task = { ...d.data.task, mou_title: mou.title, partner_name: mou.partner_name, ends_on: mou.ends_on };
+      setRenewals((prev) => [task, ...prev]);
+      setMous((prev) => prev.map((m) => (m.id === mou.id ? { ...m, renewal_task: d.data.task } : m)));
+      if (detail?.id === mou.id) setDetail({ ...detail, renewal_tasks: [d.data.task, ...(detail.renewal_tasks || [])] });
+      setMsg("Renewal task opened ✓");
+    } else {
+      setMsg(d.error?.message || "Could not open renewal task");
+    }
+  }
+
+  async function closeRenewal(task) {
+    if (!window.confirm("Close this renewal task? The close is recorded against your name.")) return;
+    setMsg("Closing…");
+    const res = await fetch(`/api/lead/mous/${task.mou_id}/renewal`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "close", taskId: task.id })
+    });
+    const d = await res.json().catch(() => ({ ok: false }));
+    if (d.ok) {
+      setRenewals((prev) => prev.filter((t) => t.id !== task.id));
+      setMous((prev) => prev.map((m) => (m.id === task.mou_id ? { ...m, renewal_task: null } : m)));
+      if (detail?.id === task.mou_id) {
+        setDetail({ ...detail, renewal_tasks: (detail.renewal_tasks || []).map((t) => t.id === task.id ? d.data.task : t) });
+      }
+      setMsg("Renewal task closed ✓");
+    } else {
+      setMsg(d.error?.message || "Could not close task");
+    }
+  }
+
   const ok = msg.includes("✓");
+  const needsRenewal = mous.filter((m) => {
+    const left = daysLeft(m.ends_on);
+    return m.status === "active" && left !== null && left <= expiringDays && !m.renewal_task;
+  });
 
   return (
     <div>
@@ -211,6 +266,68 @@ export function MouBoard({ initialMous = [], canManage = false }) {
         </p>
       )}
 
+      {needsRenewal.length > 0 && (
+        <section className="mb-4 rounded-2xl border p-4" style={{ borderColor: "color-mix(in srgb, #d97706 28%, var(--line))", background: "color-mix(in srgb, #d97706 7%, var(--bg-elevated))" }}>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <AlertTriangle size={15} style={{ color: "#d97706" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Expiring inside {expiringDays} days, no renewal owner</h3>
+          </div>
+          <ul className="space-y-1.5">
+            {needsRenewal.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                <span style={{ color: "var(--text)" }}>{m.title}</span>
+                <span>{m.partner_name}</span>
+                <span>ends {String(m.ends_on).slice(0, 10)}</span>
+                {canManage && (
+                  <button onClick={() => openRenewal(m)} className="underline" style={{ color: "var(--text)" }}>
+                    Open renewal task
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {renewals.length > 0 && (
+        <section className="mb-6 rounded-2xl border p-4" style={{ borderColor: "color-mix(in srgb, var(--danger) 22%, var(--line))", background: "color-mix(in srgb, var(--danger) 5%, var(--bg-elevated))" }}>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <CalendarClock size={15} style={{ color: "var(--danger)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Renewal queue</h3>
+            <span className="rounded-full px-2 py-0.5 text-[11px]" style={{ background: "color-mix(in srgb, var(--danger) 12%, var(--bg))", color: "var(--danger)" }}>
+              {renewals.length} open
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {renewals.map((t) => {
+              const due = t.due_on ? String(t.due_on).slice(0, 10) : null;
+              const overdue = due && new Date(due).getTime() < Date.now();
+              return (
+                <li key={t.id} className="flex flex-wrap items-start gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{t.mou_title}</p>
+                    <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{t.next_action}</p>
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      <span>Owner: {t.owner_name || "You"}</span>
+                      <span style={overdue ? { color: "var(--danger)", fontWeight: 600 } : undefined}>
+                        Due: {due || "no date"}
+                      </span>
+                      {t.ends_on ? <span>Agreement ends {String(t.ends_on).slice(0, 10)}</span> : null}
+                      {t.sponsor_name ? <span>Sponsor: {t.sponsor_name}</span> : null}
+                    </p>
+                  </div>
+                  {canManage && (
+                    <button onClick={() => closeRenewal(t)} className="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+                      <Check size={12} /> Close
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {canManage && showForm && (
         <form onSubmit={create} className="mb-6 grid gap-3 rounded-2xl border p-5 sm:grid-cols-2" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           <input name="title" required minLength={2} maxLength={160} placeholder="Title (e.g. Cloud credits for hackathons)" style={input} />
@@ -225,6 +342,10 @@ export function MouBoard({ initialMous = [], canManage = false }) {
             <option value="">Society-wide</option>
             <option value="technical">Technical</option>
             <option value="non_technical">Non-technical</option>
+          </select>
+          <select name="sponsorshipId" style={input} defaultValue="" aria-label="Linked sponsorship">
+            <option value="">No linked sponsorship</option>
+            {sponsors.map((s) => <option key={s.id} value={s.id}>{s.name}{s.vertical ? ` (${s.vertical})` : ""}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input name="valueAmount" type="number" min={0} step="0.01" placeholder="Value" style={input} />
@@ -251,7 +372,7 @@ export function MouBoard({ initialMous = [], canManage = false }) {
         <ul className="space-y-2">
           {mous.map((m) => {
             const left = daysLeft(m.ends_on);
-            const soon = m.status === "active" && left !== null && left <= 30;
+            const soon = m.status === "active" && left !== null && left <= expiringDays;
             const isOpen = openId === m.id;
             return (
               <li key={m.id} className="rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -282,6 +403,29 @@ export function MouBoard({ initialMous = [], canManage = false }) {
                     ) : (
                       <>
                         {detail.summary && <p className="narrative text-sm">{detail.summary}</p>}
+                        {detail.sponsor_name && (
+                          <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                            Linked sponsorship: <span style={{ color: "var(--text)" }}>{detail.sponsor_name}</span>
+                          </p>
+                        )}
+                        {(detail.renewal_tasks || []).some((t) => t.status === "open") ? (
+                          <div className="mt-3 rounded-xl border p-2.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                            {(detail.renewal_tasks || []).filter((t) => t.status === "open").map((t) => (
+                              <p key={t.id} className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                <span style={{ color: "var(--text)", fontWeight: 600 }}>Renewal:</span> {t.next_action}
+                                {t.due_on ? ` · due ${String(t.due_on).slice(0, 10)}` : ""}
+                                {` · owner ${t.owner_name || "you"}`}
+                                {canManage && (
+                                  <button onClick={() => closeRenewal(t)} className="ml-2 underline" style={{ color: "var(--text)" }}>Close</button>
+                                )}
+                              </p>
+                            ))}
+                          </div>
+                        ) : canManage ? (
+                          <button onClick={() => openRenewal(m)} className="mt-3 inline-flex items-center gap-1 text-xs underline" style={{ color: "var(--text-muted)" }}>
+                            <CalendarClock size={12} /> Open renewal task
+                          </button>
+                        ) : null}
                         <div className="mt-3 space-y-1.5">
                           {detail.documents?.length ? detail.documents.map((doc) => (
                             <div key={doc.id} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>

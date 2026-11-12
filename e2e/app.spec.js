@@ -51,10 +51,12 @@ const protectedPages = [
   "/lead/succession",
   "/lead/assets",
   "/lead/mous",
+  "/lead/announcements",
   "/lead/directory",
   "/lead/event-ops",
   "/admin/assets",
   "/admin/mous",
+  "/admin/announcements",
   "/admin/directory",
   "/admin/event-ops"
 ];
@@ -206,6 +208,8 @@ test.describe("api authorization", () => {
   test("announcement and contribution writes return 401 without session", async ({ request }) => {
     const post = await request.post("/api/announcements", { data: { scope: "society", title: "x", body: "y" } });
     expect(post.status()).toBe(401);
+    const publish = await request.patch("/api/announcements/00000000-0000-0000-0000-000000000000", { data: { status: "published" } });
+    expect(publish.status()).toBe(401);
     const log = await request.post("/api/contributions", { data: { kind: "project", title: "Public proof" } });
     expect(log.status()).toBe(401);
   });
@@ -247,6 +251,10 @@ test.describe("api authorization", () => {
     expect(doc.status()).toBe(401);
     const download = await request.get(`/api/lead/mous/${id}/documents/${id}/download`);
     expect(download.status()).toBe(401);
+    const renewal = await request.post(`/api/lead/mous/${id}/renewal`, { data: { nextAction: "Call sponsor" } });
+    expect(renewal.status()).toBe(401);
+    const close = await request.patch(`/api/lead/mous/${id}/renewal`, { data: { action: "close", taskId: id } });
+    expect(close.status()).toBe(401);
   });
 
   test("directory writes return 401 without session", async ({ request }) => {
@@ -299,6 +307,7 @@ test.describe("operations api authorization", () => {
     "/api/reports",
     "/api/reports/export?scope=semester",
     "/api/handover",
+    "/api/admin/succession",
     "/api/finance"
   ];
   for (const path of getApis) {

@@ -59,7 +59,8 @@ export default async function AdminStudentsPage({ searchParams }) {
       COUNT(*) FILTER (WHERE role = 'student')::int AS students,
       COUNT(*) FILTER (WHERE role = 'core')::int AS core,
       COUNT(*) FILTER (WHERE role IN ('dept_lead','vertical_lead'))::int AS leads,
-      COUNT(*) FILTER (WHERE role = 'admin')::int AS admins
+      COUNT(*) FILTER (WHERE role = 'admin')::int AS admins,
+      COUNT(*) FILTER (WHERE account_status = 'suspended')::int AS suspended
     FROM profiles
     WHERE tenant_id = ${scope(tenant?.id ?? null)}::uuid
   `;
@@ -92,7 +93,7 @@ export default async function AdminStudentsPage({ searchParams }) {
   if (matchedCount > 0 && !win.outOfRange) {
     rows = await sql`
       SELECT p.user_id, p.name, p.role, p.primary_domain, p.branch, p.year, p.roll_number,
-             p.github_username, p.updated_at, p.vertical, p.role_term_end,
+             p.github_username, p.updated_at, p.vertical, p.role_term_end, p.account_status,
         (SELECT json_agg(json_build_object('slug', d.slug, 'level', m.level, 'name', d.name))
          FROM department_memberships m JOIN departments d ON d.id = m.department_id
          WHERE m.user_id = p.user_id) AS departments
@@ -151,6 +152,7 @@ export default async function AdminStudentsPage({ searchParams }) {
               </p>
               <p className="adst-meta-line">
                 {stats?.total ?? 0} enrolled &middot; {matchedCount} matched &middot; page {win.page} of {win.pages || 1}
+                {stats?.suspended ? ` \u00b7 ${stats.suspended} suspended` : ""}
               </p>
             </div>
             <div className="adminx-glance" aria-label="Chapter roster at a glance">
@@ -319,6 +321,9 @@ export default async function AdminStudentsPage({ searchParams }) {
                           <span className="adst-role" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>
                             {tone.label}
                           </span>
+                          {r.account_status && r.account_status !== "active" && (
+                            <span className="adst-term-note" style={{ color: "var(--danger)" }}> {r.account_status}</span>
+                          )}
                         </td>
                         <td className={`adst-term ${expired ? "is-expired" : ""}`}>
                           {r.role_term_end ? new Date(r.role_term_end).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "—"}

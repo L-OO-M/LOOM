@@ -32,7 +32,7 @@ function makeDb({ session, tenantId = TENANT } = {}) {
     }
 
     if (/UPDATE mentor_sessions/.test(text)) {
-      current = { ...current, status: values[0] };
+      current = { ...current, status: values[0], scheduled_at: values[1] ?? current.scheduled_at };
       return [{ ...current }];
     }
 
@@ -58,7 +58,7 @@ async function loadRoute() {
   return import("@/app/api/mentorship/[id]/route");
 }
 
-async function patch({ db, userId, status, session }) {
+async function patch({ db, userId, status, scheduledAt, session }) {
   const local = db || makeDb({ session });
   pendingContexts.push({ user: { id: userId }, tenant: { id: TENANT }, sql: local.sql });
   const { PATCH } = await loadRoute();
@@ -66,7 +66,7 @@ async function patch({ db, userId, status, session }) {
     new Request(`http://localhost/api/mentorship/${SESSION}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, ...(scheduledAt ? { scheduledAt } : {}) })
     }),
     { params: Promise.resolve({ id: SESSION }) }
   );
@@ -150,6 +150,33 @@ describe("PATCH /api/mentorship/[id]", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("lets either side reschedule a live session with a new time", async () => {
+    const next = "2026-12-01T10:00:00.000Z";
+    const { response, db, body } = await patch({
+      userId: STUDENT,
+      status: "scheduled",
+      scheduledAt: next,
+      session: session({ status: "scheduled", scheduled_at: "2026-11-20T10:00:00.000Z" })
+    });
+    expect(response.status).toBe(200);
+    expect(db.session.status).toBe("scheduled");
+    expect(new Date(db.session.scheduled_at).toISOString()).toBe(next);
+    expect(audits[0].action).toBe("mentorship_rescheduled");
+    expect(notifications[0].userId).toBe(MENTOR);
+    expect(body.ok).toBe(true);
+  });
+
+  it("refuses a reschedule without a new time", async () => {
+    const { response, body, db } = await patch({
+      userId: MENTOR,
+      status: "scheduled",
+      session: session({ status: "scheduled", scheduled_at: "2026-11-20T10:00:00.000Z" })
+    });
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe("SCHEDULED_AT_REQUIRED");
+    expect(db.statements.some((s) => /UPDATE mentor_sessions/.test(s.text))).toBe(false);
   });
 
   it("rejects an unknown status before reading the session", async () => {

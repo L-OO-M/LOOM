@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Clock3, Award, MessageCircle, Inbox, Check, X, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Award, MessageCircle, Inbox, Check, X, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
@@ -66,13 +66,25 @@ export default async function AdminMentorsPage({ searchParams }) {
       (SELECT COUNT(*)::int FROM mentors WHERE tenant_id = ${tid}::uuid) AS mentors,
       (SELECT COUNT(*)::int FROM mentors WHERE tenant_id = ${tid}::uuid AND available = true) AS available,
       (SELECT COUNT(*)::int FROM mentor_applications WHERE tenant_id = ${tid}::uuid AND status = 'pending') AS pending,
-      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid) AS sessions
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid) AS sessions,
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid AND s.status = 'requested') AS requested,
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid AND s.status = 'scheduled') AS scheduled,
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid AND s.status = 'completed') AS completed,
+      (SELECT COUNT(*)::int FROM mentor_sessions s JOIN mentors m ON m.user_id = s.mentor_id WHERE m.tenant_id = ${tid}::uuid AND s.status = 'cancelled') AS cancelled
   `;
+  const statusCounts = {
+    requested: stats?.requested ?? 0,
+    scheduled: stats?.scheduled ?? 0,
+    completed: stats?.completed ?? 0,
+    cancelled: stats?.cancelled ?? 0
+  };
+  const sessionStatus = Object.prototype.hasOwnProperty.call(statusCounts, sp?.sessionStatus) ? sp.sessionStatus : "";
+  const sessionTotal = sessionStatus ? statusCounts[sessionStatus] : (stats?.sessions ?? 0);
 
   // Both totals already come from the tenant-scoped COUNTs above, so the page
   // windows need no extra round-trip. Roster and sessions page independently.
   const rosterWin = pageWindow(stats?.mentors ?? 0, sp?.page, PAGE_SIZE);
-  const sessionWin = pageWindow(stats?.sessions ?? 0, sp?.sessionPage, SESSION_PAGE_SIZE);
+  const sessionWin = pageWindow(sessionTotal, sp?.sessionPage, SESSION_PAGE_SIZE);
 
   let mentors = [];
   if (rosterWin.total > 0 && !rosterWin.outOfRange) {
@@ -95,6 +107,7 @@ export default async function AdminMentorsPage({ searchParams }) {
       LEFT JOIN profiles pm ON pm.user_id = s.mentor_id
       LEFT JOIN profiles ps ON ps.user_id = s.student_id
       WHERE m.tenant_id = ${tid}::uuid
+        AND (${sessionStatus ? sql`s.status = ${sessionStatus}` : sql`TRUE`})
       ORDER BY s.created_at DESC, s.id DESC
       LIMIT ${SESSION_PAGE_SIZE} OFFSET ${sessionWin.offset}
     `;
@@ -141,7 +154,7 @@ export default async function AdminMentorsPage({ searchParams }) {
               title={`Page ${rosterWin.requestedPage} is past the end of this roster`}
               body={`${rosterWin.total} mentor${rosterWin.total === 1 ? "" : "s"} fit on ${rosterWin.pages} page${rosterWin.pages === 1 ? "" : "s"} at ${PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
               action={
-                <Link href={pageHref(BASE_PATH, { sessionPage: sp?.sessionPage }, rosterWin.pages)} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                <Link href={pageHref(BASE_PATH, { sessionPage: sp?.sessionPage, sessionStatus }, rosterWin.pages)} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
                   Go to the last page ({rosterWin.pages})
                 </Link>
               }
@@ -172,36 +185,61 @@ export default async function AdminMentorsPage({ searchParams }) {
               ))}
             </ul>
           )}
-          <Pager label="Mentor pages" win={rosterWin} params={{ sessionPage: sp?.sessionPage }} />
+          <Pager label="Mentor pages" win={rosterWin} params={{ sessionPage: sp?.sessionPage, sessionStatus }} />
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Recent sessions" note="Newest first. Sessions appear once a student requests a mentor." action={<Clock3 size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
+        <WorkspaceSection
+          index="02"
+          title="Session operations"
+          note="Newest first. Filter by state; every session stays linked to both people."
+          action={
+            <span className="aled-meta" style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }}>
+              <Link href={pageHref(BASE_PATH, { page: sp?.page }, null, "sessionPage")} prefetch={false} style={{ color: sessionStatus ? "var(--text-muted)" : "var(--accent)" }}>All {stats?.sessions ?? 0}</Link>
+              {["requested", "scheduled", "completed", "cancelled"].map((status) => (
+                <Link
+                  key={status}
+                  href={pageHref(BASE_PATH, { page: sp?.page, sessionStatus: status }, null, "sessionPage")}
+                  prefetch={false}
+                  style={{ color: sessionStatus === status ? "var(--accent)" : "var(--text-muted)", textTransform: "capitalize" }}
+                >
+                  {status} {statusCounts[status]}
+                </Link>
+              ))}
+            </span>
+          }
+        >
           {sessionWin.outOfRange ? (
             <WorkspaceEmpty
               title={`Page ${sessionWin.requestedPage} is past the end of this log`}
               body={`${sessionWin.total} session${sessionWin.total === 1 ? "" : "s"} fit on ${sessionWin.pages} page${sessionWin.pages === 1 ? "" : "s"} at ${SESSION_PAGE_SIZE} per page. Nothing is shown here rather than repeating another page's rows.`}
               action={
-                <Link href={pageHref(BASE_PATH, { page: sp?.page }, sessionWin.pages, "sessionPage")} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
+                <Link href={pageHref(BASE_PATH, { page: sp?.page, sessionStatus }, sessionWin.pages, "sessionPage")} prefetch={false} style={{ color: "var(--accent)" }} className="aled-meta">
                   Go to the last page ({sessionWin.pages})
                 </Link>
               }
             />
           ) : sessions.length === 0 ? (
-            <WorkspaceEmpty title="No sessions yet" body="They appear once a student requests a mentor." />
+            <WorkspaceEmpty title={sessionStatus ? `No ${sessionStatus} sessions` : "No sessions yet"} body="They appear once a student requests a mentor." />
           ) : (
             <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
               {sessions.map((s) => (
                 <li key={s.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
                   <div className="aled-copy">
                     <span className="aled-title">{s.student_name || s.student_id.slice(0, 8)}</span>
-                    <p className="aled-sub">→ {s.mentor_name || s.mentor_id.slice(0, 8)}</p>
+                    <p className="aled-sub">with {s.mentor_name || s.mentor_id.slice(0, 8)}</p>
+                    <p className="aled-sub">
+                      {s.scheduled_at
+                        ? new Date(s.scheduled_at).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+                        : "No time set"}
+                      {s.topic ? ` \u00b7 ${s.topic}` : ""}
+                    </p>
                   </div>
                   <span className="aled-tag" style={{ textTransform: "capitalize" }}>{s.status}</span>
                 </li>
               ))}
             </ul>
           )}
-          <Pager label="Session pages" win={sessionWin} params={{ page: sp?.page }} pageParam="sessionPage" />
+          <Pager label="Session pages" win={sessionWin} params={{ page: sp?.page, sessionStatus }} pageParam="sessionPage" />
         </WorkspaceSection>
 
         <div className="aled-split">

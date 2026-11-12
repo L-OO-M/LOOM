@@ -94,6 +94,9 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. **Currently 404** while `PLANNER_ENABLED` is false. |
 | PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
 | POST | `/api/admin/events/[id]/attendance` | dept_lead+ (`manage_event_ops`): check in by door code → attended + certificate (once) + notify |
+| GET | `/api/admin/events/[id]/attendees/export` | dept_lead+ (`manage_event_ops`): attendee ledger as a UTF-8 CSV download (name, email, domain, status, door code, registered-at, feedback) |
+| GET/POST | `/api/volunteers` | authenticated: slots (optionally `?eventId=`) with live counts / open a slot (event dept lead, VL, or admin); capacity enforced on signup |
+| POST/DELETE | `/api/volunteers/[id]/signup` | authenticated: take or release one volunteer seat (idempotent; `EVENT_FULL` 409) |
 | GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
 | GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
@@ -111,7 +114,8 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | POST | `/api/departments/[id]/join` | user | instant approval-free join as `general` (idempotent) |
 | POST | `/api/departments/[id]/request-core` | user | one-click core request (creates `general` + `core_requested` if needed) |
 | PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | `{level: core}` by dept Head/Co-Head or admin; `{level: dept_lead}` admin-only; upward-only role sync + audit |
-| GET/POST | `/api/announcements` | user | scoped feed (society + my verticals + my departments) / post (`post_announcement`: VL own vertical or society-wide, dept_lead own department feed) + fan-out to notifications |
+| GET/POST | `/api/announcements` | user | scoped feed (published + unexpired; society + my verticals + my departments) / post (`status=draft|published`, optional `expiresAt`; `post_announcement`: VL own vertical or society-wide, dept_lead own department feed) + fan-out only when published. `?manage=1` returns drafts to leads/admins |
+| PATCH | `/api/announcements/[id]` | author/admin | publish a draft (`{status:"published"}`), stamp `published_at`, audit the transition, fan out once |
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
@@ -126,11 +130,13 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | POST | `/api/lead/assets/[id]/versions` | dept_lead+ (`manage_assets`) | upload a new version of a file asset (multipart `file`) |
 | GET | `/api/lead/assets/[id]/download` | dept_lead+ (`view_assets`) | `302` to a 5-minute signed URL (or the external link); raw `<a>`, never `<Link>` |
 | GET | `/api/lead/asset-categories` | dept_lead+ (`view_assets`) | the tenant's categories (seeded logos/signatures/templates/…) |
-| GET | `/api/lead/mous` | dept_lead+ (`view_lead_tools`) | MoU list (`?status=&expiring=1&q=`; `expiring` = active and ending within 30 days); leads see own-domain + society-wide rows |
-| POST | `/api/lead/mous` | dept_lead+ (`manage_mou`) | record an agreement; `vertical` must be owned (society-wide is admin-only; a sole-domain lead defaults to their vertical) |
-| GET | `/api/lead/mous/[id]` | dept_lead+ (`view_lead_tools`) | one agreement + its versioned documents (non-null vertical must be owned to read) |
-| PATCH | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | edit fields / change status; both the current and next vertical must be owned; moving `endsOn` resets the expiry reminder |
+| GET | `/api/lead/mous` | dept_lead+ (`view_lead_tools`) | MoU list (`?status=&expiring=1&q=`; `expiring` = active and ending within the renewal window, default 30 days via `MOU_RENEWAL_WINDOW_DAYS`); leads see own-domain + society-wide rows; each row carries its open renewal task |
+| POST | `/api/lead/mous` | dept_lead+ (`manage_mou`) | record an agreement; `vertical` must be owned (society-wide is admin-only; a sole-domain lead defaults to their vertical); optional `sponsorshipId` must belong to the same tenant and domain |
+| GET | `/api/lead/mous/[id]` | dept_lead+ (`view_lead_tools`) | one agreement + versioned documents + renewal task history (non-null vertical must be owned to read) |
+| PATCH | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | edit fields / change status / link `sponsorshipId`; both the current and next vertical must be owned; moving `endsOn` resets the expiry reminder |
 | DELETE | `/api/lead/mous/[id]` | dept_lead+ (`manage_mou`) | archive (soft delete; documents kept); owned vertical only |
+| POST | `/api/lead/mous/[id]/renewal` | dept_lead+ (`manage_mou`) | open one owned renewal task (`ownerId`, `nextAction`, `dueOn`); `409` if an open task already exists; notifies the owner |
+| PATCH | `/api/lead/mous/[id]/renewal` | dept_lead+ (`manage_mou`) | close an open task (`{ action: "close", taskId }`), stamping `closed_by`/`closed_at` and auditing it |
 | GET/POST | `/api/lead/mous/[id]/documents` | dept_lead+ (`view_lead_tools`/`manage_mou`) | list signed copies / upload a new labelled version (multipart `file`, `label`); owned vertical only for writes |
 | GET | `/api/lead/mous/[id]/documents/[documentId]/download` | dept_lead+ (`view_lead_tools`) | `302` to a short-lived signed URL (raw `<a>`); non-null vertical must be owned |
 | GET | `/api/lead/directory` | dept_lead+ (`view_lead_tools`) | leadership directory (`?department=&vertical=&current=1&q=`); leads see own-domain + society-wide entries |
@@ -145,20 +151,23 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | DELETE | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | remove (soft delete); own or own-domain only |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
 | PATCH | `/api/admin/students` | admin | change a role with scope + `termEnd` (YYYY-MM-DD; defaults to one year for dept_lead / vertical_lead / admin). Refuses founder seats, self-changes, and removing the last admin; closes/opens `leadership_terms`, syncs membership terms, audits |
-| POST | `/api/admin/students/bulk` | admin | assign role + term to at most **500** users per request (larger or empty arrays are rejected with `VALIDATION_ERROR` before any write; same guards as single; each user gets a `leadership_terms` row and membership term dates; the whole batch is one transaction) |
+| POST | `/api/admin/students/bulk` | admin | assign role + term to at most **500** users per request (larger or empty arrays are rejected with `VALIDATION_ERROR` before any write; same guards as single; each user gets a `leadership_terms` row and membership term dates; the whole batch is one transaction). `mode:"department"` instead adds general/core memberships without touching `profiles.role`; role grants above the actor's rank are refused |
+| PATCH | `/api/admin/students/[id]/status` | admin | `{status:"suspended"\|"deactivated"\|"active", reason, confirm}`. Suspension/deactivation bites on the next request; closing requires every offboarding item; reactivation requires `confirm:true`; founder/self/last-active-admin guards; audited |
+| PATCH | `/api/admin/students/[id]/checklist` | admin | toggle one per-role onboarding/offboarding item (`{kind, itemKey, done}`), upsert completion, audit |
 | GET | `/api/admin/students` | admin | roster with `role_term_end` for the term column; paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
 | POST | `/api/events` | lead/admin | lead-create: VL/admin go live; dept_lead's department workshop goes live, society-wide post waits as `proposed` |
 | POST | `/api/events/[id]/approve` | VL/admin | publish (`upcoming`) or send back (`cancelled`) a proposed event + notify author |
 | GET/POST | `/api/volunteers` | user | list slots (`?eventId=`) / open a slot (dept lead of the event's dept, VL, admin) |
 | POST/DELETE | `/api/volunteers/[id]/signup` | user | take a seat (live capacity check, idempotent) / release it |
 | GET/POST | `/api/reports` | lead+ | list (own departments for heads, own vertical for VLs, all for admins) + auto-compile a monthly draft from live counts (submitted rows return `REPORT_LOCKED`) |
-| GET/PATCH | `/api/reports/[id]` | lead+ | read / edit-submit (`submitted` is terminal; only admin reopens); VL restricted to reports in their vertical |
-| GET | `/api/reports/export` | VL/admin | semester/annual JSON export of submitted reports + live counts (`export_reports`; VL scoped to own vertical) |
-| GET/POST | `/api/handover` | admin | continuity checklist list / create |
-| PATCH | `/api/handover/[id]` | admin | toggle `done` / edit `detail` |
-| GET | `/api/finance` | VL/admin | snapshot: budget heads + approved spend + pending expenses + sponsorship pipeline (VL scoped to own vertical + society-wide) |
-| POST/PATCH | `/api/finance/expenses` | lead+/admin | propose (leads restricted to their department/vertical) / approve-or-reject `{approved\|rejected}` (admin only; VL `recommend_only`) |
-| POST/PUT | `/api/finance/sponsorships` | admin | create / update sponsor pipeline rows |
+| GET/PATCH | `/api/reports/[id]` | lead+ | read / edit narrative, edit-submit (`submitted` is terminal; only admin reopens); VL restricted to reports in their vertical |
+| GET | `/api/reports/export?scope=semester\|annual&format=json\|csv\|pdf` | VL/admin | one query rendered as JSON, CSV or PDF: submitted reports (including narrative), live counts, and the department x month coverage grid (`export_reports`; VL scoped to own vertical) |
+| GET/POST | `/api/handover` | admin | continuity checklist list / create; each new item requires a named `ownerId` (tenant-validated), plus `owner_name` and `department_name` on read |
+| PATCH | `/api/handover/[id]` | admin | toggle `done` / edit `detail` / reassign `ownerId` (`null` clears) |
+| GET | `/api/admin/succession` | admin | unified succession read model: checklist, handover briefs, transfer flags and leadership terms, outstanding first (`lib/succession.js`; same function feeds `/admin/handover`) |
+| GET | `/api/finance` | VL/admin | snapshot: budget heads + approved/paid spend + pending expenses + sponsorship pipeline (VL scoped to own vertical + society-wide) |
+| POST/PATCH | `/api/finance/expenses` | lead+/admin | propose (proposer must lead the charged budget head's department, or its vertical) / approve-or-reject `{approved\|rejected}` then pay `{paid}` (admin only; VL `recommend_only`) |
+| POST/PUT | `/api/finance/sponsorships` | admin / vertical lead | create / update sponsor pipeline rows; a VL is restricted to their own `vertical` |
 | GET | `/api/public/departments` | public | active departments + head/co-head names and `head_avatar`/`co_head_avatar` (directory photo, else account avatar) + member counts (tenant from host) |
 | GET | `/api/public/events` | public | upcoming/live events (tenant from host) |
 | GET | `/api/public/projects` | public | latest 24 showcased projects (tenant from host) |

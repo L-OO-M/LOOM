@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { can } from "@/lib/permissions";
-import { listMous, MOU_EXPIRING_DAYS } from "@/lib/mou";
+import { listMous, listRenewals, MOU_EXPIRING_DAYS } from "@/lib/mou";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { MouBoard } from "@/components/lead/MouBoard";
+import { ownedVerticals } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,16 @@ export default async function Page() {
   // keep their existing chapter-wide view.
   const verticalScope = profile.role === "vertical_lead" ? { vertical: profile.vertical } : {};
   const mous = await listMous(sql, { tenantId: tenant.id, ...verticalScope });
+  const renewals = await listRenewals(sql, { tenantId: tenant.id, ...verticalScope });
+  const owned = ownedVerticals(profile);
+  const sponsorRows = await sql`
+    SELECT id, name, vertical, status, amount
+    FROM sponsorships
+    WHERE tenant_id = ${tenant.id}::uuid
+    ORDER BY name
+    LIMIT 200
+  `;
+  const sponsors = sponsorRows.filter((s) => owned.all || (s.vertical && owned.has(s.vertical)));
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   const canManage = can(me, "manage_mou").ok;
   const active = mous.filter((m) => m.status === "active").length;
@@ -34,7 +45,7 @@ export default async function Page() {
           kicker={`Chapter / ${mous.length} MoU${mous.length === 1 ? "" : "s"} / ${active} active`}
           title="MoU database."
           lede="Every agreement the chapter holds — who it is with, when it ends, and the signed copy. Expiry is never a surprise again."
-          meta={`${expiring} expiring within ${MOU_EXPIRING_DAYS} days / ${mous.length - active} outside active status`}
+          meta={`${expiring} expiring within ${MOU_EXPIRING_DAYS} days / ${renewals.length} open renewal task${renewals.length === 1 ? "" : "s"}`}
           tone="ledger"
           art="/storyloom/opportunity.png"
           artAlt=""
@@ -50,7 +61,7 @@ export default async function Page() {
           title="Agreement ledger"
           note={`Filter by status or partner type. Active agreements ending within ${MOU_EXPIRING_DAYS} days surface first.`}
         >
-          <MouBoard initialMous={mous} canManage={canManage} />
+          <MouBoard initialMous={mous} initialRenewals={renewals} sponsors={sponsors} expiringDays={MOU_EXPIRING_DAYS} canManage={canManage} />
         </WorkspaceSection>
       </main>
     </AppShell>

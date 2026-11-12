@@ -135,13 +135,16 @@ export function ReportCard({ departments }) {
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || "");
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [report, setReport] = useState(null);
+  const [narrative, setNarrative] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   async function refresh(deptId, ym) {
     const data = await postJSON(`/api/reports?departmentId=${deptId}`, "GET").catch(() => null);
     const list = data?.data?.reports || data?.reports || [];
-    setReport(list.find((r) => String(r.month).slice(0, 7) === ym) || null);
+    const found = list.find((r) => String(r.month).slice(0, 7) === ym) || null;
+    setReport(found);
+    setNarrative(found?.narrative || "");
   }
   useEffect(() => { if (departmentId) refresh(departmentId, month); }, [departmentId, month]);
   if (!departments.length) return null;
@@ -154,7 +157,24 @@ export function ReportCard({ departments }) {
     setBusy(false);
     if (data?.ok) {
       setReport(data.data.report);
+      setNarrative(data.data.report?.narrative || "");
       setMsg("Draft compiled ✓");
+      router.refresh();
+    } else {
+      setMsg(data?.error?.message || "Failed");
+    }
+  }
+
+  async function saveNarrative() {
+    if (!report) return;
+    setBusy(true);
+    setMsg("");
+    const data = await postJSON(`/api/reports/${report.id}`, "PATCH", { narrative });
+    setBusy(false);
+    if (data?.ok) {
+      setReport(data.data.report);
+      setNarrative(data.data.report?.narrative || "");
+      setMsg("Narrative saved ✓");
       router.refresh();
     } else {
       setMsg(data?.error?.message || "Failed");
@@ -194,6 +214,36 @@ export function ReportCard({ departments }) {
         </p>
       ) : (
         <p className="narrative text-sm">No draft for this month yet. Compiling pulls live counts — contributions by kind, events held, new members, upcoming workshops.</p>
+      )}
+      {report && (
+        <div className="grid gap-2">
+          <label htmlFor="report-narrative" className="text-sm font-medium" style={{ color: "var(--text)" }}>
+            Narrative
+          </label>
+          {report.status === "submitted" ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)", whiteSpace: "pre-wrap" }}>
+              {report.narrative || "No narrative was added before submission."}
+            </p>
+          ) : (
+            <>
+              <textarea
+                id="report-narrative"
+                value={narrative}
+                onChange={(e) => setNarrative(e.target.value)}
+                maxLength={4000}
+                rows={5}
+                placeholder="What changed this month, what was hard, and what comes next."
+                style={{ ...input, resize: "vertical", minHeight: 100 }}
+              />
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{narrative.length}/4000</span>
+                <button type="button" onClick={saveNarrative} disabled={busy || narrative === (report.narrative || "")} className="btn-ghost !py-1.5 text-xs disabled:opacity-50">
+                  Save narrative
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
       <div className="flex items-center gap-3">
         <button disabled={busy} className="btn-ink !py-2 text-sm disabled:opacity-50">{busy ? "Compiling…" : report ? "Recompile draft" : "Compile draft"}</button>

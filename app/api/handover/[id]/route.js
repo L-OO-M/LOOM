@@ -6,8 +6,9 @@ import { isAdmin } from "@/lib/permissions";
 
 const patchSchema = z.object({
   done: z.boolean().optional(),
-  detail: z.string().max(4000).optional()
-}).refine((b) => b.done !== undefined || b.detail !== undefined, {
+  detail: z.string().max(4000).optional(),
+  ownerId: z.string().min(1).max(64).nullable().optional()
+}).refine((b) => b.done !== undefined || b.detail !== undefined || b.ownerId !== undefined, {
   message: "Nothing to update — pass done and/or detail"
 });
 
@@ -26,10 +27,19 @@ export async function PATCH(request, { params }) {
   }
   const { id } = await params;
   const tid = tenant?.id ?? null;
+  if (body.ownerId) {
+    const [owner] = await sql`
+      SELECT user_id FROM profiles
+      WHERE tenant_id = ${scope(tid)}::uuid AND user_id = ${body.ownerId}
+      LIMIT 1
+    `;
+    if (!owner) return fail("INVALID_OWNER", "Owner must be a member of this chapter", 400);
+  }
   const [item] = await sql`
     UPDATE handover_checklists SET
       done = COALESCE(${body.done ?? null}, done),
-      detail = COALESCE(${body.detail ?? null}, detail)
+      detail = COALESCE(${body.detail ?? null}, detail),
+      owner_id = CASE WHEN ${body.ownerId === undefined} THEN owner_id ELSE ${body.ownerId ?? null} END
     WHERE id = ${id} AND tenant_id = ${scope(tid)}::uuid
     RETURNING *
   `;

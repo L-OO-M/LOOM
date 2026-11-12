@@ -61,11 +61,15 @@ export async function POST(request) {
   // "forbidden" — a student who worked ahead of the graph, or forgot one node,
   // should be able to fix it without guessing.
   if (completing) {
+    // Only verified evidence clears a prerequisite. A provisional claim is
+    // visible to the student but must not unlock the next milestone, otherwise
+    // the gate can be walked by clicking through the whole graph.
     const completed = await sql`
       SELECT node_id FROM student_roadmap_progress
       WHERE student_id = ${user.id}
         AND tenant_id = ${tenant.id}::uuid
         AND status = 'completed'
+        AND evidence_state = 'verified'
     `;
     const [{ edges }] = await sql`
       SELECT COALESCE(jsonb_agg(jsonb_build_object('from_id', from_id, 'to_id', to_id, 'kind', kind)), '[]'::jsonb) AS edges

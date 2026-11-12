@@ -5,21 +5,23 @@ import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const patchSchema = z.object({
-  status: z.enum(["scheduled", "completed", "cancelled"])
+  status: z.enum(["scheduled", "completed", "cancelled"]),
+  scheduledAt: z.string().datetime({ offset: true }).nullable().optional()
 });
 
 // Allowed transitions per participant. A mentor accepts a request, either side
-// can cancel before it runs, and only the mentor can mark it completed.
+// can reschedule while it is live, either side can cancel before it runs, and
+// only the mentor can mark it completed.
 const MENTOR_TRANSITIONS = {
   requested: ["scheduled", "cancelled"],
-  scheduled: ["completed", "cancelled"],
+  scheduled: ["scheduled", "completed", "cancelled"],
   completed: [],
   cancelled: []
 };
 
 const STUDENT_TRANSITIONS = {
   requested: ["cancelled"],
-  scheduled: ["cancelled"],
+  scheduled: ["scheduled", "cancelled"],
   completed: [],
   cancelled: []
 };
@@ -65,10 +67,22 @@ export async function PATCH(request, { params }) {
     );
   }
 
+  // "scheduled" means two different things depending on the current state:
+  // accepting a request, or rescheduling a live session. A reschedule must say
+  // when; otherwise the button would silently keep the old time.
+  const rescheduling = body.status === "scheduled" && session.status === "scheduled";
+  if (rescheduling && !body.scheduledAt) {
+    return fail("SCHEDULED_AT_REQUIRED", "Choose a new date and time", 400);
+  }
+
+  const nextScheduledAt = body.status === "scheduled"
+    ? (body.scheduledAt || session.scheduled_at || new Date().toISOString())
+    : session.scheduled_at;
+
   const [updated] = await sql`
     UPDATE mentor_sessions
     SET status = ${body.status},
-        scheduled_at = CASE WHEN ${body.status} = 'scheduled' THEN COALESCE(scheduled_at, NOW()) ELSE scheduled_at END
+        scheduled_at = ${nextScheduledAt}::timestamptz
     WHERE id = ${session.id}
     RETURNING *
   `;
@@ -76,7 +90,7 @@ export async function PATCH(request, { params }) {
   const counterpartId = isMentor ? session.student_id : session.mentor_id;
   const counterpartName = isMentor ? session.student_name : session.mentor_name;
   const label = {
-    scheduled: "accepted",
+    scheduled: rescheduling ? "rescheduled" : "accepted",
     completed: "completed",
     cancelled: "cancelled"
   }[body.status];

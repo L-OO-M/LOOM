@@ -5,8 +5,11 @@ import { Clock3, Github, Layers, GraduationCap, Shield, ExternalLink, Award, Fol
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import RoleForm from "./RoleForm";
+import { AccountStatusPanel } from "./AccountStatusPanel";
+import { PeopleChecklist } from "./PeopleChecklist";
 import { ActivityBars } from "@/components/admin/DetailCharts";
 import { HeatStrip } from "@/components/loom/HeatStrip";
+import { checklistProgress, statusLabel } from "@/lib/people";
 
 function initials(name) {
   if (!name) return "?";
@@ -26,7 +29,7 @@ export default async function AdminStudentDetailPage({ params }) {
 
   const [s] = await sql`
     SELECT user_id, name, role, primary_domain, branch, year, roll_number, github_username, vertical,
-           tenant_id, updated_at, role_term_end
+           tenant_id, updated_at, role_term_end, account_status, status_reason, status_changed_at
     FROM profiles
     WHERE user_id = ${id} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1
   `;
@@ -50,6 +53,12 @@ export default async function AdminStudentDetailPage({ params }) {
   const projects = await sql`SELECT id, title, status, repo_url, roadmap_node_id, created_at FROM projects WHERE owner_id = ${id} ORDER BY created_at DESC LIMIT 10`;
   const activity = await sql`SELECT day, commits, pull_requests, reviews, score FROM student_daily_activity WHERE student_id = ${id} ORDER BY day DESC LIMIT 14`;
   const achievements = await sql`SELECT id, source_type, source_ref, level, earned_at FROM student_achievements WHERE student_id = ${id} ORDER BY earned_at DESC LIMIT 6`;
+  const checklistRows = await sql`
+    SELECT kind, item_key, done FROM people_checklist_items
+    WHERE tenant_id = ${scope(tenant?.id ?? null)}::uuid AND user_id = ${id} AND role = ${s.role}
+  `;
+  const onboarding = checklistProgress(checklistRows, s.role, "onboarding");
+  const offboarding = checklistProgress(checklistRows, s.role, "offboarding");
 
   const pct = stats?.total_nodes ? Math.round((stats.done / stats.total_nodes) * 100) : 0;
   const activityBars = [...activity].reverse().map((a) => ({
@@ -79,6 +88,11 @@ export default async function AdminStudentDetailPage({ params }) {
                 <Shield size={12} /> {roleLabel(s.role)}
               </span>
               {s.vertical && <span className="meta rounded-full border px-2 py-0.5 capitalize" style={{ borderColor: "var(--line)" }}>{s.vertical.replace("_", " ")}</span>}
+              {s.account_status && s.account_status !== "active" && (
+                <span className="meta rounded-full border px-2 py-0.5" style={{ borderColor: "color-mix(in srgb, var(--danger) 30%, transparent)", color: "var(--danger)" }}>
+                  {statusLabel(s.account_status)}
+                </span>
+              )}
               {s.role_term_end && s.role !== "student" && (
                 <span
                   className="meta rounded-full border px-2 py-0.5"
@@ -143,6 +157,8 @@ export default async function AdminStudentDetailPage({ params }) {
               <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} termEnd={s.role_term_end} /></div>
             </section>
 
+            <PeopleChecklist userId={s.user_id} role={s.role} onboarding={onboarding} offboarding={offboarding} />
+
             <ActivityBars data={activityBars} />
             <div className="rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <p className="meta">Heat · saturation = signals</p>
@@ -191,6 +207,13 @@ export default async function AdminStudentDetailPage({ params }) {
 
           {/* Side */}
           <div className="space-y-6">
+            <AccountStatusPanel
+              userId={s.user_id}
+              status={s.account_status || "active"}
+              reason={s.status_reason}
+              changedAt={s.status_changed_at}
+            />
+
             <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><GraduationCap size={14} /> Departments</h2>
               {memberships.length === 0 ? (

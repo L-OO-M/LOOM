@@ -11,6 +11,7 @@ function recorder(handler = () => []) {
     return Promise.resolve(handler(text, values) ?? []);
   };
   sql.calls = calls;
+  sql.begin = async (fn) => fn(sql);
   return sql;
 }
 

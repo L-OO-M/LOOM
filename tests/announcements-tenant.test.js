@@ -34,12 +34,12 @@ describe("announcement tenant scope", () => {
     const sql = recorder(() => []);
     const { GET } = await load({ sql });
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/announcements"));
 
     expect(response.status).toBe(200);
     const feed = sql.calls.find((c) => c.text.includes("FROM announcements"));
     expect(feed.text).toContain("a.tenant_id = ?::uuid");
-    expect(feed.text).not.toContain("IS NULL");
+    expect(feed.text).not.toContain("a.tenant_id IS NULL");
     expect(feed.values).toContain(TENANT);
   });
 

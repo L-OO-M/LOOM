@@ -4,12 +4,17 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
 import { listReportRevisions, recordReportRevision } from "@/lib/report-revisions";
+import { REPORT_NARRATIVE_LIMIT } from "@/lib/report-export";
 
 const patchSchema = z.object({
   draft: z.record(z.string(), z.unknown()).optional(),
-  status: z.enum(["draft", "submitted"]).optional()
-}).refine((b) => b.draft !== undefined || b.status !== undefined, {
-  message: "Nothing to update — pass draft and/or status"
+  status: z.enum(["draft", "submitted"]).optional(),
+  narrative: z.string().max(
+    REPORT_NARRATIVE_LIMIT,
+    `narrative must be ${REPORT_NARRATIVE_LIMIT} characters or fewer`
+  ).optional()
+}).refine((b) => b.draft !== undefined || b.status !== undefined || b.narrative !== undefined, {
+  message: "Nothing to update - pass draft, status and/or narrative"
 });
 
 // Single report: dept leads read/submit their own department's, vertical
@@ -69,6 +74,7 @@ export async function PATCH(request, { params }) {
     UPDATE dept_reports SET
       draft = COALESCE(${body.draft !== undefined ? sql.json(body.draft) : null}, draft),
       status = COALESCE(${body.status ?? null}, status),
+      narrative = COALESCE(${body.narrative ?? null}, narrative),
       submitted_by = CASE WHEN ${body.status ?? null} = 'submitted' THEN ${user.id} ELSE submitted_by END,
       submitted_at = CASE WHEN ${body.status ?? null} = 'submitted' THEN NOW() ELSE submitted_at END
     WHERE id = ${id}

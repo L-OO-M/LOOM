@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { recomputeScore, revokeEvidence, recordEvidence } from "@/lib/ranking";
+import { signCredential } from "@/lib/credentials";
 
 // The evidence review queue.
 //
@@ -127,7 +129,8 @@ export async function POST(request) {
   } else {
     const [row] = await sql`
       SELECT owner_id, title FROM projects
-      WHERE id = ${body.id} AND tenant_id = ${tid}::uuid AND evidence_state = 'provisional'
+      WHERE id = ${body.id} AND tenant_id = ${tid}::uuid
+        AND evidence_state IN ('provisional', 'verified')
       LIMIT 1
     `;
     if (!row) return fail("NOT_FOUND", "That claim is no longer awaiting review", 404);
@@ -170,18 +173,61 @@ export async function POST(request) {
         evidence: { reviewedIn: "/admin/ranking" }
       });
     } else {
-      const [updated] = await sql`
-        UPDATE projects
-           SET evidence_state = 'verified', verified_by = ${reviewer}, verified_at = NOW(), updated_at = NOW()
-         WHERE id = ${body.id} AND evidence_state = 'provisional'
-        RETURNING *
-      `;
-      if (!updated) return fail("NOT_FOUND", "That claim is no longer awaiting review", 404);
-      await recordEvidence({
-        sql, tenantId: tid, userId: studentId, kind: ledgerKind, refId,
-        verifiedBy: reviewer, source: "admin",
-        evidence: { reviewedIn: "/admin/ranking", repository: updated.repo_full_name }
+      // Verification, the achievement, and its credential are one act. A
+      // partial failure must not leave the project marked verified without the
+      // proof a student can share.
+      const credential = await sql.begin(async (tx) => {
+        const [updated] = await tx`
+          UPDATE projects
+             SET evidence_state = 'verified', verified_by = ${reviewer}, verified_at = NOW(),
+                 reviewed_at = NOW(), status = 'completed', updated_at = NOW()
+           WHERE id = ${body.id} AND evidence_state = 'provisional'
+          RETURNING *
+        `;
+        if (!updated) return null;
+        await recordEvidence({
+          sql: tx, tenantId: tid, userId: studentId, kind: ledgerKind, refId,
+          verifiedBy: reviewer, source: "admin",
+          evidence: { reviewedIn: "/admin/ranking", repository: updated.repo_full_name }
+        });
+        const [created] = await tx`
+          INSERT INTO student_achievements
+            (student_id, tenant_id, source_type, source_ref, level, evidence_url)
+          SELECT ${studentId}, ${tid}::uuid, 'project', ${updated.id}, 'gold', ${updated.repo_url}
+          WHERE NOT EXISTS (
+            SELECT 1 FROM student_achievements
+            WHERE student_id = ${studentId} AND source_type = 'project' AND source_ref = ${updated.id}
+          )
+          RETURNING *
+        `;
+        let achievement = created;
+        if (!achievement) {
+          [achievement] = await tx`
+            SELECT * FROM student_achievements
+            WHERE student_id = ${studentId} AND source_type = 'project' AND source_ref = ${updated.id}
+            LIMIT 1
+          `;
+        }
+        if (!achievement) return null;
+        const [existing] = await tx`
+          SELECT id FROM verifiable_credentials WHERE achievement_id = ${achievement.id} LIMIT 1
+        `;
+        if (existing) return existing;
+        const id = `cred_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+        const issuedAt = new Date().toISOString();
+        const signature = signCredential({ id, studentId, type: "project", issuedAt });
+        const [issued] = await tx`
+          INSERT INTO verifiable_credentials
+            (id, student_id, tenant_id, achievement_id, credential_type, title, metadata, issued_at, signature)
+          VALUES (${id}, ${studentId}, ${tid}, ${achievement.id}, 'project',
+            ${`Verified project · ${updated.title}`},
+            ${JSON.stringify({ projectId: updated.id, repo: updated.repo_url, reviewedIn: "/admin/projects" })}::jsonb,
+            ${issuedAt}, ${signature})
+          RETURNING *
+        `;
+        return issued;
       });
+      if (!credential) return fail("NOT_FOUND", "That claim is no longer awaiting review", 404);
     }
   } else {
     if (body.kind === "roadmap_node") {
@@ -191,11 +237,20 @@ export async function POST(request) {
          WHERE id = ${body.id} AND evidence_state = 'provisional'
       `;
     } else {
-      await sql`
-        UPDATE projects
-           SET evidence_state = 'rejected', verified_by = ${reviewer}, verified_at = NOW(), updated_at = NOW()
-         WHERE id = ${body.id} AND evidence_state = 'provisional'
-      `;
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE projects
+             SET evidence_state = 'rejected', verified_by = ${reviewer}, verified_at = NOW(),
+                 reviewed_at = NOW(), status = 'rejected', updated_at = NOW()
+           WHERE id = ${body.id} AND evidence_state IN ('provisional', 'verified')
+        `;
+        // Removing the achievement cascades to the credential, so declining a
+        // project also withdraws a previously issued share link.
+        await tx`
+          DELETE FROM student_achievements
+          WHERE student_id = ${studentId} AND source_type = 'project' AND source_ref = ${body.id}
+        `;
+      });
     }
     // Reverse the ledger row too. It normally does not exist yet -- a provisional
     // claim never wrote one -- but if an earlier claim on the same ref was
