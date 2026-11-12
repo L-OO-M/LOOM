@@ -8,14 +8,15 @@ import { useTheme } from "@/lib/theme";
 import { BrandMark } from "./BrandMark";
 import { Drawer } from "./loom/Drawer";
 import {
-  Award, BarChart3, BookOpen, Bug, CalendarDays, ChartNoAxesCombined, ChevronDown, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
+  Award, BarChart3, BookOpen, Bug, CalendarDays, ChartNoAxesCombined, ChevronDown, Code2, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
 import { adminNav, groupForTab, leadNav, mobileNavForArea, pathToTab, settingsForArea, studentNav, studentSecondary, usesDropdowns, workspaceForPath } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
-  home: Home, book: BookOpen, library: Library, trending: TrendingUp, kanban: FolderKanban, bug: Bug,
+  home: Home, book: BookOpen, library: Library, trending: TrendingUp, kanban: FolderKanban,
+  code: Code2, bug: Bug,
   branch: GitBranch, pull: GitPullRequest, trophy: Trophy, calendar: CalendarDays, chart: ChartNoAxesCombined,
   handshake: Handshake, chat: MessagesSquare, network: Network, compass: Compass, award: Award,
   users: Users, stamp: Stamp, chartbar: BarChart3, settings: Settings, flag: Flag, scroll: ScrollText,
