@@ -23,7 +23,8 @@ import { readFileSync, readdirSync } from "node:fs";
 const STRICT_TABLES = [
   "announcements", "asset_categories", "asset_versions", "audit_logs", "budget_heads",
   "certificates", "chapter_profiles",
-  "cohort_metrics", "code_snippets", "contests", "departments", "dept_reports",
+  "cohort_metrics", "code_snippets", "contests", "debug_challenges", "debug_submissions",
+  "departments", "dept_reports",
   "events", "event_ops_tasks", "expenses", "faqs", "feature_requests", "forum_threads", "handover_checklists",
   "help_matches", "help_signals", "helper_profiles", "lead_directory", "lead_handovers", "media_assets", "member_contributions",
   "mentor_applications", "mentor_effectiveness", "mentors", "mou_documents", "mous", "notifications",

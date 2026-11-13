@@ -150,6 +150,29 @@ Proof only counts in repos the chapter trusts:
    so `FreeCodeCamp/FreeCodeCamp` and `freecodecamp/freecodecamp` cannot both
    appear.
 
+### Debug & Build challenge repository
+
+Debug & Build reuses the same linked GitHub identity; no second OAuth app is
+needed. The challenge content lives outside LOOM in the repository named by
+`DEBUG_CHALLENGE_REPO` (default `L-OO-M/buggy`).
+
+1. An admin authors the catalogue row on `/admin/debug` only after the bug is
+   reproducible at the row's `repo_path`. Publishing stamps `published_at`; that
+   timestamp is the fork-created-after boundary.
+2. The student forks the challenge repository after publication and commits from
+   the GitHub login stored in `github_connections`. On submission LOOM checks:
+   the token identity matches that stored login, the repository is public, the
+   owner is that login, `fork` is true, the parent is the configured challenge
+   repository, the fork was created after publication, and at least one commit
+   is authored by that login.
+3. A GitHub API failure or rate limit stores `verification_status = 'error'` and
+   leaves the submission pending; it never auto-rejects. A fork repository id
+   can be claimed by only one member.
+4. The matching domain lead (or an admin) reviews verified forks on
+   `/lead/debug` with mandatory feedback. Approval writes `debug_fixed` ranking
+   evidence in the same transaction; returning an approved fix revokes it. Both
+   outcomes are audited and the student is notified.
+
 ## 6. Step D — nightly rollups (still scheduled)
 
 Daily activity is aggregated inline by the webhook (section 1), so nothing extra

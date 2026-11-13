@@ -76,6 +76,13 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 | `mentor_sessions` | Mentor↔student sessions → `/api/mentorship` |
 | `mentor_reviews` | 1–5 ratings (unique mentor+reviewer) → `/api/social/discover` (mentor review), discover page |
 
+**Debug & Build** — real bugs in an external starter repository, verified before review.
+
+| Table | Stores -> read / written by |
+|-------|----------------------------|
+| `debug_challenges` | Admin-authored catalogue row: LOOM primary domain, slug, title, difficulty, `repo_path`, brief, verification notes, publish flag + `published_at` (the fork-created-after boundary) -> `/student/debug(+[slug])`, `/admin/debug`; written by `POST /api/admin/debug/challenges` |
+| `debug_submissions` | One member fork per challenge: fork URL/owner/repository id, cached GitHub verification state/reason, PR URL, human review state/feedback/reviewer -> `/student/debug`, `/lead/debug`, `/admin/debug`; written by `POST /api/debug/submissions` and reviewed through `POST /api/lead/debug` |
+
 **Proof & Credentials** — verifiable outcomes.
 
 | Table | Stores → read / written by |
@@ -169,10 +176,10 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 
 | Area | Pages |
 |------|-------|
-| `/student` | Home dashboard (roadmap progress, GitHub, threads, horizon). Learn: `roadmap`, `roadmap/[nodeId]`, `resources`, `resources/[resourceId]`, `projects`, `projects/new`, `projects/[id]`, `github`, `opensource`, `contests`, `contests/[id]`. Gather: `events`, `events/[id]`, `community/forums(+[id])`, `community/wiki(+[slug])`, `community/snippets`, `mentorship`, `network(+[slug])`, `discover`. Proof: `credentials`, `certificates(+[code])`, `insights`, `leaderboard`. Self: `[username]`, `notifications`, `onboarding`, `settings`, `privacy`. |
-| `/lead` | Lead console (shared query in `lib/lead.js` with `GET /api/lead/overview`): led departments + roster + core requests, workshops, `proposed` approval queue (VL/admin), vertical calendar with conflict detection (VL/admin), succession flags, recent contribution logs, report compile/submit entry. |
+| `/student` | Home dashboard (roadmap progress, GitHub, threads, horizon). Learn: `roadmap`, `roadmap/[nodeId]`, `resources`, `resources/[resourceId]`, `projects`, `projects/new`, `projects/[id]`, `github`, `opensource`, `contests`, `contests/[id]`. Build: `debug` catalogue and `debug/[slug]` challenge/submission. Gather: `events`, `events/[id]`, `community/forums(+[id])`, `community/wiki(+[slug])`, `community/snippets`, `mentorship`, `network(+[slug])`, `discover`. Proof: `credentials`, `certificates(+[code])`, `insights`, `leaderboard`. Self: `[username]`, `notifications`, `onboarding`, `settings`, `privacy`. |
+| `/lead` | Lead console (shared query in `lib/lead.js` with `GET /api/lead/overview`): led departments + roster + core requests, workshops, `proposed` approval queue (VL/admin), vertical calendar with conflict detection (VL/admin), succession flags, recent contribution logs, report compile/submit entry. `debug` is the domain-scoped verified-fork review queue plus approved fixes that can be returned. |
 | `/lead` · `/admin` · Chapter tools | Mirror of four operations tools, each with its own API and a server page in both consoles: `assets` (media/creative library — uploads to the private `loom-files` bucket, immutable versions, signed-URL downloads, link-out rows; `lib/assets.js`), `mous` (MoU database with partner/status/value metadata, versioned documents, optional sponsorship link, and owned renewal tasks in a due-date attention queue; `lib/mou.js`), `directory` (internal leadership directory — name, dept, tenure, links; `lib/directory.js`), `event-ops` (per-event task board with owner, priority, deadline; `lib/event-ops.js`). Edit needs Head/Co-Head, VL, or admin; `core` reads only. Deadlines feed the reminder job (below). |
-| `/admin` | `overview` command deck (per-dept cards + approval counts); `students(+[id])` roles/memberships + bulk role/department (confirmed), account status + per-role checklists; `mentors` session operations; `analytics` rollups; `audit` trail; `community` mod queue; `flags` kill-switches; `contests`, `events` (+attendance), `opensource` (curation + claims), `verification` (badges/achievements/mentors); `projects`, `resources`, `roadmaps` content; `reports` submitted + export; `finance` heads/expenses/sponsors; `faq` manager; `settings`. |
+| `/admin` | `overview` command deck (per-dept cards + approval counts); `students(+[id])` roles/memberships + bulk role/department (confirmed), account status + per-role checklists; `mentors` session operations; `analytics` rollups; `audit` trail; `community` mod queue; `flags` kill-switches; `contests`, `events` (+attendance), `opensource` (curation + claims), `debug` (challenge catalogue + all submissions), `verification` (badges/achievements/mentors); `projects`, `resources`, `roadmaps` content; `reports` submitted + export; `finance` heads/expenses/sponsors; `faq` manager; `settings`. |
 
 ## 6. Key workflows
 
@@ -183,6 +190,8 @@ Five levels plus platform: `student` (General) < `core` < `dept_lead` (Head and 
 5. **Monthly report → export.** Dept lead opens `/lead` → draft auto-compiles from live counts (contributions by kind, events held, new members, upcoming) → `POST /api/reports` (one row per dept+month) → edits → `PATCH …/[id]` `{status: submitted}` (terminal; only admin reopens) → VL/admin reads at `/admin/reports` → `GET /api/reports/export?scope=semester|annual` downloads JSON, CSV, or PDF (all rendered from one shared payload); `/admin/reports` renders the same department x month coverage grid the export carries.
 6. **Expense propose → approve.** Dept/VL/admin `POST /api/finance/expenses` (`proposed`, head + optional department) → admin-only `PATCH` `{approved|rejected}` + `decided_by` → society/VL-visible spend updates in `GET /api/finance`. VLs are `recommend_only` — they cannot decide.
 7. **Webhook ingestion + kill-switch.** GitHub `POST /api/github/webhook` (tenant from host header, HMAC `x-hub-signature-256`, ping acked without storage) → if `github_integration` flag off for the tenant: ack `{accepted: false, reason: GITHUB_INGESTION_PAUSED}`, store nothing (opt-in since migration 020; toggled at `/admin/flags`) → else store idempotently → best-effort OSS auto-verify → 200. Failures after signature check never fail the ack.
+
+8. **Debug challenge -> verified fork -> review.** Admin publishes a challenge only after its content exists in `DEBUG_CHALLENGE_REPO` (default `L-OO-M/buggy`); publishing stamps `published_at`. Student forks that repository after publication, commits from the GitHub login already linked in `github_connections`, and submits the fork on `/student/debug/[slug]`. The route checks owner identity, fork parent, creation time and an authored commit (GitHub outages stay `error`/pending, never auto-rejected; a fork repository id can belong to one member). The matching domain lead (or an admin) sees verified forks on `/lead/debug` and approves or returns with mandatory feedback; approval upserts `debug_fixed` ranking evidence and recompute runs in the same transaction, returning removes it, and both audit + notify.
 
 ## 7. Contributing guide
 

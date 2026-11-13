@@ -10,6 +10,7 @@ const protectedPages = [
   "/student/projects/new",
   "/student/github",
   "/student/opensource",
+  "/student/debug",
   "/student/contests",
   "/student/events",
   "/student/mentorship",
@@ -34,6 +35,7 @@ const protectedPages = [
   "/admin/opensource",
   "/admin/projects",
   "/admin/contests",
+  "/admin/debug",
   "/admin/mentors",
   "/admin/flags",
   "/admin/audit",
@@ -47,6 +49,7 @@ const protectedPages = [
   "/lead/overview",
   "/lead/roster",
   "/lead/workshops",
+  "/lead/debug",
   "/lead/reports",
   "/lead/succession",
   "/lead/assets",
@@ -136,6 +139,20 @@ test.describe("api authorization", () => {
   for (const path of apis) {
     test(`GET ${path} returns 401 without session`, async ({ request }) => {
       const res = await request.get(path);
+      expect(res.status()).toBe(401);
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+    });
+  }
+
+  const mutationApis = [
+    "/api/admin/debug/challenges",
+    "/api/debug/submissions",
+    "/api/lead/debug"
+  ];
+  for (const path of mutationApis) {
+    test(`POST ${path} returns 401 without session`, async ({ request }) => {
+      const res = await request.post(path, { data: {} });
       expect(res.status()).toBe(401);
       const body = await res.json();
       expect(body.ok).toBe(false);
