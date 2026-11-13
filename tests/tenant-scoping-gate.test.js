@@ -28,7 +28,8 @@ const STRICT_TABLES = [
   "events", "event_ops_tasks", "expenses", "faqs", "feature_requests", "forum_threads", "handover_checklists",
   "help_matches", "help_signals", "helper_profiles", "lead_directory", "lead_handovers", "media_assets", "member_contributions",
   "mentor_applications", "mentor_effectiveness", "mentors", "mou_documents", "mous", "notifications",
-  "oss_badges", "page_views", "profiles", "projects", "ranking_events",
+  "oss_badges", "page_views", "practice_connections", "practice_corrections", "practice_questions",
+  "practice_solves", "practice_sync_runs", "practice_weeks", "profiles", "projects", "ranking_events",
   "ranking_scores", "resource_progress", "roadmap_node_analytics", "skill_badges",
   "sponsorships", "student_achievements", "student_analytics_snapshots",
   "student_daily_activity", "student_oss_contributions", "student_roadmap_progress",
@@ -167,7 +168,8 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     // this allowlist is the thing that should be revisited.
     ["lib/lead.js", "departmentIds come from the tenant-filtered departments query in the same function"],
     ["lib/recommend.js", "helper candidates come from findHelpers(), which filters available helpers by tenant"],
-    ["lib/standings.js", "joined to the tenant-filtered profile set; the CTEs are per-student aggregates"]
+    ["lib/standings.js", "joined to the tenant-filtered profile set; the CTEs are per-student aggregates"],
+    ["lib/practice-sync.js", "the platform cron job must discover due work across tenants; each claim and every subsequent read/write is tenant-pinned by tenant_id + user_id"]
   ];
 
   it("never reads a tenant table directly with no tenant or self-scoping predicate", () => {

@@ -35,6 +35,17 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | POST | `/api/github/sync` | user | refresh cached repository metadata from GitHub (up to 3 pages / 300 repos; 3/min) |
 | POST | `/api/github/webhook` | service | HMAC-signed GitHub delivery: stores the event, aggregates into `student_daily_activity`, auto-verifies merged OSS PRs and submitted `pull_request_review` claims. Also reachable at the `/api/webhook` alias. |
 
+## Practice room
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| POST | `/api/practice/connection` | user | link or correct the caller's own public LeetCode handle (`{username}`). One handle per member per chapter; the handle is fixed once a solve is recorded so a member cannot switch accounts mid-chapter. Rate limited. |
+| POST | `/api/practice/refresh` | user | manually check the caller's recent public accepted submissions. 15-minute cooldown; the next automatic check also waits an hour. Recorded progress is preserved on LeetCode errors. Rate limited. |
+| POST | `/api/admin/practice/weeks` | admin or DSA department lead | create/update a Monday–Sunday IST week (`{id?, title, date, status: draft\|scheduled, questions[]}`). A scheduled week needs exactly seven distinct LeetCode problems; a released week is locked and corrections take over. Audited. |
+| POST | `/api/admin/practice/corrections` | admin | grant/remove credit for one member and one assigned question (`{userId, questionId, credited, acceptedAt, evidence, reason}`). Overrides automatic checks, writes/revokes `dsa_solved` evidence, recomputes the score, audits and notifies the member. |
+
+Practice reads are server-rendered: `/student/practice` and `/student/practice/leaderboard` are tenant-scoped and `noindex`; `/admin/practice` and `/lead/practice` expose authoring and sync health. Practice points are a weekly habit board, separate from chapter standing.
+
 ## Open source
 
 | Method | Route | Auth | Notes |

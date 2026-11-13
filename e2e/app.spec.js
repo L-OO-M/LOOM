@@ -5,6 +5,8 @@ const { test, expect } = require("@playwright/test");
 const protectedPages = [
   "/student",
   "/student/roadmap",
+  "/student/practice",
+  "/student/practice/leaderboard",
   "/student/resources",
   "/student/projects",
   "/student/projects/new",
@@ -35,6 +37,7 @@ const protectedPages = [
   "/admin/opensource",
   "/admin/projects",
   "/admin/contests",
+  "/admin/practice",
   "/admin/debug",
   "/admin/mentors",
   "/admin/flags",
@@ -49,6 +52,7 @@ const protectedPages = [
   "/lead/overview",
   "/lead/roster",
   "/lead/workshops",
+  "/lead/practice",
   "/lead/debug",
   "/lead/reports",
   "/lead/succession",
@@ -146,6 +150,10 @@ test.describe("api authorization", () => {
   }
 
   const mutationApis = [
+    "/api/practice/connection",
+    "/api/practice/refresh",
+    "/api/admin/practice/weeks",
+    "/api/admin/practice/corrections",
     "/api/admin/debug/challenges",
     "/api/debug/submissions",
     "/api/lead/debug"
