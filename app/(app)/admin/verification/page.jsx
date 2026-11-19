@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, Award, Users, Search } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
+import { listPendingProof } from "@/lib/proof";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { BadgeForm, IssueForm } from "./AdminVerification";
+import { ProofReviewQueue } from "./_components/ProofReviewQueue";
 import { TierDonut, WeeklyIssuanceBars } from "@/components/admin/RemainingCharts";
 import "../_components/admin-ledger.css";
 
@@ -57,6 +59,10 @@ export default async function AdminVerificationPage({ searchParams }) {
     FROM student_achievements WHERE tenant_id = ${tid}::uuid AND earned_at >= NOW() - INTERVAL '8 weeks'
     GROUP BY date_trunc('week', earned_at) ORDER BY date_trunc('week', earned_at) ASC
   `;
+  // Claims with no machine-verifiable backing yet. Deciding one writes a durable
+  // proof_reviews row, so the member's own proof surface immediately shows it as
+  // verified (source: review) without a second review pass.
+  const proofQueue = await listPendingProof(sql, { tenantId: tid, limit: 120 });
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -72,11 +78,21 @@ export default async function AdminVerificationPage({ searchParams }) {
           stats={[
             { value: stats?.badges ?? 0, label: "badge definitions" },
             { value: stats?.issued ?? 0, label: "achievements issued" },
-            { value: stats?.links ?? 0, label: "share links live" }
+            { value: stats?.links ?? 0, label: "share links live" },
+            { value: proofQueue.length, label: "proof items awaiting review" }
           ]}
         />
 
-        <WorkspaceSection index="01" title="Issuance flow" note="Tier mix across badge definitions and the last eight weeks of issuance.">
+        <WorkspaceSection
+          index="01"
+          title="Proof awaiting review"
+          note="These claims have no authoritative machine source yet. Approving records a durable decision; rejecting keeps every piece of evidence."
+          action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><ShieldCheck size={12} aria-hidden="true" /> {proofQueue.length}</span>}
+        >
+          <ProofReviewQueue items={proofQueue} />
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Issuance flow" note="Tier mix across badge definitions and the last eight weeks of issuance.">
           <div className="grid gap-4 lg:grid-cols-2">
             <TierDonut data={tierRows.map((r) => ({ name: TIER[Number(r.tier)] || `Tier ${r.tier}`, value: r.c }))} />
             <WeeklyIssuanceBars data={weeklyRows.map((r) => ({ label: r.label, value: r.c }))} />
@@ -94,7 +110,7 @@ export default async function AdminVerificationPage({ searchParams }) {
         </form>
 
         <div className="aled-split">
-          <WorkspaceSection index="02" title="Badge definitions" note="Bronze, Silver, Gold — each badge becomes an achievement students can share." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><Award size={12} aria-hidden="true" /> {badges.length}</span>}>
+          <WorkspaceSection index="03" title="Badge definitions" note="Bronze, Silver, Gold — each badge becomes an achievement students can share." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><Award size={12} aria-hidden="true" /> {badges.length}</span>}>
             {badges.length === 0 ? (
               <WorkspaceEmpty title="No badges yet" body="Define the first badge — Bronze, Silver, Gold. Each badge becomes an achievement students can share." />
             ) : (
@@ -120,7 +136,7 @@ export default async function AdminVerificationPage({ searchParams }) {
             </div>
           </WorkspaceSection>
 
-          <WorkspaceSection index="03" title="Issue an achievement" note="Grant a badge to a student — the issuance is recorded, auditable, and immediately verifiable via /verify." action={<Users size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
+          <WorkspaceSection index="04" title="Issue an achievement" note="Grant a badge to a student — the issuance is recorded, auditable, and immediately verifiable via /verify." action={<Users size={14} aria-hidden="true" style={{ color: "var(--text-muted)" }} />}>
             {students.length === 0 ? (
               <WorkspaceEmpty title="No students yet" body="No students in this chapter yet." />
             ) : (
@@ -129,7 +145,7 @@ export default async function AdminVerificationPage({ searchParams }) {
           </WorkspaceSection>
         </div>
 
-        <WorkspaceSection index="04" title="Verification audit" note="Latest 30 issuances across this chapter, newest first." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><ShieldCheck size={12} aria-hidden="true" /> {recent.length}</span>}>
+        <WorkspaceSection index="05" title="Verification audit" note="Latest 30 issuances across this chapter, newest first." action={<span className="aled-meta" style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}><ShieldCheck size={12} aria-hidden="true" /> {recent.length}</span>}>
           {recent.length === 0 ? (
             <WorkspaceEmpty title="Nothing issued yet" body="Issue the first achievement above — it appears here with badge, recipient, and level." />
           ) : (
