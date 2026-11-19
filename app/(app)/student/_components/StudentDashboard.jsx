@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FolderKanban, GitPullRequest, Map as MapIcon } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { ActionLink } from "@/components/loom/primitives";
+import { PersonAvatar } from "@/components/loom/PersonAvatar";
 import { DepartmentsSection } from "@/components/student/OrgPanels";
 import { FirstWeekJourney } from "./FirstWeekJourney";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
@@ -34,7 +35,8 @@ export function StudentDashboard({
   profile, greeting, todayLabel, nextNode, nodes, verifiedIds = [], provisionalCount = 0, overallPercent,
   nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers,
   loop, cadence, notificationsPreview, notifUnread, projectsPreview, projectCount,
-  achievementsPreview, achievementCount, credentialCount, githubConnected = false
+  achievementsPreview, achievementCount, credentialCount, githubConnected = false,
+  momentum = null, eventStats = null, practiceNow = null, ossVerified = 0, peerProof = []
 }) {
   const name = profile?.name?.split(" ")[0] || "there";
   // The map draws verified progress. Claims stay in `doneIds` so the UI can
@@ -70,6 +72,7 @@ export function StudentDashboard({
       when: c.when,
       title: c.title,
       sub: c.registered ? "registered / contest" : "contest / registration open",
+      registered: c.registered === true,
       href: "/student/contests",
       art: eventArt("contest")
     })),
@@ -77,6 +80,7 @@ export function StudentDashboard({
       when: e.when,
       title: e.title,
       sub: `${e.event_type || "event"}${e.is_online ? " / online" : e.location ? ` / ${e.location}` : ""}`,
+      registered: e.registered === true,
       href: "/student/events",
       art: eventArt(e.event_type)
     }))
@@ -164,6 +168,67 @@ export function StudentDashboard({
                 </div>
               </dl>
             </aside>
+          </div>
+        </section>
+      </Reveal>
+
+      <Reveal delay={0.03}>
+        <section className="desk-momentum" aria-labelledby="desk-momentum-title">
+          <div className="desk-momentum-streak">
+            <p className="desk-label" id="desk-momentum-title">Daily streak</p>
+            <p className="desk-momentum-value">
+              {momentum?.current ?? 0}
+              <span>{momentum?.current === 1 ? "day" : "days"}</span>
+            </p>
+            <p className="desk-momentum-note">
+              Best {momentum?.longest ?? 0} / {momentum?.activeDays ?? 0} active days on record
+            </p>
+            <div
+              className="desk-momentum-days"
+              role="img"
+              aria-label={`Last 28 days: ${(momentum?.days || []).filter((d) => d.hit).length} active`}
+            >
+              {(momentum?.days || []).map((d) => (
+                <span key={d.day} className={d.hit ? "is-hit" : ""} title={d.day} aria-hidden="true" />
+              ))}
+            </div>
+          </div>
+
+          <dl className="desk-momentum-facts">
+            <div>
+              <dt>Sessions this week</dt>
+              <dd>{weekCounts.sessions}</dd>
+            </div>
+            <div>
+              <dt>Practice set</dt>
+              <dd>{practiceNow ? `${practiceNow.solved} / ${practiceNow.total || 7}` : "Not open"}</dd>
+            </div>
+            <div>
+              <dt>Events attended</dt>
+              <dd>{eventStats?.attended ?? 0}<span> of {eventStats?.registered ?? 0}</span></dd>
+            </div>
+            <div>
+              <dt>Verified proof</dt>
+              <dd>{verifiedIds.length + ossVerified + (credentialCount || 0)}</dd>
+            </div>
+          </dl>
+
+          <div className="desk-momentum-now">
+            <p className="desk-label">Now</p>
+            <p className="desk-momentum-now-title">{practiceNow?.title || nextNode?.title || "Pick a starting point"}</p>
+            <p className="desk-momentum-note">
+              {practiceNow
+                ? `${practiceNow.solved} of ${practiceNow.total || 7} recorded / closes ${practiceNow.closesLabel}`
+                : "No weekly set is open. Continue the roadmap or open challenges."}
+            </p>
+            <div className="desk-momentum-actions">
+              <Link href={practiceNow ? "/student/practice" : "/student/challenges"} prefetch={false} className="desk-inline-link">
+                {practiceNow ? "Open practice room" : "Browse challenges"} &rarr;
+              </Link>
+              <Link href="/student/events" prefetch={false} className="desk-inline-link">
+                What&apos;s nearby &rarr;
+              </Link>
+            </div>
           </div>
         </section>
       </Reveal>
@@ -291,7 +356,11 @@ export function StudentDashboard({
                   <div className="desk-section-head">
                     <span className="desk-index">04</span>
                     <h2 id="desk-upcoming-title">Coming up</h2>
-                    <span className="desk-note">On the chapter horizon</span>
+                    <span className="desk-note">
+                      {eventStats && eventStats.registered > 0
+                        ? `${eventStats.attended} attended / ${eventStats.registered} registered`
+                        : "On the chapter horizon"}
+                    </span>
                   </div>
                   {upcoming.length > 0 ? (
                     <ul className="desk-up-list">
@@ -301,10 +370,11 @@ export function StudentDashboard({
                             {r.art && <Image src={r.art} alt="" fill sizes="48px" />}
                           </span>
                           <span className="desk-up-time">{r.when}</span>
-                          <span className="min-w-0">
+                          <span className="min-w-0 desk-up-body">
                             <Link href={r.href} prefetch={false} className="desk-up-title">{r.title}</Link>
                             <span className="desk-up-sub">{r.sub}</span>
                           </span>
+                          {r.registered ? <span className="desk-up-flag">Registered</span> : null}
                         </li>
                       ))}
                     </ul>
@@ -492,9 +562,41 @@ export function StudentDashboard({
         </>
       )}
 
+      {peerProof.length > 0 && (
+        <Reveal>
+          <section className="desk-section desk-peers" aria-labelledby="desk-peers-title">
+            <div className="desk-section-head">
+              <span className="desk-index">06</span>
+              <h2 id="desk-peers-title">People shipping</h2>
+              <span className="desk-note">Your chapter, right now</span>
+            </div>
+            <p className="desk-section-lede">
+              Real verified work from members you can actually reach. Proof is easier to start when you can see someone like you finish.
+            </p>
+            <ul className="desk-peer-grid">
+              {peerProof.map((p) => (
+                <li key={p.id}>
+                  <Link href={p.href} prefetch={false} className="desk-peer-card">
+                    <PersonAvatar name={p.name} avatarUrl={p.avatarUrl} size={40} />
+                    <span className="min-w-0">
+                      <span className="desk-peer-name">{p.name}</span>
+                      <span className="desk-peer-work">
+                        <span className="desk-peer-kind">{p.kind === "oss" ? "Merged" : "Shipped"}</span>
+                        {" "}{p.title || "a project"}
+                      </span>
+                      <span className="desk-peer-when">{p.when} / view card &rarr;</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </Reveal>
+      )}
+
       <section className="desk-section desk-community" aria-labelledby="desk-community-title">
         <div className="desk-section-head">
-          <span className="desk-index">06</span>
+          <span className="desk-index">07</span>
           <h2 id="desk-community-title">Community &amp; growth</h2>
           <span className="desk-note">Where learning turns social</span>
         </div>

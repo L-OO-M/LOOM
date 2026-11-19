@@ -6,6 +6,7 @@ import { eligibilityFor } from "@/lib/mentorship";
 import { nextStepForStudent } from "@/lib/roadmap-next";
 import { splitVerifiedProgress } from "@/lib/roadmap";
 import { summarizeWeek, startOfWeek } from "@/lib/week-activity";
+import { loadMomentum } from "@/lib/momentum";
 import { toIsoDay } from "@/lib/github-activity";
 import { relDay, relShort } from "@/lib/dates";
 import Link from "next/link";
@@ -153,6 +154,67 @@ export default async function StudentPage() {
             OR t.domain = 'general')
         ORDER BY t.created_at DESC LIMIT 3
       ) j) AS open_threads,
+
+      -- The tracker the dashboard was missing: what is actually open right now
+      -- (this practice week), and whether the member turns up to events they
+      -- registered for. Both are counts over real rows, never estimates.
+      (SELECT json_build_object(
+         'registered', COUNT(*)::int,
+         'attended', COUNT(*) FILTER (WHERE r.attended_at IS NOT NULL)::int
+       )
+       FROM event_registrations r
+       JOIN events e ON e.id = r.event_id
+       WHERE r.student_id = ${user?.id ?? ""}
+         AND e.tenant_id = ${tenant?.id ?? null}::uuid
+         AND r.status <> 'cancelled') AS event_stats,
+      (SELECT json_build_object(
+         'title', w.title,
+         'start_at', w.start_at,
+         'end_at', w.end_at,
+         'total', (SELECT COUNT(*)::int FROM practice_questions q
+                   WHERE q.week_id = w.id AND q.tenant_id = w.tenant_id),
+         'solved', (SELECT COUNT(DISTINCT s.question_id)::int
+                    FROM practice_solves s
+                    JOIN practice_questions q2 ON q2.id = s.question_id
+                    WHERE s.user_id = ${user?.id ?? ""}
+                      AND s.tenant_id = w.tenant_id
+                      AND q2.week_id = w.id)
+       )
+       FROM practice_weeks w
+       WHERE w.tenant_id = ${tenant?.id ?? null}::uuid
+         AND w.status = 'scheduled'
+         AND w.end_at >= NOW()
+       ORDER BY w.start_at ASC LIMIT 1) AS practice_now,
+      (SELECT COUNT(*)::int FROM student_oss_contributions
+       WHERE student_id = ${user?.id ?? ""} AND tenant_id = ${tenant?.id ?? null}::uuid
+         AND status = 'verified') AS oss_verified,
+
+      -- Proof does not have to be lonely: the newest verified work from OTHER
+      -- public members of this chapter. Real rows, linked to their real card.
+      (SELECT coalesce(json_agg(j), '[]'::json) FROM (
+        SELECT * FROM (
+          SELECT 'oss'::text AS kind, c.id::text AS id, c.title,
+                 COALESCE(c.merged_at, c.verified_at, c.created_at) AS at,
+                 up.username, up.avatar_url, p.name
+          FROM student_oss_contributions c
+          JOIN user_profiles up ON up.user_id = c.student_id AND up.is_public = true
+          LEFT JOIN profiles p ON p.user_id = c.student_id
+          WHERE c.tenant_id = ${tenant?.id ?? null}::uuid
+            AND c.student_id <> ${user?.id ?? ""}
+            AND c.status = 'verified'
+          UNION ALL
+          SELECT 'project'::text AS kind, pr.id::text AS id, pr.title,
+                 pr.created_at AS at,
+                 up.username, up.avatar_url, p.name
+          FROM projects pr
+          JOIN user_profiles up ON up.user_id = pr.owner_id AND up.is_public = true
+          LEFT JOIN profiles p ON p.user_id = pr.owner_id
+          WHERE pr.tenant_id = ${tenant?.id ?? null}::uuid
+            AND pr.owner_id <> ${user?.id ?? ""}
+        ) feed
+        ORDER BY at DESC NULLS LAST
+        LIMIT 3
+      ) j) AS peer_proof,
 
       -- The weekly rhythm: one live pulse per cadence.
       (SELECT json_build_object('title', title, 'starts_at', starts_at) FROM events
@@ -317,6 +379,30 @@ export default async function StudentPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" });
 
+  // Daily consistency, from rows the chapter already records. One extra read,
+  // because the streak has to span 120 days, not just this week's seven.
+  const momentum = await loadMomentum(sql, { userId: user?.id, tenantId: tenant?.id, today: now });
+  const eventStats = dash.event_stats ?? { registered: 0, attended: 0 };
+  const practiceNow = dash.practice_now
+    ? {
+        ...dash.practice_now,
+        // Format on the server: a client render can sit in a different timezone
+        // and produce a different date than the HTML it hydrates.
+        closesLabel: new Date(dash.practice_now.end_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+      }
+    : null;
+  const ossVerified = dash.oss_verified ?? 0;
+  const peerProof = (dash.peer_proof ?? []).map((p) => ({
+    id: `${p.kind}-${p.id}`,
+    kind: p.kind,
+    title: p.title,
+    name: p.name || p.username || "A chapter member",
+    username: p.username,
+    avatarUrl: p.avatar_url || null,
+    when: p.at ? relShort(p.at) : "Recently",
+    href: p.username ? `/u/${p.username}` : "/student/discover"
+  }));
+
   const promoted = profile?.role === "vertical_lead" || profile?.role === "dept_lead" || profile?.role === "admin";
   const verticalLabel = profile?.role === "vertical_lead" ? (profile.vertical ? ` · ${profile.vertical.replace("_", " ")}` : "") : "";
 
@@ -363,6 +449,11 @@ export default async function StudentPage() {
         peers={peers}
         loop={loop}
         cadence={cadence}
+        momentum={momentum}
+        eventStats={eventStats}
+        practiceNow={practiceNow}
+        ossVerified={ossVerified}
+        peerProof={peerProof}
       />
     </AppShell>
   );
