@@ -193,16 +193,17 @@ export function RepoVerifyPicker({ verified = [] }) {
       }
       const incoming = data.data.repos || [];
       setRepos((prev) => {
-        // Deduplicate by fullName; keep earlier entries
-        const existing = new Set(prev.map((r) => r.fullName));
+        // Deduplicate by fullName, case-insensitively: GitHub preserves casing
+        // and a rename between page requests would otherwise duplicate a row.
+        const existing = new Set(prev.map((r) => String(r.fullName).toLowerCase()));
         return [
           ...prev,
-          ...incoming.filter((r) => !existing.has(r.fullName))
+          ...incoming.filter((r) => !existing.has(String(r.fullName).toLowerCase()))
         ];
       });
       setNextPage(page + 1);
       setHasMore(
-        typeof data.data.hasMore === "boolean" ? data.data.hasMore : incoming.length === 100
+        typeof data.data.hasMore === "boolean" ? data.data.hasMore : incoming.length >= 100
       );
       setState("ready");
     } catch {
@@ -278,10 +279,20 @@ export function RepoVerifyPicker({ verified = [] }) {
     if (next && state === "idle") load();
   }
 
-  const visible = repos.filter((repo) => {
-    const q = query.trim().toLowerCase();
-    return !q || `${repo.fullName} ${repo.description || ""} ${repo.language || ""}`.toLowerCase().includes(q);
-  });
+  const visible = repos
+    .filter((repo) => {
+      const q = query.trim().toLowerCase();
+      return !q || `${repo.fullName} ${repo.description || ""} ${repo.language || ""}`.toLowerCase().includes(q);
+    })
+    // Repositories not yet added first: the list exists to let the student act,
+    // and burying ten unchecked rows under fifty greyed-out ones is exactly the
+    // "why am I looking at all my repos" feeling this panel had.
+    .sort((a, b) => {
+      const doneA = verifiedSet.has(a.fullName.toLowerCase()) ? 1 : 0;
+      const doneB = verifiedSet.has(b.fullName.toLowerCase()) ? 1 : 0;
+      if (doneA !== doneB) return doneA - doneB;
+      return a.fullName.localeCompare(b.fullName);
+    });
 
   // If we just got a relink requirement, show a re-link banner
   if (state === "relink-required") {
@@ -313,7 +324,7 @@ export function RepoVerifyPicker({ verified = [] }) {
           {state === "error" && (
             <div>
               <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>
-              <button type="button" onClick={load} className="btn-ghost mt-3 !py-1.5 text-xs">Try again</button>
+              <button type="button" onClick={() => load(nextPage)} className="btn-ghost mt-3 !py-1.5 text-xs">Try again</button>
             </div>
           )}
           {state === "ready" && (
@@ -325,7 +336,17 @@ export function RepoVerifyPicker({ verified = [] }) {
                   {result.activated > 0 && ` ${result.activated} project${result.activated === 1 ? "" : "s"} moved to verified.`}
                 </p>
               )}
-              <label htmlFor="repo-verify-search" className="meta">Find a repository</label>
+              <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                Checking a repository asks GitHub whether you can push to it. Access is recorded only when you press Add repositories.
+              </p>
+              <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <label htmlFor="repo-verify-search" className="meta">Find a repository</label>
+                <span className="text-[0.72rem] font-semibold" style={{ color: "var(--text-muted)" }} aria-live="polite">
+                  {visible.length === repos.length
+                    ? `${repos.length} repositor${repos.length === 1 ? "y" : "ies"} loaded`
+                    : `${visible.length} of ${repos.length} repositories`}
+                </span>
+              </div>
               <input
                 id="repo-verify-search"
                 value={query}
@@ -338,9 +359,16 @@ export function RepoVerifyPicker({ verified = [] }) {
                 {visible.map((repo) => {
                   const confirmed = verifiedSet.has(repo.fullName.toLowerCase());
                   const checked = confirmed || selected.includes(repo.fullName);
+                  const access = repoAccess(repo);
+                  const details = [
+                    confirmed ? "Already added" : access,
+                    repo.language,
+                    repo.isPrivate ? "Private" : "Public",
+                    repo.pushedAt ? `Last push ${fmtRepoPush(repo.pushedAt)}` : null
+                  ].filter(Boolean).join(" · ");
                   return (
-                    <li key={repo.fullName}>
-                      <label className={`flex items-start gap-3 py-2.5 ${confirmed ? "opacity-60" : "cursor-pointer"}`}>
+                    <li key={repo.fullName} className="flex items-start gap-3 py-2.5">
+                      <label className={`flex min-w-0 flex-1 items-start gap-3 ${confirmed ? "opacity-60" : "cursor-pointer"}`}>
                         <input
                           type="checkbox"
                           className="mt-1"
@@ -353,25 +381,38 @@ export function RepoVerifyPicker({ verified = [] }) {
                             {repo.fullName}
                           </span>
                           <span className="meta mt-0.5 block normal-case tracking-normal">
-                            {confirmed ? "Already added" : [repo.language, repo.isPrivate ? "Private" : null].filter(Boolean).join(" · ") || "Owned repository"}
+                            {details}
                           </span>
                         </span>
                       </label>
+                      <a
+                        href={repo.htmlUrl || `https://github.com/${repo.fullName}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Open ${repo.fullName} on GitHub in a new tab`}
+                        className="mt-0.5 shrink-0 text-xs font-semibold"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        ↗
+                      </a>
                     </li>
                   );
                 })}
                 {visible.length === 0 && <li className="narrative py-4 text-sm">No repositories match that search.</li>}
               </ul>
               {hasMore && (
-                <button
-                  type="button"
-                  onClick={() => load(nextPage)}
-                  className="btn-ghost mt-3 text-xs"
-                >
-                  Load more repositories
-                </button>
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => load(nextPage)}
+                    className="btn-ghost text-xs"
+                  >
+                    Load more
+                  </button>
+                  <span className="meta normal-case tracking-normal">GitHub returns repositories 100 at a time.</span>
+                </div>
               )}
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
                 <button
                   onClick={doVerify}
                   disabled={selected.length === 0}
@@ -382,6 +423,9 @@ export function RepoVerifyPicker({ verified = [] }) {
                 </button>
                 <span className="meta normal-case tracking-normal">{selected.length}/10 selected</span>
               </div>
+              <p className="mt-2 text-[0.7rem] leading-5" style={{ color: "var(--text-muted)" }}>
+                Only repositories your linked GitHub account owns and can push to are listed. Organization and collaborator repositories stay on GitHub — LOOM treats project ownership as authorship.
+              </p>
             </>
           )}
           {state === "relink-required" && (
@@ -528,4 +572,21 @@ export function ConnectionControls({
       </div>
     </div>
   );
+}
+
+/* What the linked token can do on this repository. Returns null when the API
+   did not send permission flags, so the row says nothing rather than guessing
+   "read" from a missing field. */
+function repoAccess(repo) {
+  if (repo?.canAdmin == null && repo?.canPush == null) return null;
+  if (repo.canAdmin) return "Admin";
+  if (repo.canPush) return "Push";
+  return "Read";
+}
+
+function fmtRepoPush(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 }

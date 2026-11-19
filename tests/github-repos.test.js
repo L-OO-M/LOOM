@@ -80,6 +80,11 @@ describe("rememberRepoMetadata", () => {
 
     // fakeSql wraps values in an array; the first arg is the userId
     expect(sql.calls[0].values[0]).toBe("student-1");
+    // jsonb_to_recordset requires the parameter to BE an array. A pre-stringified
+    // value double-encodes under the explicit ::jsonb cast and the statement
+    // throws "cannot call jsonb_to_recordset on a non-array" at runtime.
+    expect(sql.calls[0].values.some((value) => Array.isArray(value))).toBe(true);
+    expect(sql.calls[0].values.some((value) => typeof value === "string" && value.startsWith("[{"))).toBe(false);
     // The RETURNING * should include all repository columns
     expect(sql.calls[0].query).toContain("RETURNING *");
   });

@@ -17,6 +17,9 @@ const createSchema = z.object({
 });
 
 const MAX_PAGE = 5;
+// GitHub's maximum page size. `hasMore` is derived from this, not from a
+// literal, so the two cannot drift apart if the request changes.
+const PER_PAGE = 100;
 
 export async function GET(request) {
   const ctx = await getRequestContext();
@@ -32,7 +35,7 @@ export async function GET(request) {
   const listed = await listWritableRepos({
     accessToken: token.accessToken,
     page,
-    perPage: 100
+    perPage: PER_PAGE
   });
   if (!listed.ok) return githubTokenFailure(listed.reason);
 
@@ -48,6 +51,14 @@ export async function GET(request) {
     repos: listed.repos
   });
 
+  // Permission flags live on the GitHub listing, not on the cached row (the
+  // cache is display metadata only), so keep them by name and attach them here.
+  // Without them the picker can only say "a repository" when what the student
+  // needs to know is whether they hold admin, push, or read on it.
+  const permissions = new Map(
+    listed.repos.map((r) => [String(r.fullName).toLowerCase(), { canPush: r.canPush, canAdmin: r.canAdmin }])
+  );
+
   const linked = await sql`
     SELECT repo_full_name FROM projects
     WHERE owner_id = ${user.id} AND repo_full_name IS NOT NULL
@@ -62,27 +73,35 @@ export async function GET(request) {
   const verifiedSet = new Set(verifiedRows.map((r) => String(r.repo)));
 
   return ok({
-    repos: cached.map((r) => ({
-      id: r.id,
-      fullName: r.full_name,
-      owner: r.owner,
-      name: r.name,
-      htmlUrl: r.html_url,
-      description: r.description,
-      language: r.language,
-      stars: r.stars,
-      forks: r.forks,
-      openIssues: r.open_issues,
-      topics: r.topics || [],
-      isPrivate: r.is_private,
-      isFork: r.is_fork,
-      defaultBranch: r.default_branch,
-      pushedAt: r.pushed_at,
-      alreadyLinked: linkedSet.has(String(r.full_name).toLowerCase()),
-      verified: verifiedSet.has(String(r.full_name).toLowerCase())
-    })),
+    repos: cached.map((r) => {
+      const perms = permissions.get(String(r.full_name).toLowerCase()) ?? null;
+      return {
+        id: r.id,
+        fullName: r.full_name,
+        owner: r.owner,
+        name: r.name,
+        htmlUrl: r.html_url,
+        description: r.description,
+        language: r.language,
+        stars: r.stars,
+        forks: r.forks,
+        openIssues: r.open_issues,
+        topics: r.topics || [],
+        isPrivate: r.is_private,
+        isFork: r.is_fork,
+        defaultBranch: r.default_branch,
+        pushedAt: r.pushed_at,
+        canPush: perms?.canPush ?? null,
+        canAdmin: perms?.canAdmin ?? null,
+        alreadyLinked: linkedSet.has(String(r.full_name).toLowerCase()),
+        verified: verifiedSet.has(String(r.full_name).toLowerCase())
+      };
+    }),
     page,
-    hasMore: page < MAX_PAGE && listed.repos.length === 100,
+    // A full GitHub page means another page exists. This counts what GitHub
+    // returned, not what survived the owned-repo filter, so the picker knows
+    // there is more to ask for even when this page contained none of theirs.
+    hasMore: page < MAX_PAGE && listed.repos.length >= PER_PAGE,
     // The scope is named in the UI only when GitHub rejects the call; this is
     // the expected scope for a healthy connection.
     expectedScopes: ["repo", "read:user"]

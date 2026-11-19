@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { GithubLinkButton } from "@/components/actions";
-import { PlainStat, ActionLink, StatusPill } from "@/components/loom/primitives";
+import { ActionLink, StatusPill } from "@/components/loom/primitives";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { Heatmap } from "@/components/loom/Heatmap";
 import { Evidence } from "@/components/loom/Evidence";
@@ -78,14 +78,25 @@ export default async function GithubPage() {
 
   // Repositories where GitHub confirmed this student has push access. Distinct
   // from the webhook-derived `repos` above: this list is what GitHub vouched for,
-  // not what happened to deliver a payload.
+  // not what happened to deliver a payload. Joined to `repositories` for the
+  // metadata the grant row itself does not carry (language, last push): the
+  // grant proves access, the cache describes the repo. Both sides are scoped to
+  // this user and this tenant, and the join is optional — a repo confirmed but
+  // never cached still appears, just without the extra context.
   const grants = await sql`
-    SELECT repo_full_name, can_push, can_admin, is_private, verified_at
-    FROM github_repo_grants
-    WHERE user_id = ${user.id} AND tenant_id = ${tenant?.id ?? null}::uuid
-    ORDER BY verified_at DESC
+    SELECT
+      g.repo_full_name, g.can_push, g.can_admin, g.is_private, g.verified_at,
+      r.language, r.pushed_at
+    FROM github_repo_grants g
+    LEFT JOIN repositories r
+      ON r.student_id = g.user_id
+     AND lower(r.full_name) = lower(g.repo_full_name)
+     AND r.tenant_id IS NOT DISTINCT FROM g.tenant_id
+    WHERE g.user_id = ${user.id} AND g.tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY g.verified_at DESC
     LIMIT 200
   `;
+  const verifiedOwners = grants.filter((g) => g.can_push).length;
 
   const recentEvents = conn ? await sql`
     SELECT event_name, repository_id, actor_login, received_at, payload FROM github_events
@@ -243,34 +254,39 @@ export default async function GithubPage() {
               </p>
             </div>
           ) : (
-            <div className="mt-4 grid gap-8 lg:grid-cols-[1fr_280px]">
-              <div className="min-w-0 rounded-2xl border px-5 py-5 transition-colors" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-                <div className="overflow-x-auto pb-1">
-                  <Heatmap rows={activity} weeks={16} />
+            <div
+              className="mt-4 rounded-2xl border px-5 py-5 sm:px-6 sm:py-6"
+              style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
+            >
+              {/* The grid gets the width, the reading key sits beside it, and the
+                  six figures live in an even row underneath. Previously the
+                  figures were a 280px rail taller than the grid, which stretched
+                  this card and made the contribution box look stretched too. */}
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,auto)_minmax(0,1fr)] lg:items-start lg:gap-8">
+                <div className="min-w-0 overflow-x-auto pb-1">
+                  <div className="min-w-[248px]">
+                    <Heatmap rows={activity} weeks={16} cellSize="clamp(11px, 1.1vw, 15px)" />
+                  </div>
                 </div>
-                <p className="mt-4 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                  Each square is one day. Shade deepens with more recorded commits, pull requests, and reviews — empty squares are days with nothing recorded, not a verdict.
-                </p>
+                <div className="min-w-0 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0" style={{ borderColor: "var(--line)" }}>
+                  <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                    Each square is one day. Shade deepens with more recorded commits, pull requests, and reviews — empty squares are days with nothing recorded, not a verdict.
+                  </p>
+                  <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                    Only activity GitHub attributes to @{conn.github_username} is counted. The window is the same 120-day table the daily log and the export read from.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-7">
-                <div title="Commits recorded from push events in the last 120 days" className="rounded-xl transition-colors">
-                  <PlainStat value={total} unit="commits" label="recorded in the last 120 days" />
-                </div>
-                <div title="Pull-request events attributed to you in the last 120 days" className="rounded-xl transition-colors">
-                  <PlainStat value={prs} unit="pull requests" label="opened in the same window" />
-                </div>
-                <div title="Consecutive days with recorded activity, ending today or yesterday" className="rounded-xl transition-colors">
-                  <PlainStat value={streak} unit={streak === 1 ? "day" : "days"} label="current contribution streak" />
-                </div>
-                <div title="Longest run of consecutive active days in the last 120 days" className="rounded-xl transition-colors">
-                  <PlainStat value={summary.longestStreak} unit={summary.longestStreak === 1 ? "day" : "days"} label="longest streak in the window" />
-                </div>
-                <div title="Days with at least one recorded commit, pull request, or review" className="rounded-xl transition-colors">
-                  <PlainStat value={summary.activeDays} unit="days" label={`active of the last ${summary.windowDays}`} />
-                </div>
-                <div title="Total recorded contributions divided by the 120-day window, expressed per week" className="rounded-xl transition-colors">
-                  <PlainStat value={summary.weeklyAverage} unit="/ week" label="average recorded activity" />
-                </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2.5 border-t pt-5 sm:grid-cols-3 xl:grid-cols-6" style={{ borderColor: "var(--line)" }}>
+                {[
+                  { value: total, unit: "commits", label: "Commits recorded", title: "Commits recorded from push events in the last 120 days" },
+                  { value: prs, unit: "PRs", label: "Pull requests opened", title: "Pull-request events attributed to you in the last 120 days" },
+                  { value: streak, unit: streak === 1 ? "day" : "days", label: "Current streak", title: "Consecutive days with recorded activity, ending today or yesterday" },
+                  { value: summary.longestStreak, unit: summary.longestStreak === 1 ? "day" : "days", label: "Longest streak", title: "Longest run of consecutive active days in the last 120 days" },
+                  { value: summary.activeDays, unit: "days", label: `Active of last ${summary.windowDays} days`, title: "Days with at least one recorded commit, pull request, or review" },
+                  { value: summary.weeklyAverage, unit: "/ week", label: "Weekly average", title: "Total recorded contributions divided by the 120-day window, expressed per week" }
+                ].map((stat) => <ActivityStat key={stat.title} {...stat} />)}
               </div>
             </div>
           )}
@@ -299,28 +315,47 @@ export default async function GithubPage() {
               </p>
             </div>
           ) : (
-            <ul className="mt-4 divide-y rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
-              {grants.map((grant) => (
-                <li key={grant.repo_full_name} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-                  <div className="min-w-0">
-                    <a
-                      href={`https://github.com/${grant.repo_full_name}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate font-mono text-sm font-semibold hover:underline"
-                      style={{ color: "var(--text)" }}
-                    >
-                      {grant.repo_full_name}
-                    </a>
-                    <p className="meta mt-1 normal-case tracking-normal">
-                      Verified {fmtLong(grant.verified_at)} · {grant.can_admin ? "Admin access" : grant.can_push ? "Push access" : "Read access"}
-                      {grant.is_private ? " · Private" : " · Public"}
-                    </p>
-                  </div>
-                  <StatusPill tone={grant.can_push ? "live" : ""}>{grant.can_push ? "Verified owner" : "Needs review"}</StatusPill>
-                </li>
-              ))}
-            </ul>
+            <>
+              <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>
+                {grants.length} confirmed · {verifiedOwners} verified owner{verifiedOwners === 1 ? "" : "s"}
+                {grants.length - verifiedOwners > 0 ? ` · ${grants.length - verifiedOwners} awaiting review` : ""}
+              </p>
+              <ul className="mt-3 divide-y rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+                {grants.map((grant) => (
+                  <li key={grant.repo_full_name} className="px-4 py-3.5 sm:px-5">
+                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                      <div className="min-w-0">
+                        <a
+                          href={`https://github.com/${grant.repo_full_name}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex max-w-full items-center gap-1.5 text-sm font-semibold hover:underline"
+                          style={{ color: "var(--text)" }}
+                        >
+                          <span className="truncate font-mono">{grant.repo_full_name}</span>
+                          <span aria-hidden="true" className="shrink-0 text-xs" style={{ color: "var(--accent)" }}>↗</span>
+                        </a>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                          <span>{grant.language || "No language recorded"}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{grant.is_private ? "Private" : "Public"}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{grant.can_admin ? "Admin access" : grant.can_push ? "Push access" : "Read access"}</span>
+                          {grant.pushed_at && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>Last push {fmtShort(grant.pushed_at)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <StatusPill tone={grant.can_push ? "live" : ""}>{grant.can_push ? "Verified owner" : "Needs review"}</StatusPill>
+                    </div>
+                    <p className="meta mt-1.5 normal-case tracking-normal">Verified {fmtLong(grant.verified_at)}</p>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </WorkspaceSection>
 
@@ -464,6 +499,29 @@ function NextMove({ move, href, external }) {
         </div>
       </div>
     </section>
+  );
+}
+
+/* One figure in the activity overview.
+   Equal height by construction: the label is clamped to two lines and reserved
+   at that height, so a long label wraps inside its own tile instead of pushing
+   the row — and the whole card — taller. `title` keeps the full explanation the
+   shortened visible label drops. */
+function ActivityStat({ value, unit, label, title }) {
+  return (
+    <div
+      title={title}
+      className="min-w-0 rounded-xl border px-3 py-3 transition-colors"
+      style={{ borderColor: "var(--line)", background: "var(--bg)" }}
+    >
+      <p className="flex items-baseline gap-1.5 font-mono text-[1.35rem] font-semibold leading-none tabular-nums" style={{ color: "var(--text)" }}>
+        <span>{value}</span>
+        {unit && (
+          <span className="text-[0.62rem] font-semibold uppercase tracking-[0.1em]" style={{ color: "var(--text-muted)" }}>{unit}</span>
+        )}
+      </p>
+      <p className="mt-2 line-clamp-2 min-h-[2.25rem] text-[0.72rem] leading-[1.125rem]" style={{ color: "var(--text-muted)" }}>{label}</p>
+    </div>
   );
 }
 
