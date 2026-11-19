@@ -161,14 +161,15 @@ export function RepoVerifyPicker({ verified = [] }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState("idle");
   const [repos, setRepos] = useState([]);
-  const [page, setPage] = useState(1);
+  const [nextPage, setNextPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
-  const [hasMore, setHasMore] = useState(true);
+  const [result, setResult] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
   const verifiedSet = new Set(verified.map((name) => String(name).toLowerCase()));
 
-  async function load() {
+  async function load(page = nextPage) {
     setState("loading");
     setError("");
     try {
@@ -190,16 +191,19 @@ export function RepoVerifyPicker({ verified = [] }) {
         }
         return;
       }
+      const incoming = data.data.repos || [];
       setRepos((prev) => {
         // Deduplicate by fullName; keep earlier entries
         const existing = new Set(prev.map((r) => r.fullName));
         return [
           ...prev,
-          ...data.data.repos.filter((r) => !existing.has(r.fullName))
+          ...incoming.filter((r) => !existing.has(r.fullName))
         ];
       });
-      setPage((p) => p + 1);
-      setHasMore(data.data.repos.length === 100 && page < 5);
+      setNextPage(page + 1);
+      setHasMore(
+        typeof data.data.hasMore === "boolean" ? data.data.hasMore : incoming.length === 100
+      );
       setState("ready");
     } catch {
       setState("error");
@@ -211,6 +215,7 @@ export function RepoVerifyPicker({ verified = [] }) {
     if (selected.length === 0) return;
     setState("verifying");
     setError("");
+    setResult(null);
     try {
       const res = await fetch("/api/github/repos/verify", {
         method: "POST",
@@ -238,14 +243,19 @@ export function RepoVerifyPicker({ verified = [] }) {
         }
         return;
       }
-      // Success: update local state
+      // Success: keep the panel open, report what happened, and refresh the
+      // server-rendered grant list so the new rows appear immediately.
       setSelected([]);
+      setResult({
+        added: data.data.added ?? 0,
+        activated: data.data.activated ?? 0,
+        failed: (data.data.repos || []).filter((r) => !r.ok)
+      });
+      setNextPage(1);
       setRepos([]);
-      setPage(1);
-      setHasMore(true);
       setState("ready");
-      // Refresh the parent page's grant list
-      window.dispatchEvent(new CustomEvent("github-repos-updated", { detail: { added: data.added, activated: data.activated } }));
+      router.refresh();
+      await load(1);
     } catch {
       setState("error");
       setError("Network error while verifying repositories.");
@@ -294,11 +304,12 @@ export function RepoVerifyPicker({ verified = [] }) {
   return (
     <div>
       <button type="button" onClick={toggle} className="btn-ghost !py-2 text-sm">
-        {open ? "Close repository picker" : "Verify repositories"}
+        {open ? "Close repository picker" : "Add repositories"}
       </button>
       {open && (
         <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           {state === "loading" && <p className="narrative text-sm">Loading your repositories…</p>}
+          {state === "verifying" && <p className="narrative text-sm">Checking your selected repositories with GitHub…</p>}
           {state === "error" && (
             <div>
               <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>
@@ -307,6 +318,13 @@ export function RepoVerifyPicker({ verified = [] }) {
           )}
           {state === "ready" && (
             <>
+              {result && (
+                <p className="mb-3 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                  Added {result.added} repositor{result.added === 1 ? "y" : "ies"}.
+                  {result.failed.length > 0 && ` ${result.failed.length} could not be confirmed by GitHub.`}
+                  {result.activated > 0 && ` ${result.activated} project${result.activated === 1 ? "" : "s"} moved to verified.`}
+                </p>
+              )}
               <label htmlFor="repo-verify-search" className="meta">Find a repository</label>
               <input
                 id="repo-verify-search"
@@ -318,15 +336,16 @@ export function RepoVerifyPicker({ verified = [] }) {
               />
               <ul className="mt-3 max-h-72 divide-y overflow-y-auto" style={{ borderColor: "var(--line)" }}>
                 {visible.map((repo) => {
-                  const already = verifiedSet.has(repo.fullName.toLowerCase()) || selected.includes(repo.fullName);
+                  const confirmed = verifiedSet.has(repo.fullName.toLowerCase());
+                  const checked = confirmed || selected.includes(repo.fullName);
                   return (
                     <li key={repo.fullName}>
-                      <label className={`flex items-start gap-3 py-2.5 ${already ? "opacity-60" : "cursor-pointer"}`}>
+                      <label className={`flex items-start gap-3 py-2.5 ${confirmed ? "opacity-60" : "cursor-pointer"}`}>
                         <input
                           type="checkbox"
                           className="mt-1"
-                          checked={already}
-                          disabled={already}
+                          checked={checked}
+                          disabled={confirmed}
                           onChange={() => pick(repo.fullName)}
                         />
                         <span className="min-w-0">
@@ -334,7 +353,7 @@ export function RepoVerifyPicker({ verified = [] }) {
                             {repo.fullName}
                           </span>
                           <span className="meta mt-0.5 block normal-case tracking-normal">
-                            {already ? "Already verified" : [repo.language, repo.isPrivate ? "Private" : null].filter(Boolean).join(" · ") || "Owned repository"}
+                            {confirmed ? "Already added" : [repo.language, repo.isPrivate ? "Private" : null].filter(Boolean).join(" · ") || "Owned repository"}
                           </span>
                         </span>
                       </label>
@@ -345,11 +364,11 @@ export function RepoVerifyPicker({ verified = [] }) {
               </ul>
               {hasMore && (
                 <button
-                  onClick={() => setPage((p) => p + 1)}
-                  className="mt-3 btn-ghost text-xs"
-                  style={{ marginTop: "0.5rem" }}
+                  type="button"
+                  onClick={() => load(nextPage)}
+                  className="btn-ghost mt-3 text-xs"
                 >
-                  Load more
+                  Load more repositories
                 </button>
               )}
               <div className="mt-3 flex flex-wrap items-center gap-3">

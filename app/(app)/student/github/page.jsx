@@ -86,12 +86,6 @@ export default async function GithubPage() {
     ORDER BY verified_at DESC
     LIMIT 200
   `;
-  const grantCount = await sql`
-    SELECT COUNT(*)::int AS total
-    FROM github_repo_grants
-    WHERE user_id = ${user.id} AND tenant_id = ${tenant?.id ?? null}::uuid
-  `;
-  const count = grantCount[0]?.total ?? 0;
 
   const recentEvents = conn ? await sql`
     SELECT event_name, repository_id, actor_login, received_at, payload FROM github_events
@@ -301,13 +295,8 @@ export default async function GithubPage() {
             <div className="mt-4 rounded-2xl border px-5 py-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <p className="text-[1.05rem] font-semibold" style={{ color: "var(--text)" }}>No repositories verified yet.</p>
               <p className="narrative mt-2">
-                Use the "Add repositories" button to confirm any of your GitHub repositories. Each one is verified directly with GitHub — no second OAuth round trip.
+                Use the &quot;Add repositories&quot; button to confirm any of your GitHub repositories. Each one is verified directly with GitHub — no second OAuth round trip.
               </p>
-              {count !== undefined && count > 0 && (
-                <p className="mt-2 text-sm normal-case" style={{ color: "var(--text-muted)" }}>
-                  {count} total repository grants found across your account.
-                </p>
-              )}
             </div>
           ) : (
             <ul className="mt-4 divide-y rounded-2xl border" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>

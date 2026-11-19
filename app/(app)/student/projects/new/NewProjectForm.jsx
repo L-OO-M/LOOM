@@ -298,7 +298,7 @@ export default function NewProjectForm({ milestones = [], githubConnected = fals
                       </button>
                     </li>
                   );
-                })
+                })}
               </ul>
               {filtered.length === 0 && <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>Nothing matched that filter.</p>}
               {hasMore && (
