@@ -8,6 +8,8 @@ import { domainProgress } from "@/lib/roadmap";
 import { nextStepForStudent } from "@/lib/roadmap-next";
 import { isZenModeEnabled } from "@/lib/feature-flags";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
+import { challengeNudge, loadChallenges } from "@/lib/challenges";
+import { ChallengeBridge } from "./_components/ChallengeBridge";
 
 // Every roadmap is scoped to one domain. All 300+ nodes used to render as a
 // single graph, which made the map unreadable and made "next step" meaningless
@@ -111,6 +113,20 @@ export default async function RoadmapPage({ searchParams }) {
   const doneCount = progress.done;
   const percent = progress.percent;
 
+  // Where reading turns into doing. One read model feeds both this bridge and
+  // /student/challenges, so the counts can never disagree.
+  const challengeOverview = await loadChallenges(sql, {
+    userId: user.id,
+    tenantId: tenant?.id,
+    domain
+  });
+  const nudge = challengeNudge({
+    verifiedCount: doneCount,
+    total: nodes.length,
+    domain,
+    overview: challengeOverview
+  });
+
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -130,6 +146,7 @@ export default async function RoadmapPage({ searchParams }) {
           ]}
         />
       </div>
+      <ChallengeBridge nudge={nudge} overview={challengeOverview} percent={percent} />
       <main className="pt-2">
         <RoadmapTabs
           domain={domain}
