@@ -7,6 +7,7 @@ import { PLANNER_ENABLED } from "@/lib/feature-flags";
 
 export const LEARN_TABS = [
   { href: "/student/roadmap", label: "Roadmap" },
+  { href: "/student/practice", label: "Practice" },
   ...(PLANNER_ENABLED ? [{ href: "/student/planner", label: "Planner" }] : []),
   { href: "/student/resources", label: "Resources" }
 ];

@@ -40,7 +40,7 @@ describe("five-verb navigation", () => {
     // Challenges are reached from the roadmap's domain panel, not a tab, so
     // the hub and the practice room fold back into Learn / Roadmap.
     expect(pathToTab("/student/challenges", "student")).toBe("roadmap");
-    expect(pathToTab("/student/practice", "student")).toBe("roadmap");
+    expect(pathToTab("/student/practice", "student")).toBe("practice");
     expect(pathToTab("/student/opensource", "student")).toBe("opensource");
     expect(pathToTab("/student/community/forums/abc", "student")).toBe("community");
     expect(pathToTab("/student/contests", "student")).toBe("contests");

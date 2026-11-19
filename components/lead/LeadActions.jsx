@@ -83,7 +83,14 @@ export function ApproveEventButton({ id, approve, label }) {
 export function WorkshopForm({ departments }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [eventType, setEventType] = useState("workshop");
+  const [domain, setDomain] = useState("general");
+  const [speakerName, setSpeakerName] = useState("");
   const [startsAt, setStartsAt] = useState("");
+  const [location, setLocation] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [isOnline, setIsOnline] = useState(false);
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || "");
   const [societyWide, setSocietyWide] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,13 +102,29 @@ export function WorkshopForm({ departments }) {
     setBusy(true);
     setMsg("");
     const data = await postJSON("/api/events", "POST", {
-      title, startsAt: new Date(startsAt).toISOString(),
-      scope: societyWide ? "society" : "department", departmentId: societyWide ? null : departmentId
+      title,
+      description,
+      eventType,
+      domain,
+      speakerName: speakerName || null,
+      startsAt: new Date(startsAt).toISOString(),
+      location: location || null,
+      capacity: capacity ? Number(capacity) : null,
+      isOnline,
+      scope: societyWide ? "society" : "department",
+      departmentId: societyWide ? null : departmentId
     });
     setBusy(false);
     if (data?.ok) {
       setTitle("");
+      setDescription("");
+      setEventType("workshop");
+      setDomain("general");
+      setSpeakerName("");
       setStartsAt("");
+      setLocation("");
+      setCapacity("");
+      setIsOnline(false);
       setMsg(data.data.event.status === "proposed" ? "Sent for approval ✓" : "Published ✓");
       router.refresh();
     } else {
@@ -112,21 +135,41 @@ export function WorkshopForm({ departments }) {
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <strong className="text-sm" style={{ color: "var(--text)" }}>Schedule a workshop</strong>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} placeholder="Workshop title" style={input} aria-label="Workshop title" />
+      <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} placeholder="Event title" style={input} aria-label="Event title" />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What happens at this event?" style={{ ...input, resize: "vertical", minHeight: 60 }} aria-label="Description" />
       <div className="grid grid-cols-2 gap-3">
-        <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required style={input} aria-label="Starts at" />
-        <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={societyWide} style={input} aria-label="Department">
-          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        <select value={eventType} onChange={(e) => setEventType(e.target.value)} style={input} aria-label="Event type">
+          <option value="workshop">Workshop</option>
+          <option value="hackathon">Hackathon</option>
+          <option value="talk">Talk</option>
+          <option value="mentoring">Mentoring</option>
+          <option value="contest">Contest</option>
         </select>
+        <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required style={input} aria-label="Starts at" />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="e.g. web, ai-ml, dsa" style={input} aria-label="Domain" />
+        <input value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} placeholder="Speaker (optional)" style={input} aria-label="Speaker" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Room 201 / Zoom link" style={input} aria-label="Location" />
+        <input value={capacity} onChange={(e) => setCapacity(e.target.value)} type="number" min={0} placeholder="Capacity" style={input} aria-label="Capacity" />
+      </div>
+      <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+        <input type="checkbox" checked={isOnline} onChange={(e) => setIsOnline(e.target.checked)} />
+        Online event
+      </label>
       <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
         <input type="checkbox" checked={societyWide} onChange={(e) => setSocietyWide(e.target.checked)} />
         Society-wide (needs Vertical Lead approval — goes to the queue)
       </label>
-      <div className="flex items-center gap-3">
-        <button disabled={busy} className="btn-ink !py-2 text-sm disabled:opacity-50">{busy ? "Posting…" : societyWide ? "Send for approval" : "Publish workshop"}</button>
-        {msg && <span className="text-xs" style={{ color: msg.includes("✓") ? "var(--accent)" : "var(--danger)" }}>{msg}</span>}
+      <div className="grid grid-cols-2 gap-3">
+        <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={societyWide} style={input} aria-label="Department">
+          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        <button disabled={busy} className="btn-ink !py-2 text-sm disabled:opacity-50">{busy ? "Posting…" : societyWide ? "Send for approval" : "Publish event"}</button>
       </div>
+      {msg && <span className="text-xs" style={{ color: msg.includes("✓") ? "var(--accent)" : "var(--danger)" }}>{msg}</span>}
     </form>
   );
 }
