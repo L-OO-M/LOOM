@@ -10,7 +10,8 @@ import { nextStepForStudent } from "@/lib/roadmap-next";
 import { isZenModeEnabled } from "@/lib/feature-flags";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { challengeNudge, loadChallenges } from "@/lib/challenges";
-import { ChallengeBridge } from "./_components/ChallengeBridge";
+import { societyChallenge } from "@/lib/society";
+import { DomainChallengePanel } from "./_components/DomainChallengePanel";
 
 // Every roadmap is scoped to one domain. All 300+ nodes used to render as a
 // single graph, which made the map unreadable and made "next step" meaningless
@@ -149,23 +150,32 @@ export default async function RoadmapPage({ searchParams }) {
           ]}
         />
       </div>
-      <ChallengeBridge nudge={nudge} overview={challengeOverview} percent={percent} />
-      <main className="pt-2">
-        <RoadmapTabs
-          domain={domain}
-          domains={domains}
-          primaryDomain={primaryDomain}
-          followedTracks={followedTracks}
-          nodes={nodes}
-          edges={edges}
-          doneIds={doneIds}
-          verifiedIds={verifiedIds}
-          nextId={nextId}
-          resourcesByNode={resourcesByNode}
-          resourceDoneIds={resourceDoneIds}
-          projectsByNode={projectsByNode}
-          zenEnabled={zenEnabled}
-        />
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-2 sm:px-6">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="min-w-0">
+            <RoadmapTabs
+              domain={domain}
+              domains={domains}
+              primaryDomain={primaryDomain}
+              followedTracks={followedTracks}
+              nodes={nodes}
+              edges={edges}
+              doneIds={doneIds}
+              verifiedIds={verifiedIds}
+              nextId={nextId}
+              resourcesByNode={resourcesByNode}
+              resourceDoneIds={resourceDoneIds}
+              projectsByNode={projectsByNode}
+              zenEnabled={zenEnabled}
+            />
+          </div>
+          <DomainChallengePanel
+            domain={domain}
+            overview={challengeOverview}
+            nudge={nudge}
+            society={societyChallenge(domain)}
+          />
+        </div>
       </main>
     </AppShell>
   );

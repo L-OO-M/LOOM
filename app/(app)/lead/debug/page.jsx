@@ -4,7 +4,9 @@ import { AppShell } from "@/components/AppShell";
 import { Meta } from "@/components/loom/primitives";
 import { WorkspaceEmpty, WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { DebugReviewCard } from "@/components/debug/DebugReviewCard";
+import { OssReviewActions } from "@/components/oss/OssReviewActions";
 import { loadDebugQueue, reviewScopes } from "@/lib/debug";
+import { loadOssSubmissionQueue } from "@/lib/oss-challenges";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,11 @@ export default async function LeadDebugPage() {
     statuses: ["approved"]
   });
   const domains = scope.all ? ["every domain"] : scope.domains;
+  const societyQueue = await loadOssSubmissionQueue(sql, tenant.id, {
+    domains: scope.domains,
+    all: scope.all,
+    status: "submitted"
+  });
 
   return (
     <AppShell area="lead" tenant={tenant} user={user}>
@@ -69,6 +76,53 @@ export default async function LeadDebugPage() {
 
         <WorkspaceSection
           index="02"
+          title="Society challenge forks"
+          note="Verified forks of the society repository in your domain. Read the note, open the diff, grade it."
+          action={<span className="meta">{societyQueue.length} waiting</span>}
+        >
+          {societyQueue.length === 0 ? (
+            <WorkspaceEmpty
+              title="No society forks waiting."
+              body="When a member in your scope submits a fork on the challenge hub, it appears here."
+            />
+          ) : (
+            <ul className="mt-4 grid gap-3">
+              {societyQueue.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-2xl border p-4"
+                  style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      {item.studentName || "Member"} · {item.repoFullName}
+                    </p>
+                    <span className="meta">{item.domain}</span>
+                  </div>
+                  {item.note ? <p className="narrative mt-1 text-xs leading-5">“{item.note}”</p> : null}
+                  <a
+                    href={item.forkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-xs font-semibold hover:underline"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    Open the fork &nearr;
+                  </a>
+                  <div className="mt-3">
+                    <OssReviewActions id={item.id} verificationStatus={item.verificationStatus} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Meta>
+            Approval records verified society-challenge evidence and scores it. Returning a submission does not penalise the member.
+          </Meta>
+        </WorkspaceSection>
+
+        <WorkspaceSection
+          index="03"
           title="Approved in your domain"
           note="If a fix was approved by mistake, return it here. The debug point is removed and the history stays audited."
         >

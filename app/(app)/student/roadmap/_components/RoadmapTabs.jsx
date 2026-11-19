@@ -28,7 +28,7 @@ export default function RoadmapTabs({
   const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+    <div>
       <div className="pt-2">
         <p className="meta">
           Roadmap · {domainLabel(domain)} · {doneCount} of {total} complete

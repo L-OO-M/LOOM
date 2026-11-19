@@ -141,7 +141,8 @@ test.describe("api authorization", () => {
     "/api/admin/flags",
     "/api/admin/audit",
     "/api/identity",
-    "/api/tracks"
+    "/api/tracks",
+    "/api/challenges/oss"
   ];
   for (const path of apis) {
     test(`GET ${path} returns 401 without session`, async ({ request }) => {
@@ -162,7 +163,8 @@ test.describe("api authorization", () => {
     "/api/lead/debug",
     "/api/identity",
     "/api/identity/verify",
-    "/api/tracks"
+    "/api/tracks",
+    "/api/challenges/oss"
   ];
   for (const path of mutationApis) {
     test(`POST ${path} returns 401 without session`, async ({ request }) => {
@@ -252,6 +254,14 @@ test.describe("api authorization", () => {
     expect(bulk.status()).toBe(401);
     const approve = await request.post("/api/events/00000000-0000-0000-0000-000000000000/approve", { data: { approve: true } });
     expect(approve.status()).toBe(401);
+  });
+
+  test("society challenge grading returns 401 without session", async ({ request }) => {
+    const res = await request.patch("/api/challenges/oss/00000000-0000-0000-0000-000000000000", {
+      data: { decision: "approved", feedback: "Looks good to me." }
+    });
+    expect(res.status()).toBe(401);
+    expect((await res.json()).ok).toBe(false);
   });
 
   test("asset library writes and downloads return 401 without session", async ({ request }) => {

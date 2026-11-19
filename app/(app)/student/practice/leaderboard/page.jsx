@@ -101,7 +101,7 @@ export default async function PracticeLeaderboardPage() {
           ]}
         />
 
-        <LearnTabs active="/student/challenges" />
+        <LearnTabs active="/student/roadmap" />
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           <ActionLink href="/student/practice">Back to this week</ActionLink>

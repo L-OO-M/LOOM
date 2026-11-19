@@ -55,7 +55,7 @@ export default async function StudentPracticePage() {
             { value: snapshot.history.length, label: "past weeks open" }
           ]}
         />
-        <LearnTabs active="/student/challenges" />
+        <LearnTabs active="/student/roadmap" />
         <PracticeClient snapshot={snapshot} userId={user.id} />
       </main>
     </AppShell>

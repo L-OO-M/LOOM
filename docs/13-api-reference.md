@@ -129,6 +129,18 @@ is restricted to the holder or an admin of the issuing chapter and returns
 
 Approved debug fixes enter chapter standing as `debug_fixed` (weight 15, cap 10) through the verified-evidence ledger.
 
+## Society challenges (migration 085)
+
+The chapter also runs one shared open-source challenge: the `L-OO-M/buggy` repository (or `DEBUG_CHALLENGE_REPO` when configured), where each primary domain has a folder of intentionally broken projects. It is not a `debug_challenges` row — the challenge is the repository folder itself — so submissions are stored separately.
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/challenges/oss?domain=` | user | the caller's own society/curated submissions for one track (newest first, max 50) |
+| POST | `/api/challenges/oss` | user with linked GitHub | `{domain, repoFullName, forkUrl, note?}`. The upstream must be the society repo or a repository curated **for that domain** (`REPO_NOT_ALLOWED` otherwise). GitHub verifies fork ownership, fork parent and an authored commit. Rate limited 10/min. One fork per member per repository. |
+| PATCH | `/api/challenges/oss/[id]` | matching `dept_lead` or admin | `{decision: approved\|rejected, feedback}`. Approval requires `verification_status = verified`, writes `oss_challenge` evidence, recomputes the score, audits and notifies. Returning revokes any evidence and keeps the submission history. Self-review is refused. |
+
+The rules shown on `/student/challenges` are `SOCIETY_RULES` in `lib/society.js`; folder links come from `SOCIETY_FOLDERS`, so the roadmap panel and the hub cannot disagree. Approved fixes are worth 20 points, capped at 10 per chapter, and are deliberately **not** `oss_verified` — that kind still means a merged upstream pull request.
+
 ## Errors & limits
 
 Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `REPORT_LOCKED` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
