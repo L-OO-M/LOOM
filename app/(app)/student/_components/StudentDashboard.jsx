@@ -36,7 +36,8 @@ export function StudentDashboard({
   nextMilestone, weekDays, weekCounts, contests, events, sessions, proof, snapshot, peers,
   loop, cadence, notificationsPreview, notifUnread, projectsPreview, projectCount,
   achievementsPreview, achievementCount, credentialCount, githubConnected = false,
-  momentum = null, eventStats = null, practiceNow = null, ossVerified = 0, peerProof = []
+  momentum = null, eventStats = null, practiceNow = null, ossVerified = 0, peerProof = [],
+  tracks = []
 }) {
   const name = profile?.name?.split(" ")[0] || "there";
   // The map draws verified progress. Claims stay in `doneIds` so the UI can
@@ -46,7 +47,7 @@ export function StudentDashboard({
   const fresh = !profile?.primary_domain || (!firstWeekDone && verifiedIds.length <= 1);
   const remaining = nodes.length - verifiedIds.length;
   const domainLabel = nextNode?.domain ? nextNode.domain.replace(/_/g, " ").replace(/\b\w/g, c=>c.toUpperCase()) : "Roadmap";
-  const heroArt = domainArt(profile?.primary_domain);
+  const heroArt = domainArt(tracks[0]?.domain || profile?.primary_domain);
   const currentIndex = nextNode
     ? Math.max(0, nodes.findIndex((n) => n.id === nextNode.id))
     : Math.max(0, nodes.length - 1);
@@ -236,7 +237,7 @@ export function StudentDashboard({
       {fresh ? (
         <Reveal delay={0.06}>
           <FirstWeekJourney
-            domain={profile?.primary_domain}
+            domain={tracks[0]?.domain || profile?.primary_domain}
             verifiedCount={verifiedIds.length}
             githubConnected={githubConnected}
             projectCount={projectCount}
@@ -309,12 +310,56 @@ export function StudentDashboard({
             </section>
           </Reveal>
 
+          <Reveal delay={0.05}>
+            <section className="desk-section" aria-labelledby="desk-tracks-title">
+              <div className="desk-section-head">
+                <span className="desk-index">03</span>
+                <h2 id="desk-tracks-title">Your tracks</h2>
+                <span className="desk-note">{tracks.length} roadmap{tracks.length === 1 ? "" : "s"} followed</span>
+              </div>
+              <p className="desk-section-lede">Every roadmap you follow, with its own verified count. Follow another from the rail above the roadmap.</p>
+              {tracks.length === 0 ? (
+                <p className="desk-empty">No published roadmap in this chapter yet.</p>
+              ) : (
+                <ul className="desk-track-grid">
+                  {tracks.map((track) => (
+                    <li key={track.domain} className="desk-track">
+                      <div className="desk-track-head">
+                        <span className="desk-track-name">{track.label}</span>
+                        <span className="desk-track-count">{track.done}/{track.total}</span>
+                      </div>
+                      <div
+                        className="desk-track-meter"
+                        role="img"
+                        aria-label={`${track.percent} percent of the ${track.label} roadmap verified`}
+                      >
+                        <span style={{ width: `${track.percent}%` }} />
+                      </div>
+                      <p className="desk-track-next">
+                        {track.next ? (
+                          <>Next: <Link href={`/student/roadmap/${track.next.id}`} prefetch={false}>{track.next.title}</Link></>
+                        ) : "Track complete"}
+                      </p>
+                      <Link
+                        href={`/student/roadmap?domain=${encodeURIComponent(track.domain)}`}
+                        prefetch={false}
+                        className="desk-track-open"
+                      >
+                        Open roadmap &rarr;
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </Reveal>
+
           <div className="mt-2 grid gap-8 lg:grid-cols-[1.65fr_1fr] lg:gap-10">
             <div className="min-w-0">
               <Reveal delay={0.04}>
                 <section className="desk-section" aria-labelledby="desk-proof-title">
                   <div className="desk-section-head">
-                    <span className="desk-index">03</span>
+                    <span className="desk-index">04</span>
                     <h2 id="desk-proof-title">Recent proof</h2>
                     <span className="desk-note">What you actually did</span>
                   </div>
@@ -354,7 +399,7 @@ export function StudentDashboard({
               <Reveal delay={0.05}>
                 <section className="desk-section" aria-labelledby="desk-upcoming-title">
                   <div className="desk-section-head">
-                    <span className="desk-index">04</span>
+                    <span className="desk-index">05</span>
                     <h2 id="desk-upcoming-title">Coming up</h2>
                     <span className="desk-note">
                       {eventStats && eventStats.registered > 0
@@ -389,7 +434,7 @@ export function StudentDashboard({
               <Reveal delay={0.04}>
                 <section className="desk-section" aria-labelledby="desk-building-title">
                   <div className="desk-section-head">
-                    <span className="desk-index">05</span>
+                    <span className="desk-index">06</span>
                     <h2 id="desk-building-title">Things you are building</h2>
                     <span className="desk-note">{projectCount ?? 0} shipped</span>
                   </div>
@@ -566,7 +611,7 @@ export function StudentDashboard({
         <Reveal>
           <section className="desk-section desk-peers" aria-labelledby="desk-peers-title">
             <div className="desk-section-head">
-              <span className="desk-index">06</span>
+              <span className="desk-index">07</span>
               <h2 id="desk-peers-title">People shipping</h2>
               <span className="desk-note">Your chapter, right now</span>
             </div>
@@ -596,7 +641,7 @@ export function StudentDashboard({
 
       <section className="desk-section desk-community" aria-labelledby="desk-community-title">
         <div className="desk-section-head">
-          <span className="desk-index">07</span>
+          <span className="desk-index">08</span>
           <h2 id="desk-community-title">Community &amp; growth</h2>
           <span className="desk-note">Where learning turns social</span>
         </div>

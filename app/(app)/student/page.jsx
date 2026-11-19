@@ -5,6 +5,8 @@ import { resolveRequestTenant } from "@/lib/tenant";
 import { eligibilityFor } from "@/lib/mentorship";
 import { nextStepForStudent } from "@/lib/roadmap-next";
 import { splitVerifiedProgress } from "@/lib/roadmap";
+import { normalizeDomainKey } from "@/lib/domains";
+import { trackProgress } from "@/lib/tracks";
 import { summarizeWeek, startOfWeek } from "@/lib/week-activity";
 import { loadMomentum } from "@/lib/momentum";
 import { toIsoDay } from "@/lib/github-activity";
@@ -54,6 +56,8 @@ export default async function StudentPage() {
         SELECT node_id, evidence_state FROM student_roadmap_progress
         WHERE student_id = ${user?.id ?? ""} AND status = 'completed'
       ) j) AS done,
+      (SELECT coalesce(json_agg(t.domain), '[]'::json) FROM student_tracks t
+       WHERE t.tenant_id = ${tenant?.id ?? null}::uuid AND t.user_id = ${user?.id ?? ""}) AS track_domains,
 
       -- This week: the daily strip and its verified-milestone count.
       (SELECT coalesce(json_agg(j), '[]'::json) FROM (
@@ -252,13 +256,26 @@ export default async function StudentPage() {
   const verifiedIds = progress.verifiedIds;
   const provisionalCount = progress.provisionalIds.length;
   const doneCount = verifiedIds.length;
-  const totalCount = nodes.length;
-  const overallPercent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const primaryDomain = normalizeDomainKey(profile?.primary_domain);
+  // The hero, the journey and the percentage describe ONE track: the member's
+  // primary roadmap. Nodes from other domains used to be spliced into the
+  // five-stop window, so "up next" could jump into an unrelated track.
+  const trackNodes = primaryDomain ? nodes.filter((node) => node.domain === primaryDomain) : nodes;
+  const totalCount = trackNodes.length;
+  const trackDone = trackNodes.filter((n) => verifiedIds.includes(n.id)).length;
+  const overallPercent = totalCount > 0 ? Math.round((trackDone / totalCount) * 100) : 0;
+  // Every roadmap the member follows, each with its own verified count.
+  const tracks = trackProgress({
+    nodes,
+    verifiedIds,
+    followed: dash.track_domains ?? [],
+    primary: primaryDomain
+  });
   // One source of truth: the same prerequisite-aware, verified-only walk the
   // roadmap page and the API use. The old `find(first uncompleted)` ignored
   // both prerequisites and the student's domain.
   const nextStep = user?.id
-    ? await nextStepForStudent(sql, user.id, profile?.primary_domain || null)
+    ? await nextStepForStudent(sql, user.id, primaryDomain || null)
     : { node: null };
   const nextNode = nextStep.node;
   const nextMilestone = nextNode?.title ?? null;
@@ -426,10 +443,11 @@ export default async function StudentPage() {
         greeting={greeting}
         todayLabel={todayLabel}
         nextNode={nextNode}
-        nodes={nodes.map((n) => ({ id: n.id, title: n.title }))}
+        nodes={trackNodes.map((n) => ({ id: n.id, title: n.title }))}
         verifiedIds={verifiedIds}
         provisionalCount={provisionalCount}
         overallPercent={overallPercent}
+        tracks={tracks}
         nextMilestone={nextMilestone}
         weekDays={weekDays}
         weekCounts={{ sessions: weekSessions, contributions: weekContributions, milestones: weekMilestones }}

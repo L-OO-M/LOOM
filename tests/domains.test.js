@@ -6,6 +6,7 @@ import {
   SHARED_DOMAINS,
   domainLabel,
   isPrimaryDomain,
+  normalizeDomainKey,
   orderDomains,
   resolveDomain
 } from "@/lib/domains";
@@ -95,5 +96,17 @@ describe("resolveDomain", () => {
 
   it("still resolves a legacy domain that only exists in the data", () => {
     expect(resolveDomain({ requested: null, primary: null, available: ["robotics"] })).toBe("robotics");
+  });
+
+  it("understands a stored display label instead of silently picking another track", () => {
+    expect(resolveDomain({ requested: null, primary: "Cybersecurity", available })).toBe("ai_ml");
+    expect(resolveDomain({
+      requested: null,
+      primary: "Cybersecurity",
+      available: ["web", "cybersecurity"]
+    })).toBe("cybersecurity");
+    expect(normalizeDomainKey("Web Development")).toBe("web");
+    expect(normalizeDomainKey("  ai_ml ")).toBe("ai_ml");
+    expect(normalizeDomainKey("no such track")).toBe(null);
   });
 });

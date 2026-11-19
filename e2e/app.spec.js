@@ -140,7 +140,8 @@ test.describe("api authorization", () => {
     "/api/admin/students",
     "/api/admin/flags",
     "/api/admin/audit",
-    "/api/identity"
+    "/api/identity",
+    "/api/tracks"
   ];
   for (const path of apis) {
     test(`GET ${path} returns 401 without session`, async ({ request }) => {
@@ -160,7 +161,8 @@ test.describe("api authorization", () => {
     "/api/debug/submissions",
     "/api/lead/debug",
     "/api/identity",
-    "/api/identity/verify"
+    "/api/identity/verify",
+    "/api/tracks"
   ];
   for (const path of mutationApis) {
     test(`POST ${path} returns 401 without session`, async ({ request }) => {

@@ -3,7 +3,8 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
-import { orderDomains, resolveDomain, domainLabel } from "@/lib/domains";
+import { orderDomains, resolveDomain, domainLabel, normalizeDomainKey } from "@/lib/domains";
+import { loadFollowedTracks } from "@/lib/tracks";
 import { domainProgress } from "@/lib/roadmap";
 import { nextStepForStudent } from "@/lib/roadmap-next";
 import { isZenModeEnabled } from "@/lib/feature-flags";
@@ -27,9 +28,10 @@ export default async function RoadmapPage({ searchParams }) {
   const verifiedIds = done.filter((d) => d.evidence_state === "verified").map((d) => d.node_id);
 
   const available = [...new Set(allNodes.map((n) => n.domain))];
+  const primaryDomain = normalizeDomainKey(profile?.primary_domain);
   const domain = resolveDomain({
     requested: typeof sp.domain === "string" ? sp.domain : null,
-    primary: profile?.primary_domain || null,
+    primary: primaryDomain,
     available,
   });
   if (!domain) {
@@ -115,6 +117,7 @@ export default async function RoadmapPage({ searchParams }) {
 
   // Where reading turns into doing. One read model feeds both this bridge and
   // /student/challenges, so the counts can never disagree.
+  const followedTracks = await loadFollowedTracks(sql, { userId: user.id, tenantId: tenant?.id });
   const challengeOverview = await loadChallenges(sql, {
     userId: user.id,
     tenantId: tenant?.id,
@@ -151,6 +154,8 @@ export default async function RoadmapPage({ searchParams }) {
         <RoadmapTabs
           domain={domain}
           domains={domains}
+          primaryDomain={primaryDomain}
+          followedTracks={followedTracks}
           nodes={nodes}
           edges={edges}
           doneIds={doneIds}
