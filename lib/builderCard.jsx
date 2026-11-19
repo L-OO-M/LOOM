@@ -49,6 +49,7 @@ export function BuilderCard({ data, scale = 1 }) {
   const {
     name, username, domain, bio,
     score = 0, achievements = 0, ossVerified = 0, eventsAttended = 0, followers = 0,
+    projects = 0, mergedPrs = 0, certificates = 0, reposVerified = 0, activeDays = 0, solved = 0,
     siteUrl = "", format = "feed"
   } = data || {};
   const P = CARD_PALETTE;
@@ -58,13 +59,23 @@ export function BuilderCard({ data, scale = 1 }) {
   const s = (n) => Math.round(n * scale);
   const px = (n) => `${n}px`;
 
+  // Ordered by what a reader should learn first. Capped at six so a rich record
+  // still fits the 1200x630 feed card; every entry is omitted when it is zero.
+  // mergedPrs||ossVerified keeps older callers (which only pass the reputation
+  // breakdown) showing the same verified-merge count under one label.
+  const mergedTotal = mergedPrs || ossVerified;
   const stats = [
     { label: "REPUTATION", value: score, show: score > 0 },
-    { label: "VERIFIED MERGES", value: ossVerified, show: ossVerified > 0 },
+    { label: "MERGED PRS", value: mergedTotal, show: mergedTotal > 0 },
+    { label: "SOLVED", value: solved, show: solved > 0 },
+    { label: "ACTIVE DAYS", value: activeDays, show: activeDays > 0 },
+    { label: "REPOS VERIFIED", value: reposVerified, show: reposVerified > 0 },
+    { label: "PROJECTS", value: projects, show: projects > 0 },
+    { label: "CERTIFICATES", value: certificates, show: certificates > 0 },
     { label: "PROOFS", value: achievements, show: achievements > 0 },
     { label: "EVENTS", value: eventsAttended, show: eventsAttended > 0 },
     { label: "FOLLOWERS", value: followers, show: followers > 0 }
-  ].filter((x) => x.show);
+  ].filter((x) => x.show).slice(0, 6);
 
   const handle = String(username || "").toUpperCase();
   const link = String(siteUrl || "").replace(/^https?:\/\//, "").replace(/\/$/, "");

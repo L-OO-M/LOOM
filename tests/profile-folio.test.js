@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   folioNumber,
+  leetcodeStats,
   monthYear,
   proofCountWords,
   proofWeightRows,
@@ -105,6 +106,37 @@ describe("roleLabel", () => {
     expect(roleLabel(null)).toBe("Member");
     expect(roleLabel(undefined)).toBe("Member");
     expect(roleLabel("")).toBe("Member");
+  });
+});
+
+describe("leetcodeStats", () => {
+  it("reads the stored snapshot, including a jsonb value returned as text", () => {
+    const stored = {
+      total: 169, easy: 49, medium: 100, hard: 20,
+      ranking: 1058640, streak: 5, activeDays: 30,
+      syncedAt: "2026-11-19T08:47:31.284Z"
+    };
+    expect(leetcodeStats(stored)).toMatchObject({
+      total: 169, easy: 49, medium: 100, hard: 20, ranking: 1058640, streak: 5, activeDays: 30
+    });
+    expect(leetcodeStats(JSON.stringify(stored))).toMatchObject({ total: 169, easy: 49 });
+  });
+
+  it("does not publish submission-attempt counts as difficulty denominators", () => {
+    // LeetCode's totalSubmissionNum looks like a denominator but counts
+    // attempts; exposing it made "solved / total" meaningless.
+    const result = leetcodeStats({ total: 154, easy: 50, totalEasy: 50 });
+    expect(result).not.toHaveProperty("totalEasy");
+    expect(result).not.toHaveProperty("totalMedium");
+    expect(result).not.toHaveProperty("totalHard");
+  });
+
+  it("returns null when there is no usable snapshot", () => {
+    expect(leetcodeStats(null)).toBeNull();
+    expect(leetcodeStats("")).toBeNull();
+    expect(leetcodeStats("not json")).toBeNull();
+    expect(leetcodeStats({})).toBeNull();
+    expect(leetcodeStats({ total: 0, easy: 0 })).toBeNull();
   });
 });
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputStyle, Field } from "@/components/ui";
+import { mergeSocialLinks, socialLinksForDisplay } from "@/lib/profileFolio";
 
 function previewInitials(name) {
   return String(name || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
@@ -19,36 +20,81 @@ function safeImageUrl(value) {
   }
 }
 
+// Seed the developer-profile fields from the stored card. GitHub/LeetCode are
+// handles; the rest are URLs. Reading through the shared helper means the editor
+// and the public card cannot disagree about what is stored.
+function linkFormFromCard(card) {
+  const display = socialLinksForDisplay(card || {});
+  return {
+    github: display.github?.handle || "",
+    leetcode: display.leetcode?.handle || "",
+    linkedin: display.linkedin?.url || "",
+    x: display.x?.url || "",
+    website: display.website?.url || ""
+  };
+}
+
+function linkErrorsFor(form) {
+  const { errors } = mergeSocialLinks({}, form);
+  return Object.fromEntries(errors.map((error) => [error.field, error.message]));
+}
+
 export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   const router = useRouter();
   const [username, setUsername] = useState(initial?.username || "");
   const [bio, setBio] = useState(initial?.bio || "");
   const [location, setLocation] = useState(initial?.location || "");
   const [photo, setPhoto] = useState(initial?.avatar_url || "");
-  const [github, setGithub] = useState(initial?.social_links?.github ? initial.social_links.github.split("/").pop() : "");
-  const [linkedin, setLinkedin] = useState(initial?.social_links?.linkedin || "");
+  const [links, setLinks] = useState(() => linkFormFromCard(initial));
+  const [linkErrors, setLinkErrors] = useState({});
   const [isPublic, setIsPublic] = useState(initial?.is_public ?? true);
   const [showEndorsements, setShowEndorsements] = useState(initial?.endorsements_visible ?? true);
   const [msg, setMsg] = useState("");
+  const [saved, setSaved] = useState(false);
   const previewPhoto = safeImageUrl(photo);
   const [busy, setBusy] = useState(false);
+
+  function setLink(key, value) {
+    setLinks((current) => ({ ...current, [key]: value }));
+    setLinkErrors((current) => ({ ...current, [key]: undefined }));
+    setSaved(false);
+  }
 
   async function submit(e) {
     e.preventDefault();
     if (busy) return;
-    setBusy(true);
+    setSaved(false);
     setMsg("");
+    const nextErrors = linkErrorsFor(links);
+    if (Object.keys(nextErrors).length > 0) {
+      setLinkErrors(nextErrors);
+      setMsg("Check the highlighted developer profiles, then save again.");
+      return;
+    }
+    setBusy(true);
     try {
       const res = await fetch("/api/social/profile", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, bio, location: location || null, github: github || null, linkedin: linkedin || null, isPublic, endorsementsVisible: showEndorsements, ...(canPhoto ? { avatarUrl: photo.trim() || null } : {}) })
+        body: JSON.stringify({
+          username,
+          bio,
+          location: location || null,
+          // Send every field so a cleared input clears the stored key. The route
+          // merges over social_links and preserves anything it does not know.
+          links,
+          isPublic,
+          endorsementsVisible: showEndorsements,
+          ...(canPhoto ? { avatarUrl: photo.trim() || null } : {})
+        })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
         setMsg(data?.error?.message || `Couldn't save (error ${res.status}). Try again.`);
         return;
       }
+      setSaved(true);
+      setLinkErrors({});
       router.push(`/student/${data.data.card.username}`);
       router.refresh();
     } catch {
@@ -57,6 +103,14 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
       setBusy(false);
     }
   }
+
+  const linkFields = [
+    { key: "github", label: "GitHub handle", placeholder: "octocat", hint: "Your login, not a URL. Repos sync from the connected account." },
+    { key: "leetcode", label: "LeetCode handle", placeholder: "neal_wu", hint: "Solved counts sync automatically from practice." },
+    { key: "linkedin", label: "LinkedIn URL", placeholder: "https://linkedin.com/in/…", type: "url" },
+    { key: "x", label: "X profile URL", placeholder: "https://x.com/…", type: "url" },
+    { key: "website", label: "Personal site", placeholder: "https://…", type: "url" }
+  ];
 
   return (
     <form onSubmit={submit} className="folio-editor-grid">
@@ -70,17 +124,55 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
           </Field>
           <span className="folio-counter" id="bio-count">{bio.length}/300</span>
         </div>
+
+        <fieldset className="folio-links-fieldset">
+          <legend className="folio-links-legend">Developer profiles</legend>
+          <p className="folio-field-note">
+            Link the accounts that hold your work. LOOM reads proof from them, so
+            nobody has to re-type stats.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {linkFields.map((field) => {
+              const error = linkErrors[field.key];
+              const errorId = `link-${field.key}-error`;
+              return (
+                <div key={field.key} className={field.key === "website" ? "sm:col-span-2" : undefined}>
+                  <Field label={field.label}>
+                    <input
+                      value={links[field.key]}
+                      onChange={(e) => setLink(field.key, e.target.value)}
+                      onBlur={() => {
+                        const errorText = linkErrorsFor({ [field.key]: links[field.key] })[field.key];
+                        setLinkErrors((current) => ({ ...current, [field.key]: errorText }));
+                      }}
+                      type={field.type || "text"}
+                      inputMode={field.type === "url" ? "url" : undefined}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      placeholder={field.placeholder}
+                      maxLength={300}
+                      style={error ? { ...inputStyle, borderColor: "var(--danger)" } : inputStyle}
+                      aria-invalid={error ? "true" : undefined}
+                      aria-describedby={error ? errorId : undefined}
+                    />
+                  </Field>
+                  {error ? (
+                    <p id={errorId} role="alert" className="folio-field-error">{error}</p>
+                  ) : field.hint ? (
+                    <p className="folio-field-note">{field.hint}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Location (optional)">
             <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={100} style={inputStyle} />
           </Field>
-          <Field label="GitHub handle (optional)">
-            <input value={github} onChange={(e) => setGithub(e.target.value)} maxLength={60} placeholder="octocat" style={inputStyle} />
-          </Field>
         </div>
-        <Field label="LinkedIn URL (optional)">
-          <input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} type="url" style={inputStyle} />
-        </Field>
         {canPhoto && (
           <div className="space-y-1.5">
             <Field label="Photo URL">
@@ -96,6 +188,7 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
           <input type="checkbox" checked={showEndorsements} onChange={(e) => setShowEndorsements(e.target.checked)} /> Show endorsements on my profile
         </label>
         {msg && <p role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
+        {saved && !msg && <p role="status" className="text-xs" style={{ color: "var(--accent)" }}>Saved — your public card is updated.</p>}
         <div className="folio-editor-actions">
           <button disabled={busy} className="btn-ink disabled:opacity-50">{busy ? "Saving…" : initial ? "Save card" : "Claim username"}</button>
           <span className="folio-section-note">Changes are audited and go live immediately.</span>

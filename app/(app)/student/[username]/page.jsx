@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { reputationFor } from "@/lib/reputation";
 import { absoluteUrl } from "@/lib/seo";
 import { domainLabel } from "@/lib/builderCard";
-import { folioNumber, roleLabel } from "@/lib/profileFolio";
+import { folioNumber, normalizeGithubHandle, profileLinkList, roleLabel, socialLinksForDisplay } from "@/lib/profileFolio";
 import { ProfileEditor, FollowButton, EndorseForm, EndorsementManager } from "./ProfileBits";
 import { ProfileSections } from "@/components/profile/ProfileSections";
 import { FolioCover } from "@/components/profile/FolioCover";
@@ -44,6 +44,8 @@ export default async function PublicProfilePage({ params }) {
   `;
   const latestProject = await sql`SELECT id, title FROM projects WHERE owner_id = ${card.user_id} ORDER BY created_at DESC LIMIT 1`;
   const guideRows = await sql`SELECT expertise FROM mentors WHERE user_id = ${card.user_id} LIMIT 1`;
+  const [github] = await sql`
+    SELECT github_username FROM github_connections WHERE user_id = ${card.user_id} LIMIT 1`;
   const isSelf = card.user_id === user.id;
   const showOperator = isOperator && !isSelf;
   const operatorMemberships = showOperator
@@ -58,7 +60,16 @@ export default async function PublicProfilePage({ params }) {
   const endorsements = isSelf
     ? await sql`SELECT e.id, e.skill, p.name AS endorser_name FROM user_endorsements e LEFT JOIN profiles p ON p.user_id = e.endorser_id WHERE e.endorsee_id = ${card.user_id} ORDER BY e.endorsed_at DESC LIMIT 25`
     : [];
-  const links = card.social_links || {};
+  const displayLinks = socialLinksForDisplay(card);
+  const githubHandle = normalizeGithubHandle(github?.github_username);
+  if (githubHandle) {
+    displayLinks.github = { url: `https://github.com/${githubHandle}`, handle: githubHandle, note: null };
+  }
+  const profileLinks = profileLinkList(displayLinks);
+  const chips = profileLinks.map((link) => ({
+    ...link,
+    verified: link.key === "github" && Boolean(githubHandle)
+  }));
   const displayName = profile?.name || card.username;
   const cleanUsername = String(card.username).toLowerCase();
   const publicUrl = absoluteUrl(`/u/${cleanUsername}`).replace(/\/$/, "");
@@ -168,6 +179,7 @@ export default async function PublicProfilePage({ params }) {
           bio={card.bio || ""}
           isGuide={guideRows.length > 0}
           folio={folioNumber(cleanUsername)}
+          chips={chips}
           actions={coverActions}
           note={isSelf ? (
             <div className="folio-self-note">
@@ -188,12 +200,7 @@ export default async function PublicProfilePage({ params }) {
               latestProject={latestProject}
               showEndorsements={showEndorsements}
               projectHref={(p) => `/student/projects/${p.id}`}
-              proofFooter={(
-                <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                  {links.github && <a href={links.github} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>GitHub ↗</a>}
-                  {links.linkedin && <a href={links.linkedin} target="_blank" rel="noreferrer" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>LinkedIn ↗</a>}
-                </div>
-              )}
+              links={profileLinks}
               endorsementFooter={(
                 <>
                   {isSelf && <EndorsementManager endorsements={endorsements} />}

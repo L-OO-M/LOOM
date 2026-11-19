@@ -246,6 +246,25 @@ test.describe("LOOM SEO surfaces", () => {
     }
   });
 
+  test("public profile pages own their canonical and description", async ({ page, request }) => {
+    // Regression guard: /u/[username] used to inherit the homepage canonical,
+    // which told crawlers every member profile was the home page. Sitemap is
+    // the honest source for "which profiles actually exist and are public".
+    const res = await request.get("/sitemap.xml");
+    expect(res.ok()).toBeTruthy();
+    const match = (await res.text()).match(/<loc>([^<]*\/u\/[^<]+)<\/loc>/);
+    if (!match) test.skip(true, "no public profile listed in the sitemap");
+
+    const path = new URL(match[1]).pathname;
+    await open(page, path);
+    await expect(page.locator("h1")).toHaveCount(1);
+    const canonical = page.locator('link[rel="canonical"]');
+    expect(await canonical.count()).toBe(1);
+    expect(await canonical.getAttribute("href")).toContain(path);
+    const desc = page.locator('meta[name="description"]');
+    expect((await desc.getAttribute("content"))?.length ?? 0).toBeGreaterThan(40);
+  });
+
   test("event detail pages are indexable and self-contained", async ({ page, request }) => {
     // /events/[id] must exist for at least one published event, carry exactly
     // one h1 + a canonical + a real description, and state the join process.

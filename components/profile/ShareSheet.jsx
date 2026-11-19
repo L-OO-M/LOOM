@@ -48,6 +48,30 @@ export function ShareSheet({ username, name, url, compact = false }) {
   const base = String(url || "").replace(/\/$/, "");
   const cardUrl = `${base}/card/${current.id}`;
   const caption = `${name} on LOOM — proof, projects and reputation. ${base}`;
+  // Outbound share intents. The URL is the canonical absolute card URL, so an
+  // unfurl shows the real card. No share counters anywhere: we do not track
+  // clicks, and inventing a number would be exactly the kind of fake proof this
+  // card exists to replace.
+  const targets = [
+    {
+      key: "x",
+      label: "X",
+      aria: "Share this folio on X",
+      href: `https://x.com/intent/tweet?text=${encodeURIComponent(caption)}&url=${encodeURIComponent(base)}`
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      aria: "Share this folio on LinkedIn",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(base)}`
+    },
+    {
+      key: "whatsapp",
+      label: "WhatsApp",
+      aria: "Share this folio on WhatsApp",
+      href: `https://wa.me/?text=${encodeURIComponent(caption)}`
+    }
+  ];
 
   function flash(message, isError = false) {
     setFeedback(message);
@@ -191,6 +215,21 @@ export function ShareSheet({ username, name, url, compact = false }) {
         <button type="button" onClick={copyImage} className="btn-ghost">Copy image</button>
         <button type="button" onClick={download} className="btn-ghost">Download PNG</button>
         <a href={cardUrl} target="_blank" rel="noreferrer" className="btn-ghost">Open raw</a>
+      </div>
+
+      <div className="share-targets">
+        {targets.map((t) => (
+          <a
+            key={t.key}
+            href={t.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="share-target"
+            aria-label={t.aria}
+          >
+            {t.label}
+          </a>
+        ))}
       </div>
 
       <p className={`share-feedback${failed ? " is-error" : ""}`} role="status" aria-live="polite">
