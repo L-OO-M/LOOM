@@ -6,6 +6,7 @@ import { reputationFor } from "@/lib/reputation";
 import { absoluteUrl } from "@/lib/seo";
 import { domainLabel } from "@/lib/builderCard";
 import { folioNumber, normalizeGithubHandle, profileLinkList, roleLabel, socialLinksForDisplay } from "@/lib/profileFolio";
+import { loadIdentityStatus } from "@/lib/identity";
 import { ProfileEditor, FollowButton, EndorseForm, EndorsementManager } from "./ProfileBits";
 import { ProfileSections } from "@/components/profile/ProfileSections";
 import { FolioCover } from "@/components/profile/FolioCover";
@@ -60,15 +61,20 @@ export default async function PublicProfilePage({ params }) {
   const endorsements = isSelf
     ? await sql`SELECT e.id, e.skill, p.name AS endorser_name FROM user_endorsements e LEFT JOIN profiles p ON p.user_id = e.endorser_id WHERE e.endorsee_id = ${card.user_id} ORDER BY e.endorsed_at DESC LIMIT 25`
     : [];
-  const displayLinks = socialLinksForDisplay(card);
+  const identityStatus = await loadIdentityStatus(sql, { userId: card.user_id, tenantId: card.tenant_id || tenant?.id });
+  const displayLinks = socialLinksForDisplay(card, identityStatus);
   const githubHandle = normalizeGithubHandle(github?.github_username);
   if (githubHandle) {
-    displayLinks.github = { url: `https://github.com/${githubHandle}`, handle: githubHandle, note: null };
+    displayLinks.github = { url: `https://github.com/${githubHandle}`, handle: githubHandle, note: null, verified: true };
   }
+  const verifiedKeys = new Set(
+    Object.entries(identityStatus).filter(([, status]) => status === "verified").map(([key]) => key)
+  );
+  if (githubHandle) verifiedKeys.add("github");
   const profileLinks = profileLinkList(displayLinks);
   const chips = profileLinks.map((link) => ({
     ...link,
-    verified: link.key === "github" && Boolean(githubHandle)
+    verified: verifiedKeys.has(link.key)
   }));
   const displayName = profile?.name || card.username;
   const cleanUsername = String(card.username).toLowerCase();

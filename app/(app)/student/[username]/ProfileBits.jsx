@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { inputStyle, Field } from "@/components/ui";
 import { mergeSocialLinks, socialLinksForDisplay } from "@/lib/profileFolio";
 
@@ -25,12 +26,19 @@ function safeImageUrl(value) {
 // and the public card cannot disagree about what is stored.
 function linkFormFromCard(card) {
   const display = socialLinksForDisplay(card || {});
+  const handleKeys = ["github", "leetcode", "discord", "kaggle", "unstop", "devfolio", "huggingface"];
   return {
     github: display.github?.handle || "",
     leetcode: display.leetcode?.handle || "",
+    huggingface: display.huggingface?.handle || "",
+    kaggle: display.kaggle?.handle || "",
+    devfolio: display.devfolio?.handle || "",
+    unstop: display.unstop?.handle || "",
+    discord: display.discord?.handle || "",
     linkedin: display.linkedin?.url || "",
     x: display.x?.url || "",
-    website: display.website?.url || ""
+    website: display.website?.url || "",
+    ...Object.fromEntries(handleKeys.filter((key) => !display[key]).map((key) => [key, ""]))
   };
 }
 
@@ -51,6 +59,7 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   const [showEndorsements, setShowEndorsements] = useState(initial?.endorsements_visible ?? true);
   const [msg, setMsg] = useState("");
   const [saved, setSaved] = useState(false);
+  const [identityRefresh, setIdentityRefresh] = useState(0);
   const previewPhoto = safeImageUrl(photo);
   const [busy, setBusy] = useState(false);
 
@@ -95,6 +104,9 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
       }
       setSaved(true);
       setLinkErrors({});
+      // The ownership panel reads its own state from /api/identity, so nudge it
+      // to refetch: a handle just saved here must appear as a claim it can check.
+      setIdentityRefresh((n) => n + 1);
       router.push(`/student/${data.data.card.username}`);
       router.refresh();
     } catch {
@@ -105,8 +117,13 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
   }
 
   const linkFields = [
-    { key: "github", label: "GitHub handle", placeholder: "octocat", hint: "Your login, not a URL. Repos sync from the connected account." },
+    { key: "github", label: "GitHub handle", placeholder: "octocat", hint: "Your login. Repos and pushes sync from the connected account." },
     { key: "leetcode", label: "LeetCode handle", placeholder: "neal_wu", hint: "Solved counts sync automatically from practice." },
+    { key: "huggingface", label: "Hugging Face handle", placeholder: "username", hint: "Models, datasets and Spaces." },
+    { key: "kaggle", label: "Kaggle handle", placeholder: "username", hint: "Notebooks and competitions." },
+    { key: "devfolio", label: "Devfolio handle", placeholder: "username", hint: "Hackathon projects." },
+    { key: "unstop", label: "Unstop handle", placeholder: "username", hint: "Competitions and certificates." },
+    { key: "discord", label: "Discord username", placeholder: "username", hint: "Shown on your card; has no public profile URL." },
     { key: "linkedin", label: "LinkedIn URL", placeholder: "https://linkedin.com/in/…", type: "url" },
     { key: "x", label: "X profile URL", placeholder: "https://x.com/…", type: "url" },
     { key: "website", label: "Personal site", placeholder: "https://…", type: "url" }
@@ -168,6 +185,8 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
           </div>
         </fieldset>
 
+        <IdentityVerification refreshKey={identityRefresh} />
+
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Location (optional)">
             <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={100} style={inputStyle} />
@@ -210,6 +229,205 @@ export function ProfileEditor({ initial, name = "", canPhoto = false }) {
         <p className="folio-preview-bio">{bio || "Your bio will appear here."}</p>
       </aside>
     </form>
+  );
+}
+
+/**
+ * Ownership checks for linked accounts.
+ *
+ * A saved handle is a claim. This panel proves control without ever asking for a
+ * password: the member pastes a one-time code into a public page they control,
+ * and the server fetches that page and looks for it. GitHub can verify itself
+ * through the existing OAuth connection; LeetCode's API confirms the account
+ * exists but exposes no bio, so that stays honestly "linked", not "verified".
+ */
+function IdentityVerification({ refreshKey = 0 }) {
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState("");
+  const [proofUrl, setProofUrl] = useState("");
+  const [busy, setBusy] = useState("");
+  const [note, setNote] = useState({});
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/identity");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(data?.error?.message || "Could not load your linked accounts.");
+        return;
+      }
+      setProviders(data.data.providers || []);
+      setError("");
+    } catch {
+      setError("Could not reach the server.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [refreshKey]);
+
+  // A handle saved through the profile form is only a claim. Minting its
+  // one-time code goes through the same save endpoint, which also records the
+  // claim in identity_links; without that the panel has nothing to check.
+  async function ensureToken(provider, handle) {
+    setBusy(provider);
+    try {
+      const res = await fetch("/api/identity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider, value: handle })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setNote((current) => ({
+          ...current,
+          [provider]: data?.error?.message || "Could not create a code for this account."
+        }));
+        return;
+      }
+      await load();
+    } catch {
+      setNote((current) => ({ ...current, [provider]: "Could not reach the server." }));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function verify(provider) {
+    if (busy) return;
+    setBusy(provider);
+    setNote((current) => ({ ...current, [provider]: "" }));
+    try {
+      const res = await fetch("/api/identity/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider, proofUrl })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setNote((current) => ({ ...current, [provider]: data?.error?.message || "That check did not pass." }));
+        return;
+      }
+      setNote((current) => ({ ...current, [provider]: "Verified. The tick is live on your public card." }));
+      setOpen("");
+      setProofUrl("");
+      await load();
+    } catch {
+      setNote((current) => ({ ...current, [provider]: "Could not reach the server." }));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  const linked = providers.filter((p) => p.handle);
+  if (loading) {
+    return <p className="folio-field-note">Checking your linked accounts…</p>;
+  }
+  if (error) {
+    return <p className="folio-field-note" role="alert">{error}</p>;
+  }
+  if (linked.length === 0) {
+    return (
+      <p className="folio-field-note">
+        Save a handle above, then come back here to prove it is yours.
+      </p>
+    );
+  }
+
+  return (
+    <fieldset className="folio-verify">
+      <legend className="folio-links-legend">Ownership checks</legend>
+      <p className="folio-field-note">
+        We never ask for a password. Verified means a machine could check the
+        account against something you control. Everything else stays an honest
+        claim.
+      </p>
+      <ul className="folio-verify-list">
+        {linked.map((p) => {
+          const canToken = !["leetcode", "discord"].includes(p.key);
+          const isOpen = open === p.key;
+          return (
+            <li key={p.key} className="folio-verify-row">
+              <div className="folio-verify-head">
+                <span className="folio-verify-name">{p.label}</span>
+                <span className="folio-verify-handle">@{p.handle}</span>
+                <span className={`folio-verify-state is-${p.status || "claimed"}`}>
+                  {p.status === "verified" ? "Verified"
+                    : p.status === "linked" ? "Linked"
+                    : p.status === "rejected" ? "Check failed"
+                    : "Claimed"}
+                </span>
+                {p.status !== "verified" && canToken ? (
+                  <button
+                    type="button"
+                    className="folio-verify-action"
+                    onClick={async () => {
+                      const next = isOpen ? "" : p.key;
+                      setOpen(next);
+                      setProofUrl(p.proofUrl || "");
+                      setNote((current) => ({ ...current, [p.key]: "" }));
+                      if (next && !p.verifyToken) await ensureToken(p.key, p.handle);
+                    }}
+                  >
+                    {isOpen ? "Cancel" : "Verify"}
+                  </button>
+                ) : null}
+                {p.status !== "verified" && p.key === "github" ? (
+                  <Link href="/student/github" prefetch={false} className="folio-verify-action">Connect GitHub</Link>
+                ) : null}
+              </div>
+
+              {p.status === "linked" && p.key === "leetcode" ? (
+                <p className="folio-field-note">
+                  LeetCode confirms this account exists, but has no public bio to
+                  check, so it is linked rather than ownership-verified.
+                </p>
+              ) : null}
+              {p.key === "discord" && p.status !== "verified" ? (
+                <p className="folio-field-note">
+                  Discord has no public profile page. This stays a claim.
+                </p>
+              ) : null}
+
+              {isOpen && (
+                <div className="folio-verify-proof">
+                  <p className="folio-field-note">
+                    Paste this code into a public spot on {p.label} (bio, profile
+                    README, pinned post, or a gist), save it, then paste the page
+                    URL here.
+                  </p>
+                  <code className="folio-verify-code">{p.verifyToken || "Preparing your code…"}</code>
+                  <div className="folio-verify-proof-row">
+                    <input
+                      value={proofUrl}
+                      onChange={(e) => setProofUrl(e.target.value)}
+                      placeholder="https://…"
+                      type="url"
+                      style={inputStyle}
+                      aria-label={`Public ${p.label} page containing your code`}
+                    />
+                    <button
+                      type="button"
+                      className="btn-ink !py-2 text-sm"
+                      disabled={busy === p.key || !proofUrl.trim() || !p.verifyToken}
+                      onClick={() => verify(p.key)}
+                    >
+                      {busy === p.key ? "Checking…" : "Check page"}
+                    </button>
+                  </div>
+                  {note[p.key] ? <p className="folio-field-error" role="alert">{note[p.key]}</p> : null}
+                </div>
+              )}
+              {note[p.key] && !isOpen ? <p className="folio-field-note">{note[p.key]}</p> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
   );
 }
 

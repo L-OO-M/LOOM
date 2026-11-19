@@ -1583,3 +1583,120 @@
     transition: none;
   }
 }
+
+/* ---- Identity ownership checks ------------------------------------------- */
+.folio-verify {
+  min-width: 0;
+  margin: 0.35rem 0 0;
+  border: 1px solid var(--folio-line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem 1rem;
+  background: color-mix(in srgb, var(--folio-paper) 65%, transparent);
+}
+
+.folio-verify-list {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.folio-verify-row {
+  border-top: 1px solid color-mix(in srgb, var(--folio-line) 65%, transparent);
+  padding-top: 0.55rem;
+}
+
+.folio-verify-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.folio-verify-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.folio-verify-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.folio-verify-handle {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.folio-verify-state {
+  border-radius: 999px;
+  border: 1px solid var(--folio-line);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.folio-verify-state.is-verified {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--folio-line));
+  color: var(--accent);
+}
+
+.folio-verify-state.is-linked {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--folio-line));
+  color: var(--gold);
+}
+
+.folio-verify-state.is-rejected {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--folio-line));
+  color: var(--danger);
+}
+
+.folio-verify-action {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.folio-verify-proof {
+  margin-top: 0.55rem;
+  border-radius: 10px;
+  border: 1px dashed var(--folio-line);
+  padding: 0.65rem;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.folio-verify-code {
+  display: block;
+  margin: 0.3rem 0 0.55rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-elevated);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.folio-verify-proof-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.folio-verify-proof-row input {
+  flex: 1 1 16rem;
+  min-width: 0;
+}

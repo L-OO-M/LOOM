@@ -14,6 +14,7 @@ import { ShareSheet } from "@/components/profile/ShareSheet";
 import { Heatmap } from "@/components/loom/Heatmap";
 import { summarizeActivity } from "@/lib/github-activity";
 import { buildProof } from "@/lib/proof";
+import { loadIdentityStatus } from "@/lib/identity";
 import { domainLabel } from "@/lib/builderCard";
 import {
   folioNumber,
@@ -514,7 +515,8 @@ export default async function PublicProfilePage({ params }) {
   const url = absoluteUrl(`/u/${clean}`).replace(/\/$/, "");
 
   // Linked identity: social_links first, synced accounts override what was typed.
-  const displayLinks = socialLinksForDisplay(card);
+  const identityStatus = await loadIdentityStatus(sql, { userId: card.user_id, tenantId: card.tenant_id });
+  const displayLinks = socialLinksForDisplay(card, identityStatus);
   if (github?.github_username) {
     const handle = normalizeGithubHandle(github.github_username);
     if (handle) displayLinks.github = { url: `https://github.com/${handle}`, handle, note: null };
@@ -522,12 +524,16 @@ export default async function PublicProfilePage({ params }) {
   if (leetcodeUsername) {
     const handle = normalizeLeetCodeHandle(leetcodeUsername);
     if (handle) {
+      // Sync confirms the account exists and its stats are real; it does not
+      // prove who owns it, so no LOOM tick here (see lib/identity.js tiers).
       displayLinks.leetcode = { url: `https://leetcode.com/u/${handle}/`, handle, note: null };
     }
   }
-  const verifiedKeys = new Set();
+  const verifiedKeys = new Set(
+    Object.entries(identityStatus).filter(([, status]) => status === "verified").map(([key]) => key)
+  );
+  // A signed push is proof of control even without an identity row.
   if (displayLinks.github && (github?.verified || reposVerified > 0)) verifiedKeys.add("github");
-  if (displayLinks.leetcode && (leetcode || leetcodeUsername)) verifiedKeys.add("leetcode");
   const chips = profileLinkList(displayLinks).map((link) => ({
     ...link,
     verified: verifiedKeys.has(link.key)

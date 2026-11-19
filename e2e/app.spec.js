@@ -5,6 +5,7 @@ const { test, expect } = require("@playwright/test");
 const protectedPages = [
   "/student",
   "/student/roadmap",
+  "/student/challenges",
   "/student/practice",
   "/student/practice/leaderboard",
   "/student/resources",
@@ -138,7 +139,8 @@ test.describe("api authorization", () => {
     "/api/lead/event-ops",
     "/api/admin/students",
     "/api/admin/flags",
-    "/api/admin/audit"
+    "/api/admin/audit",
+    "/api/identity"
   ];
   for (const path of apis) {
     test(`GET ${path} returns 401 without session`, async ({ request }) => {
@@ -156,7 +158,9 @@ test.describe("api authorization", () => {
     "/api/admin/practice/corrections",
     "/api/admin/debug/challenges",
     "/api/debug/submissions",
-    "/api/lead/debug"
+    "/api/lead/debug",
+    "/api/identity",
+    "/api/identity/verify"
   ];
   for (const path of mutationApis) {
     test(`POST ${path} returns 401 without session`, async ({ request }) => {

@@ -14,7 +14,12 @@ const linkSchema = z.object({
   leetcode: z.string().max(60).nullable().optional(),
   linkedin: z.string().max(300).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   x: z.string().max(200).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
-  website: z.string().max(300).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE)
+  website: z.string().max(300).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
+  discord: z.string().max(60).nullable().optional(),
+  kaggle: z.string().max(120).nullable().optional(),
+  unstop: z.string().max(160).nullable().optional(),
+  devfolio: z.string().max(160).nullable().optional(),
+  huggingface: z.string().max(160).nullable().optional()
 });
 
 const cardSchema = z.object({
