@@ -13,8 +13,13 @@ import { domainLabel } from "@/lib/domains";
  */
 export function ChallengeBridge({ nudge, overview, percent = 0 }) {
   if (!nudge) return null;
-  const items = [...(overview?.debug?.items || []), ...(overview?.contests?.items || [])].slice(0, 2);
+  const items = [
+    ...(overview?.opensource?.items || []),
+    ...(overview?.debug?.items || []),
+    ...(overview?.contests?.items || [])
+  ].slice(0, 2);
   const domain = overview?.domain || "dsa";
+  const kindLabel = { oss: "Open source", debug: "Debug", contest: "Contest" };
 
   return (
     <section
@@ -44,7 +49,7 @@ export function ChallengeBridge({ nudge, overview, percent = 0 }) {
                     className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold"
                     style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
                   >
-                    <StatusPill>{item.kind === "debug" ? "Debug" : "Contest"}</StatusPill>
+                    <StatusPill>{kindLabel[item.kind] || "Challenge"}</StatusPill>
                     <span className="max-w-[16rem] truncate">{item.title}</span>
                   </Link>
                 </li>

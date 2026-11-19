@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { StatusPill } from "@/components/loom/primitives";
 import { WorkspaceEmpty, WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { LearnTabs } from "@/components/student/SectionRails";
-import { DOMAIN_ORDER, domainLabel } from "@/lib/domains";
+import { DOMAIN_ORDER, domainLabel, normalizeDomainKey } from "@/lib/domains";
 import { loadChallenges } from "@/lib/challenges";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +29,16 @@ export default async function StudentChallengesPage({ searchParams }) {
   if (!tenant?.id) redirect("/student/onboarding");
 
   const sp = (await searchParams) || {};
-  const requested = typeof sp.domain === "string" ? sp.domain : null;
-  const domain = requested && DOMAIN_ORDER.includes(requested) ? requested : (profile?.primary_domain || "dsa");
+  const requested = typeof sp.domain === "string" ? normalizeDomainKey(sp.domain) : null;
+  const domain = requested && DOMAIN_ORDER.includes(requested)
+    ? requested
+    : (normalizeDomainKey(profile?.primary_domain) || "dsa");
 
   const overview = await loadChallenges(sql, { userId: user.id, tenantId: tenant.id, domain });
   const practice = overview.practice;
   const domainChallenges = overview.debug.items;
   const contests = overview.contests.items;
+  const repos = overview.opensource.items;
   const openWork = domainChallenges.length + contests.length;
 
   return (
@@ -49,10 +52,10 @@ export default async function StudentChallengesPage({ searchParams }) {
             ? `${practice.title} / ${practice.solved} of ${practice.total || 7} recorded`
             : "No weekly set is open right now"}
           stats={[
+            { value: domainChallenges.length + contests.length, label: `${domainLabel(domain)} tasks` },
+            { value: repos.length, label: "open-source repos" },
             { value: practice?.total || 0, label: "weekly core questions" },
-            { value: practice?.solved || 0, label: "recorded this week" },
-            { value: domainChallenges.length, label: `${domainLabel(domain)} debug tasks` },
-            { value: contests.length, label: "open contests" }
+            { value: practice?.solved || 0, label: "recorded this week" }
           ]}
         />
 
@@ -65,8 +68,8 @@ export default async function StudentChallengesPage({ searchParams }) {
         >
           {openWork === 0 ? (
             <WorkspaceEmpty
-              title={`No ${domainLabel(domain)} challenge is published yet.`}
-              body="The weekly core set is still open, and your lead can publish a debug task or contest for this track. Nothing is invented to fill the space."
+              title={`No ${domainLabel(domain)} task is published by your chapter yet.`}
+              body="Open-source challenges for this track are listed below, and the weekly core set is always open. A lead can publish a debug task or contest here at any time."
             />
           ) : (
             <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -125,6 +128,43 @@ export default async function StudentChallengesPage({ searchParams }) {
 
         <WorkspaceSection
           index="02"
+          title={`${domainLabel(domain)} open-source challenges`}
+          note="Curated repositories in this track with starter issues. LOOM keeps the contribution proof when your pull request merges."
+        >
+          {repos.length === 0 ? (
+            <WorkspaceEmpty
+              title={`No ${domainLabel(domain)} repository is curated yet.`}
+              body="A chapter admin can add repositories to the catalogue. Until one exists, the weekly core set is still open."
+            />
+          ) : (
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {repos.map((repo) => (
+                <li key={repo.id}>
+                  <Link
+                    href={repo.href}
+                    prefetch={false}
+                    className="block h-full rounded-2xl border p-5 transition hover:shadow-sm"
+                    style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill>Open source</StatusPill>
+                      <StatusPill>{repo.language || domainLabel(domain)}</StatusPill>
+                      {repo.issues > 0 ? <StatusPill>{repo.issues} starter issues</StatusPill> : null}
+                    </div>
+                    <p className="mt-3 text-base font-semibold" style={{ color: "var(--text)" }}>{repo.title}</p>
+                    <p className="narrative mt-2 line-clamp-2 text-sm leading-6">
+                      {repo.detail || "Open the catalogue to read the contributing guide."}
+                    </p>
+                    <p className="meta mt-4">Pick an issue and let the pull request become your proof.</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection
+          index="03"
           title="Weekly core set"
           note="DSA stays a shared habit. Solve on LeetCode inside the week and the accepted submission counts once."
         >
