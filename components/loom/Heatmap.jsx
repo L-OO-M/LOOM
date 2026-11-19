@@ -22,7 +22,11 @@ function fmtDay(iso) {
   return d.toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" });
 }
 
-export function Heatmap({ rows = [], weeks = 16 }) {
+/* `cellSize` exists because the card that holds this grid is now full width.
+   The default 11px from globals.css is kept for callers that do not opt in.
+   Width and height are set from the same value so a cell can never stop being
+   square, which is the one thing a contribution grid must not get wrong. */
+export function Heatmap({ rows = [], weeks = 16, cellSize = null }) {
   const cells = useMemo(() => {
     const byDay = new Map(rows.map((r) => [dayKey(r), r]));
     const today = new Date();
@@ -46,25 +50,31 @@ export function Heatmap({ rows = [], weeks = 16 }) {
   }, [rows, weeks]);
 
   const active = cells.filter((c) => !c.future && levelOf(c.row) > 0).length;
+  const cellStyle = cellSize ? { width: cellSize, height: cellSize } : undefined;
 
   return (
     <div>
-      <div className="heat" role="img" aria-label={`Contribution activity, ${active} active days in the last ${weeks} weeks`}>
+      <div
+        className={cellSize ? "heat w-max" : "heat"}
+        role="img"
+        aria-label={`Contribution activity, ${active} active days in the last ${weeks} weeks`}
+        style={cellSize ? { gap: "4px" } : undefined}
+      >
         {cells.map((c) => {
-          if (c.future) return <span key={c.iso} className="heat-cell" style={{ opacity: 0.35 }} title={fmtDay(c.iso)} />;
+          if (c.future) return <span key={c.iso} className="heat-cell" style={{ ...cellStyle, opacity: 0.35 }} title={fmtDay(c.iso)} />;
           const l = levelOf(c.row);
           const v = c.row ? (c.row.commits || 0) + (c.row.pull_requests || 0) + (c.row.reviews || 0) : 0;
           const tip = c.row
             ? `${fmtDay(c.iso)} — ${v} contribution${v === 1 ? "" : "s"}`
             : `${fmtDay(c.iso)} — no recorded activity`;
-          return <span key={c.iso} className="heat-cell" data-l={l} title={tip} />;
+          return <span key={c.iso} className="heat-cell" data-l={l} title={tip} style={cellStyle} />;
         })}
       </div>
-      <div className="mt-2 flex items-center justify-between">
+      <div className={cellSize ? "mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2" : "mt-2 flex items-center justify-between"}>
         <span className="meta">{active} active days · last {weeks} weeks</span>
         <span className="flex items-center gap-1" aria-hidden="true">
           <span className="meta mr-1">Less</span>
-          {[0, 1, 2, 3, 4].map((l) => <span key={l} className="heat-cell" data-l={l} />)}
+          {[0, 1, 2, 3, 4].map((l) => <span key={l} className="heat-cell" data-l={l} style={cellStyle} />)}
           <span className="meta ml-1">More</span>
         </span>
       </div>

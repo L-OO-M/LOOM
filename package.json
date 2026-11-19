@@ -30,6 +30,8 @@
     "rls:role": "node load/create-app-role.js",
     "rls:verify": "node load/verify-rls.js",
     "flag:verify": "node load/verify-gate.js status",
+    "check:live": "node load/check-live.mjs",
+    "check:auth": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON load/check-authenticated.mjs",
     "auth:verify": "node load/verify-auth-config.mjs",
     "auth0:migrate:plan": "node load/auth0-migrate.mjs plan",
     "auth0:migrate:export": "node load/auth0-migrate.mjs export",
@@ -62,6 +64,7 @@
     "@types/react": "19.3.0",
     "eslint": "^9.15.0",
     "eslint-config-next": "^15.5.28",
+    "jsdom": "^29.1.1",
     "satori": "0.33.5",
     "tailwindcss": "^4.0.0",
     "vitest": "^4.1.12"

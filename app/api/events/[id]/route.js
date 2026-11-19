@@ -79,6 +79,12 @@ export async function POST(request, { params }) {
     const [mine] = await tx`SELECT id FROM event_registrations WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' LIMIT 1`;
     if (mine) return { kind: "ALREADY", event };
     if (event.capacity && seats >= event.capacity) return { kind: "FULL", event };
+    // Registration closes two hours after the start. `status` is a manual field
+    // and was 'past' for an event seven months gone that still accepted seats —
+    // a phantom registration and a false "Open registration" label.
+    if (new Date(event.starts_at).getTime() < Date.now() - 2 * 60 * 60 * 1000) {
+      return { kind: "CONCLUDED", event };
+    }
 
     const code = `LOOM-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
     const [row] = await tx`
@@ -91,6 +97,7 @@ export async function POST(request, { params }) {
   });
   if (result.kind === "NOT_FOUND") return fail("NOT_FOUND", "Event not found", 404);
   if (result.kind === "FULL") return fail("EVENT_FULL", "This event is full", 409);
+  if (result.kind === "CONCLUDED") return fail("EVENT_CONCLUDED", "This event has already happened", 409);
   if (result.kind === "ALREADY") return ok({ already: true });
 
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "registered_event", resource: "event", resourceId: id, after: { status: "registered" } });

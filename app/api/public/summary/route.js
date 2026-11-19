@@ -1,7 +1,8 @@
-import { ok } from "@/lib/api";
+import { fail, ok } from "@/lib/api";
 import { aeoSummary } from "@/lib/aeo";
 import { getSql } from "@/lib/db";
 import { getTenantFromRequest } from "@/lib/tenant";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Public, aggregate-only facts for answer engines.
 //
@@ -12,6 +13,14 @@ import { getTenantFromRequest } from "@/lib/tenant";
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
+  // Public and unauthenticated: unlimited calls are unlimited database work.
+  // One shared per-IP budget for the read-only public surface.
+  const rl = await checkRateLimit(request, { durable: true, limit: 120, windowMs: 60_000 });
+  if (!rl.ok) {
+    const r = rateLimitResponse(rl.retryAfter);
+    return fail(r.error.code, r.error.message, 429);
+  }
+
   let tenant = null;
   try {
     tenant = await getTenantFromRequest(request);

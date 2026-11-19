@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { fetchAccepted, normalizeLeetCodeUsername } from "@/lib/leetcode";
+import { fetchProfile, normalizeLeetCodeUsername, statsSummary } from "@/lib/leetcode";
 
 const schema = z.object({
   username: z.string().min(1).max(80)
@@ -32,7 +32,7 @@ export async function POST(request) {
     });
   }
 
-  const profile = await fetchAccepted(username, user.id, { timeoutMs: 8_000 });
+  const profile = await fetchProfile(username, { timeoutMs: 8_000 });
   if (!profile.ok) {
     if (profile.code === "LEETCODE_PROFILE_NOT_FOUND") {
       return fail(profile.code, profile.message, 400, { field: "username" });
@@ -46,6 +46,8 @@ export async function POST(request) {
       field: "username"
     });
   }
+
+  const stats = profile.stats && typeof profile.stats === "object" ? profile.stats : null;
 
   try {
     const result = await sql.begin(async (tx) => {
@@ -100,6 +102,16 @@ export async function POST(request) {
           updated_at = NOW()
         RETURNING *
       `;
+      if (stats) {
+        await tx`
+          UPDATE practice_connections
+          SET leetcode_stats = ${{ ...stats, syncedAt: new Date().toISOString() }}::jsonb,
+              stats_synced_at = NOW(),
+              updated_at = NOW()
+          WHERE tenant_id = ${tenant.id}::uuid
+            AND user_id = ${user.id}
+        `;
+      }
       await writeAudit({
         sql: tx,
         actorId: user.id,
@@ -116,7 +128,9 @@ export async function POST(request) {
     if (result.conflict) return fail("USERNAME_LOCKED", result.conflict, 409);
     return ok({
       username: result.saved.leetcode_username,
-      syncState: result.saved.sync_state
+      syncState: result.saved.sync_state,
+      solved: stats?.total ?? null,
+      stats: statsSummary(stats)
     });
   } catch (error) {
     if (error?.code === "23505") {

@@ -53,8 +53,17 @@ export async function EventOpsPage({ id, area = "admin" }) {
     WHERE s.event_id = ${id} AND s.tenant_id = ${tenant.id}::uuid
     ORDER BY s.created_at ASC
   `;
+  // `profiles` has no email column (it lives on user_identities, migration 047).
+  // Selecting p.email here threw `column p.email does not exist` and took the
+  // whole event console down with a server-render error, for every event.
   const volunteerSignups = await sql`
-    SELECT v.*, p.name AS student_name, p.email
+    SELECT v.*, p.name AS student_name,
+      (
+        SELECT ui.email FROM user_identities ui
+        WHERE ui.user_id = v.user_id
+        ORDER BY ui.updated_at DESC NULLS LAST
+        LIMIT 1
+      ) AS email
     FROM volunteer_signups v
     JOIN volunteer_slots s ON s.id = v.slot_id
     LEFT JOIN profiles p ON p.user_id = v.user_id
@@ -71,7 +80,9 @@ export async function EventOpsPage({ id, area = "admin" }) {
   return (
     <AppShell area={area} tenant={tenant} user={user}>
       <main className="mx-auto max-w-4xl px-4 pb-14 sm:px-6">
-        <Link href={`/${area}/events`} prefetch={false} className="meta inline-flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
+        {/* `/lead/events` is only a `[id]` folder, so the lead-area back link has
+            to point at the workshops list that actually exists. */}
+        <Link href={area === "admin" ? "/admin/events" : "/lead/workshops"} prefetch={false} className="meta inline-flex items-center gap-1 hover:underline" style={{ color: "var(--accent)" }}>
           <ArrowLeft size={12} aria-hidden="true" /> {area === "admin" ? "Events console" : "Workshops"}
         </Link>
         <WorkspaceMasthead

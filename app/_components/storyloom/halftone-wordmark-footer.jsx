@@ -82,6 +82,7 @@ const HWF_CSS = `
 .hwf-brand strong { display: block; font-weight: 500; }
 .hwf-brand span { opacity: .45; }
 .hwf-col h3 { margin: 0; font: inherit; opacity: .4; font-weight: 500; }
+.hwf-col h3 .hwf-note { opacity: .8; }
 .hwf-col ul { list-style: none; margin: 0; padding: 0; }
 .hwf-col a, .hwf-up {
   color: inherit; text-decoration: none; opacity: .78; background: none; border: 0; padding: 0;
@@ -373,8 +374,11 @@ export default function HalftoneWordmarkFooter({ wordmark = "halden", label = "H
           <strong>{label}</strong>
           <span>{meta}</span>
         </div>
-        {columns.map((col) => (<nav className="hwf-col" key={col.title} aria-label={col.title}>
-            <h3>{col.title}</h3>
+        {columns.map((col) => (<nav className="hwf-col" key={col.title} aria-label={col.note ? `${col.title} (${col.note} only)` : col.title}>
+            <h3>
+              {col.title}
+              {col.note ? <span className="hwf-note"> · {col.note}</span> : null}
+            </h3>
             <ul>
               {col.links.map((l) => (<li key={l.label}>
                   <a href={l.href || "#"}>{l.label}</a>

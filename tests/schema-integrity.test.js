@@ -42,3 +42,53 @@ describe("schema integrity migrations", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("columns the schema actually has", () => {
+  // Three production 500s traced to SELECTs naming columns that do not exist.
+  // Each one rendered HTML (a page) or an empty body (a CSV export) instead of a
+  // number, so only a runtime sweep found it. This scan fails the unit suite the
+  // moment one comes back.
+  //
+  //   profiles.email        -> moved to user_identities.email (047); profiles
+  //                            only has email_verified_at / _verification_source
+  //   student_roadmap_progress.created_at -> the column is updated_at
+  const BANNED = [
+    { pattern: /\bp\.email\b/, why: "profiles has no email column; join user_identities" },
+    { pattern: /\bsrp\.created_at\b/, why: "student_roadmap_progress only has updated_at" }
+  ];
+
+  it("never selects a column the schema dropped", () => {
+    const files = [];
+    for (const root of ["app", "lib", "components"]) {
+      const walk = (dir) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const path = join(dir, entry.name);
+          if (entry.isDirectory()) walk(path);
+          else if (entry.name.endsWith(".js") || entry.name.endsWith(".jsx")) files.push(path);
+        }
+      };
+      walk(root);
+    }
+
+    // Strip line comments first: the fixes for these three bugs explain
+    // themselves by naming the column, and prose must not fail the scan.
+    const codeOnly = (text) =>
+      text
+        .split("\n")
+        .filter((line) => {
+          const trimmed = line.trimStart();
+          return !trimmed.startsWith("//") && !trimmed.startsWith("*") && !trimmed.startsWith("/*");
+        })
+        .join("\n");
+
+    expect(files.length).toBeGreaterThan(200);
+    const offenders = [];
+    for (const file of files) {
+      const text = codeOnly(read(file));
+      for (const { pattern, why } of BANNED) {
+        if (pattern.test(text)) offenders.push(`${file}: ${why}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

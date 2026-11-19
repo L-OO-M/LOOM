@@ -33,14 +33,17 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 | GET | `/api/github/oauth/callback` | user | OAuth callback: verifies state/nonce, exchanges the code, stores the sealed token and repo grants, then redirects back to the student GitHub page |
 | GET/POST | `/api/github/repos` | user | OAuth repo picker: `GET ?page=1..5` lists repositories the token can push to (cached in `repositories`, marks `alreadyLinked`); `POST {name, description?, isPrivate?}` creates one on the student's account and audits `created_github_repo` (5/min) |
 | POST | `/api/github/sync` | user | refresh cached repository metadata from GitHub (up to 3 pages / 300 repos; 3/min) |
+| POST | `/api/github/repos/verify` | user | verify/add repositories: body `{repos: ["owner/repo", ...]}` (max 10). Each repo is checked with the student's stored GitHub token; grants are stored explicitly and provisional projects are activated. 12/min rate limit. Returns `{added, activated, repos: [{repo, ok, canPush, canAdmin, isPrivate, reason}]}` |
 | POST | `/api/github/webhook` | service | HMAC-signed GitHub delivery: stores the event, aggregates into `student_daily_activity`, auto-verifies merged OSS PRs and submitted `pull_request_review` claims. Also reachable at the `/api/webhook` alias. |
 
 ## Practice room
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| POST | `/api/practice/connection` | user | link or correct the caller's own public LeetCode handle (`{username}`). One handle per member per chapter; the handle is fixed once a solve is recorded so a member cannot switch accounts mid-chapter. Rate limited. |
-| POST | `/api/practice/refresh` | user | manually check the caller's recent public accepted submissions. 15-minute cooldown; the next automatic check also waits an hour. Recorded progress is preserved on LeetCode errors. Rate limited. |
+| POST | `/api/practice/connection` | user | link or correct the caller's own public LeetCode handle (`{username}`). One handle per member per chapter; the handle is fixed once a solve is recorded so a member cannot switch accounts mid-chapter. Linking captures the account's real counters (solved total, Easy/Medium/Hard, ranking, streak, active days) into `practice_connections.leetcode_stats`, so the page never has to guess. Rate limited. |
+| POST | `/api/practice/refresh` | user | manually check the caller's recent public accepted submissions **and** refresh the LeetCode counters. Returns `{received, matched, credited, solved, stats}`. 15-minute cooldown; the next automatic check also waits an hour. Recorded progress and the last stats snapshot are preserved on LeetCode errors. Rate limited. |
+| GET | `/api/proof` | user | the caller's own proof read model from `lib/proof.js`: `{counts:{verifiedProjects,mergedPrs,solvedProblems,certificates,activeDays}, items:[{kind,label,detail,href,verified,source,at}]}`. Pure read — identity and chapter come from the session. |
+| GET/POST | `/api/admin/proof` | `verify_evidence` (admin) | GET returns the chapter's undecided proof signals (`?status=pending`); POST `{userId, signal:"project:<uuid>"\|"oss:<uuid>", decision:"approve"\|"reject", note?}` records a durable `proof_reviews` row, notifies the member and audits. The signal must point at a row owned by that member in the caller's chapter. |
 | POST | `/api/admin/practice/weeks` | admin or DSA department lead | create/update a Monday–Sunday IST week (`{id?, title, date, status: draft\|scheduled, questions[]}`). A scheduled week needs exactly seven distinct LeetCode problems; a released week is locked and corrections take over. Audited. |
 | POST | `/api/admin/practice/corrections` | admin | grant/remove credit for one member and one assigned question (`{userId, questionId, credited, acceptedAt, evidence, reason}`). Overrides automatic checks, writes/revokes `dsa_solved` evidence, recomputes the score, audits and notifies the member. |
 
@@ -99,16 +102,20 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | Method | Route | Notes |
 |--------|-------|-------|
 | GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced). POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and **rejects any event whose start falls inside the 20 Nov – 20 Dec 2026 relaxation window** (`RELAXATION_WINDOW`, 409). |
-| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount) / feedback |
+| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount) / feedback. Registration is closed more than two hours after `starts_at` → `EVENT_CONCLUDED` 409, so a stale `status` cannot sell a seat for a finished event |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
-| GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. **Currently disabled:** `PLANNER_ENABLED = false` (`lib/feature-flags.js`) makes every planner route return 404 and hides its nav entry. |
+| GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. **Currently disabled:** `PLANNER_ENABLED = false` (`lib/feature-flags.js`) makes every planner API return 404 and hides its nav entry; the three HTML planner routes render a "not switched on" page inside `AppShell` rather than the generic 404. |
 | GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. **Currently 404** while `PLANNER_ENABLED` is false. |
 | PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
 | POST | `/api/admin/events/[id]/attendance` | dept_lead+ (`manage_event_ops`): check in by door code → attended + certificate (once) + notify |
 | GET | `/api/admin/events/[id]/attendees/export` | dept_lead+ (`manage_event_ops`): attendee ledger as a UTF-8 CSV download (name, email, domain, status, door code, registered-at, feedback) |
 | GET/POST | `/api/volunteers` | authenticated: slots (optionally `?eventId=`) with live counts / open a slot (event dept lead, VL, or admin); capacity enforced on signup |
 | POST/DELETE | `/api/volunteers/[id]/signup` | authenticated: take or release one volunteer seat (idempotent; `EVENT_FULL` 409) |
-| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); GitHub handle, LinkedIn URL and bio are screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
+| GET/PUT | `/api/social/profile` | my card / claim-edit username (unique, validated; static `/student/*` segments reserved); `links: {github, leetcode, linkedin, x, website, discord, kaggle, unstop, devfolio, huggingface}` is merged into `user_profiles.social_links` (handles normalised from a bare login or a pasted profile URL, URL fields screened), with the top-level `github`/`linkedin` fields kept for older clients; bio is screened (format + abuse); `endorsementsVisible` toggles the endorsement opt-out; `avatarUrl` is accepted for `dept_lead`+ only (a photo is for leads and heads) and forced to null below that |
+| GET | `/api/identity` | session | the member's linked developer accounts (10 providers) with the `claimed → linked → verified → rejected` state, method, proof URL, and the owner-only one-time code. Legacy handles still in `social_links` surface as `claimed` |
+| POST/DELETE | `/api/identity` | session, 20/min/user: save or clear one provider `{provider, value}`. Saving records a claim; it becomes `verified` only on an OAuth match (GitHub) and `linked` when LeetCode's API confirms the account exists. Also mirrors the handle into `social_links` |
+| POST | `/api/identity/verify` | session, 6/min/user: `{provider, proofUrl}` fetches a public page the member controls and looks for their `loom-verify-…` code. Host-allowlisted per provider, rejects private/loopback addresses, no redirects, 8s timeout, 512KB cap. A hit sets `verified`; a miss records `rejected` |
+| GET/POST/DELETE | `/api/tracks` | session, 30/min/user: roadmaps the member follows. POST `{domain}` follows, `DELETE ?domain=` unfollows; both return the current list. `profiles.primary_domain` is always treated as followed on read, so the table stores only the extra tracks |
 | GET/POST/DELETE | `/api/social/connections` | follow state+endorsements / follow-toggle or `?mode=endorse` — target must be a public card in the caller's chapter (else `NOT_FOUND`); follow notifies with a link to the follower's profile when visible; `DELETE ?mode=endorsement&id=` lets the recipient remove an endorsement made about them |
 | GET/POST | `/api/social/discover` | trending threads, mentors, rising builders (public same-chapter cards only) / mentor review |
 
@@ -121,6 +128,18 @@ is restricted to the holder or an admin of the issuing chapter and returns
 | POST | `/api/lead/debug` | matching `dept_lead` or admin | Approve or return a verified submission with mandatory feedback. `approved` writes `debug_fixed` evidence; returning revokes it. Self-review is refused |
 
 Approved debug fixes enter chapter standing as `debug_fixed` (weight 15, cap 10) through the verified-evidence ledger.
+
+## Society challenges (migration 085)
+
+The chapter also runs one shared open-source challenge: the `L-OO-M/buggy` repository (or `DEBUG_CHALLENGE_REPO` when configured), where each primary domain has a folder of intentionally broken projects. It is not a `debug_challenges` row — the challenge is the repository folder itself — so submissions are stored separately.
+
+| Method | Route | Auth | Notes |
+|--------|-------|------|-------|
+| GET | `/api/challenges/oss?domain=` | user | the caller's own society/curated submissions for one track (newest first, max 50) |
+| POST | `/api/challenges/oss` | user with linked GitHub | `{domain, repoFullName, forkUrl, note?}`. The upstream must be the society repo or a repository curated **for that domain** (`REPO_NOT_ALLOWED` otherwise). GitHub verifies fork ownership, fork parent and an authored commit. Rate limited 10/min. One fork per member per repository. |
+| PATCH | `/api/challenges/oss/[id]` | matching `dept_lead` or admin | `{decision: approved\|rejected, feedback}`. Approval requires `verification_status = verified`, writes `oss_challenge` evidence, recomputes the score, audits and notifies. Returning revokes any evidence and keeps the submission history. Self-review is refused. |
+
+The rules shown on `/student/challenges` are `SOCIETY_RULES` in `lib/society.js`; folder links come from `SOCIETY_FOLDERS`, so the roadmap panel and the hub cannot disagree. Approved fixes are worth 20 points, capped at 10 per chapter, and are deliberately **not** `oss_verified` — that kind still means a merged upstream pull request.
 
 ## Errors & limits
 

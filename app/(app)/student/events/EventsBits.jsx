@@ -242,7 +242,7 @@ function ScopeTabs({ scope }) {
             key={t.value}
             href={t.href}
             prefetch={false}
-            aria-pressed={active ? "true" : "false"}
+            aria-current={active ? "page" : undefined}
             className={active ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
             style={active ? undefined : { color: "var(--text-muted)" }}
           >
@@ -376,7 +376,7 @@ export function EventsExplorer({ events, seats, certByEvent, scope, showActions 
                 <button
                   key={t}
                   type="button"
-                  aria-pressed={active ? "true" : "false"}
+                  aria-current={active ? "page" : undefined}
                   onClick={() => setType(t)}
                   className="rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-[0.98]"
                   style={active ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)", background: "transparent" }}

@@ -169,7 +169,7 @@ export default async function NetworkPage({ searchParams }) {
                 key={s.value}
                 href={sortHref(s.value)}
                 prefetch={false}
-                aria-pressed={sort === s.value ? "true" : "false"}
+                aria-current={sort === s.value ? "page" : undefined}
                 className={sort === s.value ? "!bg-[var(--text)] !text-[var(--bg)] rounded-full px-4 py-1.5 text-sm font-semibold" : "rounded-full px-4 py-1.5 text-sm font-semibold"}
                 style={sort === s.value ? undefined : { color: "var(--text-muted)" }}
               >

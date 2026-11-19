@@ -41,7 +41,7 @@ export default async function FeatureRequestsPage() {
         />
         <DiscoverTabs active="/student/feature-requests" />
         <div className="mt-4 flex gap-2">
-          <Link href="/student/feature-requests" className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{rows.length} ideas</Link>
+          <Link href="/student/feature-requests" prefetch={false} className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{rows.length} ideas</Link>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>· Use the Suggest feature button →</span>
         </div>
         <div className="mt-6">

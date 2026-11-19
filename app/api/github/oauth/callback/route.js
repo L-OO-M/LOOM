@@ -4,12 +4,11 @@ import {
   ensureWebhook,
   exchangeCode,
   fetchAuthenticatedUser,
-  fetchRepoPermissions,
   verifyState,
   isValidPkceVerifier
 } from "@/lib/github-oauth";
+import { activateProvenProjects, confirmRepoGrant } from "@/lib/github-grants";
 import { seal } from "@/lib/crypto";
-import { recomputeScore, recordEvidence } from "@/lib/ranking";
 import { appBaseUrl } from "@/lib/app-url";
 import { env } from "@/lib/env";
 import crypto from "node:crypto";
@@ -196,39 +195,28 @@ export async function GET(request) {
   const requested = decodeRepos(encodedRepos);
   const results = [];
   for (const fullName of requested) {
-    const perm = await fetchRepoPermissions({ accessToken: exchanged.accessToken, fullName });
-    if (!perm.ok) {
-      results.push({ repo: fullName, ok: false, reason: perm.reason });
+    const grant = await confirmRepoGrant({
+      sql,
+      accessToken: exchanged.accessToken,
+      userId: user.id,
+      tenantId: tenant?.id,
+      login: me.login,
+      githubUserId: me.id,
+      fullName
+    });
+    if (!grant.ok) {
+      results.push({ repo: fullName, ok: false, reason: grant.reason });
       continue;
     }
-    // The token's rights AND the account must match. A collaborator with push
-    // access is NOT the owner, and the project claim is about authorship.
-    const ownsIt = perm.canPush && perm.owner.toLowerCase() === me.login.toLowerCase();
-    await sql`
-      INSERT INTO github_repo_grants
-        (user_id, tenant_id, repo_full_name, github_user_id, owner_login, can_push, can_admin, is_private, verified_at, updated_at)
-      VALUES (
-        ${user.id}, ${tenant?.id ?? null}::uuid, ${perm.fullName}, ${me.id}, ${perm.owner},
-        ${ownsIt}, ${perm.canAdmin}, ${perm.private}, NOW(), NOW()
-      )
-      ON CONFLICT (user_id, repo_full_name) DO UPDATE SET
-        github_user_id = EXCLUDED.github_user_id,
-        owner_login = EXCLUDED.owner_login,
-        can_push = EXCLUDED.can_push,
-        can_admin = EXCLUDED.can_admin,
-        is_private = EXCLUDED.is_private,
-        verified_at = NOW(),
-        updated_at = NOW()
-    `;
-    results.push({ repo: perm.fullName, ok: true, canPush: ownsIt, canAdmin: perm.canAdmin });
+    results.push({ repo: grant.repo, ok: true, canPush: grant.canPush, canAdmin: grant.canAdmin });
 
     // Install the webhook only when we hold admin, and only after the grant is
     // stored. ensureWebhook dedupes first -- see its comment for why a second
     // hook would double-count every commit in every push.
-    if (perm.canAdmin) {
+    if (grant.canAdmin) {
       const hook = await ensureWebhook({
         accessToken: exchanged.accessToken,
-        fullName: perm.fullName,
+        fullName: grant.repo,
         webhookUrl: `${base}/api/github/webhook`,
         secret: env.GITHUB_WEBHOOK_SECRET
       });
@@ -241,8 +229,8 @@ export async function GET(request) {
     }
   }
 
-  // --- activate any provisional project the new grant now proves ---
-  const activated = await activateProvenProjects({ sql, tenant, userId: user.id, grants: results.filter((r) => r.ok && r.canPush) });
+  // --- activate any provisional project a grant now proves ---
+  const activated = await activateProvenProjects({ sql, tenant, userId: user.id });
 
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id,
@@ -268,39 +256,10 @@ export async function GET(request) {
 
 /**
  * A grant is proof of authorship; a provisional project that names the same repo
- * is now proven. This is what closes the gap docs/20 recorded as unsolved --
- * it works even when the repository has never sent us a single delivery.
+ * is now proven. The sweep lives in lib/github-grants.js because the "add a
+ * repository" route needs the same repair path -- a project claimed before its
+ * repository was added must not stay pending forever.
  */
-async function activateProvenProjects({ sql, tenant, userId, grants }) {
-  if (!tenant?.id || !grants.length) return 0;
-  let activated = 0;
-  for (const grant of grants) {
-    const [project] = await sql`
-      SELECT id, title FROM projects
-      WHERE owner_id = ${userId}
-        AND tenant_id = ${tenant.id}::uuid
-        AND lower(repo_full_name) = lower(${grant.repo})
-        AND evidence_state = 'provisional'
-      LIMIT 1
-    `;
-    if (!project) continue;
-    const [updated] = await sql`
-      UPDATE projects
-         SET evidence_state = 'verified', verified_at = NOW(), verified_by = ${`github:${grant.repo}`}, updated_at = NOW()
-       WHERE id = ${project.id} AND evidence_state = 'provisional'
-      RETURNING *
-    `;
-    if (!updated) continue; // lost the race to a concurrent delivery or an admin
-    await recordEvidence({
-      sql, tenantId: tenant.id, userId, kind: "project_verified", refId: project.id,
-      verifiedBy: `github:${grant.repo}`, source: "webhook",
-      evidence: { repository: grant.repo, via: "oauth_repo_grant" }
-    });
-    activated += 1;
-  }
-  if (activated) await recomputeScore(sql, tenant.id, userId);
-  return activated;
-}
 
 function decodeRepos(encoded) {
   if (!encoded) return [];

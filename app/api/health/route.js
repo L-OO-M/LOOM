@@ -1,7 +1,8 @@
-import { ok } from "@/lib/api";
+import { fail, ok } from "@/lib/api";
 import { getSql, getAppSql } from "@/lib/db";
 import { getTenantFromRequest } from "@/lib/tenant";
 import { env, secretProblems } from "@/lib/env";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Liveness/readiness probe.
 //
@@ -17,6 +18,15 @@ import { env, secretProblems } from "@/lib/env";
 // fell back to the owner connection, every policy was decorative while this
 // endpoint still said "ready" (see docs/rls-rollout-runbook.md).
 export async function GET(request) {
+  // Unauthenticated and it runs three real database queries per call, so it is
+  // an amplifier unless it has a budget. A monitor polling every 10-30s uses a
+  // small fraction of 120/min.
+  const rl = await checkRateLimit(request, { durable: true, limit: 120, windowMs: 60_000 });
+  if (!rl.ok) {
+    const r = rateLimitResponse(rl.retryAfter);
+    return fail(r.error.code, r.error.message, 429);
+  }
+
   const checks = {};
 
   // --- database: does it actually answer? ---

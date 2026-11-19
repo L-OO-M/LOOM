@@ -832,17 +832,9 @@ export default function LanyardBadge({
       />
       <div
         ref={cardRef}
-        role="button"
-        tabIndex={0}
+        role="group"
         aria-label={ariaLabel}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            flipRef.current();
-          }
-        }}
-        aria-pressed={showBack}
-        className="absolute left-0 top-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+        className="absolute left-0 top-0"
         style={{
           width: cw,
           height: ch + ringR + clipH,

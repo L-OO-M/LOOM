@@ -11,7 +11,7 @@ export function FilterLink({ href, active, small, children }) {
     <Link
       href={href}
       prefetch={false}
-      aria-pressed={active}
+      aria-current={active ? "page" : undefined}
       className={`transition active:scale-[0.97] ${small ? "px-3.5 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-full font-medium`}
       style={active
         ? { background: "var(--text)", color: "var(--bg)" }
@@ -19,6 +19,28 @@ export function FilterLink({ href, active, small, children }) {
     >
       {children}
     </Link>
+  );
+}
+
+/* Server-rendered pager. The page links are real navigations (prefetch={false})
+   that carry the caller's filter query string, so paging never drops a filter. */
+export function ResourcePager({ page, pages, from, to, total, prevHref, nextHref }) {
+  if (total === 0 || pages <= 1) return null;
+  const step = "rounded-full px-4 py-1.5 text-sm font-medium transition active:scale-[0.97]";
+  const stepStyle = { border: "1px solid var(--line)", color: "var(--text)" };
+  return (
+    <nav className="mt-6 flex flex-wrap items-center justify-between gap-3" aria-label="Resource pages">
+      <p className="meta">Showing {from}–{to} of {total}</p>
+      <div className="flex items-center gap-2">
+        {page > 1 && (
+          <Link href={prevHref} prefetch={false} rel="prev" className={step} style={stepStyle}>← Previous</Link>
+        )}
+        <span className="meta">Page {page} of {pages}</span>
+        {page < pages && (
+          <Link href={nextHref} prefetch={false} rel="next" className={step} style={stepStyle}>Next →</Link>
+        )}
+      </div>
+    </nav>
   );
 }
 
@@ -170,7 +192,7 @@ export function TrackCard({ t, count, done, href, active }) {
     <Link
       href={href}
       prefetch={false}
-      aria-pressed={active}
+      aria-current={active ? "page" : undefined}
       aria-label={`Filter by ${t.label}, ${count} pieces`}
       className="res-track rounded-2xl border p-5 transition"
       style={{

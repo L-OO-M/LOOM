@@ -5,7 +5,8 @@ import { resolveRequestTenant } from "@/lib/tenant";
 import { canonicalFor, absoluteUrl } from "@/lib/seo";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
-import { JoinSteps, TypePill, seatsLeft, whenLabel } from "../_components/EventBits";
+import { formatEventWhen } from "@/lib/event-time";
+import { JoinSteps, TypePill, seatsLeft } from "../_components/EventBits";
 import { JsonLd, breadcrumbSchema, organizationSchema } from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
@@ -102,9 +103,11 @@ export default async function EventDetailPage({ params }) {
   const isPast = event.status === "past" || new Date(event.starts_at) < new Date();
 
   const facts = [
-    { label: "When", value: whenLabel(event.starts_at), sub: event.ends_at ? `until ${whenLabel(event.ends_at)}` : null },
+    // One WHEN string: pinned to IST, lowercase meridiem, en-dash range. The
+    // old value/`until` pair repeated the end time and named no timezone.
+    { label: "When", value: formatEventWhen(event.starts_at, event.ends_at) },
     { label: "Where", value: event.is_online ? "Online — link shared with registered members" : (event.location || "Venue announced soon"), sub: event.department_name },
-    { label: "Seats", value: left === null ? "Open registration" : full ? "Full — waitlist" : `${left} of ${event.capacity} left`, sub: `${event.registered_count || 0} registered so far` },
+    { label: "Seats", value: isPast ? "Registration closed" : left === null ? "Open registration" : full ? "Full - waitlist" : `${left} of ${event.capacity} left`, sub: `${event.registered_count || 0} registered so far` },
     { label: "Track", value: event.domain, sub: event.event_type }
   ];
 

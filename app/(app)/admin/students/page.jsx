@@ -15,12 +15,16 @@ import "./students.css";
 // a different stride than the page actually returns.
 const PAGE_SIZE = 50;
 
+// Badge text sits on a tint of --bg, so the ink has to follow the theme too:
+// `white` on `var(--text)` goes white-on-white in dark mode, and the raw
+// #7c3aed / #b45309 inks sit at ~3:1 on their own dark tint. Mixing each hue
+// with --text keeps the colour cue and clears 4.5:1 in both themes.
 function roleTone(role) {
   switch (role) {
-    case "admin": return { bg: "var(--text)", color: "white", label: "Admin" };
-    case "vertical_lead": return { bg: "color-mix(in srgb, #7c3aed 18%, var(--bg))", color: "#7c3aed", border: "color-mix(in srgb, #7c3aed 22%, transparent)", label: "Vertical Lead" };
-    case "dept_lead": return { bg: "color-mix(in srgb, #d97706 14%, var(--bg))", color: "#b45309", border: "color-mix(in srgb, #d97706 20%, transparent)", label: "Head" };
-    case "core": return { bg: "color-mix(in srgb, var(--accent) 14%, var(--bg))", color: "var(--accent)", border: "color-mix(in srgb, var(--accent) 20%, transparent)", label: "Core" };
+    case "admin": return { bg: "var(--text)", color: "var(--bg)", label: "Admin" };
+    case "vertical_lead": return { bg: "color-mix(in srgb, #7c3aed 18%, var(--bg))", color: "color-mix(in srgb, #7c3aed 65%, var(--text))", border: "color-mix(in srgb, #7c3aed 22%, transparent)", label: "Vertical Lead" };
+    case "dept_lead": return { bg: "color-mix(in srgb, #d97706 14%, var(--bg))", color: "color-mix(in srgb, #b45309 75%, var(--text))", border: "color-mix(in srgb, #d97706 20%, transparent)", label: "Head" };
+    case "core": return { bg: "color-mix(in srgb, var(--accent) 14%, var(--bg))", color: "color-mix(in srgb, var(--accent) 80%, var(--text))", border: "color-mix(in srgb, var(--accent) 20%, transparent)", label: "Core" };
     default: return { bg: "var(--bg-elevated)", color: "var(--text-muted)", border: "var(--line)", label: "Student" };
   }
 }
@@ -182,7 +186,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                 key={t.id}
                 href={tierFilter === t.id ? clearHref : `/admin/students?tier=${t.id}${q ? `&q=${encodeURIComponent(q)}` : ""}${role ? `&role=${role}` : ""}${dept ? `&dept=${dept}` : ""}`}
                 prefetch={false}
-                aria-pressed={tierFilter === t.id}
+                aria-current={tierFilter === t.id ? "page" : undefined}
                 className="adst-tier"
               >
                 <span className="adst-tier-count">{t.count}</span>
@@ -296,7 +300,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                     <th>Departments</th>
                     <th>Year</th>
                     <th>Updated</th>
-                    <th aria-label="Actions"></th>
+                    <th><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>

@@ -1,14 +1,17 @@
 import { PublicFooter } from "@/components/landing/PublicFooter";
-import FaqSection from "./_components/FaqScroller";
-import { faqData } from "./_components/faq-data";
+import { PublicLoadingSkeleton } from "@/components/landing/PublicLoadingSkeleton";
 import "./_components/faq.css";
 
+// Previously this rendered the whole marquee from static data, which mounted a
+// second set of 60s animations before the real page landed. A skeleton keeps the
+// transition quiet and the heading order untouched.
 export default function Loading() {
   return (
     <>
-      <div className="loom-faq-exact" aria-busy="true">
+      <div className="loom-faq-exact" aria-busy="true" aria-live="polite">
         <div className="faq-page-bg min-h-screen">
-          <FaqSection data={faqData} headingLevel="h2" />
+          <span className="sr-only" role="status">Loading questions…</span>
+          <PublicLoadingSkeleton cards={3} />
         </div>
       </div>
       <PublicFooter />

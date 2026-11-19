@@ -106,7 +106,7 @@ export default function AdminFeatureBoard({ initial, githubConfigured = false })
             ))}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input value={note[r.id] || ""} onChange={(e) => setNote({ ...note, [r.id]: e.target.value })} placeholder="Counter-question or decision note" className="flex-1 min-w-[200px] rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)" }} />
+            <input value={note[r.id] || ""} onChange={(e) => setNote({ ...note, [r.id]: e.target.value })} placeholder="Counter-question or decision note" aria-label="Counter-question or decision note" className="flex-1 min-w-[200px] rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--line)", background: "var(--bg)" }} />
             <button disabled={!!pending[r.id]} onClick={() => comment(r.id)} className="rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ borderColor: "var(--line)" }}>Ask</button>
             <button disabled={!!pending[r.id]} onClick={() => act(r.id, { assigned_to: r.requester_id, status: "in_progress", decision_note: note[r.id] || "Assigned to you — start building" })} className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold disabled:opacity-50" style={{ color: "var(--bg)" }}>Let them build →</button>
           </div>

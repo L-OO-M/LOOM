@@ -5,6 +5,8 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { CurateForm, ReviewButtons } from "./AdminOss";
+import { OssReviewActions } from "@/components/oss/OssReviewActions";
+import { loadOssSubmissionQueue } from "@/lib/oss-challenges";
 import "../_components/admin-ledger.css";
 
 const DIFFICULTY = {
@@ -46,6 +48,9 @@ export default async function AdminOpenSourcePage({ searchParams }) {
     WHERE c.status = 'claimed' AND c.tenant_id = ${tid}::uuid
     ORDER BY c.created_at DESC LIMIT 50
   `;
+  const societyQueue = tid
+    ? await loadOssSubmissionQueue(sql, tid, { all: true, status: "submitted" })
+    : [];
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -61,7 +66,8 @@ export default async function AdminOpenSourcePage({ searchParams }) {
           stats={[
             { value: stats?.repos ?? 0, label: "tracked repos" },
             { value: stats?.pending ?? 0, label: "pending claims" },
-            { value: stats?.verified ?? 0, label: "verified merges" }
+            { value: stats?.verified ?? 0, label: "verified merges" },
+            { value: societyQueue.length, label: "society forks to grade" }
           ]}
         />
 
@@ -136,6 +142,39 @@ export default async function AdminOpenSourcePage({ searchParams }) {
             )}
           </WorkspaceSection>
         </div>
+
+        <WorkspaceSection
+          index="03"
+          title="Society challenge queue"
+          note="Forks of the society repository, verified by GitHub and waiting for a human grade. Oldest first."
+          action={<span className="aled-meta">{societyQueue.length} waiting</span>}
+        >
+          {societyQueue.length === 0 ? (
+            <WorkspaceEmpty
+              title="Nothing to grade"
+              body="A verified fork appears here as soon as a member submits one on the challenge hub."
+            />
+          ) : (
+            <ul className="aled-ledger" style={{ listStyle: "none", margin: "0.9rem 0 0", padding: 0 }}>
+              {societyQueue.map((item) => (
+                <li key={item.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                  <div className="aled-copy">
+                    <span className="aled-title">{item.repoFullName}</span>
+                    <p className="aled-sub">
+                      {item.studentName || item.studentId?.slice(0, 8)} · {item.domain} ·{" "}
+                      {new Date(item.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </p>
+                    {item.note ? <p className="aled-sub">“{item.note}”</p> : null}
+                    <a href={item.forkUrl} target="_blank" rel="noreferrer" className="aled-sub" style={{ color: "var(--accent)", display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.25rem" }}>
+                      {item.forkFullName || item.forkUrl} <ExternalLink size={10} aria-hidden="true" />
+                    </a>
+                  </div>
+                  <OssReviewActions id={item.id} verificationStatus={item.verificationStatus} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </WorkspaceSection>
       </main>
     </AppShell>
   );

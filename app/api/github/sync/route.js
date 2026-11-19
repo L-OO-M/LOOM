@@ -1,7 +1,7 @@
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { listWritableRepos, readAccessToken } from "@/lib/github-oauth";
-import { rememberRepos } from "@/lib/github-repos";
+import { rememberRepoMetadata } from "@/lib/github-repos";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 // Refresh cached repository metadata (stars, open issues, language, last push)
@@ -37,12 +37,11 @@ export async function POST() {
         listed.reason === "SCOPE_MISSING" ? 403 : 502
       );
     }
-    const saved = await rememberRepos({
+    const saved = await rememberRepoMetadata({
       sql,
       userId: user.id,
       tenantId: tenant?.id,
       login: conn?.github_username,
-      githubUserId: conn?.github_user_id ?? token.githubUserId,
       repos: listed.repos
     });
     total += saved.length;

@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { AUTH_STATE_FILE, hasAuthState } = require("./auth-state");
+const { AUTH_STATE_FILE } = require("./auth-state");
 
 // Authenticated STUDENT audit. Every other spec in this repo is unauthenticated
 // (route protection only), so the student surface had no runtime coverage at
@@ -20,15 +20,13 @@ test.describe.configure({ timeout: 300_000 });
 // Fixture ids from the seed script / tenant data.
 const NODE = "ai_feature_engineering_preprocessing";
 const RESOURCE = "res_ml_crash";
-const PROJECT = "8a2e855d-0e6b-49d3-bcb9-de2afca1e6cf";
-const EVENT = "6239a0db-56b8-491c-9766-b694929d74d2";
-const CONTEST = "3f16900b-277b-4ab6-9472-95147d3c34d8";
 const THREAD = "1e0c8c7d-724b-46b6-a9a2-f8f2bde88b15";
 const PEER = "gameryash";
 
 const STATIC_ROUTES = [
   "/student",
   "/student/roadmap",
+  "/student/challenges",
   "/student/practice",
   "/student/practice/leaderboard",
   "/student/resources",
@@ -56,14 +54,31 @@ const STATIC_ROUTES = [
 const DYNAMIC_ROUTES = [
   `/student/roadmap/${NODE}`,
   `/student/resources/${RESOURCE}`,
-  `/student/projects/${PROJECT}`,
-  `/student/events/${EVENT}`,
-  `/student/contests/${CONTEST}`,
   `/student/community/forums/${THREAD}`,
   "/student/community/wiki/welcome",
   "/student/network/demo-college",
   `/student/${PEER}`,
 ];
+
+// Detail ids are discovered from the list pages instead of being hardcoded:
+// every reseed creates new uuids, so a pinned fixture id rots into a 404 that
+// says nothing about the product. Returns null when the list is honestly empty.
+async function firstDetailHref(page, listPath, prefix, exclude = []) {
+  await page.goto(listPath, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  const hrefs = await page.evaluate(
+    ({ prefix, exclude }) =>
+      [
+        ...new Set(
+          [...document.querySelectorAll(`a[href^="${prefix}/"]`)].map((a) =>
+            a.getAttribute("href")
+          )
+        ),
+      ].filter((href) => href && !exclude.includes(href)),
+    { prefix, exclude }
+  );
+  return hrefs[0] ?? null;
+}
 
 const REDIRECT_ROUTES = [
   // alias routes that should land somewhere real, never 404 or blank
@@ -76,7 +91,13 @@ const REDIRECT_ROUTES = [
 // (e2e/auth.setup.js) performs it and saves the session; signing in per test
 // file, per project, is what used to exhaust the login rate limit and fail
 // whichever spec ran ninth. See e2e/auth-state.js.
-test.use({ storageState: hasAuthState() ? AUTH_STATE_FILE : undefined });
+//
+// Unconditional on purpose: test files are collected before the `setup`
+// dependency runs, so probing for the file here would be false on a clean
+// checkout and silently run these specs logged out. The dependency guarantees
+// the file exists by the time a test starts, and the skip above keeps a
+// credential-less clone from needing it at all.
+test.use({ storageState: AUTH_STATE_FILE });
 
 test("workspace owns the top chrome", async ({ page }) => {
   await page.goto("/student");
@@ -161,7 +182,15 @@ test("first-week journey and practice room show real account state", async ({ pa
 });
 
 test("every dynamic student route loads with no console errors", async ({ page }) => {
-  for (const path of DYNAMIC_ROUTES) {
+  const discovered = [
+    await firstDetailHref(page, "/student/projects", "/student/projects", [
+      "/student/projects/new",
+    ]),
+    await firstDetailHref(page, "/student/events", "/student/events"),
+    await firstDetailHref(page, "/student/contests", "/student/contests"),
+  ].filter(Boolean);
+
+  for (const path of [...DYNAMIC_ROUTES, ...discovered]) {
     const r = await visit(page, path);
     assertClean(path, r);
   }
@@ -260,7 +289,10 @@ test("peer profile Projects link is scoped to that peer", async ({ page }) => {
 });
 
 test("event page hands off to a pre-filled forum composer", async ({ page }) => {
-  await page.goto(`/student/events/${EVENT}`, { waitUntil: "domcontentloaded" });
+  // Same reason as DYNAMIC_ROUTES: ids come from the live list, not a reseed-old constant.
+  const event = await firstDetailHref(page, "/student/events", "/student/events");
+  test.skip(!event, "no event rows to open");
+  await page.goto(event, { waitUntil: "domcontentloaded" });
   const link = page.getByRole("link", { name: /continue the conversation/i });
   test.skip(!(await appears(link)), "event has no conversation hand-off (past/archived)");
 

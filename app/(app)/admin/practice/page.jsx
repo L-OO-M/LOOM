@@ -56,8 +56,15 @@ export default async function AdminPracticePage() {
           ]}
         />
 
+        {snapshot.weeks.length === 0 && (
+          <WorkspaceSection index="01" title="No weekly sets yet" note="Create your first seven-question DSA set.">
+            <p className="mt-3 text-sm" style={{ color: "var(--text)" }}>
+              Students can’t see a practice room until a week is scheduled. Use the form below to author a new week — pick a title, a Monday start date (IST), and seven LeetCode problems. Leave it as a draft, or schedule it to go live.
+            </p>
+          </WorkspaceSection>
+        )}
         <WorkspaceSection
-          index="01"
+          index={snapshot.weeks.length === 0 ? 2 : 1}
           title="Weekly assignments"
           note="Seven questions per scheduled week. Future sets stay private until their Monday."
         >

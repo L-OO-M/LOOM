@@ -9,13 +9,14 @@ import EmailVerificationCard from "./EmailVerificationCard";
 import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
 import { AppearancePanel } from "./AppearancePanel";
 import { maskEmail, verificationConfigured } from "@/lib/email-verification";
+import { socialLinksForDisplay, LINK_LABELS } from "@/lib/profileFolio";
 
 export default async function SettingsPage() {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/settings");
   const { tenant, user, profile, sql } = ctx;
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
-  const [card] = await sql`SELECT username, is_public, bio FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
+  const [card] = await sql`SELECT username, is_public, bio, social_links FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
@@ -71,6 +72,36 @@ export default async function SettingsPage() {
           </WorkspaceSection>
         </div>
 
+        <div id="linked-accounts" className="scroll-mt-20">
+          <WorkspaceSection index="01" title="Linked accounts" note="Developer profiles tied to your public card. Add or verify them on your profile page.">
+          <dl className="mt-4">
+            {(() => {
+              const links = socialLinksForDisplay(card || {});
+              const keys = Object.keys(links);
+              if (keys.length === 0) return (
+                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b py-3.5 first:border-t" style={{ borderColor: "var(--line)" }}>
+                  <dt className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>{"None yet"}</dt>
+                  <dd className="font-mono text-sm" style={{ color: "var(--text-muted)" }}>Link GitHub, LeetCode, LinkedIn and more from your profile card.</dd>
+                </div>
+              );
+              return keys.map((key) => {
+                const link = links[key];
+                const display = link.handle || link.url || key;
+                return (
+                  <div key={key} className="flex flex-wrap items-baseline justify-between gap-2 border-b py-3.5" style={{ borderColor: "var(--line)" }}>
+                    <dt className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>{LINK_LABELS[key] || key}</dt>
+                    <dd className="flex items-baseline gap-2">
+                      <span className="font-mono text-sm" style={{ color: "var(--text)" }}>{display}</span>
+                      <Link prefetch={false} href={`/student/${card?.username}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>Manage →</Link>
+                    </dd>
+                  </div>
+                );
+              });
+            })()}
+          </dl>
+          </WorkspaceSection>
+        </div>
+
         <EmailVerificationCard
           verifiedAt={profile?.email_verified_at ? String(profile.email_verified_at) : null}
           email={maskEmail(user.email)}
@@ -90,7 +121,7 @@ export default async function SettingsPage() {
             ].map(([k, v, href]) => (
               <div key={k} className="flex flex-wrap items-baseline justify-between gap-2 border-b py-3.5 first:border-t" style={{ borderColor: "var(--line)" }}>
                 <dt className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>{k}</dt>
-                <dd><Link href={href} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>{v}</Link></dd>
+                <dd><Link prefetch={false} href={href} className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>{v}</Link></dd>
               </div>
             ))}
           </dl>
@@ -100,7 +131,7 @@ export default async function SettingsPage() {
 
         <WorkspaceSection index="03" title="Trust & session" note="Notifications and the session on this device.">
           <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
-            <Link href="/student/notifications" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            <Link prefetch={false} href="/student/notifications" className="text-sm font-semibold hover:underline" style={{ color: "var(--accent)" }}>
               Notification history →
             </Link>
             <form action="/auth/signout" method="post">

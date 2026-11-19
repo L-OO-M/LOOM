@@ -26,6 +26,13 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
   const cardBase = `${url.replace(/\/$/, "")}/card`;
   const ogUrl = `${cardBase}/${format}`;
   const text = `${name} on LOOM — proof, projects and reputation. ${url}`;
+  // Outbound intents use the canonical absolute URL, so the unfurl is the real
+  // card. There is deliberately no share counter to fabricate.
+  const shareTargets = [
+    { key: "x", label: "X", aria: "Share on X", href: `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}` },
+    { key: "linkedin", label: "LinkedIn", aria: "Share on LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+    { key: "whatsapp", label: "WhatsApp", aria: "Share on WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(text)}` }
+  ];
 
   function flash(msg) {
     setCopied(msg);
@@ -93,6 +100,18 @@ export default function ShareButtons({ username, name, url, score = 0, data }) {
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={share} className="btn-ink !py-2 text-sm">Share card</button>
         <button onClick={copyLink} className="btn-ghost !py-2 text-sm">Copy link</button>
+        {shareTargets.map((t) => (
+          <a
+            key={t.key}
+            href={t.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t.aria}
+            className="btn-ghost !py-2 text-sm"
+          >
+            {t.label}
+          </a>
+        ))}
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}

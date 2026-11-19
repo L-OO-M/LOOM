@@ -115,7 +115,7 @@ export default async function VerifyCredentialPage({ params }) {
         </p>
       </div>
       <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-        Verify any credential at <Link href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cred.id} · viewed {views} times
+        Verify any credential at <Link prefetch={false} href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cred.id} · viewed {views} times
       </p>
     </main>
   );

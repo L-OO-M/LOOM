@@ -7,6 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   outputFileTracingRoot: __dirname,
   typedRoutes: false,
+  // Do not advertise the framework in every response. `X-Powered-By: Next.js`
+  // was confirmed present on the live server; it is free fingerprinting for a
+  // scanner choosing which published CVE list to try.
+  poweredByHeader: false,
   experimental: {
     staleTimes: {
       dynamic: 30,

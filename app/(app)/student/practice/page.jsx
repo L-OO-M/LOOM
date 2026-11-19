@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
@@ -34,8 +35,16 @@ export default async function StudentPracticePage() {
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+        <Link
+          href="/student/challenges"
+          prefetch={false}
+          className="mt-4 inline-flex items-center gap-1 text-xs font-semibold hover:underline"
+          style={{ color: "var(--text-muted)" }}
+        >
+          &larr; All challenges
+        </Link>
         <WorkspaceMasthead
-          kicker={`Learn / practice room / ${snapshot.members.length} members`}
+          kicker={`Learn / challenges / weekly core set / ${snapshot.members.length} members`}
           title="Consistency is a team sport."
           lede="Seven assigned questions each week. Solve on LeetCode inside the week and the accepted submission counts once. The board is a practice habit, not chapter standing."
           meta={snapshot.current ? `${snapshot.current.title} / ${solved} of ${currentQuestions.length || 7} recorded` : "Awaiting this week's set"}
@@ -46,7 +55,7 @@ export default async function StudentPracticePage() {
             { value: snapshot.history.length, label: "past weeks open" }
           ]}
         />
-        <LearnTabs active="/student/practice" />
+        <LearnTabs active="/student/roadmap" />
         <PracticeClient snapshot={snapshot} userId={user.id} />
       </main>
     </AppShell>

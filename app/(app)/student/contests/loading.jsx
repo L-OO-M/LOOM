@@ -1,1 +1,0 @@
-export default function Loading(){return <main className='mx-auto max-w-4xl px-4 sm:px-6'><div className='skel h-6 w-32'/><div className='skel mt-3 h-8 w-64'/><div className='mt-6 grid gap-3'><div className='skel h-28'/><div className='skel h-28'/><div className='skel h-28'/></div></main>}

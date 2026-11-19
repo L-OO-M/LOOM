@@ -34,6 +34,37 @@ async function load(route, sql) {
   return import(route);
 }
 
+async function loadRefresh(sql, syncConnection) {
+  vi.resetModules();
+  vi.doMock("@/lib/auth-server", () => ({
+    getRequestContext: async () => ({
+      user: { id: "student-1" },
+      profile: { role: "student", user_id: "student-1" },
+      tenant: { id: TENANT },
+      sql
+    }),
+    writeAudit: async () => {},
+    notify: async () => {}
+  }));
+  vi.doMock("@/lib/rate-limit", () => ({
+    checkRateLimit: async () => ({ ok: true })
+  }));
+  vi.doMock("@/lib/practice-sync", () => ({ syncConnection }));
+  return import("@/app/api/practice/refresh/route");
+}
+
+const REAL_STATS = {
+  total: 253,
+  easy: 60,
+  medium: 141,
+  hard: 52,
+  ranking: 48213,
+  reputation: 12,
+  streak: 17,
+  activeDays: 128,
+  calendar: { "2025-11-18": 3 }
+};
+
 describe("practice week locking", () => {
   beforeEach(() => vi.resetModules());
 
@@ -108,5 +139,78 @@ describe("practice corrections", () => {
 
     expect(response.status).toBe(200);
     expect((await response.json()).data).toMatchObject({ credited: true, questionId: QUESTION });
+  });
+});
+
+describe("practice refresh response", () => {
+  beforeEach(() => vi.resetModules());
+
+  it("returns the synced solved count and a compact stats summary", async () => {
+    const sql = sqlClient(async (text) => {
+      if (text.includes("FROM practice_connections")) return [{ leetcode_username: "student" }];
+      return [];
+    });
+    const syncConnection = vi.fn(async () => ({
+      status: "ready",
+      received: 1,
+      matched: 1,
+      credited: 1,
+      stats: REAL_STATS,
+      message: "Recent accepted submissions checked; solves outside a practice week are recorded but not scored."
+    }));
+    const { POST } = await loadRefresh(sql, syncConnection);
+
+    const response = await POST(request({}));
+    const data = (await response.json()).data;
+
+    expect(response.status).toBe(200);
+    expect(data).toMatchObject({
+      status: "ready",
+      received: 1,
+      matched: 1,
+      credited: 1,
+      solved: 253
+    });
+    expect(data.stats).toMatchObject({
+      total: 253,
+      easy: 60,
+      medium: 141,
+      hard: 52,
+      streak: 17
+    });
+    // The submission calendar is ~years of daily counts; it must not ship.
+    expect(data.stats.calendar).toBeUndefined();
+  });
+
+  it("reports a failed sync without inventing progress numbers", async () => {
+    const sql = sqlClient(async (text) => {
+      if (text.includes("FROM practice_connections")) return [{ leetcode_username: "student" }];
+      return [];
+    });
+    const syncConnection = vi.fn(async () => ({
+      status: "error",
+      message: "LeetCode is unavailable. Recorded progress is preserved.",
+      retryAfterMs: 900_000
+    }));
+    const { POST } = await loadRefresh(sql, syncConnection);
+
+    const response = await POST(request({}));
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body.error.code).toBe("SYNC_FAILED");
+    expect(body.data).toBeUndefined();
+  });
+
+  it("refuses to sync an account that is not linked", async () => {
+    const sql = sqlClient(async () => []);
+    const syncConnection = vi.fn();
+    const { POST } = await loadRefresh(sql, syncConnection);
+
+    const response = await POST(request({}));
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("NOT_LINKED");
+    expect(syncConnection).not.toHaveBeenCalled();
   });
 });

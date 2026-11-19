@@ -2,18 +2,31 @@ const { test, expect } = require("@playwright/test");
 
 // During hydration the router can briefly hold two copies of the route in the
 // DOM. "Exactly one h1" is a property of the settled page, so assertions must
-// not race the swap: wait for the loading boundary to clear and for the
-// duplicate (if any) to disappear before handing control back to the test.
+// not race the swap. A single check is not enough in either direction: a
+// not-yet-streamed body has zero h1s, and the streamed swap can leave a hidden
+// copy beside the visible one for a frame. Require the condition to hold twice,
+// 150ms apart, before handing control back to the test.
+async function settled(page) {
+  return page.evaluate(
+    () =>
+      document.querySelectorAll("h1").length === 1 &&
+      document.querySelector("h1").innerText.trim().length > 0 &&
+      !document.querySelector('[aria-busy="true"]')
+  );
+}
+
 async function open(page, path) {
   const res = await page.goto(path);
-  await page.waitForFunction(
-    () =>
-      !document.querySelector('[aria-busy="true"]') &&
-      document.querySelectorAll("h1").length <= 1,
-    undefined,
-    { timeout: 15000 }
-  );
-  return res;
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    if (await settled(page)) {
+      await page.waitForTimeout(150);
+      if (await settled(page)) return res;
+    } else {
+      await page.waitForTimeout(100);
+    }
+  }
+  throw new Error(`page never settled to exactly one h1: ${path}`);
 }
 
 
@@ -50,7 +63,9 @@ test.describe("LOOM public pages", () => {
     const res = await open(page, "/account-status?state=suspended");
     expect(res?.status()).toBe(200);
     await expect(page.locator("h1")).toContainText("suspended");
-    await expect(page.getByRole("link", { name: "Sign out" })).toBeVisible();
+    // Sign-out is a POST form (a GET link can be triggered cross-site); the
+    // accessible name is unchanged, the role is button.
+    await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   });
 });
 
@@ -142,6 +157,26 @@ test.describe("LOOM public site", () => {
     await expect(page).toHaveURL("/about", { timeout: 20000 });
   });
 
+  test("a new page opens at the top, not at the previous scroll offset", async ({ page }) => {
+    // Below 1100px the primary nav collapses into the menu sheet; this test is
+    // about following a normal nav link, so it runs on the desktop project only.
+    test.skip((page.viewportSize()?.width ?? 0) < 1100, "desktop primary nav only");
+    await open(page, "/");
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
+    await expect
+      .poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 10000 })
+      .toBeGreaterThan(500);
+
+    await page
+      .locator('header.site-nav nav[aria-label="Primary"]')
+      .getByRole("link", { name: "FAQ", exact: true })
+      .click();
+
+    await expect(page).toHaveURL(/\/faq$/, { timeout: 20000 });
+    // The reset is instant even though globals.css sets scroll-behavior: smooth.
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
+  });
+
   test("public apis return ok without auth", async ({ request }) => {
     for (const path of ["/api/public/events", "/api/public/projects", "/api/public/departments", "/api/public/summary"]) {
       const res = await request.get(path);
@@ -209,6 +244,25 @@ test.describe("LOOM SEO surfaces", () => {
       expect(await desc.count()).toBe(1);
       expect((await desc.getAttribute("content"))?.length ?? 0).toBeGreaterThan(40);
     }
+  });
+
+  test("public profile pages own their canonical and description", async ({ page, request }) => {
+    // Regression guard: /u/[username] used to inherit the homepage canonical,
+    // which told crawlers every member profile was the home page. Sitemap is
+    // the honest source for "which profiles actually exist and are public".
+    const res = await request.get("/sitemap.xml");
+    expect(res.ok()).toBeTruthy();
+    const match = (await res.text()).match(/<loc>([^<]*\/u\/[^<]+)<\/loc>/);
+    if (!match) test.skip(true, "no public profile listed in the sitemap");
+
+    const path = new URL(match[1]).pathname;
+    await open(page, path);
+    await expect(page.locator("h1")).toHaveCount(1);
+    const canonical = page.locator('link[rel="canonical"]');
+    expect(await canonical.count()).toBe(1);
+    expect(await canonical.getAttribute("href")).toContain(path);
+    const desc = page.locator('meta[name="description"]');
+    expect((await desc.getAttribute("content"))?.length ?? 0).toBeGreaterThan(40);
   });
 
   test("event detail pages are indexable and self-contained", async ({ page, request }) => {

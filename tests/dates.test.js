@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { relDay, relShort } from "@/lib/dates";
+import { relDay, relShort, stamp, todayLong } from "@/lib/dates";
 
 // These labels used to be formatted inside the student dashboard, which is a
 // client component and therefore renders twice: once in Node, once in the
@@ -60,5 +60,48 @@ describe("relShort", () => {
   it("formats a workshop date as short month and day", () => {
     expect(relShort("2026-12-05T10:00:00+05:30")).toBe("5 Dec");
     expect(relShort("2027-01-30T10:00:00+05:30")).toBe("30 Jan");
+  });
+});
+
+describe("stamp", () => {
+  // Added for the admin audit trail, which used to call toLocaleString() inside
+  // the client component and produced the same #418 mismatch as the student
+  // dashboard: the audit rows are rendered on the server and hydrated in the
+  // browser.
+  it("returns an empty label for a missing date", () => {
+    expect(stamp(null)).toBe("");
+    expect(stamp(undefined)).toBe("");
+  });
+
+  it("keeps the IST calendar even when the host process runs in UTC", () => {
+    // 15:16Z is 20:46 IST on the same date; a UTC host must not print 3:16 pm.
+    const label = stamp("2026-11-17T15:16:00Z");
+    expect(label).toContain("17");
+    expect(label.toLowerCase()).toContain("8:46");
+    expect(label.toLowerCase()).toContain("pm");
+  });
+
+  it("rolls to the next IST date after 18:30Z", () => {
+    // 19:30Z is 01:00 IST on the 18th.
+    const label = stamp("2026-11-17T19:30:00Z");
+    expect(label).toContain("18");
+    expect(label.toLowerCase()).toContain("1:00");
+    expect(label.toLowerCase()).toContain("am");
+  });
+});
+
+describe("todayLong", () => {
+  it("renders the weekday-first masthead label in IST", () => {
+    // en-IN puts the day before the month; this is the masthead's actual copy.
+    expect(todayLong(new Date("2026-11-17T09:00:00+05:30"))).toBe(
+      "Tuesday, 17 November 2026"
+    );
+  });
+
+  it("uses the IST date, not the UTC date, near midnight UTC", () => {
+    // 19:00Z on the 17th is 00:30 IST on the 18th.
+    expect(todayLong(new Date("2026-11-17T19:00:00Z"))).toBe(
+      "Wednesday, 18 November 2026"
+    );
   });
 });

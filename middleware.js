@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { auth0 } from "@/lib/auth0";
 import { checkSameOrigin, UNSAFE_METHODS } from "@/lib/csrf";
+import { checkBodySize } from "@/lib/request-limits";
 import { buildCsp, createNonce } from "@/lib/csp";
 import { AUTH_UNAVAILABLE, isTransientAuthError } from "@/lib/auth-errors";
 
@@ -138,6 +139,28 @@ export async function middleware(request) {
             }
           },
           { status: 403 }
+        )
+      );
+    }
+
+    // Body size, before any handler can buffer it. `request.json()` and
+    // `request.formData()` read the whole payload into memory BEFORE validation
+    // runs, so a schema max-length does not protect the process.
+    const size = checkBodySize(request, pathname);
+    if (!size.ok) {
+      return withCsp(
+        NextResponse.json(
+          {
+            ok: false,
+            error: {
+              code: size.status === 413 ? "PAYLOAD_TOO_LARGE" : "INVALID_CONTENT_LENGTH",
+              message:
+                size.status === 413
+                  ? "Request body is too large"
+                  : "Content-Length is not a valid byte count"
+            }
+          },
+          { status: size.status }
         )
       );
     }

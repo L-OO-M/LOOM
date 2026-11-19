@@ -13,6 +13,7 @@ import "./public-nav.css";
 export function PublicNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const button = useRef(null);
+  const sheet = useRef(null);
   const pathname = usePathname();
   const workspace = useWorkspaceLink();
   const currentWorkspace = workspaceForPath(pathname);
@@ -23,14 +24,39 @@ export function PublicNav() {
   }, [pathname]);
   useEffect(() => {
     if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    // The sheet covers the page, so the page behind it must not scroll.
+    document.body.style.overflow = "hidden";
+    const panel = sheet.current;
+    const focusables = () =>
+      Array.from(panel?.querySelectorAll("a[href], button:not([disabled])") ?? []);
+    // Focus moves into the sheet; without this, screen readers and Tab stayed
+    // on the trigger while the links were visually open.
+    focusables()[0]?.focus();
     function close(event) {
       if (event.key === "Escape") {
         setMenuOpen(false);
         button.current?.focus();
+        return;
+      }
+      if (event.key !== "Tab" || !panel) return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
     document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("keydown", close);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [menuOpen]);
   const links = publicNav.map(([label, href]) => (
     <Link
@@ -100,12 +126,15 @@ export function PublicNav() {
         </div>
       </div>
       {menuOpen && (
-        <nav
+        <div
+          ref={sheet}
           id="site-mobile-nav"
           className="site-nav-mobile"
-          aria-label="Mobile"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
         >
-          {links}
+          <nav aria-label="Mobile">{links}</nav>
           <div className="site-nav-mobile-actions">
             <Link
               href={dashboard || "/login"}
@@ -123,7 +152,7 @@ export function PublicNav() {
               {dashboard ? "Open workspace" : "Get started"}
             </Link>
           </div>
-        </nav>
+        </div>
       )}
     </header>
   );

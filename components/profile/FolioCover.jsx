@@ -4,23 +4,32 @@ import { PersonAvatar } from "@/components/loom/PersonAvatar";
  * The cover of a builder folio. Server-rendered so the public record is in the
  * first HTML response (and crawlable). The avatar is the wax seal; the name is
  * set in the display face; every other line is monospaced record-keeping.
+ *
+ * `chips` are the linked developer accounts ({ key, label, href, note, verified }).
+ * A tick is drawn only when the source actually vouched for the account -- the
+ * cover must never claim a verification the database does not hold.
  */
 export function FolioCover({
   name,
   username,
   avatarUrl = null,
   domain = "Builder",
+  identity = "",
   location = "",
   bio = "",
   isGuide = false,
   folio = "000",
   actions = null,
   note = null,
+  chips = [],
   emptyBio = "No bio yet — this builder hasn't written one.",
   headingLevel = "h1",
   className = ""
 }) {
   const Heading = headingLevel || "h1";
+  const identityLine = identity || (domain ? `${domain} · building in public` : "Building in public");
+  const safeChips = Array.isArray(chips) ? chips.filter((c) => c?.href) : [];
+
   return (
     <div className={`folio-cover ${className}`.trim()}>
       <div className="folio-cover-grid" aria-hidden="true" />
@@ -38,12 +47,35 @@ export function FolioCover({
 
           <Heading className="folio-name">{name}</Heading>
 
+          <p className="folio-identity-line">{identityLine}</p>
+
           <div className="folio-handle-row">
             <span className="folio-handle">@{username}</span>
             <span className="folio-stamp">{domain}</span>
             {isGuide && <span className="folio-stamp is-guide">Guide</span>}
             {location && <span className="folio-loc">{location}</span>}
           </div>
+
+          {safeChips.length > 0 && (
+            <ul className="folio-chips" aria-label="Linked developer profiles">
+              {safeChips.map((chip) => (
+                <li key={chip.key || chip.href}>
+                  <a
+                    className={`folio-chip${chip.verified ? " is-verified" : ""}`}
+                    href={chip.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="folio-chip-label">{chip.label}</span>
+                    {chip.note ? <span className="folio-chip-note">{chip.note}</span> : null}
+                    {chip.verified ? (
+                      <span className="folio-chip-tick" role="img" aria-label="Verified by LOOM" title="Verified by LOOM">✓</span>
+                    ) : null}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {bio ? (
             <p className="folio-bio">{bio}</p>

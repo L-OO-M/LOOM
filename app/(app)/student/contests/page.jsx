@@ -143,7 +143,7 @@ export default async function ContestsPage({ searchParams }) {
               key={s.id}
               href={qs(s.id)}
               prefetch={false}
-              aria-pressed={scope === s.id ? "true" : "false"}
+              aria-current={scope === s.id ? "page" : undefined}
               className="rounded-full px-4 py-1.5 text-sm font-semibold"
               style={scope === s.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
             >

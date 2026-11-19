@@ -4,6 +4,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { cached } from "@/lib/cache";
 import { getCachedResourceCounts, getCachedResourceLevels, getCachedResourceTotal } from "@/lib/server-cache";
 import { getResourceHref, isExternalUrl } from "@/lib/resource-link";
+import { pageHref, pageWindow } from "@/lib/pagination";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, ActionLink } from "@/components/loom/primitives";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
@@ -13,10 +14,16 @@ import {
   FilterLink,
   ProgressBar,
   ResourceCard,
+  ResourcePager,
   TrackCard,
   ContinueCard,
   levelLabel,
 } from "./_components/resources-ui";
+
+// 40 cards per page: the whole 264-piece catalogue in one DOM was 13,000 px of
+// page and 264 hydrated “mark complete” buttons. Real prev/next links keep the
+// shelf server-rendered and the pager shareable (?page=2).
+const PAGE_SIZE = 40;
 
 // Tracks are the enrolable departments. Previously hardcoded to 5 — the
 // `embedded` shelf (189 resources across 8 domains in the catalogue) had a real
@@ -91,6 +98,20 @@ export default async function ResourcesPage({ searchParams }) {
   `;
   const doneBy = Object.fromEntries(doneDomains.map((d) => [d.domain, d.n]));
 
+  // The filtered total first, then one page of rows: the pager needs to know
+  // how many pages exist before it can ask Postgres for an offset.
+  const [filteredCount] = await sql`
+    SELECT COUNT(*)::int AS n FROM resources
+    WHERE TRUE
+    ${domain ? sql`AND domain = ${domain}` : sql``}
+    ${q ? sql`AND title ILIKE ${"%" + q + "%"}` : sql``}
+    ${kind ? sql`AND kind = ${kind}` : sql``}
+    ${level ? sql`AND level = ${level}` : sql``}
+    ${status === "completed" ? sql`AND EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
+    ${status === "todo" ? sql`AND NOT EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
+  `;
+  const pageWin = pageWindow(filteredCount?.n ?? 0, sp?.page, PAGE_SIZE);
+
   const resources = await sql`
     SELECT * FROM resources
     WHERE TRUE
@@ -100,7 +121,8 @@ export default async function ResourcesPage({ searchParams }) {
     ${level ? sql`AND level = ${level}` : sql``}
     ${status === "completed" ? sql`AND EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
     ${status === "todo" ? sql`AND NOT EXISTS (SELECT 1 FROM resource_progress p WHERE p.resource_id = resources.id AND p.student_id = ${user.id} AND p.status = 'completed')` : sql``}
-    ORDER BY minutes ASC LIMIT 60
+    ORDER BY minutes ASC, title ASC
+    LIMIT ${PAGE_SIZE} OFFSET ${pageWin.offset}
   `;
 
   const visible = resources;
@@ -204,7 +226,7 @@ export default async function ResourcesPage({ searchParams }) {
         )}
 
         {/* EDITOR'S PICK — large editorial preview. Opens the actual destination directly. */}
-        {visible.length > 0 && !hasAnyFilter && (() => {
+        {visible.length > 0 && !hasAnyFilter && pageWin.page === 1 && (() => {
           const pick = visible[0];
           const direct = getResourceHref(pick);
           const external = direct ? isExternalUrl(direct) : false;
@@ -354,7 +376,7 @@ export default async function ResourcesPage({ searchParams }) {
               {domain ? `${trackLabelFor(domain)} shelf` : "All resources"}
               {status === "completed" ? " · completed" : status === "todo" ? " · to finish" : ""}
             </Meta>
-            <p className="meta">{visible.length} pieces · {visibleDone} finished in view</p>
+            <p className="meta">{visible.length} on this page · {visibleDone} finished</p>
           </div>
           {visible.length > 1 && (
             <p className="narrative mt-2 text-sm">Large first, compact second — rhythm over grid.</p>
@@ -396,6 +418,16 @@ export default async function ResourcesPage({ searchParams }) {
               ))}
             </div>
           )}
+
+          <ResourcePager
+            page={pageWin.page}
+            pages={pageWin.pages}
+            from={pageWin.from}
+            to={pageWin.to}
+            total={pageWin.total}
+            prevHref={pageHref("/student/resources", { q, domain, kind, level, status }, pageWin.page - 1)}
+            nextHref={pageHref("/student/resources", { q, domain, kind, level, status }, pageWin.page + 1)}
+          />
 
           {visible.length > 0 && (
             <div className="mt-8 border-t pt-6" style={{ borderColor: "var(--line)" }}>

@@ -1,7 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
-import { isUuid } from "@/lib/ids";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { ResourceCompleteButton } from "@/components/actions";
@@ -10,8 +9,9 @@ export default async function ResourceDetailPage({ params }) {
   const { resourceId } = await params;
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=/student/resources/${resourceId}`);
-  if (!isUuid(resourceId)) notFound();
   const { user, tenant, sql } = ctx;
+  // `resources.id` is a text slug (res_big_o), not a UUID — a UUID guard here
+  // 404'd every real resource. The row lookup below already covers missing ids.
   const [r] = await sql`SELECT * FROM resources WHERE id = ${resourceId} LIMIT 1`;
   if (!r) notFound();
   const [done] = await sql`SELECT * FROM resource_progress WHERE student_id = ${user.id} AND resource_id = ${resourceId} LIMIT 1`;

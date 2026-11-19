@@ -28,7 +28,29 @@ export default defineConfig({
     // projects, and tripped the login rate limit (8 attempts / 10 minutes per
     // IP) partway through the suite. See e2e/auth-state.js.
     { name: "setup", testMatch: /auth\.setup\.js$/ },
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, dependencies: ["setup"] }
+    // Separate operator session: /admin and /lead are unreachable as a student,
+    // so those pages need their own sign-in (and their own rate-limit budget).
+    { name: "admin-setup", testMatch: /admin\.setup\.js$/ },
+    // The operator audit runs once, on desktop, in its own project: running it
+    // twice (desktop + mobile) would double the sign-in and page count for no
+    // extra coverage of the console itself.
+    {
+      name: "admin",
+      testMatch: /admin-audit\.spec\.js$/,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["admin-setup"]
+    },
+    {
+      name: "chromium",
+      testIgnore: /admin-audit\.spec\.js$/,
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"]
+    },
+    {
+      name: "mobile",
+      testIgnore: /admin-audit\.spec\.js$/,
+      use: { ...devices["Pixel 7"] },
+      dependencies: ["setup"]
+    }
   ]
 });

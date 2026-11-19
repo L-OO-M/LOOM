@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { isAdmin } from "@/lib/permissions";
+import { formatEventWhen } from "@/lib/event-time";
 import { AppShell } from "@/components/AppShell";
 import { Display, Meta, StatusPill, ActionLink } from "@/components/loom/primitives";
 import { appBaseUrl } from "@/lib/app-url";
@@ -79,7 +80,7 @@ export default async function EventDetailPage({ params }) {
             {TYPE_LABEL[event.event_type] || event.event_type} · {state.label}
           </StatusPill>
           <span className="meta">
-            {new Date(event.starts_at).toLocaleString("en-IN", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+            {formatEventWhen(event.starts_at, event.ends_at, { long: true })}
             {event.is_online ? " · online" : event.location ? ` · ${event.location}` : ""}
           </span>
         </div>

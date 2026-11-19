@@ -302,7 +302,7 @@ export default async function StandingsPage({ searchParams }) {
                     key={s.id}
                     href={hrefFor(s.id, period)}
                     prefetch={false}
-                    aria-pressed={scope === s.id ? "true" : "false"}
+                    aria-current={scope === s.id ? "page" : undefined}
                     title={s.hint}
                     className="rounded-full px-3 py-1.5 text-xs font-semibold"
                     style={scope === s.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
@@ -318,7 +318,7 @@ export default async function StandingsPage({ searchParams }) {
                     key={p.id}
                     href={hrefFor(scope, p.id)}
                     prefetch={false}
-                    aria-pressed={period === p.id ? "true" : "false"}
+                    aria-current={period === p.id ? "page" : undefined}
                     className="rounded-full px-3 py-1.5 text-xs font-semibold"
                     style={period === p.id ? { background: "var(--text)", color: "var(--bg)" } : { color: "var(--text-muted)", border: "1px solid var(--line)" }}
                   >

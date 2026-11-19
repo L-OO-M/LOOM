@@ -33,7 +33,7 @@ export function BrandMark({ size = 28, wordmark = true, href = "/", className = 
   }
 
   return (
-    <Link href={href} className={`tap-target inline-flex shrink-0 items-center gap-2.5 ${className}`} aria-label="LOOM home">
+    <Link prefetch={false} href={href} className={`tap-target inline-flex shrink-0 items-center gap-2.5 ${className}`} aria-label="LOOM home">
       {lockup}
     </Link>
   );

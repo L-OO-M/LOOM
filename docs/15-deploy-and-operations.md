@@ -187,6 +187,8 @@ signing secrets, the GitHub OAuth trio, Auth0 credentials, and
 | `npm run rls:role` | generate/rotate the `loom_app` password (prints the URL once) |
 | `npm run rls:verify` | **gate**: proves RLS actually enforces before/after enabling it |
 | `node load/shoot.js [landing\|auth\|all] [--theme=...]` | Playwright screenshots to `.screenshots/` |
+| `npm run check:live [-- <url>]` | READ-ONLY production smoke: public pages/SEO, private 307→`/login`, private API 401, `/setup` noindex, CSP/security headers, sitemap/robots/llms, 404s. Defaults to `https://www.lets-loom.xyz` or `LIVE_BASE_URL` |
+| `CHECK_EMAIL=… CHECK_PASSWORD=… npm run check:auth [-- --pages\|--apis]` | READ-ONLY signed-in sweep: signs in once, then requests **every** page route and every exported API method, asserting status + `{ ok }` envelope. Mutations get an unknown id + malformed body and the run fails if any writable table changes. Dynamic segments use real tenant ids. `--base` targets a deployment. Exits non-zero only when something actually failed (the npm script suppresses the module-type warning so stderr noise cannot masquerade as a failure) |
 | `npm run db:wipe` / `db:wipe:full` | dev data reset (explicit `--confirm`) |
 
 All `load/*.js` scripts read `DATABASE_URL` from the environment with a `.env.local` fallback (`load/env-local.js`); secrets are never hardcoded. Export `DATABASE_URL` explicitly in production shells.

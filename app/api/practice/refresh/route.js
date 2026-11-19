@@ -1,6 +1,7 @@
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { statsSummary } from "@/lib/leetcode";
 import { syncConnection } from "@/lib/practice-sync";
 
 export async function POST(request) {
@@ -40,6 +41,8 @@ export async function POST(request) {
     received: result.received,
     matched: result.matched,
     credited: result.credited,
+    solved: result.stats?.total ?? null,
+    stats: statsSummary(result.stats),
     message: result.message
   });
 }

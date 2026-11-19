@@ -162,6 +162,11 @@ export default function Timeline({ title = "Product Storyline", periodLabel = "2
             descriptionSplits[item.id] = new SplitText(`.description-${item.id}`, {
                 type: "chars, words, lines",
                 mask: "lines",
+                // SplitText's default ("auto") puts aria-label on the <p>, which ARIA
+                // forbids for the paragraph role (axe: aria-prohibited-attr). Hide the
+                // split spans instead; the sentence stays available via the sr-only copy
+                // rendered next to each description.
+                aria: "hidden",
             });
         });
         const createItemTimeline = (item, startPos, endPos) => {
@@ -274,7 +279,8 @@ export default function Timeline({ title = "Product Storyline", periodLabel = "2
                       <h3 className={`title-${item.id}  text-[2.5vw] leading-none max-[600px]:text-[6.4vw]`}>
                         {item.year} {item.month}
                       </h3>
-                      <p className={`description-${item.id} w-[90%] text-[1.5vw] leading-[1.15] max-[600px]:w-[90%] max-[600px]:text-[4.8vw]`} style={mutedTextStyle}>
+                      <p className="sr-only">{item.content}</p>
+                      <p aria-hidden="true" className={`description-${item.id} w-[90%] text-[1.5vw] leading-[1.15] max-[600px]:w-[90%] max-[600px]:text-[4.8vw]`} style={mutedTextStyle}>
                         {item.content}
                       </p>
                     </div>
@@ -300,7 +306,8 @@ export default function Timeline({ title = "Product Storyline", periodLabel = "2
                       <h3 className={`title-${item.id}  text-[2.5vw] leading-none max-[600px]:text-[6.4vw]`}>
                         {item.year} {item.month}
                       </h3>
-                      <p className={`description-${item.id} w-[90%] text-[1.5vw] leading-[1.15] max-[600px]:w-[90%] max-[600px]:text-[4.8vw]`} style={mutedTextStyle}>
+                      <p className="sr-only">{item.content}</p>
+                      <p aria-hidden="true" className={`description-${item.id} w-[90%] text-[1.5vw] leading-[1.15] max-[600px]:w-[90%] max-[600px]:text-[4.8vw]`} style={mutedTextStyle}>
                         {item.content}
                       </p>
                     </div>

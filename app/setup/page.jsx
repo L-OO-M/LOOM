@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, LoaderCircle, ShieldCheck } from "lucide-react";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -66,8 +66,18 @@ export default function SetupPage() {
 
   if (checking) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }}>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Checking setup state…</p>
+      <main className="flex min-h-screen items-center justify-center px-4" style={{ background: "var(--bg)" }} aria-busy="true">
+        <div className="text-center" role="status" aria-live="polite">
+          <LoaderCircle
+            size={26}
+            className="mx-auto animate-spin motion-reduce:animate-none"
+            style={{ color: "var(--accent)" }}
+            aria-hidden="true"
+            strokeWidth={1.5}
+          />
+          <h1 className="mt-4 text-lg font-semibold" style={{ color: "var(--text)" }}>Checking your setup</h1>
+          <p className="mt-1.5 text-sm" style={{ color: "var(--text-muted)" }}>This takes a moment.</p>
+        </div>
       </main>
     );
   }

@@ -54,7 +54,7 @@ export function ActivityStream({ items }) {
             {it.meta && <p className="meta mt-0.5">{it.meta}</p>}
           </div>
           {it.href && (
-            <Link href={it.href} className="shrink-0 text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            <Link prefetch={false} href={it.href} className="shrink-0 text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
               Open →
             </Link>
           )}

@@ -31,7 +31,7 @@ export async function GET() {
   // two statements rather than a UNION so each keeps its own evidence columns.
   const nodes = await sql`
     SELECT srp.id, srp.student_id, srp.node_id, srp.evidence_note, srp.evidence_url,
-           srp.created_at, srp.updated_at, n.title AS item_title, n.domain,
+           srp.updated_at, n.title AS item_title, n.domain,
            p.name AS student_name
       FROM student_roadmap_progress srp
       LEFT JOIN roadmap_nodes n ON n.id = srp.node_id

@@ -292,6 +292,9 @@ export default function NewProjectForm({ milestones = [], githubConnected = fals
                         <span className="mt-1 block text-xs leading-5" style={{ color: "var(--text-muted)" }}>
                           {repo.alreadyLinked ? "Already used by one of your projects." : repo.description || `${repo.language || "Mixed"} repository`}
                         </span>
+                        <span className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                          • Selecting this verifies the repo with GitHub and marks the project as verified.
+                        </span>
                       </button>
                     </li>
                   );

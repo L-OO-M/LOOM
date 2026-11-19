@@ -149,7 +149,7 @@ export function EventOpsBoard({ initialTasks = [], events = [], members = [], ca
         <form onSubmit={(e) => { e.preventDefault(); load(); }} className="relative ml-auto max-w-xs flex-1">
           <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
           <input
-            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tasks…"
+            value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tasks…" aria-label="Search tasks"
             className="w-full rounded-xl border py-2 pl-7 pr-3 text-sm outline-none"
             style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
           />

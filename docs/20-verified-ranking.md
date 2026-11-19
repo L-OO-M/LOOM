@@ -92,6 +92,7 @@ Weights live in `lib/ranking.js`; per-kind caps in the same file and in
 | Merged open-source PR | 30 | 15 | Signed merge delivery, or admin |
 | Contest result | 25 | 5 | Admin, after judging |
 | Verified project | 20 | 10 | Signed delivery from that repository |
+| Society challenge fix | 20 | 10 | Fork verified by GitHub, graded by the matching domain lead |
 | Confirmed roadmap milestone | 18 | 40 | Prerequisites met + lead confirmed |
 | Debug challenge fixed | 15 | 10 | Verified fork, approved by the matching domain lead |
 | Pull request opened | 12 | 10 | Signed delivery |
@@ -102,6 +103,11 @@ Weights live in `lib/ranking.js`; per-kind caps in the same file and in
 
 The old formula's direction is inverted: externally produced, independently
 checkable work leads the board, and raw volume is worth almost nothing.
+
+`oss_challenge` is deliberately its own kind. A society challenge fix is real,
+reviewed work, but it is not a merged upstream pull request, so it must not
+borrow the `oss_verified` weight or label. Both appear in the score breakdown;
+only `oss_verified` means "merged upstream".
 
 **Caps are hard plateaus.** The first N count in full; everything past N is worth
 exactly zero. A soft 10% tail was implemented and then removed — with a commit

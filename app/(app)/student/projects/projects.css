@@ -142,11 +142,11 @@
   color: var(--text);
 }
 
-.workbench-filter[aria-pressed="true"] {
+.workbench-filter[aria-current="page"] {
   color: var(--text);
 }
 
-.workbench-filter[aria-pressed="true"]::after {
+.workbench-filter[aria-current="page"]::after {
   background: var(--workbench-thread);
   transform: scaleX(1);
 }

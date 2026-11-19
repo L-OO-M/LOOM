@@ -37,9 +37,13 @@ describe("five-verb navigation", () => {
     expect(pathToTab("/student", "student")).toBe("dashboard");
     expect(pathToTab("/student/roadmap", "student")).toBe("roadmap");
     expect(pathToTab("/student/roadmap/node_1", "student")).toBe("roadmap");
+    // Challenges are reached from the roadmap's domain panel, not a tab, so
+    // the hub and the practice room fold back into Learn / Roadmap.
+    expect(pathToTab("/student/challenges", "student")).toBe("roadmap");
+    expect(pathToTab("/student/practice", "student")).toBe("practice");
     expect(pathToTab("/student/opensource", "student")).toBe("opensource");
     expect(pathToTab("/student/community/forums/abc", "student")).toBe("community");
-    expect(pathToTab("/student/contests", "student")).toBe("challenges");
+    expect(pathToTab("/student/contests", "student")).toBe("contests");
     expect(pathToTab("/student/leaderboard", "student")).toBe("standings");
     expect(pathToTab("/student/credentials", "student")).toBe("proof");
     expect(pathToTab("/student/mentorship", "student")).toBe("mentors");
@@ -66,7 +70,8 @@ describe("five-verb navigation", () => {
     expect(groupForTab(studentNav, "github")?.id).toBe("build");
     expect(groupForTab(studentNav, "opensource")?.id).toBe("build");
     expect(groupForTab(studentNav, "proof")?.id).toBe("prove");
-    expect(groupForTab(studentNav, "challenges")?.id).toBe("prove");
+    expect(groupForTab(studentNav, "challenges")).toBeNull();
+    expect(groupForTab(studentNav, "contests")?.id).toBe("prove");
     expect(groupForTab(studentNav, "standings")?.id).toBe("prove");
     expect(groupForTab(studentNav, "mentors")?.id).toBe("connect");
     expect(groupForTab(studentNav, "people")?.id).toBe("discover");
@@ -93,9 +98,10 @@ describe("five-verb navigation", () => {
     expect(studentNav.map((n) => n.id)).toEqual(["dashboard", "learn", "build", "prove", "connect", "discover"]);
   });
 
-  it("exposes challenges in the mobile bar without duplicate destinations", () => {
+  it("opens challenges from the roadmap instead of a tab or the mobile bar", () => {
     const hrefs = mobileNav.map((n) => n.href);
-    expect(hrefs).toContain("/student/contests");
+    expect(hrefs).not.toContain("/student/challenges");
+    expect(hrefs).toContain("/student/roadmap");
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 });

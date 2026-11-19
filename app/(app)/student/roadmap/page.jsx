@@ -3,11 +3,15 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { RoadmapJourney } from "@/app/(app)/student/roadmap/_components/RoadmapJourney";
 import RoadmapTabs from "@/app/(app)/student/roadmap/_components/RoadmapTabs";
-import { orderDomains, resolveDomain, domainLabel } from "@/lib/domains";
+import { orderDomains, resolveDomain, domainLabel, normalizeDomainKey } from "@/lib/domains";
+import { loadFollowedTracks } from "@/lib/tracks";
 import { domainProgress } from "@/lib/roadmap";
 import { nextStepForStudent } from "@/lib/roadmap-next";
 import { isZenModeEnabled } from "@/lib/feature-flags";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
+import { challengeNudge, loadChallenges } from "@/lib/challenges";
+import { societyChallenge } from "@/lib/society";
+import { DomainChallengePanel } from "./_components/DomainChallengePanel";
 
 // Every roadmap is scoped to one domain. All 300+ nodes used to render as a
 // single graph, which made the map unreadable and made "next step" meaningless
@@ -25,9 +29,10 @@ export default async function RoadmapPage({ searchParams }) {
   const verifiedIds = done.filter((d) => d.evidence_state === "verified").map((d) => d.node_id);
 
   const available = [...new Set(allNodes.map((n) => n.domain))];
+  const primaryDomain = normalizeDomainKey(profile?.primary_domain);
   const domain = resolveDomain({
     requested: typeof sp.domain === "string" ? sp.domain : null,
-    primary: profile?.primary_domain || null,
+    primary: primaryDomain,
     available,
   });
   if (!domain) {
@@ -111,6 +116,21 @@ export default async function RoadmapPage({ searchParams }) {
   const doneCount = progress.done;
   const percent = progress.percent;
 
+  // Where reading turns into doing. One read model feeds both this bridge and
+  // /student/challenges, so the counts can never disagree.
+  const followedTracks = await loadFollowedTracks(sql, { userId: user.id, tenantId: tenant?.id });
+  const challengeOverview = await loadChallenges(sql, {
+    userId: user.id,
+    tenantId: tenant?.id,
+    domain
+  });
+  const nudge = challengeNudge({
+    verifiedCount: doneCount,
+    total: nodes.length,
+    domain,
+    overview: challengeOverview
+  });
+
   return (
     <AppShell area="student" tenant={tenant} user={user}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -130,21 +150,33 @@ export default async function RoadmapPage({ searchParams }) {
           ]}
         />
       </div>
-      <div className="pt-2">
-        <RoadmapTabs
-          domain={domain}
-          domains={domains}
-          nodes={nodes}
-          edges={edges}
-          doneIds={doneIds}
-          verifiedIds={verifiedIds}
-          nextId={nextId}
-          resourcesByNode={resourcesByNode}
-          resourceDoneIds={resourceDoneIds}
-          projectsByNode={projectsByNode}
-          zenEnabled={zenEnabled}
-        />
-      </div>
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-2 sm:px-6">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="min-w-0">
+            <RoadmapTabs
+              domain={domain}
+              domains={domains}
+              primaryDomain={primaryDomain}
+              followedTracks={followedTracks}
+              nodes={nodes}
+              edges={edges}
+              doneIds={doneIds}
+              verifiedIds={verifiedIds}
+              nextId={nextId}
+              resourcesByNode={resourcesByNode}
+              resourceDoneIds={resourceDoneIds}
+              projectsByNode={projectsByNode}
+              zenEnabled={zenEnabled}
+            />
+          </div>
+          <DomainChallengePanel
+            domain={domain}
+            overview={challengeOverview}
+            nudge={nudge}
+            society={societyChallenge(domain)}
+          />
+        </div>
+      </main>
     </AppShell>
   );
 }

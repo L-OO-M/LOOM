@@ -369,7 +369,7 @@ function FilterLink({ href, active, small, children }) {
     <Link
       href={href}
       prefetch={false}
-      aria-pressed={active}
+      aria-current={active ? "page" : undefined}
       className={`workbench-filter ${small ? "is-small" : ""}`}
     >
       {children}

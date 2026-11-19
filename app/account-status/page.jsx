@@ -36,9 +36,9 @@ export default async function AccountStatusPage({ searchParams }) {
           {copy.body}
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <a href="/auth/signout" className="btn-ink inline-flex items-center justify-center">
-            Sign out
-          </a>
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="btn-ink inline-flex items-center justify-center">Sign out</button>
+          </form>
           <Link href="/" prefetch={false} className="rounded-full border px-4 py-2 text-sm font-medium" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
             Back to the public site
           </Link>

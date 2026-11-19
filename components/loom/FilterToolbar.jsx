@@ -31,7 +31,7 @@ export function ToolbarPill({ href, active, children }) {
     <Link
       href={href}
       prefetch={false}
-      aria-pressed={active}
+      aria-current={active ? "page" : undefined}
       className="rounded-full px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.98]"
       style={active ? { background: "var(--text)", color: "var(--bg)" } : { background: "transparent", color: "var(--text-muted)", border: "1px solid var(--line)" }}
     >

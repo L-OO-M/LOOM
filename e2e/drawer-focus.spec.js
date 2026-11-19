@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { AUTH_STATE_FILE, hasAuthState } = require("./auth-state");
+const { AUTH_STATE_FILE } = require("./auth-state");
 
 // The shared Drawer is the app's only modal surface (inbox, node details,
 // feature requests). It closed on Escape but never trapped Tab and never gave
@@ -20,7 +20,7 @@ test.describe.configure({ timeout: 120_000 });
 
 // Session comes from the `setup` project (e2e/auth.setup.js), so this spec does
 // not spend a login-rate-limit slot of its own. See e2e/auth-state.js.
-test.use({ storageState: hasAuthState() ? AUTH_STATE_FILE : undefined });
+test.use({ storageState: AUTH_STATE_FILE });
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 

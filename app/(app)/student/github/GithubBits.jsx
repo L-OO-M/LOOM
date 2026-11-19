@@ -161,27 +161,50 @@ export function RepoVerifyPicker({ verified = [] }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState("idle");
   const [repos, setRepos] = useState([]);
+  const [nextPage, setNextPage] = useState(1);
   const [selected, setSelected] = useState([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
   const verifiedSet = new Set(verified.map((name) => String(name).toLowerCase()));
 
-  async function load() {
+  async function load(page = nextPage) {
     setState("loading");
     setError("");
     try {
-      const res = await fetch("/api/github/repos?page=1");
+      const res = await fetch(`/api/github/repos?page=${page}`);
       const data = await res.json();
       if (!data?.ok) {
         setState("error");
-        setError(
-          data?.error?.code === "GITHUB_RELINK_REQUIRED"
-            ? "Your GitHub connection needs to be renewed. Use “Verify with GitHub” above first."
-            : data?.error?.message || "Repositories could not be loaded."
-        );
+        // If token expired or scopes missing, offer re-link
+        if (data?.error?.code === "GITHUB_RELINK_REQUIRED" || data?.error?.code === "GITHUB_SCOPE_MISSING") {
+          setError(
+            "Your GitHub connection needs to be renewed. Use 'Verify with GitHub' above first."
+          );
+          // Trigger re-link flow on next render
+          setState("relink-required");
+        } else {
+          setError(
+            data?.error?.message || "Repositories could not be loaded."
+          );
+        }
         return;
       }
-      setRepos(data.data.repos || []);
+      const incoming = data.data.repos || [];
+      setRepos((prev) => {
+        // Deduplicate by fullName, case-insensitively: GitHub preserves casing
+        // and a rename between page requests would otherwise duplicate a row.
+        const existing = new Set(prev.map((r) => String(r.fullName).toLowerCase()));
+        return [
+          ...prev,
+          ...incoming.filter((r) => !existing.has(String(r.fullName).toLowerCase()))
+        ];
+      });
+      setNextPage(page + 1);
+      setHasMore(
+        typeof data.data.hasMore === "boolean" ? data.data.hasMore : incoming.length >= 100
+      );
       setState("ready");
     } catch {
       setState("error");
@@ -189,10 +212,55 @@ export function RepoVerifyPicker({ verified = [] }) {
     }
   }
 
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next && state === "idle") load();
+  async function doVerify() {
+    if (selected.length === 0) return;
+    setState("verifying");
+    setError("");
+    setResult(null);
+    try {
+      const res = await fetch("/api/github/repos/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ repos: selected })
+      });
+      const data = await res.json();
+      if (!data?.ok) {
+        setState("error");
+        if (data?.error?.code === "GITHUB_RELINK_REQUIRED" || data?.error?.code === "GITHUB_SCOPE_MISSING") {
+          setError(
+            "Your GitHub connection needs to be renewed. Use 'Verify with GitHub' above first."
+          );
+          setState("relink-required");
+        } else if (data?.error?.code === "REPO_NOT_FOUND") {
+          setError(
+            "GitHub could not see those repositories. Check the names, and that the linked account still has access."
+          );
+        } else if (data?.error?.code === "GITHUB_UNAVAILABLE") {
+          setError(
+            "GitHub could not confirm any of those repositories. Try again shortly, or re-link GitHub if this repeats."
+          );
+        } else {
+          setError(data?.error?.message || "Verification failed.");
+        }
+        return;
+      }
+      // Success: keep the panel open, report what happened, and refresh the
+      // server-rendered grant list so the new rows appear immediately.
+      setSelected([]);
+      setResult({
+        added: data.data.added ?? 0,
+        activated: data.data.activated ?? 0,
+        failed: (data.data.repos || []).filter((r) => !r.ok)
+      });
+      setNextPage(1);
+      setRepos([]);
+      setState("ready");
+      router.refresh();
+      await load(1);
+    } catch {
+      setState("error");
+      setError("Network error while verifying repositories.");
+    }
   }
 
   function pick(fullName) {
@@ -205,28 +273,80 @@ export function RepoVerifyPicker({ verified = [] }) {
     );
   }
 
-  const visible = repos.filter((repo) => {
-    const q = query.trim().toLowerCase();
-    return !q || `${repo.fullName} ${repo.description || ""} ${repo.language || ""}`.toLowerCase().includes(q);
-  });
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && state === "idle") load();
+  }
+
+  const visible = repos
+    .filter((repo) => {
+      const q = query.trim().toLowerCase();
+      return !q || `${repo.fullName} ${repo.description || ""} ${repo.language || ""}`.toLowerCase().includes(q);
+    })
+    // Repositories not yet added first: the list exists to let the student act,
+    // and burying ten unchecked rows under fifty greyed-out ones is exactly the
+    // "why am I looking at all my repos" feeling this panel had.
+    .sort((a, b) => {
+      const doneA = verifiedSet.has(a.fullName.toLowerCase()) ? 1 : 0;
+      const doneB = verifiedSet.has(b.fullName.toLowerCase()) ? 1 : 0;
+      if (doneA !== doneB) return doneA - doneB;
+      return a.fullName.localeCompare(b.fullName);
+    });
+
+  // If we just got a relink requirement, show a re-link banner
+  if (state === "relink-required") {
+    return (
+      <div>
+        <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+          Your GitHub connection needs renewing.
+        </p>
+        <p className="narrative mt-1">
+          Repository verification is paused because the stored token has expired. Renew access to load and confirm your repositories again.
+        </p>
+        <GithubLinkButton
+          label="Renew GitHub access"
+          note={undefined}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
       <button type="button" onClick={toggle} className="btn-ghost !py-2 text-sm">
-        {open ? "Close repository picker" : "Verify repositories"}
+        {open ? "Close repository picker" : "Add repositories"}
       </button>
       {open && (
         <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
           {state === "loading" && <p className="narrative text-sm">Loading your repositories…</p>}
+          {state === "verifying" && <p className="narrative text-sm">Checking your selected repositories with GitHub…</p>}
           {state === "error" && (
             <div>
               <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>
-              <button type="button" onClick={load} className="btn-ghost mt-3 !py-1.5 text-xs">Try again</button>
+              <button type="button" onClick={() => load(nextPage)} className="btn-ghost mt-3 !py-1.5 text-xs">Try again</button>
             </div>
           )}
           {state === "ready" && (
             <>
-              <label htmlFor="repo-verify-search" className="meta">Find a repository</label>
+              {result && (
+                <p className="mb-3 rounded-xl border px-3 py-2 text-sm" style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}>
+                  Added {result.added} repositor{result.added === 1 ? "y" : "ies"}.
+                  {result.failed.length > 0 && ` ${result.failed.length} could not be confirmed by GitHub.`}
+                  {result.activated > 0 && ` ${result.activated} project${result.activated === 1 ? "" : "s"} moved to verified.`}
+                </p>
+              )}
+              <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                Checking a repository asks GitHub whether you can push to it. Access is recorded only when you press Add repositories.
+              </p>
+              <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <label htmlFor="repo-verify-search" className="meta">Find a repository</label>
+                <span className="text-[0.72rem] font-semibold" style={{ color: "var(--text-muted)" }} aria-live="polite">
+                  {visible.length === repos.length
+                    ? `${repos.length} repositor${repos.length === 1 ? "y" : "ies"} loaded`
+                    : `${visible.length} of ${repos.length} repositories`}
+                </span>
+              </div>
               <input
                 id="repo-verify-search"
                 value={query}
@@ -237,15 +357,23 @@ export function RepoVerifyPicker({ verified = [] }) {
               />
               <ul className="mt-3 max-h-72 divide-y overflow-y-auto" style={{ borderColor: "var(--line)" }}>
                 {visible.map((repo) => {
-                  const already = verifiedSet.has(repo.fullName.toLowerCase());
+                  const confirmed = verifiedSet.has(repo.fullName.toLowerCase());
+                  const checked = confirmed || selected.includes(repo.fullName);
+                  const access = repoAccess(repo);
+                  const details = [
+                    confirmed ? "Already added" : access,
+                    repo.language,
+                    repo.isPrivate ? "Private" : "Public",
+                    repo.pushedAt ? `Last push ${fmtRepoPush(repo.pushedAt)}` : null
+                  ].filter(Boolean).join(" · ");
                   return (
-                    <li key={repo.fullName}>
-                      <label className={`flex items-start gap-3 py-2.5 ${already ? "opacity-60" : "cursor-pointer"}`}>
+                    <li key={repo.fullName} className="flex items-start gap-3 py-2.5">
+                      <label className={`flex min-w-0 flex-1 items-start gap-3 ${confirmed ? "opacity-60" : "cursor-pointer"}`}>
                         <input
                           type="checkbox"
                           className="mt-1"
-                          checked={already || selected.includes(repo.fullName)}
-                          disabled={already}
+                          checked={checked}
+                          disabled={confirmed}
                           onChange={() => pick(repo.fullName)}
                         />
                         <span className="min-w-0">
@@ -253,24 +381,58 @@ export function RepoVerifyPicker({ verified = [] }) {
                             {repo.fullName}
                           </span>
                           <span className="meta mt-0.5 block normal-case tracking-normal">
-                            {already ? "Already verified" : [repo.language, repo.isPrivate ? "Private" : null].filter(Boolean).join(" · ") || "Owned repository"}
+                            {details}
                           </span>
                         </span>
                       </label>
+                      <a
+                        href={repo.htmlUrl || `https://github.com/${repo.fullName}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Open ${repo.fullName} on GitHub in a new tab`}
+                        className="mt-0.5 shrink-0 text-xs font-semibold"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        ↗
+                      </a>
                     </li>
                   );
                 })}
                 {visible.length === 0 && <li className="narrative py-4 text-sm">No repositories match that search.</li>}
               </ul>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <GithubLinkButton
-                  label={selected.length ? `Verify ${selected.length} selected` : "Verify repositories"}
-                  repos={selected}
+              {hasMore && (
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => load(nextPage)}
+                    className="btn-ghost text-xs"
+                  >
+                    Load more
+                  </button>
+                  <span className="meta normal-case tracking-normal">GitHub returns repositories 100 at a time.</span>
+                </div>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                <button
+                  onClick={doVerify}
                   disabled={selected.length === 0}
-                />
+                  className="rounded-[10px] border px-4 py-2 text-sm font-semibold transition active:scale-[0.97]"
+                  style={{ borderColor: "var(--line)", color: "var(--primary)" }}
+                >
+                  Add repositories
+                </button>
                 <span className="meta normal-case tracking-normal">{selected.length}/10 selected</span>
               </div>
+              <p className="mt-2 text-[0.7rem] leading-5" style={{ color: "var(--text-muted)" }}>
+                Only repositories your linked GitHub account owns and can push to are listed. Organization and collaborator repositories stay on GitHub — LOOM treats project ownership as authorship.
+              </p>
             </>
+          )}
+          {state === "relink-required" && (
+            <GithubLinkButton
+              label="Renew GitHub access"
+              note={undefined}
+            />
           )}
         </div>
       )}
@@ -410,4 +572,21 @@ export function ConnectionControls({
       </div>
     </div>
   );
+}
+
+/* What the linked token can do on this repository. Returns null when the API
+   did not send permission flags, so the row says nothing rather than guessing
+   "read" from a missing field. */
+function repoAccess(repo) {
+  if (repo?.canAdmin == null && repo?.canPush == null) return null;
+  if (repo.canAdmin) return "Admin";
+  if (repo.canPush) return "Push";
+  return "Read";
+}
+
+function fmtRepoPush(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 }

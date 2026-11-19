@@ -239,16 +239,13 @@ export default function RoadmapGraph({ nodes, edges: rawEdges, doneIds, nextId }
       .filter(Boolean);
   }, [positioned, edges]);
 
-  const doneCount = nodes.filter((n) => done.has(n.id)).length;
-
   if (positioned.length === 0) return null;
 
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-3 pt-1">
-        <p className="meta">
-          {doneCount} of {nodes.length} complete
-        </p>
+        {/* The hero above owns "X of Y complete"; repeating it here read as two
+            different totals at the same time. */}
         <Legend />
       </div>
 

@@ -1,9 +1,18 @@
-import { ok } from "@/lib/api";
+import { fail, ok } from "@/lib/api";
 import { getSql } from "@/lib/db";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Public, anonymized chapter directory for the landing page + signed-out visitors.
 // Allowed in middleware publicPaths. No member identities are exposed.
-export async function GET() {
+export async function GET(request) {
+  // Public and unauthenticated, and it fans out into several subqueries per
+  // call. One shared per-IP budget; a real visitor loads it once.
+  const rl = await checkRateLimit(request, { durable: true, limit: 120, windowMs: 60_000 });
+  if (!rl.ok) {
+    const r = rateLimitResponse(rl.retryAfter);
+    return fail(r.error.code, r.error.message, 429);
+  }
+
   const sql = getSql();
   const chapters = await sql`
     SELECT c.slug, c.public_name, c.mission, c.website_url, c.is_featured,

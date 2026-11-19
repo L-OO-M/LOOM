@@ -39,8 +39,19 @@ test("homepage carousel supports buttons and keyboard", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   const carousel = page.getByRole("region", { name: "Technical domains" });
-  await carousel.scrollIntoViewIfNeeded();
+  // Assert the content BEFORE scrolling: this carousel is behind a Suspense
+  // boundary, so the node that exists while the lazy chunk resolves is replaced
+  // once it mounts. scrollIntoViewIfNeeded() does not retry a detached node (it
+  // failed once in a full parallel run with "Element is not attached to the
+  // DOM"), while expect().toContainText() polls and re-resolves, so this order
+  // waits out the remount instead of racing it. The assertions are unchanged.
   await expect(carousel.locator(".pl-sr")).toContainText("AI & Machine Learning");
+  // ...and the node resolved above can still be the pre-swap one: scrolling a
+  // detached node throws immediately instead of retrying, so retry the scroll
+  // until it lands on the mounted carousel.
+  await expect(async () => {
+    await carousel.scrollIntoViewIfNeeded();
+  }).toPass({ timeout: 15_000 });
   await carousel.getByRole("button", { name: "Next", exact: true }).click();
   await expect(carousel.locator(".pl-sr")).toContainText("Web Development");
   await carousel.focus();
@@ -59,8 +70,11 @@ for (const theme of ["dark", "light"]) {
       page.on("pageerror", error => errors.push(error.message));
       await page.goto("/");
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-      await expect(page.locator("h1")).toContainText("Weaving the future");
+      // Count first: during hydration the streamed copy can leave two h1s for a
+      // frame, and `toContainText` on a 2-element locator throws in strict mode.
+      // `toHaveCount` retries until the settled page has exactly one.
       await expect(page.locator("h1")).toHaveCount(1);
+      await expect(page.locator("h1")).toContainText("Weaving the future");
       await expect(page.getByRole("link", { name: "Start Your Journey", exact: true })).toBeVisible();
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /^https?:\/\//);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

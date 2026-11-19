@@ -3,16 +3,13 @@
 
 import Link from "next/link";
 import { TYPE_LABEL } from "@/lib/events";
+import { startsAtLabel } from "@/lib/event-time";
 import { EventBanner } from "./EventBanner";
 
 export function whenLabel(value) {
-  try {
-    return new Date(value).toLocaleString(undefined, {
-      weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-    });
-  } catch {
-    return String(value);
-  }
+  // One pinned clock (chapter zone, lowercase meridiem). The previous
+  // toLocaleString printed the *viewer's* zone and capitalised "Am"/"Pm".
+  return startsAtLabel(value) || String(value);
 }
 
 export function dayLabel(value) {

@@ -16,14 +16,9 @@
 //
 // The file holds a live session cookie, so `e2e/.auth/` is gitignored.
 const path = require("node:path");
-const fs = require("node:fs");
 
 const AUTH_STATE_FILE = path.join(__dirname, ".auth", "student.json");
+// Operator session for e2e/admin-audit.spec.js (see e2e/admin.setup.js).
+const ADMIN_STATE_FILE = path.join(__dirname, ".auth", "admin.json");
 
-function hasAuthState() {
-  // Credentials must be present too: a stale file from an earlier run must not
-  // silently authenticate a suite that is supposed to skip without credentials.
-  return Boolean(process.env.E2E_LOGIN_EMAIL && process.env.E2E_LOGIN_PASSWORD) && fs.existsSync(AUTH_STATE_FILE);
-}
-
-module.exports = { AUTH_STATE_FILE, hasAuthState };
+module.exports = { AUTH_STATE_FILE, ADMIN_STATE_FILE };

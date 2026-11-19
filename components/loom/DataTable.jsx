@@ -62,19 +62,19 @@ function Cell({ col, row, pulse }) {
       return <span>{raw > 0 ? `${raw}+` : "—"}</span>;
     case "verify":
       return (
-        <Link href={`/verify/credential/${row.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+        <Link prefetch={false} href={`/verify/credential/${row.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
           Open →
         </Link>
       );
     case "student":
       return (
-        <Link href={`/admin/students/${row.user_id}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>
+        <Link prefetch={false} href={`/admin/students/${row.user_id}`} className="font-semibold hover:underline" style={{ color: "var(--text)" }}>
           {row.name}
         </Link>
       );
     case "studentOpen":
       return (
-        <Link href={`/admin/students/${row.user_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+        <Link prefetch={false} href={`/admin/students/${row.user_id}`} className="text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
           Open →
         </Link>
       );

@@ -95,7 +95,7 @@ export default async function VerifyCertificatePage({ params }) {
         </p>
       </div>
       <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-        Verify any certificate at <Link href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cert.verification_code}
+        Verify any certificate at <Link prefetch={false} href="/" style={{ color: "var(--accent)" }}>LOOM</Link> · {cert.verification_code}
       </p>
     </main>
   );

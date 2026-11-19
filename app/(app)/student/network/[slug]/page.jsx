@@ -100,7 +100,7 @@ export default async function ChapterPage({ params }) {
               {departments.map((d) => (
                 <li key={d.slug} className="rounded-2xl border px-4 py-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/domains/${d.slug}`} className="text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>
+                    <Link prefetch={false} href={`/domains/${d.slug}`} className="text-sm font-semibold hover:underline" style={{ color: "var(--text)" }}>
                       {d.name}
                     </Link>
                     <span className="meta shrink-0">{d.members} members</span>

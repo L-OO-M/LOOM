@@ -26,7 +26,8 @@ export function RoadmapHero({ nodes, doneIds, nextId, domain }) {
           {domain ? `${domainLabel(domain)} · ` : "Roadmap · "}
           {doneCount} of {total} complete
         </Meta>
-        <Display size="lg" className="mt-3">
+        {/* h2: the page owns the only <h1> (WorkspaceMasthead above). */}
+        <Display as="h2" size="lg" className="mt-3">
           {domain ? domainLabel(domain) : "Walk the path."}
         </Display>
         <p className="narrative mt-4 max-w-2xl" style={{ color: "var(--text)" }}>

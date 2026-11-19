@@ -25,9 +25,20 @@ export async function GET(_request, { params }) {
   `;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
 
+  // `profiles` has no email column: the address lives on the identity row that
+  // Auth0/Supabase wrote at link time (user_identities, migration 047). Reading
+  // p.email here threw `column p.email does not exist` and turned the whole
+  // export into a 500 for every event. Take the newest identity row instead, so
+  // a re-linked account exports its current address rather than a stale one.
   const rows = await sql`
     SELECT r.status, r.check_in_code, r.registered_at, r.feedback_score,
-      p.name AS student_name, p.email, p.primary_domain
+      p.name AS student_name, p.primary_domain,
+      (
+        SELECT ui.email FROM user_identities ui
+        WHERE ui.user_id = r.student_id
+        ORDER BY ui.updated_at DESC NULLS LAST
+        LIMIT 1
+      ) AS email
     FROM event_registrations r
     LEFT JOIN profiles p ON p.user_id = r.student_id
     WHERE r.event_id = ${id}

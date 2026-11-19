@@ -32,7 +32,7 @@ export function useTab() {
 // Nav model (five verbs, leaf matching) lives in lib/nav.js — single source
 // of truth shared with unit tests. Icons resolve through the map above.
 
-export function AppShell({ area = "student", tenant, user, children }) {
+export function AppShell({ area = "student", tenant, user, profile, children }) {
   const { theme, toggle, mounted } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -187,7 +187,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               </Link>
               {/* Profile lives in every area, not just student — lead and admin
                   consoles had no way back to your own identity at all. */}
-              <MyProfileLink user={user} area={area} />
+              <MyProfileLink user={user} area={area} seed={profile} />
               <form action="/auth/signout" method="post" className="hidden sm:block">
                 <button
                   type="submit"
@@ -216,7 +216,7 @@ export function AppShell({ area = "student", tenant, user, children }) {
               // rather than a link, so mobile members get the same identity
               // surface as desktop instead of a dead Settings hop.
               if (item.icon === "profile") {
-                return <MobileProfileSlot key="profile-slot" user={user} area={area} />;
+                return <MobileProfileSlot key="profile-slot" user={user} area={area} seed={profile} />;
               }
               const Icon = icons[item.icon] || Home;
               const current = pathname || "";
@@ -316,7 +316,7 @@ function useRoleSync(enabled) {
   }, [enabled, check]);
 }
 
-function MyProfileLink({ user: propUser, area = "student" }) {
+function MyProfileLink({ user: propUser, area = "student", seed }) {
   const [card, setCard] = useState(null);
   const [profile, setProfile] = useState(null);
   const [open, setOpen] = useState(false);
@@ -337,15 +337,21 @@ function MyProfileLink({ user: propUser, area = "student" }) {
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
   }, []);
-  // Show immediately from propUser to avoid blank → pop-in delay
-  const fallbackName = propUser?.email?.split("@")[0] || profile?.name || card?.username || "You";
-  const username = card?.username || fallbackName.toLowerCase().replace(/\s+/g, "-").slice(0, 20);
-  const isPublic = !!card?.is_public;
-  const role = profile?.role || "student";
-  const canLead = ["dept_lead", "vertical_lead", "admin"].includes(role);
-  const canAdmin = ["admin"].includes(role);
-  const initials = (card?.username || fallbackName).slice(0, 2).toUpperCase();
-  const showAsClaim = !card?.username;
+  // First paint must be truthful, not blank: the server passes the profile where
+  // it has one, and nothing is asserted about handle or privacy until a real
+  // value arrives. Previously this defaulted to `role: "student"` + "private",
+  // so an admin was told they were a student for ~0.6–1.2 s on every page.
+  const fallbackName = propUser?.name || propUser?.email?.split("@")[0] || profile?.name || card?.username || "You";
+  const username = card?.username || seed?.username || null;
+  const privacy = typeof card?.is_public === "boolean" ? card.is_public : null;
+  const isPublic = privacy === true;
+  // Area is already gated server-side, so it is a truthful lower bound while the
+  // profile fetch is in flight (an /admin page implies at least admin).
+  const role = profile?.role || seed?.role || (area === "admin" ? "admin" : area === "lead" ? "dept_lead" : "student");
+  const canLead = ["dept_lead", "vertical_lead", "admin", "platform_admin"].includes(role);
+  const canAdmin = ["admin", "platform_admin"].includes(role);
+  const initials = (username || fallbackName).slice(0, 2).toUpperCase();
+  const showAsClaim = privacy !== null && !username;
   const workspaces = [
     { label: "Student", href: "/student", desc: "Learn / Build / Prove", active: area === "student" },
     ...(canLead ? [{ label: "Lead", href: "/lead", desc: "Department / Vertical console", active: area === "lead" }] : []),
@@ -359,12 +365,12 @@ function MyProfileLink({ user: propUser, area = "student" }) {
         aria-expanded={open}
         className="flex items-center gap-2 rounded-full border px-2 py-1.5 pr-2 sm:pr-3 transition hover:opacity-90"
         style={{ borderColor: isPublic ? "var(--accent)" : "var(--line)", background: isPublic ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "var(--bg-elevated)" }}
-        title={isPublic ? "Your public card — share anywhere" : "Your card is private"}
+        title={privacy === null ? "Your account" : isPublic ? "Your public card — share anywhere" : "Your card is private"}
       >
         <span className="grid size-7 place-items-center rounded-full text-xs font-bold shrink-0" style={{ background: isPublic ? "var(--accent)" : "var(--bg-muted)", color: isPublic ? "#101314" : "var(--text)" }}>{initials}</span>
         <span className="hidden lg:block text-xs font-semibold text-left" style={{ color: "var(--text)" }}>
-          <span className="block leading-none">@{username}</span>
-          <span className="block text-[10px] font-normal leading-none" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{isPublic ? " · public" : " · private"}</span>
+          <span className="block leading-none">{username ? `@${username}` : "Your account"}</span>
+          <span className="block text-[10px] font-normal leading-none" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{privacy === null ? "" : privacy ? " · public" : " · private"}</span>
         </span>
         <ChevronDown size={12} className="hidden sm:block" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
       </button>
@@ -380,11 +386,13 @@ function MyProfileLink({ user: propUser, area = "student" }) {
             style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}
           >
             <div className="px-3 py-2">
-              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>@{username}</p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{card?.is_public ? " · Public card" : " · Private card"}</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{username ? `@${username}` : "Your account"}</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{role.replace("_", " ")}{privacy === null ? "" : privacy ? " · Public card" : " · Private card"}</p>
             </div>
             <div className="my-1 h-px" style={{ background: "var(--line)" }} />
-            {isPublic ? (
+            {privacy === null ? (
+              <p className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>Checking your card…</p>
+            ) : isPublic ? (
               <Link href={`/u/${username}`} prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
                 <span className="grid size-7 place-items-center rounded-full text-xs" style={{ background: "var(--accent)", color: "#101314" }}>↗</span>
                 <span><span className="block text-sm font-medium" style={{ color: "var(--text)" }}>View public card</span><span className="block text-xs" style={{ color: "var(--text-muted)" }}>loom.sh/u/{username} · unfurls on Discord</span></span>
@@ -448,10 +456,10 @@ function MyProfileLink({ user: propUser, area = "student" }) {
 
 /* The floating bar's "You" slot: the same avatar + menu as the top bar,
    sized for the bottom bar and opening upward. */
-function MobileProfileSlot({ user, area = "student" }) {
+function MobileProfileSlot({ user, area = "student", seed }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <MyProfileLink user={user} area={area} />
+      <MyProfileLink user={user} area={area} seed={seed} />
     </div>
   );
 }
@@ -504,7 +512,7 @@ function InboxDrawer({ open, onClose, inbox }) {
         <ul className="divide-y" style={{ borderColor: "var(--line)" }}>
           {items.slice(0, 12).map((n) => (
             <li key={n.id}>
-              <Link
+              <Link prefetch={false}
                 href={n.link || "/student/notifications"}
                 onClick={() => markRead(n)}
                 className="row-link flex items-start gap-3 px-2 py-3"
@@ -526,7 +534,7 @@ function InboxDrawer({ open, onClose, inbox }) {
           ))}
         </ul>
       )}
-      <Link
+      <Link prefetch={false}
         href="/student/notifications"
         onClick={onClose}
         className="mt-4 block text-center text-xs font-semibold hover:underline"

@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { AppShell } from "@/components/AppShell";
+import { FeatureOff } from "@/components/loom/FeatureOff";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { loadPlanner } from "@/lib/planner-data";
 import { PlannerBoard } from "@/components/planner/PlannerBoard";
@@ -11,9 +12,22 @@ import { LearnTabs } from "@/components/student/SectionRails";
 export const dynamic = "force-dynamic";
 
 export default async function PlannerPage() {
-  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/planner");
+  if (!PLANNER_ENABLED) {
+    return (
+      <FeatureOff
+        area="student"
+        tenant={ctx.tenant}
+        user={ctx.user}
+        profile={ctx.profile}
+        title="The weekly planner is built, not switched on."
+        body="The chapter runs a 28-week collective calendar here. An admin turns it on when the term's schedule is final — until then nothing is lost, and your roadmap still has the next step."
+        backHref="/student"
+        backLabel="Back to your dashboard"
+      />
+    );
+  }
   const { user, profile, tenant, sql } = ctx;
   if (!tenant?.id) redirect("/student");
 

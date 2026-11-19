@@ -86,18 +86,18 @@ export function RoadmapJourney({
 
   if (nodes.length === 0) {
     return (
-      <main className="mx-auto max-w-4xl px-4 sm:px-6">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <OnboardingState
           eyebrow="Roadmap"
           title="Your path is being drawn."
           why="Your college hasn't published roadmap content yet. This is where your journey will live — node by node, with linked resources and proof at every step."
         />
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="pb-24">
+    <div className="pb-24">
       <RoadmapHero nodes={nodes} doneIds={doneIds} nextId={nextId} domain={trackedDomain} />
 
       <div className="rm-map mx-auto mt-4 max-w-6xl px-4 sm:px-6">
@@ -106,7 +106,6 @@ export function RoadmapJourney({
         </div>
 
         {(() => {
-          const stageDone = doneIds.length;
           // Unique linked resources across this track's nodes (a shared
           // resource counts once).
           const seenResourceIds = new Set();
@@ -120,10 +119,11 @@ export function RoadmapJourney({
           return (
             <section id={`rm-stage-${trackedDomain}`} aria-label={`${domainLabel(trackedDomain)} topics`} className="rm-stage scroll-mt-24">
               <Reveal>
-                <p className="meta mb-8">
-                  {stageDone} of {nodes.length} complete · {percent}%
-                  {stageMins ? ` · ≈ ${stageMins} min of linked material` : ""}
-                </p>
+                {/* The hero directly above already states "X of Y complete";
+                    this rail keeps only what it adds — the linked reading time. */}
+                {stageMins > 0 && (
+                  <p className="meta mb-8">≈ {stageMins} min of linked material</p>
+                )}
               </Reveal>
 
               {nodes.map((node, globalIndex) => {
@@ -341,7 +341,7 @@ export function RoadmapJourney({
           .rm-spine-fill, .rm-node { transition: none; }
         }
       `}</style>
-    </main>
+    </div>
   );
 }
 

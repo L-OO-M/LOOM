@@ -1050,6 +1050,40 @@
   border-top: 1px solid var(--folio-line);
 }
 
+.folio-links-fieldset {
+  min-width: 0;
+  margin: 0.35rem 0 0;
+  border: 1px solid var(--folio-line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem 1rem;
+  background: color-mix(in srgb, var(--folio-paper) 65%, transparent);
+}
+
+.folio-links-legend {
+  padding-inline: 0.4rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--folio-ink);
+}
+
+.folio-field-note {
+  margin: 0.2rem 0 0.55rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.folio-field-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--danger);
+}
+
 /* ---- Follow / endorse ----------------------------------------------------- */
 
 .folio-follow {
@@ -1150,6 +1184,352 @@
   text-transform: uppercase;
 }
 
+/* ---- Linked identity / developer profiles --------------------------------- */
+
+.folio-identity-line {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--folio-muted);
+}
+
+.folio-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 32px;
+  border: 1px solid var(--folio-line);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  background: color-mix(in srgb, var(--folio-paper) 74%, transparent);
+  color: var(--folio-ink);
+  font-size: 0.74rem;
+  line-height: 1;
+}
+
+.folio-chip:hover,
+.folio-chip:focus-visible {
+  border-color: var(--folio-thread);
+  color: var(--folio-thread);
+}
+
+.folio-chip.is-verified {
+  border-color: color-mix(in srgb, var(--folio-seal) 58%, var(--folio-line));
+}
+
+.folio-chip-label {
+  font-weight: 600;
+}
+
+.folio-chip-note {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  color: var(--folio-muted);
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folio-chip.is-verified .folio-chip-note {
+  color: var(--folio-seal);
+}
+
+.folio-chip-tick {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--folio-seal) 20%, transparent);
+  color: var(--folio-seal);
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+/* ---- Proof markers -------------------------------------------------------- */
+
+.folio-verified,
+.folio-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.folio-verified {
+  border: 1px solid color-mix(in srgb, var(--folio-seal) 58%, var(--folio-line));
+  background: color-mix(in srgb, var(--folio-seal) 10%, transparent);
+  color: var(--folio-seal);
+}
+
+.folio-pending {
+  border: 1px dashed color-mix(in srgb, var(--folio-line) 90%, transparent);
+  color: var(--folio-muted);
+}
+
+.folio-ledger-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.folio-ledger-title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- Projects list -------------------------------------------------------- */
+
+.folio-project-list {
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folio-project-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+  padding-block: 0.7rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--folio-line) 68%, transparent);
+}
+
+.folio-project-row:last-child {
+  border-bottom: 0;
+}
+
+.folio-project-list .folio-project-title {
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+}
+
+.folio-project-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--folio-muted);
+}
+
+.folio-project-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--folio-thread);
+}
+
+.folio-project-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- Synced activity ------------------------------------------------------ */
+
+.folio-activity {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 720px) {
+  .folio-activity {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+.folio-activity-block {
+  min-width: 0;
+}
+
+.folio-activity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.folio-activity-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--folio-ink);
+}
+
+.folio-activity-note {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  color: var(--folio-muted);
+}
+
+.folio-activity-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+}
+
+@media (min-width: 520px) {
+  .folio-activity-rows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.folio-activity-row {
+  border-top: 1px solid color-mix(in srgb, var(--folio-line) 68%, transparent);
+  padding-top: 0.45rem;
+}
+
+.folio-activity-value {
+  display: block;
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  color: var(--folio-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.folio-activity-label {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--folio-muted);
+}
+
+.folio-progress {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0;
+}
+
+.folio-progress-row {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.74rem;
+  color: var(--folio-muted);
+}
+
+.folio-progress-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--folio-line);
+}
+
+.folio-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--folio-thread), var(--folio-seal));
+}
+
+.folio-progress-value {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  color: var(--folio-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Elsewhere ------------------------------------------------------------ */
+
+.folio-elsewhere {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folio-elsewhere a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-height: 38px;
+  padding-block: 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--folio-line) 60%, transparent);
+  color: var(--folio-ink);
+}
+
+.folio-elsewhere li:last-child a {
+  border-bottom: 0;
+}
+
+.folio-elsewhere a > span:last-child {
+  margin-left: auto;
+  color: var(--folio-thread);
+}
+
+.folio-elsewhere a:hover .folio-elsewhere-label {
+  color: var(--folio-thread);
+}
+
+.folio-elsewhere-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.folio-elsewhere-note {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.64rem;
+  color: var(--folio-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Share targets -------------------------------------------------------- */
+
+.share-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.share-target {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid var(--folio-line);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--folio-muted);
+}
+
+.share-target:hover,
+.share-target:focus-visible {
+  border-color: var(--folio-thread);
+  color: var(--folio-thread);
+}
+
 /* ---- Mobile --------------------------------------------------------------- */
 
 @media (max-width: 640px) {
@@ -1178,6 +1558,14 @@
     padding-inline: 0.7rem;
   }
 
+  .folio-chip-note {
+    max-width: 11ch;
+  }
+
+  .folio-project-row {
+    align-items: flex-start;
+  }
+
   .folio-operator dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1194,4 +1582,121 @@
     opacity: 1;
     transition: none;
   }
+}
+
+/* ---- Identity ownership checks ------------------------------------------- */
+.folio-verify {
+  min-width: 0;
+  margin: 0.35rem 0 0;
+  border: 1px solid var(--folio-line);
+  border-radius: 14px;
+  padding: 0.9rem 1rem 1rem;
+  background: color-mix(in srgb, var(--folio-paper) 65%, transparent);
+}
+
+.folio-verify-list {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.folio-verify-row {
+  border-top: 1px solid color-mix(in srgb, var(--folio-line) 65%, transparent);
+  padding-top: 0.55rem;
+}
+
+.folio-verify-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.folio-verify-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.folio-verify-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.folio-verify-handle {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.folio-verify-state {
+  border-radius: 999px;
+  border: 1px solid var(--folio-line);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.folio-verify-state.is-verified {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--folio-line));
+  color: var(--accent);
+}
+
+.folio-verify-state.is-linked {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--folio-line));
+  color: var(--gold);
+}
+
+.folio-verify-state.is-rejected {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--folio-line));
+  color: var(--danger);
+}
+
+.folio-verify-action {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.folio-verify-proof {
+  margin-top: 0.55rem;
+  border-radius: 10px;
+  border: 1px dashed var(--folio-line);
+  padding: 0.65rem;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.folio-verify-code {
+  display: block;
+  margin: 0.3rem 0 0.55rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-elevated);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.folio-verify-proof-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.folio-verify-proof-row input {
+  flex: 1 1 16rem;
+  min-width: 0;
 }

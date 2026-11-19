@@ -29,9 +29,15 @@ Current scope, stated plainly:
 - The webhook writes events, aggregates daily activity, and verifies merges
   and submitted reviews **inline**. There is no queue and no cron:
   aggregation happens on delivery.
-- Repositories listed or created through OAuth are cached in `repositories`
-  and `github_repo_grants`; stale metadata is refreshed with
-  `POST /api/github/sync`.
+- Repositories listed through OAuth are cached in `repositories` (metadata
+  only). Grants (`github_repo_grants`) are **explicit only**: they are written
+  when a student deliberately adds a repository via `POST /api/github/repos/verify`,
+  not silently on every picker load. This means the picker can show all of a
+  student's repos without immediately marking them "already verified", and the
+  "Add repositories" action has a real effect.
+- `POST /api/github/sync` refreshes metadata in `repositories`.
+- Creating a repository via `POST /api/github/repos` also stores a grant now,
+  so a newly created repo is immediately verifiable.
 
 ### Aggregation is inline, not scheduled
 
@@ -87,13 +93,16 @@ their own tenant, and upserted additively on `(student_id, day)`.
 3. **Repository grant**: `GET /api/github/oauth/start` redirects to GitHub with
    scopes `repo` and `read:user`. The callback verifies the signed state and
    single-use nonce, exchanges the code, seals the token, then stores
-   `github_connections`, `repositories`, and `github_repo_grants` for the
-   repositories the student selected. A successful grant can verify a project
+   `github_connections` and `repositories` for the repositories the student
+   selected. `github_repo_grants` are **explicit only**: they are written when a
+   student deliberately adds a repository via `POST /api/github/repos/verify`,
+   not silently on every picker load. A successful grant can verify a project
    without waiting for a webhook; an identity link alone cannot.
 4. The repo picker at `/student/projects/new` reads the cached list
    (`GET /api/github/repos`) and can create a new repository on the student's
    account (`POST /api/github/repos`). `POST /api/github/sync` refreshes
-   metadata. Project creation accepts `{repositoryId}` (preferred) or
+   metadata. `POST /api/github/repos/verify` adds repositories with explicit
+   grants. Project creation accepts `{repositoryId}` (preferred) or
    `{repoUrl}`; the server re-checks ownership before saving.
 
 ## 4. Step B — receive webhooks from GitHub

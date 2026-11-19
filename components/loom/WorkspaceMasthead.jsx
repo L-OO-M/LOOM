@@ -15,7 +15,7 @@ export function WorkspaceMasthead({
   children
 }) {
   return (
-    <header className={`wsm wsm--${tone} ${className}`}>
+    <div className={`wsm wsm--${tone} ${className}`}>
       <div className="wsm-copy">
         {kicker && <p className="wsm-kicker">{kicker}</p>}
         <h1 className="wsm-title">{title}</h1>
@@ -47,7 +47,7 @@ export function WorkspaceMasthead({
           {aside}
         </div>
       )}
-    </header>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { postJSON, useAction } from "@/components/loom/useAction";
+import { Field } from "@/components/ui";
 
 const input = { width: "100%", borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "8px 12px", fontSize: 14 };
 
@@ -28,11 +29,19 @@ export function NodeForm() {
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Add / update node</p>
-      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Node title" style={input} />
-      <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2} placeholder="Description" style={input} />
+      <Field label="Node title">
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Node title" style={input} />
+      </Field>
+      <Field label="Description">
+        <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2} placeholder="Description" style={input} />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
-        <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} placeholder="domain" style={input} />
-        <input value={f.sortOrder} onChange={(e) => setF({ ...f, sortOrder: e.target.value })} type="number" placeholder="order" style={input} />
+        <Field label="Domain">
+          <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} placeholder="domain" style={input} />
+        </Field>
+        <Field label="Sort order">
+          <input value={f.sortOrder} onChange={(e) => setF({ ...f, sortOrder: e.target.value })} type="number" placeholder="order" style={input} />
+        </Field>
       </div>
       {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink w-fit disabled:opacity-50">{busy ? "Saving…" : "Save node"}</button>
@@ -62,19 +71,31 @@ export function ResourceForm({ nodes = [] }) {
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Add / update resource</p>
-      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
+      <Field label="Title">
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
+      </Field>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} placeholder="domain" style={input} />
-        <input value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} placeholder="level" style={input} />
-        <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} style={input}>
-          <option value="article">article</option>
-          <option value="doc">doc</option>
-          <option value="video">video</option>
-        </select>
+        <Field label="Domain">
+          <input value={f.domain} onChange={(e) => setF({ ...f, domain: e.target.value })} placeholder="domain" style={input} />
+        </Field>
+        <Field label="Level">
+          <input value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} placeholder="level" style={input} />
+        </Field>
+        <Field label="Kind">
+          <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} style={input}>
+            <option value="article">article</option>
+            <option value="doc">doc</option>
+            <option value="video">video</option>
+          </select>
+        </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https:// (optional)" style={input} />
-        <input value={f.minutes} onChange={(e) => setF({ ...f, minutes: e.target.value })} type="number" min={1} max={600} placeholder="minutes" style={input} />
+        <Field label="URL (optional)">
+          <input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https:// (optional)" style={input} />
+        </Field>
+        <Field label="Minutes">
+          <input value={f.minutes} onChange={(e) => setF({ ...f, minutes: e.target.value })} type="number" min={1} max={600} placeholder="minutes" style={input} />
+        </Field>
       </div>
       <label className="text-xs" style={{ color: "var(--text-muted)" }}>
         Roadmap node <span style={{ color: "var(--text-faint, var(--text-muted))" }}>(optional — shown on that node&apos;s page)</span>
@@ -114,18 +135,28 @@ export function ContestForm({ endpoint = "/api/admin/contests" }) {
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>Create contest</p>
-      <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
-      <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2} placeholder="Description" style={input} />
+      <Field label="Title">
+        <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required minLength={3} placeholder="Title" style={input} />
+      </Field>
+      <Field label="Description">
+        <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2} placeholder="Description" style={input} />
+      </Field>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} style={input}>
-          <option value="draft">draft</option>
-          <option value="published">published</option>
-          <option value="active">active</option>
-          <option value="open">open</option>
-          <option value="closed">closed</option>
-        </select>
-        <input value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} type="datetime-local" style={input} />
-        <input value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} type="datetime-local" style={input} />
+        <Field label="Status">
+          <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} style={input}>
+            <option value="draft">draft</option>
+            <option value="published">published</option>
+            <option value="active">active</option>
+            <option value="open">open</option>
+            <option value="closed">closed</option>
+          </select>
+        </Field>
+        <Field label="Starts at">
+          <input value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} type="datetime-local" style={input} />
+        </Field>
+        <Field label="Ends at">
+          <input value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} type="datetime-local" style={input} />
+        </Field>
       </div>
       {msg && <p className="text-xs" style={{ color: "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink w-fit disabled:opacity-50">{busy ? "Creating…" : "Create"}</button>

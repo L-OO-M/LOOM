@@ -60,7 +60,7 @@ Public routes resolve the tenant from the host (same as `lib/tenant.js resolveTe
 | `/privacy` | Privacy notice | **Draft.** Legal entity, contact and retention period are bracketed placeholders awaiting chapter input. Registration forces acceptance of it |
 | `/terms` | Terms of use | Same placeholder caveat as `/privacy` |
 | `/contact` | Contact the chapter | Honest empty state: the chapter has not published a contact address yet |
-| `/u/[username]` | Public shareable profile | The only student-facing public profile. Its most recent project no longer links into the authenticated project route |
+| `/u/[username]` | Public shareable profile | The only student-facing public profile. A portfolio, not a poster: proof ledger (machine-verified or human-approved only), projects, snapped GitHub activity, LeetCode progress, linked developer accounts, and the downloadable card. Linked accounts carry an ownership state (`verified` / `linked` / `claimed` / `check failed`, migration 083) and only `verified` renders a tick, so a typed handle is never presented as proof. Each profile owns a `generateMetadata` title/description/canonical — without it every profile claimed the homepage as canonical. Its most recent project no longer links into the authenticated project route |
 | `/u/[username]/card/[format]` | Downloadable ID card | Raw asset route |
 | `/u/[username]/opengraph-image` | Social share image | Generated |
 | `/verify/credential/[id]` | Public credential verification | Exists to be reached by people who have **no account**; it must stay unauthenticated |

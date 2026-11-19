@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimitResponse, accountKey } from "@/lib/rate-limit";
 import { PRIMARY_DOMAINS } from "@/lib/domains";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
@@ -23,6 +23,16 @@ const schema = z.object({
     domains: z.array(z.string().max(40)).max(10).optional()
   }).passthrough().optional()
 });
+
+// Supabase reports "this address is taken" in two different ways depending on
+// whether email confirmation is on: an error, or a "user" row whose identities
+// array is empty. Both are answered with ONE neutral reply, because the old code
+// returned `fail("SIGNUP_FAILED", error.message)` -- which printed the provider's
+// "User already registered" straight to the caller and turned registration into
+// an account-existence oracle.
+const DUPLICATE_EMAIL = /already registered|already exists|email_exists|user_already_exists/i;
+const SIGNUP_UNAVAILABLE =
+  "We could not create an account with those details. If you already have an account, sign in instead or reset your password.";
 
 // Rate-limited registration. Same reasoning as /api/auth/login: the browser was
 // calling Supabase directly, so signup attempts bypassed this app's limiter
@@ -50,6 +60,24 @@ export async function POST(request) {
     body = schema.parse(await request.json());
   } catch (e) {
     return validationError(e);
+  }
+
+  // Per-account budget alongside the per-IP one.
+  //
+  // The IP bucket keys on a request header, so an attacker who rotates
+  // `x-forwarded-for` resets it (verified before the fix). Counting the
+  // attempted address as well bounds how many times one mailbox can be probed
+  // for "does this account exist" or spammed with signup attempts, regardless
+  // of source address. The reply is the generic rate-limit text so it says
+  // nothing about whether the address is already registered.
+  const account = await checkRateLimit(`register-account:${accountKey(body.email)}`, {
+    durable: true,
+    limit: 5,
+    windowMs: 60 * 60_000
+  });
+  if (!account.ok) {
+    const r = rateLimitResponse(account.retryAfter);
+    return fail(r.error.code, r.error.message, 429);
   }
 
   if (isDisposableEmail(body.email)) {
@@ -86,7 +114,25 @@ export async function POST(request) {
     options: { data: metadata }
   });
 
-  if (error) return fail("SIGNUP_FAILED", error.message, 400);
+  if (error) {
+    if (DUPLICATE_EMAIL.test(error.message || "") || DUPLICATE_EMAIL.test(error.code || "")) {
+      return fail("SIGNUP_UNAVAILABLE", SIGNUP_UNAVAILABLE, 409);
+    }
+    // Provider detail stays in the server log; the caller only learns that the
+    // sign-up did not go through.
+    console.error("[auth/register] signUp failed", error.code || error.message);
+    return fail("SIGNUP_FAILED", SIGNUP_UNAVAILABLE, 400);
+  }
+
+  // With email confirmation enabled Supabase does NOT error for a taken
+  // address: it returns a user row with no identities. Treating that as success
+  // would write a consent record against an existing member's id and tell the
+  // caller a new account exists, so it is refused here instead. The `!session`
+  // guard keeps a legitimate new signup that happens to omit identities (older
+  // or differently configured providers) working.
+  if (!data?.session && Array.isArray(data?.user?.identities) && data.user.identities.length === 0) {
+    return fail("SIGNUP_UNAVAILABLE", SIGNUP_UNAVAILABLE, 409);
+  }
 
   // Consent cannot be skipped silently. If the record cannot be written, say
   // so explicitly rather than returning a happy 201 for an unconsented account.

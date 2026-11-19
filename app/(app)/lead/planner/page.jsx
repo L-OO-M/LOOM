@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
+import { FeatureOff } from "@/components/loom/FeatureOff";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { loadPlanner, loadPlannerOwners, loadAssignableLeads } from "@/lib/planner-data";
 import { PlannerBoard } from "@/components/planner/PlannerBoard";
@@ -13,9 +14,22 @@ export const dynamic = "force-dynamic";
 const LEAD_ROLES = ["dept_lead", "vertical_lead", "admin"];
 
 export default async function LeadPlannerPage() {
-  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/lead/planner");
+  if (!PLANNER_ENABLED) {
+    return (
+      <FeatureOff
+        area="lead"
+        tenant={ctx.tenant}
+        user={ctx.user}
+        profile={ctx.profile}
+        title="The collective planner is built, not switched on."
+        body="This is the lead view of the chapter's 28-week calendar. It appears here as soon as an admin enables the planner for the term."
+        backHref="/lead"
+        backLabel="Back to the lead console"
+      />
+    );
+  }
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role)) redirect("/student");
   if (!tenant?.id) redirect("/lead/overview");

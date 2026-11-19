@@ -208,7 +208,7 @@ export default async function HelpPage() {
           <aside aria-labelledby="helper-panel">
             <div className="lg:sticky lg:top-24">
               <Card className="p-5">
-                <Display className="text-lg">Help others</Display>
+                <Display as="h2" id="helper-panel" className="text-lg">Help others</Display>
                 <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
                   {available
                     ? "You are listed as a helper. Members can nominate you when they are stuck."

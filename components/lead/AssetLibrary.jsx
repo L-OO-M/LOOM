@@ -186,6 +186,7 @@ export function AssetLibrary({ initialAssets = [], categories = [], canManage = 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search title or description…"
+            aria-label="Search assets"
             className="w-full rounded-xl border py-2 pl-7 pr-3 text-sm outline-none"
             style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
           />

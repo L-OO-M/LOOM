@@ -1,11 +1,21 @@
-import { ok } from "@/lib/api";
+import { fail, ok } from "@/lib/api";
 import { getSql } from "@/lib/db";
 import { getTenantFromRequest } from "@/lib/tenant";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // Public upcoming-events read. No auth — tenant is resolved from the host,
 // exactly like lib/tenant.js resolveTenantFromHost. Only real DB rows;
 // an empty list means no workshops are scheduled, not a failure.
 export async function GET(request) {
+  // Public and unauthenticated: unlimited calls are unlimited database work.
+  // One shared per-IP budget for the read-only public surface; a real page view
+  // never comes close to it.
+  const rl = await checkRateLimit(request, { durable: true, limit: 120, windowMs: 60_000 });
+  if (!rl.ok) {
+    const r = rateLimitResponse(rl.retryAfter);
+    return fail(r.error.code, r.error.message, 429);
+  }
+
   let tenant = null;
   try {
     tenant = await getTenantFromRequest(request);

@@ -5,12 +5,12 @@ import Link from "next/link";
 /* Type scale — one voice per job. Display for moments, product for UI,
    narrative for reading, meta for metadata, figure for big numbers. */
 
-export function Display({ as: Tag = "h1", size = "lg", children, className = "" }) {
-  return <Tag className={`display display-${size} ${className}`}>{children}</Tag>;
+export function Display({ as: Tag = "h1", size = "lg", children, className = "", ...rest }) {
+  return <Tag className={`display display-${size} ${className}`} {...rest}>{children}</Tag>;
 }
 
-export function ProductHeading({ as: Tag = "h2", children, className = "" }) {
-  return <Tag className={`h-product ${className}`}>{children}</Tag>;
+export function ProductHeading({ as: Tag = "h2", children, className = "", ...rest }) {
+  return <Tag className={`h-product ${className}`} {...rest}>{children}</Tag>;
 }
 
 export function Narrative({ as: Tag = "p", children, className = "" }) {

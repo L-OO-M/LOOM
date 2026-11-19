@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
+import { relShort, stamp, todayLong } from "@/lib/dates";
 
 export default async function AdminPage() {
   // Same reasoning as the student dashboard: the admin layout already resolved
@@ -140,10 +141,25 @@ export default async function AdminPage() {
   const projectStatus = projectStatusRaw.map((r) => ({ name: r.status, value: r.c }));
   const dailyActivity = dailyRaw.map((r) => ({ label: new Date(r.day).toLocaleDateString("en-IN", { month: "short", day: "numeric" }), value: r.total, day: r.day }));
 
+  // Date labels are computed HERE, on the server, and passed down as finished
+  // strings. The dashboard is a client component: formatting a date during its
+  // render makes the server HTML and the hydrated DOM disagree whenever the two
+  // processes are in different timezones (a UTC function, an IST reader), which
+  // React reports as hydration error #418 and resolves by discarding the server
+  // tree. See lib/dates.js for the rule and the tests that pin the output.
+  const todayLabel = todayLong();
+  const departmentsView = departments.map((d) => ({
+    ...d,
+    last_activity_label: d.last_activity ? relShort(d.last_activity) : null
+  }));
+  const upcomingView = upcoming.map((e) => ({ ...e, starts_label: relShort(e.starts_at) }));
+  const auditView = auditEntries.map((a) => ({ ...a, created_label: stamp(a.created_at) }));
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <AdminDashboard
         tenantName={tenant?.name ?? null}
+        todayLabel={todayLabel}
         totalStudents={total}
         outcomes={{
           accessibility: {
@@ -172,9 +188,9 @@ export default async function AdminPage() {
           { label: "OSS claims awaiting review", count: counts?.claims ?? 0, href: "/admin/opensource" },
           { label: "Draft contests", count: counts?.drafts ?? 0, href: "/admin/contests" }
         ]}
-        departments={departments}
-        upcoming={upcoming}
-        auditEntries={auditEntries}
+        departments={departmentsView}
+        upcoming={upcomingView}
+        auditEntries={auditView}
         charts={{ roleDist, projectStatus, dailyActivity }}
       />
     </AppShell>

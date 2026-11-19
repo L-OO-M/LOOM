@@ -10,6 +10,8 @@ import { LearnTabs } from "@/components/student/SectionRails";
 export default function RoadmapTabs({
   domain,
   domains,
+  primaryDomain = null,
+  followedTracks = [],
   nodes,
   edges,
   doneIds,
@@ -26,7 +28,7 @@ export default function RoadmapTabs({
   const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6">
+    <div>
       <div className="pt-2">
         <p className="meta">
           Roadmap · {domainLabel(domain)} · {doneCount} of {total} complete
@@ -35,7 +37,12 @@ export default function RoadmapTabs({
 
       <LearnTabs active="/student/roadmap" className="mt-4" />
 
-      <RoadmapDomainRail domains={domains} active={domain} />
+      <RoadmapDomainRail
+        domains={domains}
+        active={domain}
+        primary={primaryDomain}
+        followed={followedTracks}
+      />
 
       {nodes.length === 0 ? (
         <p className="narrative mt-6">No topics published for {domainLabel(domain)} yet.</p>

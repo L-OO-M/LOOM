@@ -20,6 +20,7 @@ export function AuthShell({ children }) {
         className="relative hidden flex-col justify-between overflow-hidden border-r p-10 lg:flex xl:p-14"
         style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}
         aria-hidden="true"
+        inert
       >
         <div
           className="pointer-events-none absolute inset-0"
@@ -82,14 +83,19 @@ export function AuthShell({ children }) {
 }
 
 /** Small, consistent field label + control wrapper for the auth forms. */
-export function AuthField({ id, label, hint, children }) {
+export function AuthField({ id, label, hint, error, children }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={id} className="block text-sm font-medium" style={{ color: "var(--text)" }}>{label}</label>
-        {hint && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{hint}</span>}
+        {hint && <span id={`${id}-hint`} className="text-[11px]" style={{ color: "var(--text-muted)" }}>{hint}</span>}
       </div>
       {children}
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs leading-5" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

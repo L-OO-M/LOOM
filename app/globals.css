@@ -844,3 +844,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background-clip: text;
   color: transparent;
 }
+
+/* WCAG 1.4.1 — a link that sits inside running text must not be distinguished
+   by colour alone. Card, nav and button links keep their own treatment; this
+   only underlines prose links. */
+p a:not([class*="btn"]):not(.tap-target):not(.row-link),
+li a:not([class*="btn"]):not(.tap-target):not(.row-link),
+dd a:not([class*="btn"]):not(.tap-target):not(.row-link) {
+  text-decoration: underline;
+  text-underline-offset: .18em;
+  text-decoration-thickness: from-font;
+}

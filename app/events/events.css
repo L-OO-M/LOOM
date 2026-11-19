@@ -68,6 +68,12 @@
 .loom-events .events-section-heading p { max-width: 576px; margin-top: 16px; font-size: 16px; font-weight: 500; color: var(--events-muted); }
 .loom-events .events-filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
 .loom-events .events-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Two filter axes sit above the grid: type and domain. Each axis is labelled so
+   a screen reader hears which "current" item belongs to which filter. */
+.loom-events .events-axis-label {
+  display: inline-flex; align-items: center; padding-right: 4px;
+  color: var(--events-muted); font-size: 12px; letter-spacing: .08em;
+}
 .loom-events .events-filter { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--events-line); color: var(--events-muted); font-size: 12px; font-weight: 600; }
 .loom-events .events-filter:hover { background: var(--events-soft); color: var(--events-ink); }
 .loom-events .events-filter.is-active { background: var(--events-accent); border-color: var(--events-accent); color: var(--events-paper); }

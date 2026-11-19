@@ -1,8 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useWorkspaceLink } from "@/lib/use-workspace-link";
 
 /* 404: the address doesn't exist on this loom. Say so plainly, offer the
-   real destinations — never a dead end. */
+   real destinations — never a dead end.
+
+   This one is for public misses. A signed-in reader used to be told to "Sign
+   in" here; the same hook the public nav uses now resolves their workspace, so
+   the card opens the console they already own. Workspace misses never reach
+   this file — app/(app)/not-found.jsx keeps them inside AppShell. */
 export default function NotFound() {
+  const workspace = useWorkspaceLink();
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col items-center justify-center px-5 py-16 text-center" style={{ background: "var(--bg)" }}>
       <p className="kicker">No such thread</p>
@@ -22,7 +31,9 @@ export default function NotFound() {
           ["Events", "/events", "What's on"],
           ["Domains", "/domains", "Pick a track"],
           ["FAQ", "/faq", "Straight answers"],
-          ["Sign in", "/login", "Your dashboard"]
+          workspace
+            ? ["Open workspace", workspace, "Back to your console"]
+            : ["Sign in", "/login", "Your dashboard"]
         ].map(([label, href, sub]) => (
           <Link key={href + label} href={href} prefetch={false} className="rounded-2xl border p-4 text-left transition hover:-translate-y-0.5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
             <span className="block text-sm font-semibold" style={{ color: "var(--text)" }}>{label}</span>

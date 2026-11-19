@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { AppShell } from "@/components/AppShell";
+import { FeatureOff } from "@/components/loom/FeatureOff";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { loadPlanner, loadPlannerOwners, loadAssignableLeads } from "@/lib/planner-data";
 import { PLANNER_TRACKS, formatWeekRange, trackLabel } from "@/lib/planner";
@@ -13,11 +14,24 @@ import "../_components/admin-ledger.css";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPlannerPage() {
-  if (!PLANNER_ENABLED) notFound();
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/admin/planner");
   if (ctx.error === "FORBIDDEN") redirect("/student");
   if (ctx.error) redirect("/login?redirect=/admin/planner");
+  if (!PLANNER_ENABLED) {
+    return (
+      <FeatureOff
+        area="admin"
+        tenant={ctx.tenant}
+        user={ctx.user}
+        profile={ctx.profile}
+        title="The collective planner is built, not switched on."
+        body="The 28-week calendar, owners and ICS export exist behind a feature flag. Enable PLANNER_ENABLED when the term's schedule is approved."
+        backHref="/admin"
+        backLabel="Back to admin"
+      />
+    );
+  }
   const { user, tenant, sql } = ctx;
   if (!tenant?.id) redirect("/admin");
 

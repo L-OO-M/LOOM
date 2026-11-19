@@ -25,7 +25,9 @@ function ConsentBox({ checked, onChange, error }) {
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
+          required
           aria-invalid={!!error}
+          aria-describedby={error ? "consent-error" : undefined}
           className="peer absolute inset-0 size-11 cursor-pointer opacity-0"
         />
         <span
@@ -47,6 +49,7 @@ function ConsentBox({ checked, onChange, error }) {
         <Link prefetch={false} href="/privacy" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Privacy notice</Link>{" "}
         and{" "}
         <Link prefetch={false} href="/terms" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Terms</Link>.
+        {error && <span id="consent-error" className="mt-1 block text-xs leading-5" style={{ color: "var(--danger)" }}>{error}</span>}
       </span>
     </label>
   );
@@ -62,6 +65,8 @@ export default function RegisterPage() {
   const [domains, setDomains] = useState([]);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [needsConfirm, setNeedsConfirm] = useState(true);
@@ -73,10 +78,23 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!accepted) {
-      setError("Please read and accept the Privacy notice and Terms before creating an account.");
+
+    // Inline errors rather than the browser's transient tooltip: an empty
+    // submit used to say nothing at all in the page itself.
+    const next = {};
+    if (!name.trim()) next.name = "Enter your full name.";
+    if (!email.trim()) next.email = "Enter your email address.";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) next.email = "That email address looks incomplete.";
+    if (!password) next.password = "Choose a password.";
+    else if (password.length < 8) next.password = "Use at least 8 characters.";
+    if (!accepted) next.accepted = "Please accept the Privacy notice and Terms to continue.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      const first = ["name", "email", "password"].find((key) => next[key]);
+      if (first) requestAnimationFrame(() => document.getElementById(first)?.focus());
       return;
     }
+
     setLoading(true);
 
     const yearNum = year === "" ? null : Number(year);
@@ -194,21 +212,43 @@ export default function RegisterPage() {
         <span className="h-px flex-1" style={{ background: "var(--line)" }} />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <AuthField id="name" label="Full name">
-          <input id="name" type="text" required autoComplete="name" value={name} onChange={(e) => setName(e.target.value)}
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <AuthField id="name" label="Full name" error={fieldErrors.name}>
+          <input id="name" type="text" required autoComplete="name" value={name}
+            onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })); }}
+            aria-invalid={!!fieldErrors.name}
+            aria-describedby={fieldErrors.name ? "name-error" : undefined}
             className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
         </AuthField>
 
-        <AuthField id="email" label="Email">
-          <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
+        <AuthField id="email" label="Email" error={fieldErrors.email}>
+          <input id="email" type="email" required autoComplete="email" value={email}
+            onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="you@example.com" />
         </AuthField>
 
-        <AuthField id="password" label="Password" hint="At least 8 characters">
-          <input id="password" type="password" required minLength={8} autoComplete="new-password" value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
+        <AuthField id="password" label="Password" hint="At least 8 characters" error={fieldErrors.password}>
+          <div className="relative">
+            <input id="password" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="new-password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
+              aria-invalid={!!fieldErrors.password}
+              aria-describedby={`password-hint${fieldErrors.password ? " password-error" : ""}`}
+              className={`${authInputClass} pr-16`} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-pressed={showPassword}
+              aria-controls="password"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-1.5 top-1/2 grid min-h-[44px] min-w-[44px] -translate-y-1/2 place-items-center rounded-md px-2 text-xs font-semibold"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
         </AuthField>
 
         <div className="grid grid-cols-2 gap-3">
@@ -253,7 +293,7 @@ export default function RegisterPage() {
           </div>
         </fieldset>
 
-        <ConsentBox checked={accepted} onChange={setAccepted} error={error} />
+        <ConsentBox checked={accepted} onChange={(v) => { setAccepted(v); setFieldErrors((p) => ({ ...p, accepted: undefined })); }} error={fieldErrors.accepted} />
 
         {error && (
           <p role="alert" className="rounded-lg border px-3 py-2 text-sm"

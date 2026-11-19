@@ -44,7 +44,16 @@ function initials(name) {
     .toUpperCase();
 }
 
-function QuestionRow({ question, credit }) {
+function humanizeSlug(slug) {
+  return String(slug || "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function QuestionRow({ question, credit, solvedAt, showSeen = false }) {
+  const solvedOnLeetCode = !credit && Boolean(solvedAt);
   return (
     <li>
       <a
@@ -69,6 +78,8 @@ function QuestionRow({ question, credit }) {
             {question.topic || "DSA practice"}
             <span className="dot-sep">{question.difficulty}</span>
             {credit ? <span className="dot-sep">accepted {date(credit.acceptedAt)}</span> : null}
+            {solvedOnLeetCode ? <span className="dot-sep">solved on LeetCode {date(solvedAt)}</span> : null}
+            {showSeen && !credit && !solvedAt ? <span className="dot-sep">not seen yet</span> : null}
           </span>
         </span>
         <ExternalLink size={14} className="mt-1 shrink-0" style={{ color: "var(--text-muted)" }} />
@@ -121,6 +132,7 @@ export function PracticeClient({ snapshot, userId }) {
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
   const [refreshError, setRefreshError] = useState("");
+  const [liveStats, setLiveStats] = useState(null);
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkMessage, setLinkMessage] = useState("");
   const [linkError, setLinkError] = useState("");
@@ -146,6 +158,16 @@ export function PracticeClient({ snapshot, userId }) {
     : null;
   const connection = snapshot.connection;
   const stale = connection?.lastSyncAt && snapshot.now - connection.lastSyncAt > snapshot.staleAfterMs;
+  const leetcodeStats = liveStats || connection?.leetcodeStats || null;
+  const statsCheckedAt = liveStats
+    ? snapshot.now
+    : connection?.statsSyncedAt || connection?.lastSyncAt || null;
+  const mySolves = snapshot.mySolves || [];
+  const solveByQuestion = new Map(mySolves.map((solve) => [solve.questionId, solve]));
+  const solveBySlug = new Map();
+  for (const solve of mySolves) {
+    if (!solveBySlug.has(solve.slug)) solveBySlug.set(solve.slug, solve);
+  }
 
   const myCredits = snapshot.credits.filter((credit) => credit.userId === userId);
   const monthCredits = myCredits.filter(
@@ -158,6 +180,7 @@ export function PracticeClient({ snapshot, userId }) {
   const bestWeek = Math.max(0, ...weekCreditCounts.values());
   const activeWeeks = weekCreditCounts.size;
   const questionById = new Map(snapshot.questions.map((question) => [question.id, question]));
+  const titleBySlug = new Map(snapshot.questions.map((question) => [question.slug, question.title]));
   const difficulty = { Easy: 0, Medium: 0, Hard: 0 };
   for (const credit of myCredits) {
     const level = questionById.get(credit.questionId)?.difficulty;
@@ -170,7 +193,13 @@ export function PracticeClient({ snapshot, userId }) {
     setRefreshError("");
     const result = await postJSON("/api/practice/refresh", "POST", {});
     if (result.ok) {
-      setRefreshMessage(result.data?.message || "Recent accepted submissions checked.");
+      if (result.data?.stats) setLiveStats(result.data.stats);
+      const solved = result.data?.solved;
+      setRefreshMessage(
+        typeof solved === "number"
+          ? `Checked LeetCode: ${solved} solved in total, ${result.data.credited || 0} credited from this check.`
+          : result.data?.message || "Recent accepted submissions checked."
+      );
       router.refresh();
     } else {
       setRefreshError(result.error?.message || "Sync unavailable. Recorded progress is preserved.");
@@ -189,6 +218,7 @@ export function PracticeClient({ snapshot, userId }) {
       username: String(data.get("username") || "")
     });
     if (result.ok) {
+      if (result.data?.stats) setLiveStats(result.data.stats);
       setLinkMessage(`Linked @${result.data.username}.`);
       setEditingHandle(false);
       form.reset();
@@ -308,7 +338,12 @@ export function PracticeClient({ snapshot, userId }) {
                   </p>
                   <ol className="mt-3 grid gap-2">
                     {STARTER_PROBLEMS.map((question) => (
-                      <QuestionRow key={question.slug} question={question} credit={null} />
+                      <QuestionRow
+                        key={question.slug}
+                        question={question}
+                        credit={null}
+                        solvedAt={solveBySlug.get(question.slug)?.acceptedAt}
+                      />
                     ))}
                   </ol>
                 </div>
@@ -321,7 +356,13 @@ export function PracticeClient({ snapshot, userId }) {
             ) : (
               <ol className="grid gap-2">
                 {currentQuestions.map((question) => (
-                  <QuestionRow key={question.id} question={question} credit={creditByQuestion.get(question.id)} />
+                  <QuestionRow
+                    key={question.id}
+                    question={question}
+                    credit={creditByQuestion.get(question.id)}
+                    solvedAt={solveByQuestion.get(question.id)?.acceptedAt}
+                    showSeen
+                  />
                 ))}
               </ol>
             )}
@@ -334,10 +375,10 @@ export function PracticeClient({ snapshot, userId }) {
               <p className="meta">Weekly rank</p>
               <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{weeklyRank ? `#${weeklyRank.rank}` : "Not ranked yet"}</p>
               <p className="meta mt-3">Last checked</p>
-              <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{connection ? ago(connection.lastSyncAt, snapshot.now) : "LeetCode not linked"}</p>
+              <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{connection ? ago(statsCheckedAt, snapshot.now) : "LeetCode not linked"}</p>
             </div>
             <p className="narrative mt-4 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-              LeetCode exposes recent public submissions. If a solve is missing, ask an admin for a correction.
+              LeetCode exposes recent public submissions. A solve outside the practice window is recorded on this page but never scored.
             </p>
           </aside>
         </div>
@@ -345,6 +386,102 @@ export function PracticeClient({ snapshot, userId }) {
 
       <WorkspaceSection
         index="02"
+        title="LeetCode progress"
+        note="Your overall LeetCode account, separate from LOOM weekly scoring."
+        action={<StatusPill>not LOOM scoring</StatusPill>}
+      >
+        {!connection ? (
+          <WorkspaceEmpty
+            title="Link your LeetCode handle to see your real solved counts."
+            body="Once linked, your accepted totals, Easy / Medium / Hard split, ranking and streak come straight from LeetCode."
+          />
+        ) : !leetcodeStats ? (
+          <div className="mt-4 rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>No LeetCode snapshot yet.</p>
+            <p className="narrative mt-1 text-xs leading-5">
+              We have not received a progress snapshot for @{connection.username}. Use Refresh my progress to check the account now.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <StatTile
+                value={leetcodeStats.total ?? "—"}
+                label="problems solved, all difficulties"
+              />
+              <StatTile
+                value={leetcodeStats.easy ?? "—"}
+                label="Easy problems solved"
+              />
+              <StatTile
+                value={leetcodeStats.medium ?? "—"}
+                label="Medium problems solved"
+              />
+              <StatTile
+                value={leetcodeStats.hard ?? "—"}
+                label="Hard problems solved"
+              />
+            </div>
+            <div className="mt-3 grid gap-3 rounded-2xl border p-4 sm:grid-cols-2 lg:grid-cols-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <div>
+                <Meta>Global ranking</Meta>
+                <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  {Number(leetcodeStats.ranking) > 0 ? `#${leetcodeStats.ranking}` : "—"}
+                </p>
+              </div>
+              <div>
+                <Meta>Current streak</Meta>
+                <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  {Number(leetcodeStats.streak) > 0 ? `${leetcodeStats.streak} day${Number(leetcodeStats.streak) === 1 ? "" : "s"}` : "—"}
+                </p>
+              </div>
+              <div>
+                <Meta>Active days</Meta>
+                <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>
+                  {Number(leetcodeStats.activeDays) > 0 ? leetcodeStats.activeDays : "—"}
+                </p>
+              </div>
+              <div>
+                <Meta>Last checked</Meta>
+                <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{ago(statsCheckedAt, snapshot.now)}</p>
+              </div>
+            </div>
+            <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Recent accepted solves</p>
+                <p className="meta">{mySolves.length ? `${mySolves.length} recorded` : "none recorded yet"}</p>
+              </div>
+              {mySolves.length === 0 ? (
+                <p className="narrative mt-2 text-xs leading-5">
+                  No accepted submissions have been seen yet. Solve a problem on LeetCode and press Refresh my progress.
+                </p>
+              ) : (
+                <ul className="mt-3 grid gap-2">
+                  {mySolves.slice(0, 6).map((solve) => (
+                    <li key={`${solve.questionId}:${solve.externalId}`}>
+                      <a
+                        href={`https://leetcode.com/problems/${solve.slug}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2"
+                        style={{ borderColor: "var(--line)" }}
+                      >
+                        <span className="min-w-0 truncate text-sm" style={{ color: "var(--text)" }}>
+                          {titleBySlug.get(solve.slug) || humanizeSlug(solve.slug)}
+                        </span>
+                        <span className="meta shrink-0">{date(solve.acceptedAt)}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        index="03"
         title="Your practice record"
         note="Only credited solves in the published window are counted."
       >
@@ -387,7 +524,7 @@ export function PracticeClient({ snapshot, userId }) {
       </WorkspaceSection>
 
       <WorkspaceSection
-        index="03"
+        index="04"
         title="This week's board"
         note="Practice points are a weekly habit board. Chapter standing is a separate score."
         action={<ActionLink href="/student/practice/leaderboard">Weekly and monthly board</ActionLink>}
@@ -396,7 +533,7 @@ export function PracticeClient({ snapshot, userId }) {
       </WorkspaceSection>
 
       <WorkspaceSection
-        index="04"
+        index="05"
         title="Archive"
         note="Practice stays open; scoring is closed."
       >
@@ -437,7 +574,12 @@ export function PracticeClient({ snapshot, userId }) {
                   </div>
                   <ol className="mt-4 grid gap-2">
                     {archiveQuestions.map((question) => (
-                      <QuestionRow key={question.id} question={question} credit={archiveCredits.get(question.id)} />
+                      <QuestionRow
+                        key={question.id}
+                        question={question}
+                        credit={archiveCredits.get(question.id)}
+                        solvedAt={solveByQuestion.get(question.id)?.acceptedAt}
+                      />
                     ))}
                   </ol>
                 </>

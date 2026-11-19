@@ -10,7 +10,9 @@ export function OnboardingState({ eyebrow = "Just starting", title, why, steps =
   return (
     <div className={`mx-auto max-w-2xl text-center ${showIntro ? "py-10 sm:py-14" : "py-4"}`}>
       {showIntro && <p className="meta" style={{ color: "var(--accent)" }}>{eyebrow}</p>}
-      {showIntro && <Display size="md" className="mt-3">{title}</Display>}
+      {/* h2, not h1: an empty state sits under the page's own heading, and 21 call
+          sites render this inside pages that already own the one <h1>. */}
+      {showIntro && <Display as="h2" size="md" className="mt-3">{title}</Display>}
       {showIntro && why && <p className="narrative mx-auto mt-4 text-center">{why}</p>}
       {steps.length > 0 && (
         <ol className="mx-auto mt-8 max-w-md space-y-0 text-left">
@@ -66,7 +68,7 @@ export function ErrorState({ title, body, lastGood, retryLabel = "Try again", on
       {lastGood && <p className="meta mt-4">Last good state · {lastGood}</p>}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {onRetry && <button type="button" onClick={onRetry} className="btn-ink">{retryLabel}</button>}
-        {backHref && <Link href={backHref} className="btn-ghost">{backLabel}</Link>}
+        {backHref && <Link href={backHref} prefetch={false} className="btn-ghost">{backLabel}</Link>}
       </div>
     </div>
   );

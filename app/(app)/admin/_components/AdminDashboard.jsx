@@ -4,13 +4,6 @@ import Link from "next/link";
 import { Clock3, Users, Layers, Sparkles, ShieldCheck, ArrowUpRight, Inbox, CalendarDays, Building2, AlertCircle } from "lucide-react";
 import { RoleDonut, ProjectStatusBars, ActivitySparklineChart } from "@/components/admin/OverviewCharts";
 
-function fmtDate(d) {
-  try { return new Date(d).toLocaleString("en-IN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return String(d); }
-}
-function timeAgo(v) {
-  try { return new Date(v).toLocaleDateString("en-IN", { month: "short", day: "numeric" }); } catch { return ""; }
-}
-
 const DEPT_TONES = ["var(--accent)", "var(--info)", "var(--success)", "var(--warn)"];
 function deptTone(value = "") {
   let hash = 0;
@@ -22,11 +15,10 @@ function deptTone(value = "") {
    The masthead states the immediate human cost, the four pillars read as
    ruled entries, and the operational queues stay in the lower half. */
 
-export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attention, departments = [], upcoming, auditEntries, charts = null }) {
+export function AdminDashboard({ tenantName, todayLabel = "", totalStudents = 0, outcomes, attention, departments = [], upcoming, auditEntries, charts = null }) {
   const waiting = attention.reduce((s, a) => s + a.count, 0);
   const o = outcomes;
   const sortedAttention = [...attention].sort((a, b) => b.count - a.count);
-  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
   const pillars = [
     {
@@ -93,7 +85,7 @@ export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attent
       <header className="adminx-masthead">
         <div className="adminx-masthead-bar">
           <span className="adminx-seal"><ShieldCheck size={12} /> Chapter desk</span>
-          <span>{today}</span>
+          <span>{todayLabel}</span>
           {tenantName && <span>/ {tenantName}</span>}
         </div>
 
@@ -225,7 +217,7 @@ export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attent
                 </div>
                 <span className="adminx-dept-pulse">
                   <Clock3 size={11} />
-                  {d.last_activity ? timeAgo(d.last_activity) : "No activity"}
+                  {d.last_activity_label || "No activity"}
                 </span>
                 <Link href="/admin/departments" prefetch={false} aria-label={`Manage ${d.name}`} className="adminx-dept-open">
                   <ArrowUpRight size={14} />
@@ -281,7 +273,7 @@ export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attent
               {upcoming.map((e) => (
                 <li key={e.id}>
                   <span className="adminx-event-date">
-                    {new Date(e.starts_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                    {e.starts_label}
                   </span>
                   <Link href="/admin/events" prefetch={false} className="adminx-event-title">{e.title}</Link>
                   <span className="adminx-event-type">{e.event_type}</span>
@@ -320,7 +312,7 @@ export function AdminDashboard({ tenantName, totalStudents = 0, outcomes, attent
                   </p>
                   <p className="adminx-log-meta">
                     <strong>{e.actor_name || String(e.actor_id).slice(0, 8)}</strong>
-                    <span>/ {fmtDate(e.created_at)}</span>
+                    <span>/ {e.created_label}</span>
                   </p>
                 </div>
               </li>

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { parseGitHubRepo, repoOwnershipOk, recordEvidence, recomputeScore } from "@/lib/ranking";
+import { readAccessToken } from "@/lib/github-oauth";
+import { confirmRepoGrant, githubTokenFailure } from "@/lib/github-grants";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isOptionalHttpUrl } from "@/lib/content-safety";
 
@@ -106,6 +108,47 @@ export async function POST(request) {
       "Link your GitHub account first — a project must sit on a repository you own",
       409
     );
+  }
+
+  // Picking a repository from the linked account IS the add action. Ask GitHub
+  // about it now, with the student's token, and store the answer as the grant.
+  // Before this, a grant existed only because listing repositories wrote one for
+  // every owned repo -- which made the picker fill with "already verified" rows
+  // nobody had chosen. The live check keeps the proof without the surprise.
+  if (body.repositoryId) {
+    if (conn.github_user_id == null) {
+      return fail(
+        "GITHUB_RELINK_REQUIRED",
+        "GitHub has not verified this account yet. Re-link it before claiming a repository.",
+        409,
+        { authorizeUrl: "/api/github/oauth/start" }
+      );
+    }
+    const token = await readAccessToken({ sql, userId: user.id });
+    if (!token.ok) return githubTokenFailure(token.reason);
+    const confirmed = await confirmRepoGrant({
+      sql,
+      accessToken: token.accessToken,
+      userId: user.id,
+      tenantId: tenant.id,
+      login: conn.github_username,
+      githubUserId: conn.github_user_id,
+      fullName
+    });
+    if (!confirmed.ok) {
+      return fail(
+        "REPO_VERIFY_FAILED",
+        "GitHub could not confirm that repository. Try again, or pick another one.",
+        502
+      );
+    }
+    if (!confirmed.canPush) {
+      return fail(
+        "REPO_NOT_OWNED",
+        `That repository is not under @${conn.github_username}. Choose one you own.`,
+        403
+      );
+    }
   }
 
   // Strongest available proof. Also the only path that can activate a project

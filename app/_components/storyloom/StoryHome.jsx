@@ -5,7 +5,8 @@ import StackingCards from "./stacking-card";
 import { useTheme } from "@/lib/theme";
 import { useWorkspaceLink } from "@/lib/use-workspace-link";
 import "./story.css";
-import { studentNav } from "@/lib/nav";
+import { studentNav, publicFooterLinks } from "@/lib/nav";
+import { SITE_YEAR } from "@/lib/site";
 import { Brain, Code, Database, Shield, Link2, Server, Zap, Cpu } from "lucide-react";
 const learning = "/storyloom/learning.png";
 const hackathon = "/storyloom/hackathon.png";
@@ -130,14 +131,20 @@ export default function StoryHome() {
 
       <>
         <Suspense fallback={null}>
-          <HalftoneFooter wordmark="loom" label="LOOM " meta={`Beginner-friendly. Contribution-driven. © ${new Date().getFullYear()}`} preset={theme === "dark" ? "night" : "paper"} palette={{
+          <HalftoneFooter wordmark="loom" label="LOOM " meta={`Beginner-friendly. Contribution-driven. © ${SITE_YEAR}`} preset={theme === "dark" ? "night" : "paper"} palette={{
             background: theme === "dark" ? sculpturePalette.dark : sculpturePalette.light,
             ink: theme === "dark" ? "#ede9df" : "#29251f",
             warm: theme === "dark" ? sculpturePalette.warmDark : sculpturePalette.warmLight,
         }} columns={[
-            { title: "Explore", links: [{ label: "About", href: "/about" }, { label: "Domains", href: "/domains" }, { label: "Events", href: "/events" }, { label: "FAQ", href: "/faq" }, { label: "Contact", href: "/contact" }] },
-            ...studentNav.filter(group => group.children).map(group => ({ title: group.label, links: group.children.map(({ label, href }) => ({ label, href })) })),
-            { title: "Join", links: [{ label: "Start your journey", href: "/register" }, { label: "Sign in", href: "/login" }, { label: "Privacy", href: "/privacy" }, { label: "Terms", href: "/terms" }] },
+            { title: "Explore", links: publicFooterLinks.slice(0, 5).map(([label, href]) => ({ label, href })) },
+            ...studentNav.filter(group => group.children).map(group => ({
+                title: group.label,
+                // A visitor used to be offered 18 member links with no warning,
+                // then silently redirected to /login. The label is honest now.
+                note: workspace ? undefined : "members",
+                links: group.children.map(({ label, href }) => ({ label, href }))
+            })),
+            { title: "Join", links: [{ label: "Start your journey", href: "/register" }, ...publicFooterLinks.slice(5).map(([label, href]) => ({ label, href }))] },
         ]}/>
         </Suspense>
       </>

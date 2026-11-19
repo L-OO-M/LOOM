@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
-import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
+import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { EventsExplorer } from "./EventsBits";
 import { ConnectTabs } from "@/components/student/SectionRails";
 import { resolveScope, HISTORY_STATUSES, VISIBLE_STATUSES } from "@/lib/events";
@@ -29,7 +30,7 @@ function serializeEvent(e) {
 export default async function EventsPage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/events");
-  const { user, tenant, sql } = ctx;
+  const { user, tenant, profile, sql } = ctx;
   const sp = await searchParams;
   const scope = resolveScope(sp?.scope);
   const tid = tenant?.id ?? null;
@@ -101,6 +102,22 @@ export default async function EventsPage({ searchParams }) {
         />
 
         <ConnectTabs active="/student/events" />
+
+        {events.length === 0 && ["admin", "vertical_lead", "dept_lead"].includes(profile?.role || "") && (
+          <WorkspaceSection index="00" title="No gatherings yet" note="Be the first to schedule one.">
+            <p className="mt-3 text-sm" style={{ color: "var(--text)" }}>
+              There are no events in view. As a <strong>{profile.role}</strong>, you can create one — workshops, hackathons, talks, mentoring sessions, or contests.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link href="/admin/events" prefetch={false} className="btn-ink !py-2 text-sm">
+                {profile.role === "admin" ? "Open events console" : "Open lead console"}
+              </Link>
+              <Link href="/lead/workshops" prefetch={false} className="btn-ghost border !py-2 text-sm" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
+                Schedule a workshop
+              </Link>
+            </div>
+          </WorkspaceSection>
+        )}
 
         <EventsExplorer
           events={events.map(serializeEvent)}
