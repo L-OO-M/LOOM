@@ -10,16 +10,25 @@ import { readFileSync, existsSync } from "node:fs";
 //      A redirect to /login instead of the file is a verification failure that
 //      looks like a Search Console problem.
 //   2. The file must sit in public/ so Next serves it from the root.
-const VERIFY_FILE = "public/google98eae5c43ea32d19.html";
+const VERIFY_FILES = [
+  // First Search Console property for lets-loom.xyz.
+  "public/google98eae5c43ea32d19.html",
+  // Current property token. A domain keeps every verification file it has ever
+  // used; removing one un-verifies the property that owns it.
+  "public/googleqSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc.html",
+];
 
 describe("Search Console HTML-file verification", () => {
-  it("ships the verification file in public/ so it is served at the root", () => {
-    expect(existsSync(VERIFY_FILE)).toBe(true);
+  it("ships every verification file in public/ so it is served at the root", () => {
+    for (const file of VERIFY_FILES) expect(existsSync(file), file).toBe(true);
   });
 
   it("contains the exact token Google expects", () => {
-    const body = readFileSync(VERIFY_FILE, "utf8").trim();
-    expect(body).toBe("google-site-verification: google98eae5c43ea32d19.html");
+    for (const file of VERIFY_FILES) {
+      const body = readFileSync(file, "utf8").trim();
+      const name = file.replace("public/", "");
+      expect(body, file).toBe(`google-site-verification: ${name}`);
+    }
   });
 
   it("is excluded from the middleware matcher so it is never auth-gated", () => {

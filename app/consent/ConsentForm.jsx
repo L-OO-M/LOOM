@@ -46,10 +46,14 @@ export function ConsentForm({ termsVersion, privacyVersion, next = "/student" })
           Read the full{" "}
           <Link prefetch={false} href="/terms" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
             Terms
-          </Link>{" "}
-          and{" "}
+          </Link>
+          ,{" "}
           <Link prefetch={false} href="/privacy" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
             Privacy notice
+          </Link>{" "}
+          and{" "}
+          <Link prefetch={false} href="/cookies" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+            Cookie notice
           </Link>
           .
         </p>

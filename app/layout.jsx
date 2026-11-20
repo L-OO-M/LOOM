@@ -45,10 +45,21 @@ export const metadata = {
   authors: [{ name: "LOOM" }],
   creator: "LOOM",
   verification: {
-    // Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION after enrolling in Search Console; omitted when unset.
-    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    // The default is the live Search Console token for lets-loom.xyz (also
+    // committed as public/google<token>.html for the file method). A fork sets
+    // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION to its own token instead.
+    google:
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+      "qSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc"
   },
   robots: { index: true, follow: true },
+  googleBot: {
+    index: true,
+    follow: true,
+    "max-image-preview": "large",
+    "max-snippet": -1,
+    "max-video-preview": -1
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },

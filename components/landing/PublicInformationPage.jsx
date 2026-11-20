@@ -1,7 +1,9 @@
 import { PublicFooter } from "./PublicFooter";
+import { formatPolicyDate } from "@/lib/legal";
 import "./public-information.css";
 
-// Shared only by the public Privacy, Terms, and Contact reading pages.
+// Shared only by the public Privacy, Cookies, Terms, Disclaimer and Contact
+// reading pages.
 export function PublicInformationPage({ kicker, title, lede, published, sections, children }) {
   return (
     <>
@@ -15,7 +17,7 @@ export function PublicInformationPage({ kicker, title, lede, published, sections
         </header>
         <div className="information-wrap information-layout">
           <aside className="information-sidebar">
-            <p className="information-published">Published {published} · chapter review pending</p>
+            <p className="information-published">Effective {formatPolicyDate(published)}</p>
             <nav aria-label={`${kicker} sections`}>
               <ol>
                 {sections.map(({ id, title: sectionTitle }) => (

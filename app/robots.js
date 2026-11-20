@@ -18,6 +18,11 @@ const ALLOW = [
   "/faq",
   "/events",
   "/domains",
+  "/privacy",
+  "/cookies",
+  "/terms",
+  "/disclaimer",
+  "/contact",
   "/verify/",
   "/u/",
   "/api/og/",
@@ -34,12 +39,15 @@ const SEARCH_AND_ASSISTANTS = [
   "OAI-SearchBot", // ChatGPT search
   "ChatGPT-User", // ChatGPT browsing on a user's behalf
   "PerplexityBot",
+  "Perplexity-User", // user-triggered fetch from Perplexity
   "Claude-SearchBot",
   "Claude-User",
+  "MistralAI-User",
   "Googlebot",
   "Bingbot",
   "Applebot",
   "DuckDuckBot",
+  "DuckAssistBot",
 ];
 
 const TRAINING_ONLY = [
