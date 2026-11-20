@@ -31,9 +31,9 @@ function dueState(task) {
   return null;
 }
 
-export function EventOpsBoard({ initialTasks = [], events = [], members = [], canManage = false }) {
+export function EventOpsBoard({ initialTasks = [], events = [], members = [], canManage = false, initialEvent = "" }) {
   const [tasks, setTasks] = useState(initialTasks);
-  const [eventId, setEventId] = useState("");
+  const [eventId, setEventId] = useState(initialEvent);
   const [status, setStatus] = useState("");
   const [dueSoon, setDueSoon] = useState(false);
   const [q, setQ] = useState("");

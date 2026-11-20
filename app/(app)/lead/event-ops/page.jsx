@@ -10,11 +10,14 @@ export const dynamic = "force-dynamic";
 
 const LEAD_ROLES = ["dept_lead", "vertical_lead", "admin"];
 
-export default async function Page() {
+export default async function Page({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=${encodeURIComponent("/lead/event-ops")}`);
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role)) redirect("/student");
+  const sp = await searchParams;
+  // Deep link from an event workspace: open the board already filtered to it.
+  const initialEvent = typeof sp?.event === "string" ? sp.event : "";
 
   const events = await sql`
     SELECT id, title FROM events
@@ -28,7 +31,7 @@ export default async function Page() {
     ORDER BY name
     LIMIT 200
   `;
-  const tasks = await listTasks(sql, { tenantId: tenant.id });
+  const tasks = await listTasks(sql, { tenantId: tenant.id, eventId: initialEvent || null });
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   const canManage = can(me, "manage_event_ops").ok;
   const open = tasks.filter((t) => t.status !== "done").length;
@@ -59,7 +62,7 @@ export default async function Page() {
           title="Task board"
           note="Filter by event, owner, or status. Done tasks stay visible until archived."
         >
-          <EventOpsBoard initialTasks={tasks} events={events} members={members} canManage={canManage} />
+          <EventOpsBoard initialTasks={tasks} events={events} members={members} canManage={canManage} initialEvent={initialEvent} />
         </WorkspaceSection>
       </main>
     </AppShell>

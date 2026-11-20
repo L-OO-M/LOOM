@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EVENT_TYPES,
   VISIBLE_STATUSES,
+  HISTORY_STATUSES,
   resolveScope,
   isStudentVisible,
   isPastEvent,
@@ -46,6 +47,10 @@ describe("events scopes and visibility", () => {
     expect(isStudentVisible({ status: "proposed" })).toBe(false);
     expect(isStudentVisible({ status: "cancelled" })).toBe(false);
     expect(isStudentVisible({ status: "past" })).toBe(false);
+    // History keeps legacy "completed" rows reachable, but upcoming never does.
+    expect(HISTORY_STATUSES).toContain("past");
+    expect(HISTORY_STATUSES).toContain("completed");
+    expect(HISTORY_STATUSES).not.toContain("proposed");
   });
 
   it("treats events older than the live window as past", () => {
@@ -65,6 +70,9 @@ describe("events display state", () => {
   it("marks old events past even when their status column is stale", () => {
     expect(displayState(event({ starts_at: oldStart, status: "upcoming" }), null, NOW).key).toBe("past");
     expect(displayState(event({ status: "past", starts_at: upcomingStart }), null, NOW).key).toBe("past");
+    // Legacy spelling the CHECK constraint never accepted: still read as past
+    // rather than falling through to "open" and offering a registration.
+    expect(displayState(event({ status: "completed", starts_at: upcomingStart }), null, NOW).key).toBe("past");
   });
 
   it("marks full only when capacity is set, reached, and the viewer is not in", () => {

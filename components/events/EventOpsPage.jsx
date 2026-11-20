@@ -9,6 +9,7 @@ import { EventCheckIn } from "@/components/events/EventCheckIn";
 import { EventAdminActions } from "@/components/admin/EventAdminActions";
 import { EventVolunteerAdmin } from "@/components/events/EventVolunteerAdmin";
 import { displayState, TYPE_LABEL } from "@/lib/events";
+import { DOMAIN_LABEL, DOMAIN_ORDER } from "@/lib/domains";
 
 // One event-operations surface for both consoles. Before this, the only
 // check-in page lived in student chrome, so an admin following an event link
@@ -71,6 +72,15 @@ export async function EventOpsPage({ id, area = "admin" }) {
     ORDER BY v.created_at ASC
     LIMIT 500
   `;
+  // Editing an event needs the chapter's real departments and the canonical
+  // track keys, so the form can offer a picker instead of free text.
+  const departments = await sql`
+    SELECT id, name FROM departments
+    WHERE tenant_id = ${tenant.id}::uuid
+    ORDER BY name
+    LIMIT 100
+  `;
+  const domains = DOMAIN_ORDER.map((key) => ({ key, label: DOMAIN_LABEL[key] }));
 
   const state = displayState(event, null);
   const attended = Number(event.attended || 0);
@@ -115,9 +125,51 @@ export async function EventOpsPage({ id, area = "admin" }) {
           <span className="meta inline-flex items-center gap-1"><Users size={12} aria-hidden="true" /> {seats} registered</span>
         </div>
 
-        <EventAdminActions event={event} />
+        <EventAdminActions event={event} departments={departments} domains={domains} />
 
-        <WorkspaceSection index="01" title="Door check-in" note="Type or scan the student's door code. Check-in also writes attendance evidence and issues the certificate once.">
+        <WorkspaceSection
+          index="01"
+          title="Run this event"
+          note="The three places the work actually happens: the task board, the announcement feed, and the event thread."
+        >
+          <ul className="mt-3 grid gap-2 sm:grid-cols-3" style={{ listStyle: "none", padding: 0 }}>
+            <li>
+              <Link
+                href={`${area === "admin" ? "/admin" : "/lead"}/event-ops?event=${event.id}`}
+                prefetch={false}
+                className="block rounded-xl border px-3.5 py-3 text-sm font-semibold hover:underline"
+                style={{ borderColor: "var(--line)", color: "var(--text)", background: "var(--bg-muted)" }}
+              >
+                Team tasks for this event →
+              </Link>
+              <p className="meta mt-1.5 normal-case tracking-normal">Assign an owner, set a deadline, tick it off.</p>
+            </li>
+            <li>
+              <Link
+                href={`${area === "admin" ? "/admin" : "/lead"}/announcements`}
+                prefetch={false}
+                className="block rounded-xl border px-3.5 py-3 text-sm font-semibold hover:underline"
+                style={{ borderColor: "var(--line)", color: "var(--text)", background: "var(--bg-muted)" }}
+              >
+                Announce it →
+              </Link>
+              <p className="meta mt-1.5 normal-case tracking-normal">Publish to the chapter feed or one vertical.</p>
+            </li>
+            <li>
+              <Link
+                href={`/student/community/forums?new=1&event=${event.id}`}
+                prefetch={false}
+                className="block rounded-xl border px-3.5 py-3 text-sm font-semibold hover:underline"
+                style={{ borderColor: "var(--line)", color: "var(--text)", background: "var(--bg-muted)" }}
+              >
+                Open the event thread →
+              </Link>
+              <p className="meta mt-1.5 normal-case tracking-normal">Questions, logistics and follow-ups in one place.</p>
+            </li>
+          </ul>
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Door check-in" note="Type or scan the student's door code. Check-in also writes attendance evidence and issues the certificate once.">
           <EventCheckIn eventId={event.id} />
           {event.status === "cancelled" && (
             <p className="mt-3 text-sm font-medium" role="alert" style={{ color: "var(--danger)" }}>
@@ -126,7 +178,7 @@ export async function EventOpsPage({ id, area = "admin" }) {
           )}
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Attendee ledger" note="Registered first, newest last. Codes are shown only to event operators.">
+        <WorkspaceSection index="03" title="Attendee ledger" note="Registered first, newest last. Codes are shown only to event operators.">
           <div className="mb-3">
             <a
               href={`/api/admin/events/${event.id}/attendees/export`}
@@ -155,7 +207,7 @@ export async function EventOpsPage({ id, area = "admin" }) {
           )}
         </WorkspaceSection>
 
-        <WorkspaceSection index="03" title="Volunteer roster" note="Add the jobs this event needs, then see exactly who signed up.">
+        <WorkspaceSection index="04" title="Volunteer roster" note="Add the jobs this event needs, then see exactly who signed up.">
           <EventVolunteerAdmin
             eventId={event.id}
             slots={volunteerSlots}

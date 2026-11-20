@@ -7,13 +7,16 @@ import { EventOpsBoard } from "@/components/lead/EventOpsBoard";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminEventOpsPage() {
+export default async function AdminEventOpsPage({ searchParams }) {
   const ctx = await getRequestContext({ adminOnly: true });
   if (ctx.error === "UNAUTHORIZED") redirect("/login?redirect=/admin/event-ops");
   if (ctx.error === "FORBIDDEN") redirect("/student");
   if (ctx.error) redirect("/login?redirect=/admin/event-ops");
   const { user, tenant, sql } = ctx;
   if (!tenant?.id) redirect("/admin");
+  const sp = await searchParams;
+  // Deep link from an event workspace: open the board already filtered to it.
+  const initialEvent = typeof sp?.event === "string" ? sp.event : "";
 
   const events = await sql`
     SELECT id, title FROM events
@@ -27,7 +30,7 @@ export default async function AdminEventOpsPage() {
     ORDER BY name
     LIMIT 200
   `;
-  const tasks = await listTasks(sql, { tenantId: tenant.id });
+  const tasks = await listTasks(sql, { tenantId: tenant.id, eventId: initialEvent || null });
   const open = tasks.filter((t) => t.status !== "done").length;
   const done = tasks.filter((t) => t.status === "done").length;
   const horizon = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -52,7 +55,7 @@ export default async function AdminEventOpsPage() {
           ]}
         />
         <WorkspaceSection index="01" title="Task board" note="Filter by event, owner, or status. Done tasks stay visible until archived.">
-          <EventOpsBoard initialTasks={tasks} events={events} members={members} canManage />
+          <EventOpsBoard initialTasks={tasks} events={events} members={members} canManage initialEvent={initialEvent} />
         </WorkspaceSection>
       </main>
     </AppShell>

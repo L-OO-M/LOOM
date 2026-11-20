@@ -5,12 +5,16 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { EventForm } from "./EventBits";
+import { DOMAIN_LABEL, DOMAIN_ORDER } from "@/lib/domains";
 import "../_components/admin-ledger.css";
 
 function statusTone(s) {
   const m = {
     upcoming: { label: "Upcoming", className: "aled-tag--info" },
     live: { label: "Live", className: "aled-tag--success" },
+    // "past" is the stored value for a finished event; "completed" is the legacy
+    // spelling that the CHECK constraint never accepted. Label both as Completed.
+    past: { label: "Completed", className: "" },
     completed: { label: "Completed", className: "" },
     cancelled: { label: "Cancelled", className: "" },
     proposed: { label: "Proposed", className: "aled-tag--warn" },
@@ -26,14 +30,17 @@ export default async function AdminEventsPage({ searchParams }) {
   const { tenant, user, sql } = ctx;
   const sp = await searchParams;
   const q = (sp?.q || "").trim();
-  const status = sp?.status || "";
+  // Old bookmarks and cached bundles link to status=completed; the stored value
+  // is "past". Normalise so the filter does not silently return zero rows.
+  const requestedStatus = sp?.status || "";
+  const status = requestedStatus === "completed" ? "past" : requestedStatus;
 
   const [stats] = await sql`
     SELECT
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE status = 'upcoming')::int AS upcoming,
       COUNT(*) FILTER (WHERE status = 'live')::int AS live,
-      COUNT(*) FILTER (WHERE status = 'completed')::int AS completed
+      COUNT(*) FILTER (WHERE status IN ('past', 'completed'))::int AS completed
     FROM events WHERE tenant_id = ${tenant?.id ?? null}::uuid
   `;
 
@@ -57,6 +64,15 @@ export default async function AdminEventsPage({ searchParams }) {
       AND (${q ? sql`(e.title ILIKE ${"%" + q + "%"} OR COALESCE(e.description,'') ILIKE ${"%" + q + "%"})` : sql`TRUE`})
       AND (${status ? sql`e.status = ${status}` : sql`TRUE`})
     ORDER BY e.starts_at DESC LIMIT 40
+  `;
+
+  // The create form files an event under a department; the list needs the real
+  // chapter departments so the admin picks a valid id instead of typing a name.
+  const departments = await sql`
+    SELECT id, name FROM departments
+    WHERE tenant_id = ${tenant?.id ?? null}::uuid
+    ORDER BY name
+    LIMIT 100
   `;
 
   const seatsTotal = events.reduce((n, e) => n + (e.seats_taken || 0), 0);
@@ -89,7 +105,7 @@ export default async function AdminEventsPage({ searchParams }) {
             <option value="">All statuses</option>
             <option value="upcoming">Upcoming</option>
             <option value="live">Live</option>
-            <option value="completed">Completed</option>
+            <option value="past">Completed</option>
             <option value="cancelled">Cancelled</option>
             <option value="proposed">Proposed</option>
           </select>
@@ -150,14 +166,19 @@ export default async function AdminEventsPage({ searchParams }) {
 
           <div className="aled-stack">
             <WorkspaceSection title="Schedule an event" note="Workshops and hackathons fill the calendar — keep capacity realistic." className="mt-0">
-              <div className="aled-panel"><EventForm /></div>
+              <div className="aled-panel">
+                <EventForm
+                  domains={DOMAIN_ORDER.map((key) => ({ key, label: DOMAIN_LABEL[key] }))}
+                  departments={departments}
+                />
+              </div>
             </WorkspaceSection>
             <div className="aled-panel">
               <p className="aled-panel-title">Ops notes</p>
               <ul className="aled-notes">
                 <li>Capacity enforces waitlist at registration time.</li>
                 <li>Feedback score is the attendee average — shows after the event.</li>
-                <li>Use proposed → upcoming → live → completed.</li>
+                <li>Use proposed → upcoming → live → Completed (stored as past).</li>
               </ul>
             </div>
           </div>
