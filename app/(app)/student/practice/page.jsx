@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead } from "@/components/loom/WorkspaceMasthead";
 import { LearnTabs } from "@/components/student/SectionRails";
 import { loadPracticeSnapshot } from "@/lib/practice";
+import { loadPracticeProgress } from "@/lib/practice-progress";
 import { PracticeClient } from "./_components/PracticeClient";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,12 @@ export default async function StudentPracticePage() {
   const snapshot = await loadPracticeSnapshot(sql, {
     tenantId: tenant.id,
     userId: user.id
+  });
+  const progress = await loadPracticeProgress(sql, {
+    tenantId: tenant.id,
+    userId: user.id,
+    questions: snapshot.questions,
+    now: snapshot.now
   });
   const currentQuestions = snapshot.questions.filter((question) => question.weekId === snapshot.current?.id);
   const solved = snapshot.credits.filter(
@@ -56,7 +63,7 @@ export default async function StudentPracticePage() {
           ]}
         />
         <LearnTabs active="/student/roadmap" />
-        <PracticeClient snapshot={snapshot} userId={user.id} />
+        <PracticeClient snapshot={snapshot} userId={user.id} progress={progress} />
       </main>
     </AppShell>
   );
