@@ -3,13 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Check, Clock3, ExternalLink, RefreshCw, UserRound } from "lucide-react";
-import { ActionLink, Meta, StatusPill } from "@/components/loom/primitives";
+import { CalendarDays, Check, CircleDot, Clock3, ExternalLink, Play, RefreshCw, UserRound } from "lucide-react";
+import { ActionLink, Meta, SegControl, StatusPill } from "@/components/loom/primitives";
 import { StatTile } from "@/components/loom/StatTiles";
 import { WorkspaceEmpty, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { Field, inputStyle } from "@/components/ui";
 import { postJSON } from "@/components/loom/useAction";
 import { STARTER_PROBLEMS } from "@/lib/practice-starters";
+import { PracticeOverview } from "./PracticeOverview";
+import { PracticeAnalytics } from "./PracticeAnalytics";
+import { PracticeScorecard } from "./PracticeScorecard";
 
 function date(value, options = {}) {
   if (!value) return "";
@@ -52,38 +55,89 @@ function humanizeSlug(slug) {
     .join(" ");
 }
 
-function QuestionRow({ question, credit, solvedAt, showSeen = false }) {
-  const solvedOnLeetCode = !credit && Boolean(solvedAt);
+function QuestionRow({
+  question,
+  credit,
+  solvedAt,
+  showSeen = false,
+  status = "not_started",
+  attemptInfo = null,
+  sessionActive = false,
+  onAttempt,
+  onSolved,
+  busy = false
+}) {
+  const solved = status === "solved" || Boolean(credit);
+  const attempted = !solved && status === "attempted";
+  const canLog = sessionActive && Boolean(onAttempt) && Boolean(question.id);
+  const statusLabel = solved ? "Solved" : attempted ? "Attempted" : "Not started";
+  const accent = solved ? "var(--accent)" : attempted ? "var(--warn)" : "var(--line)";
   return (
-    <li>
-      <a
-        href={`https://leetcode.com/problems/${question.slug}/`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-start gap-3 rounded-xl border p-3.5 transition hover:shadow-sm"
-        style={{ borderColor: credit ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }}
-      >
+    <li
+      className="rounded-xl border transition hover:shadow-sm"
+      style={{ borderColor: accent, background: "var(--bg-elevated)" }}
+    >
+      <div className="flex items-start gap-3 p-3.5">
         <span
           className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
           style={{
-            borderColor: credit ? "var(--accent)" : "var(--line)",
-            color: credit ? "var(--accent)" : "var(--text-muted)"
+            borderColor: accent,
+            color: solved ? "var(--accent)" : attempted ? "var(--warn)" : "var(--text-muted)"
           }}
+          aria-hidden="true"
         >
-          {credit ? <Check size={14} /> : String(question.position).padStart(2, "0")}
+          {solved ? <Check size={14} /> : attempted ? <CircleDot size={14} /> : String(question.position).padStart(2, "0")}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{question.title}</span>
+        <div className="min-w-0 flex-1">
+          <a
+            href={`https://leetcode.com/problems/${question.slug}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-sm font-medium hover:underline"
+            style={{ color: "var(--text)" }}
+          >
+            {question.title}
+          </a>
           <span className="meta mt-1 block">
             {question.topic || "DSA practice"}
             <span className="dot-sep">{question.difficulty}</span>
             {credit ? <span className="dot-sep">accepted {date(credit.acceptedAt)}</span> : null}
-            {solvedOnLeetCode ? <span className="dot-sep">solved on LeetCode {date(solvedAt)}</span> : null}
-            {showSeen && !credit && !solvedAt ? <span className="dot-sep">not seen yet</span> : null}
+            {solvedAt ? <span className="dot-sep">solved on LeetCode {date(solvedAt)}</span> : null}
+            {attemptInfo?.attempts ? (
+              <span className="dot-sep">
+                {attemptInfo.attempts} logged attempt{attemptInfo.attempts === 1 ? "" : "s"}
+              </span>
+            ) : null}
+            {attemptInfo?.lastActivityAt ? (
+              <span className="dot-sep">last activity {date(attemptInfo.lastActivityAt)}</span>
+            ) : null}
+            {showSeen && !credit && !solvedAt && !attempted ? <span className="dot-sep">not seen yet</span> : null}
           </span>
-        </span>
-        <ExternalLink size={14} className="mt-1 shrink-0" style={{ color: "var(--text-muted)" }} />
-      </a>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusPill>{statusLabel}</StatusPill>
+          <a
+            href={`https://leetcode.com/problems/${question.slug}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${question.title} on LeetCode`}
+            style={{ color: "var(--text-muted)" }}
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
+      </div>
+      {canLog ? (
+        <div className="flex flex-wrap items-center gap-2 border-t px-3.5 py-2" style={{ borderColor: "var(--line)" }}>
+          <button type="button" className="btn-ghost !py-1.5 text-xs" onClick={() => onAttempt(question)} disabled={busy}>
+            Log attempt
+          </button>
+          <button type="button" className="btn-ghost !py-1.5 text-xs" onClick={() => onSolved(question)} disabled={busy}>
+            Mark solved here
+          </button>
+          <span className="meta">self-reported, verified only after LeetCode sync</span>
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -127,7 +181,7 @@ function RankPreview({ rows, currentUserId }) {
   );
 }
 
-export function PracticeClient({ snapshot, userId }) {
+export function PracticeClient({ snapshot, userId, progress }) {
   const router = useRouter();
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
@@ -138,6 +192,40 @@ export function PracticeClient({ snapshot, userId }) {
   const [linkError, setLinkError] = useState("");
   const [editingHandle, setEditingHandle] = useState(false);
   const [selectedWeekId, setSelectedWeekId] = useState(snapshot.history[0]?.id || "");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [sessionOverride, setSessionOverride] = useState(null);
+  const [scorecard, setScorecard] = useState(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [attemptBusyKey, setAttemptBusyKey] = useState("");
+  const [sessionMessage, setSessionMessage] = useState("");
+  const [sessionError, setSessionError] = useState("");
+
+  const practiceProgress = progress || {
+    totals: {
+      total: 0,
+      solved: 0,
+      attempted: 0,
+      notSolved: 0,
+      inProgress: 0,
+      notStarted: 0,
+      accuracy: 0,
+      completion: 0,
+      sessions: 0,
+      streak: 0
+    },
+    difficulty: [],
+    timeline: [],
+    activity: [],
+    byQuestion: [],
+    sessions: [],
+    activeSession: null,
+    lastScorecard: null
+  };
+  const progressByQuestion = new Map(
+    (practiceProgress.byQuestion || []).map((row) => [row.questionId, row])
+  );
+  const activeSession = sessionOverride || practiceProgress.activeSession || null;
 
   const currentQuestions = snapshot.questions.filter(
     (question) => question.weekId === snapshot.current?.id
@@ -187,6 +275,34 @@ export function PracticeClient({ snapshot, userId }) {
     if (level && difficulty[level] !== undefined) difficulty[level] += 1;
   }
 
+  function statusOf(question) {
+    const row = progressByQuestion.get(String(question.id));
+    if (row) return row.status;
+    if (solveByQuestion.get(String(question.id)) || solveBySlug.get(question.slug)) return "solved";
+    return "not_started";
+  }
+
+  function attemptInfoOf(question) {
+    return progressByQuestion.get(String(question.id)) || null;
+  }
+
+  const statusCounts = { all: currentQuestions.length, solved: 0, attempted: 0, not_started: 0 };
+  for (const question of currentQuestions) {
+    const status = statusOf(question);
+    if (statusCounts[status] !== undefined) statusCounts[status] += 1;
+  }
+  const filteredQuestions = currentQuestions.filter((question) => {
+    if (statusFilter !== "all" && statusOf(question) !== statusFilter) return false;
+    if (difficultyFilter !== "all" && question.difficulty !== difficultyFilter) return false;
+    return true;
+  });
+  const statusOptions = [
+    { value: "all", label: `All ${statusCounts.all}` },
+    { value: "solved", label: `Solved ${statusCounts.solved}` },
+    { value: "attempted", label: `Attempted ${statusCounts.attempted}` },
+    { value: "not_started", label: `Not started ${statusCounts.not_started}` }
+  ];
+
   async function refresh() {
     setRefreshBusy(true);
     setRefreshMessage("");
@@ -227,6 +343,83 @@ export function PracticeClient({ snapshot, userId }) {
       setLinkError(result.error?.message || "Could not link that username.");
     }
     setLinkBusy(false);
+  }
+
+  async function startSession() {
+    setSessionBusy(true);
+    setSessionMessage("");
+    setSessionError("");
+    const result = await postJSON("/api/practice/session", "POST", { action: "start" });
+    if (result.ok && result.data?.session) {
+      setSessionOverride(result.data.session);
+      setSessionMessage(
+        result.data.resumed
+          ? "Your practice session is still open. Log problems as you work."
+          : "Practice session started. Log each problem as you go, then finish for a scorecard."
+      );
+      router.refresh();
+    } else {
+      setSessionError(result.error?.message || "Could not start a practice session.");
+    }
+    setSessionBusy(false);
+  }
+
+  async function logAttempt(question, outcome) {
+    const key = `${question.id}:${outcome}`;
+    setAttemptBusyKey(key);
+    setSessionMessage("");
+    setSessionError("");
+    const result = await postJSON("/api/practice/session", "POST", {
+      action: "attempt",
+      questionId: question.id,
+      outcome,
+      ...(activeSession?.id ? { sessionId: activeSession.id } : {})
+    });
+    if (result.ok && result.data?.session) {
+      setSessionOverride(result.data.session);
+      setSessionMessage(
+        outcome === "solved"
+          ? "Marked solved here. LeetCode sync is what makes it verified."
+          : "Attempt logged. Keep going or finish the session for a scorecard."
+      );
+      router.refresh();
+    } else {
+      setSessionError(result.error?.message || "Could not record that attempt.");
+    }
+    setAttemptBusyKey("");
+  }
+
+  async function finishSession() {
+    if (!activeSession?.id) return;
+    setSessionBusy(true);
+    setSessionMessage("");
+    setSessionError("");
+    const result = await postJSON("/api/practice/session", "POST", {
+      action: "complete",
+      sessionId: activeSession.id
+    });
+    if (result.ok) {
+      if (result.data?.scorecard) setScorecard(result.data.scorecard);
+      setSessionOverride(null);
+      router.refresh();
+    } else {
+      setSessionError(result.error?.message || "Could not finish that practice session.");
+    }
+    setSessionBusy(false);
+  }
+
+  function showAttemptedProblems() {
+    setStatusFilter("attempted");
+    setDifficultyFilter("all");
+    setScorecard(null);
+    requestAnimationFrame(() => {
+      document.getElementById("practice-problem-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  async function continuePracticing() {
+    setScorecard(null);
+    await startSession();
   }
 
   return (
@@ -320,6 +513,80 @@ export function PracticeClient({ snapshot, userId }) {
         {refreshError ? <p role="alert" className="mt-2 text-xs" style={{ color: "var(--danger)" }}>{refreshError}</p> : null}
         {refreshMessage ? <p className="mt-2 text-xs" style={{ color: "var(--accent)" }}>{refreshMessage}</p> : null}
 
+        {currentQuestions.length > 0 ? (
+          <div
+            className="mt-4 rounded-2xl border p-4"
+            style={{ borderColor: activeSession ? "var(--accent)" : "var(--line)", background: "var(--bg-elevated)" }}
+          >
+            {activeSession ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <span
+                    className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full border"
+                    style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+                  >
+                    <CircleDot size={15} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                      Practice session in progress
+                    </p>
+                    <p className="meta mt-0.5">
+                      Started {ago(activeSession.startedAt, snapshot.now)} / finish for a scorecard
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-ink"
+                  onClick={finishSession}
+                  disabled={sessionBusy}
+                >
+                  {sessionBusy ? "Finishing..." : "Finish session"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                    Track this practice session
+                  </p>
+                  <p className="narrative mt-1 text-xs leading-5">
+                    Start a session, log attempts against this week&apos;s problems, and finish for a
+                    scorecard. Self-reported entries are labelled and never count as verified.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {practiceProgress.lastScorecard ? (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => setScorecard(practiceProgress.lastScorecard)}
+                    >
+                      Last scorecard
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn-ink inline-flex items-center gap-1.5"
+                    onClick={startSession}
+                    disabled={sessionBusy}
+                  >
+                    <Play size={14} />
+                    {sessionBusy ? "Starting..." : "Start practice session"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {sessionError ? (
+              <p role="alert" className="mt-2 text-xs" style={{ color: "var(--danger)" }}>{sessionError}</p>
+            ) : null}
+            {sessionMessage ? (
+              <p className="mt-2 text-xs" style={{ color: "var(--accent)" }}>{sessionMessage}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div>
             {!snapshot.current ? (
@@ -343,6 +610,7 @@ export function PracticeClient({ snapshot, userId }) {
                         question={question}
                         credit={null}
                         solvedAt={solveBySlug.get(question.slug)?.acceptedAt}
+                        status={solveBySlug.get(question.slug) ? "solved" : "not_started"}
                       />
                     ))}
                   </ol>
@@ -354,17 +622,73 @@ export function PracticeClient({ snapshot, userId }) {
                 body="Ask the DSA team to repair the set. Nothing is counted until the questions exist."
               />
             ) : (
-              <ol className="grid gap-2">
-                {currentQuestions.map((question) => (
-                  <QuestionRow
-                    key={question.id}
-                    question={question}
-                    credit={creditByQuestion.get(question.id)}
-                    solvedAt={solveByQuestion.get(question.id)?.acceptedAt}
-                    showSeen
+              <div id="practice-problem-list">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+                  <SegControl
+                    label="Filter problems by progress"
+                    options={statusOptions}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
                   />
-                ))}
-              </ol>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["all", "Easy", "Medium", "Hard"].map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setDifficultyFilter(level)}
+                        aria-pressed={difficultyFilter === level}
+                        className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+                        style={{
+                          borderColor: difficultyFilter === level ? "var(--accent)" : "var(--line)",
+                          color: difficultyFilter === level ? "var(--accent)" : "var(--text-muted)",
+                          background: difficultyFilter === level ? "var(--wash)" : "transparent"
+                        }}
+                      >
+                        {level === "all" ? "All levels" : level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {filteredQuestions.length === 0 ? (
+                  <div className="mt-4">
+                    <WorkspaceEmpty
+                      title="No problems match this filter."
+                      body="Change the progress or difficulty filter to see the rest of this week's set."
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost mt-3"
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setDifficultyFilter("all");
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                ) : (
+                  <ol className="mt-4 grid gap-2">
+                    {filteredQuestions.map((question) => (
+                      <QuestionRow
+                        key={question.id}
+                        question={question}
+                        credit={creditByQuestion.get(question.id)}
+                        solvedAt={solveByQuestion.get(question.id)?.acceptedAt}
+                        showSeen
+                        status={statusOf(question)}
+                        attemptInfo={attemptInfoOf(question)}
+                        sessionActive={Boolean(activeSession)}
+                        onAttempt={(item) => logAttempt(item, "attempted")}
+                        onSolved={(item) => logAttempt(item, "solved")}
+                        busy={
+                          attemptBusyKey === `${question.id}:attempted` ||
+                          attemptBusyKey === `${question.id}:solved`
+                        }
+                      />
+                    ))}
+                  </ol>
+                )}
+              </div>
             )}
           </div>
           <aside className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
@@ -386,6 +710,16 @@ export function PracticeClient({ snapshot, userId }) {
 
       <WorkspaceSection
         index="02"
+        title="Your practice progress"
+        note="Only recorded activity counts: accepted LeetCode solves and attempts you log in this room."
+        action={<StatusPill>verified + self-reported</StatusPill>}
+      >
+        <PracticeOverview progress={practiceProgress} />
+        <PracticeAnalytics progress={practiceProgress} />
+      </WorkspaceSection>
+
+      <WorkspaceSection
+        index="03"
         title="LeetCode progress"
         note="Your overall LeetCode account, separate from LOOM weekly scoring."
         action={<StatusPill>not LOOM scoring</StatusPill>}
@@ -481,7 +815,7 @@ export function PracticeClient({ snapshot, userId }) {
       </WorkspaceSection>
 
       <WorkspaceSection
-        index="03"
+        index="04"
         title="Your practice record"
         note="Only credited solves in the published window are counted."
       >
@@ -524,7 +858,7 @@ export function PracticeClient({ snapshot, userId }) {
       </WorkspaceSection>
 
       <WorkspaceSection
-        index="04"
+        index="05"
         title="This week's board"
         note="Practice points are a weekly habit board. Chapter standing is a separate score."
         action={<ActionLink href="/student/practice/leaderboard">Weekly and monthly board</ActionLink>}
@@ -533,7 +867,7 @@ export function PracticeClient({ snapshot, userId }) {
       </WorkspaceSection>
 
       <WorkspaceSection
-        index="05"
+        index="06"
         title="Archive"
         note="Practice stays open; scoring is closed."
       >
@@ -579,6 +913,8 @@ export function PracticeClient({ snapshot, userId }) {
                         question={question}
                         credit={archiveCredits.get(question.id)}
                         solvedAt={solveByQuestion.get(question.id)?.acceptedAt}
+                        status={statusOf(question)}
+                        attemptInfo={attemptInfoOf(question)}
                       />
                     ))}
                   </ol>
@@ -588,6 +924,15 @@ export function PracticeClient({ snapshot, userId }) {
           </div>
         )}
       </WorkspaceSection>
+
+      <PracticeScorecard
+        scorecard={scorecard}
+        onClose={() => setScorecard(null)}
+        onReview={showAttemptedProblems}
+        onRetry={showAttemptedProblems}
+        onContinue={continuePracticing}
+      />
     </>
   );
 }
+
