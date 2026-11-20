@@ -9,6 +9,7 @@ import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
 import { AppearancePanel } from "./AppearancePanel";
 import { maskEmail } from "@/lib/email-verification";
 import { socialLinksForDisplay, LINK_LABELS } from "@/lib/profileFolio";
+import { loadDomainCatalogue } from "@/lib/roadmap";
 
 export default async function SettingsPage() {
   const ctx = await getRequestContext();
@@ -16,6 +17,7 @@ export default async function SettingsPage() {
   const { tenant, user, profile, sql } = ctx;
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
   const [card] = await sql`SELECT username, is_public, bio, social_links FROM user_profiles WHERE user_id = ${user.id} LIMIT 1`;
+  const domains = await loadDomainCatalogue(sql);
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
@@ -50,7 +52,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className="mt-8" aria-label="Profile">
-          <SettingsClient profile={profile} />
+          <SettingsClient profile={profile} domains={domains} />
         </section>
 
         <div id="membership" className="scroll-mt-20">
@@ -155,7 +157,7 @@ export default async function SettingsPage() {
               </button>
             </form>
           </div>
-          <p className="narrative mt-5">Sessions are Supabase Auth cookies. Signing out ends the session on this device.</p>
+          <p className="narrative mt-5">Sessions are signed by Auth0. Signing out ends the session on this device.</p>
         </WorkspaceSection>
 
         <AppearancePanel />

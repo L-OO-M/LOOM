@@ -55,7 +55,10 @@ export async function GET() {
   // would bounce it straight back here -- a redirect loop with a login in it.
   if (ctx.error) return to("/login");
 
-  const role = ctx.profile?.role;
+  // effectiveRole, not the stored role: a platform admin/founder is governed as
+  // an admin even when profiles.role still reads "student". Using the stored
+  // value sent a founder to the student home right after sign-in.
+  const role = ctx.profile?.effectiveRole || ctx.profile?.role;
   if (role === "student" && !ctx.profile?.onboarding_completed) {
     return to("/student/onboarding");
   }

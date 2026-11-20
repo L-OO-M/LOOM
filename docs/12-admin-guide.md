@@ -54,6 +54,6 @@ Without these, Insights/Data/Network show the last computed values — never fak
 ## 7. Safety rules
 
 - Tenant is derived from the member's profile on the server — admins only ever see their own chapter.
-- `platform_admins` bypass tenant checks and founder seats are permanent: grant sparingly, audit always.
+- `platform_admins` bypass tenant checks and founder seats are permanent: grant sparingly, audit always. Since migration 087 the database itself refuses to delete a founder seat or the founder's profile row, refuses to unlock it, and refuses to truncate either table — a "clean reset" cannot remove the account that runs the chapter.
 - Never edit `auth.users` directly; manage membership through `profiles`.
 - Service-role key stays server-side (`.env.local`, never committed, never in client code).

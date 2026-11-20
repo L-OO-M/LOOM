@@ -3,26 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { normalizeDomainKey } from "@/lib/domains";
+import { handleFromProfileUrl } from "@/lib/profileFolio";
+import DomainPicker from "../_components/DomainPicker";
 
-function githubLoginFromCard(card) {
-  const value = card?.social_links?.github;
-  if (typeof value !== "string") return null;
-  try {
-    const url = new URL(value);
-    return url.pathname.replace(/^\/+/, "").split("/")[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-export default function SettingsClient({ profile, requireUsername = false }) {
+export default function SettingsClient({ profile, domains = [] }) {
   const router = useRouter();
   const [form, setForm] = useState({
     name: profile?.name || "",
     enrollmentNumber: profile?.enrollment_number || "",
     department: profile?.department || "",
     year: profile?.year || "",
-    primaryDomain: profile?.primary_domain || "web"
+    primaryDomain:
+      normalizeDomainKey(profile?.primary_domain) || domains[0]?.key || ""
   });
   const [card, setCard] = useState(null);
   const [security, setSecurity] = useState(null);
@@ -64,9 +57,6 @@ export default function SettingsClient({ profile, requireUsername = false }) {
 
   async function saveIdentity() {
     const handle = username.trim().toLowerCase();
-    if (requireUsername && !handle) {
-      return { ok: false, message: "Claim a public handle before finishing onboarding." };
-    }
     if (handle && handle !== card?.username) {
       const res = await fetch("/api/social/profile", {
         method: "PUT",
@@ -76,7 +66,7 @@ export default function SettingsClient({ profile, requireUsername = false }) {
           bio: card?.bio || "",
           location: card?.location || null,
           avatarUrl: card?.avatar_url || null,
-          github: githubLoginFromCard(card),
+          github: handleFromProfileUrl("github", card?.social_links?.github),
           linkedin: card?.social_links?.linkedin || null,
           isPublic: card?.is_public ?? true,
           endorsementsVisible: card?.endorsements_visible
@@ -119,10 +109,10 @@ export default function SettingsClient({ profile, requireUsername = false }) {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        name: form.name,
-        enrollmentNumber: form.enrollmentNumber || null,
-        department: form.department || null,
-        year: form.year ? Number(form.year) : null,
+        name: form.name.trim(),
+        enrollmentNumber: form.enrollmentNumber.trim() || null,
+        department: form.department.trim() || null,
+        year: form.year === "" || form.year === null ? null : Number(form.year),
         primaryDomain: form.primaryDomain || null,
         onboardingCompleted: true
       })
@@ -130,7 +120,17 @@ export default function SettingsClient({ profile, requireUsername = false }) {
     const data = await res.json();
     setBusy(false);
     if (!data.ok) {
-      setMsg(data.error?.message || "Failed");
+      // The route now names the offending field; say which one instead of a
+      // bare "Failed".
+      const label = data.error?.details?.field;
+      const hint = {
+        name: "Check your name.",
+        year: "Check your year (1–6).",
+        primaryDomain: "Pick one of the available tracks.",
+        department: "Check your branch.",
+        enrollmentNumber: "Check your enrollment number."
+      }[label];
+      setMsg([data.error?.message, hint].filter(Boolean).join(" "));
       return;
     }
     setMsg("Saved.");
@@ -150,7 +150,23 @@ export default function SettingsClient({ profile, requireUsername = false }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label style={label}>Year<input value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} type="number" min={1} max={6} style={{ ...input, marginTop: 6 }} /></label>
-        <label style={label}>Primary domain<input value={form.primaryDomain} onChange={(e) => setForm({ ...form, primaryDomain: e.target.value })} style={{ ...input, marginTop: 6 }} /></label>
+      </div>
+
+      <div>
+        <p style={label}>Primary track</p>
+        <p className="meta" style={{ marginTop: 4, marginBottom: 10 }}>
+          The roadmap that opens first for you. Switching this does not delete progress on another track.
+        </p>
+        {domains.length > 0 ? (
+          <DomainPicker
+            domains={domains}
+            value={form.primaryDomain}
+            onChange={(key) => setForm((current) => ({ ...current, primaryDomain: key }))}
+            name="settings-primary-domain"
+          />
+        ) : (
+          <p className="meta">No tracks have content yet — your admin can publish a roadmap.</p>
+        )}
       </div>
 
       <div className="border-t pt-4" style={{ borderColor: "var(--line)" }}>
@@ -162,7 +178,6 @@ export default function SettingsClient({ profile, requireUsername = false }) {
             placeholder="e.g. aanya-dev"
             minLength={2}
             maxLength={30}
-            required={requireUsername}
             style={{ ...input, marginTop: 6 }}
           />
         </label>
@@ -246,7 +261,7 @@ export default function SettingsClient({ profile, requireUsername = false }) {
       </div>
       {msg && <p className="text-xs" style={{ color: msg === "Saved." ? "var(--accent)" : "var(--danger)" }}>{msg}</p>}
       <button disabled={busy} className="btn-ink w-fit disabled:opacity-50">
-        {busy ? "Saving..." : requireUsername ? "Finish onboarding" : "Save profile"}
+        {busy ? "Saving..." : "Save profile"}
       </button>
     </form>
   );

@@ -62,7 +62,8 @@ describe("/auth/continue routes a completed sign-in to a real destination", () =
     ["department lead", { role: "dept_lead" }, "/lead"],
     ["vertical lead", { role: "vertical_lead" }, "/lead"],
     ["admin", { role: "admin" }, "/admin"],
-    ["platform admin", { role: "platform_admin" }, "/admin"]
+    ["platform admin", { role: "platform_admin" }, "/admin"],
+    ["founder whose stored role is still student", { role: "student", effectiveRole: "admin" }, "/admin"]
   ])("lands %s on %s", async (_label, profile, target) => {
     const { status, location } = await follow({ profile: { user_id: "user-1", ...profile } });
     expect(status).toBe(303);

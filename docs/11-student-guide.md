@@ -4,9 +4,10 @@ Everything a student can do on LOOM, in the order it unlocks.
 
 ## 1. Getting in
 
-1. Open the app and choose **Get started** (register) or **Sign in**. There is a single login for everyone.
+1. Open the app and choose **Create an account** (register) or **Sign in**. Both lead to Auth0: GitHub, or email/username + password. There is a single login for everyone.
 2. On first visit a profile is created for you automatically and attached to your chapter.
-3. Your chapter admin can promote helpers to `admin` later — there is nothing to configure yourself.
+3. Onboarding shows every track that has a published roadmap, with its node count. Pick the one you want to start on, claim a public handle, and optionally add a password; you can change the track later in Settings.
+4. Your chapter admin can promote helpers to `admin` later — there is nothing to configure yourself.
 
 ## 2. Your first week (the Start-here checklist)
 

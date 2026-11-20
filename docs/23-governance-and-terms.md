@@ -6,7 +6,7 @@ This document is the authoritative description of **who may act, for how long, a
 
 | Layer | Rule |
 |---|---|
-| **Founder** | A `platform_admins` row with `is_founder = true` and `locked = true`. Permanent. Founder seats cannot be created through the UI and cannot be demoted or renamed by any role-change API. |
+| **Founder** | A `platform_admins` row with `is_founder = true` and `locked = true`. Permanent. Founder seats cannot be created through the UI, cannot be demoted or renamed by any role-change API, and since migration 087 the database itself refuses to delete the seat, its profile row, or to unlock it. |
 | **Rotating leadership** | `dept_lead`, `vertical_lead`, and `admin` hold a term (`roles.role_term_end`, default one academic year). After the end date the title stays for history, but authority falls back to `core` until an admin reappoints or extends. |
 | **Chapter admins** | `profiles.role = 'admin'`. Chapter-wide, but still term-bound unless the account is also a founder. |
 | **Vertical leads** | Own exactly one vertical (`technical` or `non_technical`). Every scoped action must carry that vertical; cross-domain records are invisible and immutable. |
@@ -102,6 +102,8 @@ The account must have signed in once (a `profiles` row must exist). The script i
 - Current leaders are grandfathered (`role_term_end = NULL`). Nothing is demoted by deploying this change.
 - Reappoint each leader through the admin UI to start their first term.
 - Founder seats are `locked`; role-change APIs refuse them even if the caller is another admin.
+- Migration `load/migrations/087_founder_protection.sql` makes that permanence structural: `BEFORE DELETE` triggers refuse a locked `platform_admins` row and the founder's `profiles` row, a `BEFORE UPDATE` trigger refuses clearing `locked`/`is_founder`, and `BEFORE TRUNCATE` triggers refuse emptying either table. A hand-written `DELETE`, a compromised service credential, and a future route all hit the same wall. Restores run with `session_replication_role = replica` and still work.
+- The production founder was seeded with `node load/seed-founder.js --user-id <profiles.user_id> --label Founder` (idempotent, writes `admin.seed_founder` to the audit log), not through `/setup`.
 
 ## 7. Invariants to preserve
 
