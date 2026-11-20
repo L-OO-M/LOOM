@@ -25,6 +25,7 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `GITHUB_WEBHOOK_SECRET` | yes | Webhook HMAC only. **Production rejects placeholder values** (`dev-secret`, `hello`, …) and anything under 16 chars |
 | `CREDENTIAL_SECRET` | yes in production | Credential share-link + GitHub OAuth-state HMAC. Deliberately has **no fallback** to the webhook secret, so rotating one trust domain does not invalidate the other. Production rejects a missing, placeholder, or sub-16-character value |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | for repo picker | GitHub OAuth App for repository grants; callback `${NEXT_PUBLIC_APP_URL}/api/github/oauth/callback`, scopes `repo` + `read:user`. Unset = the app reports OAuth not configured; repository picking stays unavailable |
+| `FIRST_ADMIN_CODE` | for first-admin bootstrap | One-time code (>= 16 chars) that `/setup` must present to `POST /api/admin/claim-first`. Unset or shorter = the online claim fails closed with 503, and the founder must be seeded with `load/seed-founder.js`. Remove it after the claim |
 | `GITHUB_TOKEN_ENCRYPTION_KEY` | for repo picker | 32 random bytes, base64 (AES-256-GCM key for sealed GitHub tokens). Rotating it invalidates every stored token; members must re-link. See `21-github-oauth-setup.md` |
 | `DEBUG_CHALLENGE_REPO` | no | Public `owner/repo` holding Debug & Build starter bugs. Defaults to `L-OO-M/buggy`; not set = that default is used |
 | `GITHUB_ISSUES_REPO` | no | `owner/repo` that feature requests mirror into. Unset = the GitHub Issues bridge is off and submissions behave exactly as before |
@@ -359,6 +360,8 @@ before the first production deploy):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — auth
 - `NEXT_PUBLIC_APP_URL` — metadata base, share/verify links
 - `GITHUB_WEBHOOK_SECRET` (+ `CREDENTIAL_SECRET`) — ingestion HMAC
+- `FIRST_ADMIN_CODE` — one-time first-admin bootstrap code (≥16 chars). Set it
+  before opening `/setup`, then remove it after the claim
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_TOKEN_ENCRYPTION_KEY`
   — repository OAuth grant and repo picker (see `21-github-oauth-setup.md`)
 - `SUPABASE_SERVICE_ROLE_KEY` — admin user APIs

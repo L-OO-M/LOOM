@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const USER = "user-founder";
+const CODE = "e2e-first-admin-code-2026";
 
 // Build a fake postgres.js client: a callable tagged-template function plus
 // begin(). The transaction client records statements and can be configured to
@@ -77,7 +78,12 @@ function post(body) {
   });
 }
 
+beforeEach(() => {
+  process.env.FIRST_ADMIN_CODE = CODE;
+});
+
 afterEach(() => {
+  delete process.env.FIRST_ADMIN_CODE;
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/auth-server");
 });
@@ -89,7 +95,7 @@ describe("POST /api/admin/claim-first transaction", () => {
     const identity = { userId: USER, email: "founder@example.com" };
     const { POST } = await loadRoute({ db, identity, audits });
 
-    const response = await POST(post({}));
+    const response = await POST(post({ code: CODE }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -116,7 +122,7 @@ describe("POST /api/admin/claim-first transaction", () => {
     const identity = { userId: USER, email: null };
     const { POST } = await loadRoute({ db, identity, audits });
 
-    const response = await POST(post({ email: "newadmin@example.com" }));
+    const response = await POST(post({ email: "newadmin@example.com", code: CODE }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -139,7 +145,7 @@ describe("POST /api/admin/claim-first transaction", () => {
     const identity = { userId: USER, email: "founder@example.com" };
     const { POST } = await loadRoute({ db, identity, audits });
 
-    const response = await POST(post({}));
+    const response = await POST(post({ code: CODE }));
     const body = await response.json();
 
     expect(response.status).toBe(403);
@@ -157,7 +163,7 @@ describe("POST /api/admin/claim-first transaction", () => {
     const identity = { userId: USER, email: "founder@example.com" };
     const { POST } = await loadRoute({ db, identity, audits });
 
-    await expect(POST(post({}))).rejects.toThrow("profile write failed");
+    await expect(POST(post({ code: CODE }))).rejects.toThrow("profile write failed");
 
     expect(db.stats()).toEqual({ commits: 0, rollbacks: 1 });
     expectLockFirst(db);
@@ -200,5 +206,65 @@ describe("POST /api/admin/claim-first transaction", () => {
     expect(body.error.code).toBe("FORBIDDEN");
     expect(db.statements).toHaveLength(0);
     expect(audits).toHaveLength(0);
+  });
+
+  it("refuses a first claim without the bootstrap code and writes nothing", async () => {
+    const db = makeDb({ profile: { tenant_id: "tenant-1" } });
+    const audits = [];
+    const identity = { userId: USER, email: "founder@example.com" };
+    const { POST } = await loadRoute({ db, identity, audits });
+
+    const response = await POST(post({}));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("INVALID_CODE");
+    expect(db.stats()).toEqual({ commits: 0, rollbacks: 1 });
+    expect(db.statements.some((s) => /INSERT INTO platform_admins/.test(s.text))).toBe(false);
+    expect(db.statements.some((s) => /UPDATE profiles|INSERT INTO profiles/.test(s.text))).toBe(false);
+    expect(audits).toHaveLength(0);
+  });
+
+  it("refuses a wrong bootstrap code", async () => {
+    const db = makeDb({ profile: { tenant_id: "tenant-1" } });
+    const audits = [];
+    const identity = { userId: USER, email: "founder@example.com" };
+    const { POST } = await loadRoute({ db, identity, audits });
+
+    const response = await POST(post({ code: "not-the-configured-code" }));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("INVALID_CODE");
+    expect(audits).toHaveLength(0);
+  });
+
+  it("fails closed with 503 when FIRST_ADMIN_CODE is unset", async () => {
+    delete process.env.FIRST_ADMIN_CODE;
+    const db = makeDb({ profile: { tenant_id: "tenant-1" } });
+    const audits = [];
+    const identity = { userId: USER, email: "founder@example.com" };
+    const { POST } = await loadRoute({ db, identity, audits });
+
+    const response = await POST(post({ code: CODE }));
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error.code).toBe("SETUP_DISABLED");
+    expect(db.statements).toHaveLength(0);
+    expect(audits).toHaveLength(0);
+  });
+
+  it("treats a too-short FIRST_ADMIN_CODE as unconfigured", async () => {
+    process.env.FIRST_ADMIN_CODE = "short";
+    const db = makeDb({ profile: { tenant_id: "tenant-1" } });
+    const audits = [];
+    const identity = { userId: USER, email: "founder@example.com" };
+    const { POST } = await loadRoute({ db, identity, audits });
+
+    const response = await POST(post({ code: "short" }));
+
+    expect(response.status).toBe(503);
+    expect(db.statements).toHaveLength(0);
   });
 });

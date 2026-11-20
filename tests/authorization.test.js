@@ -4,6 +4,7 @@ import {
   canLinkByEmail,
   hasRole,
   homeForRole,
+  providerCallbackErrorCode,
   requireRole,
   safeAuthErrorCode,
   safeRedirectPath
@@ -90,6 +91,30 @@ describe("auth callback errors", () => {
   it("explains the disabled-provider case instead of a raw provider error", () => {
     expect(authCallbackMessage("provider_disabled")).toMatch(/not available/i);
     expect(authCallbackMessage("access_denied")).toMatch(/cancelled/i);
+  });
+
+  it("classifies the real Auth0 callback error shapes", () => {
+    // The shape Auth0 produces when a social connection exists but is not
+    // enabled for the application: an AuthorizationError wrapping the OAuth
+    // error, so the provider's wording lives on `cause`.
+    const disabled = Object.assign(new Error("An error occurred during the authorization flow."), {
+      code: "authorization_error",
+      cause: Object.assign(new Error("the connection is not enabled"), { code: "invalid_request" })
+    });
+    expect(providerCallbackErrorCode(disabled)).toBe("provider_disabled");
+
+    const denied = Object.assign(new Error("An error occurred during the authorization flow."), {
+      code: "authorization_error",
+      cause: Object.assign(new Error("access_denied"), { code: "access_denied" })
+    });
+    expect(providerCallbackErrorCode(denied)).toBe("access_denied");
+
+    const redirect = Object.assign(new Error("redirect_uri mismatch"), { code: "authorization_error" });
+    expect(providerCallbackErrorCode(redirect)).toBe("redirect_not_allowed");
+
+    // Anything else collapses to a generic failure, never to provider text.
+    expect(providerCallbackErrorCode(new Error("something odd happened"))).toBe("auth_callback_failed");
+    expect(providerCallbackErrorCode(null)).toBe("auth_callback_failed");
   });
 });
 

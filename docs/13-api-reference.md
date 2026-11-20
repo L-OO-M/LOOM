@@ -283,6 +283,25 @@ rate-limit plumbing. No environment variable can re-enable them.
 | POST | `/api/auth/verify-email/start` | — | **retired**, always `410 AUTH0_ONLY`. Auth0 sends the verification email |
 | GET | `/auth/supabase-callback` | — | **retired**, 307 to `/login?error=auth0_only`. Auth0's callback is `/auth/callback` |
 
+### Callback failures are ours, not Auth0's text
+
+`/auth/callback` uses a custom `onCallback` (`lib/auth0.js`). On failure it
+302s to `/login?error=<code>` with a code from `lib/auth.js`
+(`provider_disabled`, `access_denied`, `redirect_not_allowed`, `auth_callback_failed`),
+which the page renders as a sentence. Auth0's `error_description` is never
+shown. On success it 302s to `returnTo` (validated) or `/auth/continue`, never
+the site root.
+
+### First-admin bootstrap
+
+`POST /api/admin/claim-first` is public in middleware (no admin exists yet) but
+is **not** an open land grab: it requires `FIRST_ADMIN_CODE` in the body, matched
+in constant time against the server secret. Unset or sub-16-character
+configuration fails closed with `503 SETUP_DISABLED`; a wrong or missing code is
+`403 INVALID_CODE`; losing the first-claim race is `403 ALREADY_SETUP`. The code
+is handed out by the operator, not advertised in the UI, and can be removed from
+the environment after the claim.
+
 ## Health
 
 | Method | Route | Auth | Notes |

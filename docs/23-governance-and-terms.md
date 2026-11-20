@@ -84,7 +84,9 @@ Approval is one transaction in `lib/handover.js`: the successor is promoted, the
 
 ## 5. Seeding founders
 
-The first claim (`POST /api/admin/claim-first`) creates a founder seat and closes the endpoint. To add a co-founder deliberately:
+The first claim (`POST /api/admin/claim-first`) creates a founder seat and closes the endpoint. It is gated by `FIRST_ADMIN_CODE`, an operator-held secret of at least 16 characters: without a matching code the endpoint answers `403 INVALID_CODE`, and with the variable unset it fails closed with `503 SETUP_DISABLED`. That code — not being first to a public URL — is what makes someone the founder. Remove it from the environment after the claim.
+
+To add a co-founder deliberately:
 
 ```bash
 node load/seed-founder.js --user-id <profiles.user_id> --label "Co-founder"

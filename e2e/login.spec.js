@@ -24,6 +24,19 @@ test.describe("sign in", () => {
     await expect(page.locator("input#password")).toHaveCount(0);
     await expect(page.locator("form")).toHaveCount(0);
     await expect(page.getByText(/legacy email\/password/i)).toHaveCount(0);
+
+    // Bootstrap is operator-driven (a code handed out of band). The public
+    // sign-in page must not advertise /setup as a self-service land grab.
+    await expect(page.getByText(/claim the first admin/i)).toHaveCount(0);
+    await expect(page.locator('a[href="/setup"]')).toHaveCount(0);
+  });
+
+  test("renders a coded callback failure as a message, not a raw error page", async ({ page }) => {
+    await page.goto("/login?error=provider_disabled");
+    // Next's route announcer is also role=alert; target the page's own banner.
+    await expect(page.locator('p[role="alert"]')).toContainText(/GitHub sign-in is not available/i);
+    // The provider's own wording never reaches the page.
+    await expect(page.getByText(/connection is not enabled/i)).toHaveCount(0);
   });
 
   test("carries a sanitized destination to both paths", async ({ page }) => {

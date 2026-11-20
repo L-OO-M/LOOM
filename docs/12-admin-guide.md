@@ -4,7 +4,7 @@ Run your chapter: setup, content, people, programs, trust, system.
 
 ## 1. First setup
 
-1. Deploy, open `/setup`, and claim the first admin (`POST /api/admin/claim-first`). The claim creates a **permanent founder seat** and closes the endpoint — later admins are promoted from the Students list. Add a deliberate co-founder only with `node load/seed-founder.js` (see [Governance](23-governance-and-terms.md)).
+1. Deploy, then set `FIRST_ADMIN_CODE` to a random string of at least 16 characters. Sign in, open `/setup`, and enter that code to claim the first admin (`POST /api/admin/claim-first`). The claim creates a **permanent founder seat** and closes the endpoint — later admins are promoted from the Students list. Remove `FIRST_ADMIN_CODE` from the environment afterwards. Add a deliberate co-founder only with `node load/seed-founder.js` (see [Governance](23-governance-and-terms.md)).
 2. Check `/admin` (Overview) for chapter totals.
 3. Publish your chapter card: insert/update `chapter_profiles` for your tenant (slug, public name, mission, links). Public cards appear in Network and on the landing page strip.
 

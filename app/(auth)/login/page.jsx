@@ -98,16 +98,6 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
-
-      <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--line)" }}>
-        <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-          Setting up a new chapter? Sign in, then claim the first admin at{" "}
-          <Link prefetch={false} href="/setup" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            /setup
-          </Link>
-          . It only works once.
-        </p>
-      </div>
     </AuthShell>
   );
 }
