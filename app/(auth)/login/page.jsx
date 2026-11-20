@@ -64,6 +64,11 @@ function AuthOptions() {
       >
         Continue with GitHub
       </a>
+      {!callbackError && (
+        <p className="text-center text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+          GitHub not opening? Use your email and password — both sign in to the same account.
+        </p>
+      )}
     </>
   );
 }
