@@ -7,16 +7,19 @@ const { test, expect } = require("@playwright/test");
 // Auth0, so the assertions are about the shape of the surface, the destination
 // each button carries, and the retired endpoint staying retired.
 test.describe("sign in", () => {
-  test("offers GitHub and email/username without a local credential form", async ({ page }) => {
+  test("offers GitHub and email/password without a local credential form", async ({ page }) => {
     await page.goto("/login");
 
     const github = page.getByRole("link", { name: /Continue with GitHub/i });
     await expect(github).toBeVisible();
     await expect(github).toHaveAttribute("href", /^\/auth\/login\?connection=github&returnTo=/);
 
-    const email = page.getByRole("link", { name: /Continue with email or username/i });
+    // `screen_hint=login` is the whole point: without it Auth0 can open the
+    // "Create account" tab, and a member who just set a password is told their
+    // account already exists.
+    const email = page.getByRole("link", { name: /Continue with email & password/i });
     await expect(email).toBeVisible();
-    await expect(email).toHaveAttribute("href", /^\/auth\/login\?returnTo=/);
+    await expect(email).toHaveAttribute("href", /^\/auth\/login\?screen_hint=login&returnTo=/);
 
     // Credentials are entered on Auth0, never here; a stray form would mean a
     // second credential path exists again.
@@ -47,9 +50,9 @@ test.describe("sign in", () => {
       "href",
       `/auth/login?connection=github&returnTo=${target}`
     );
-    await expect(page.getByRole("link", { name: /Continue with email or username/i })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: /Continue with email & password/i })).toHaveAttribute(
       "href",
-      `/auth/login?returnTo=${target}`
+      `/auth/login?screen_hint=login&returnTo=${target}`
     );
   });
 

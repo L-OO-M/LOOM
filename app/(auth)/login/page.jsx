@@ -10,13 +10,19 @@ import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 // Auth0 owns the front door, but "one Auth0 button" is not a sign-in page.
 // This page offers the two real paths a member expects:
 //
-//   1. GitHub       -> Auth0's GitHub social connection, straight to GitHub.
-//   2. Email/username + password -> Auth0's database connection form.
+//   1. Email/username + password -> Auth0's database connection form.
+//   2. GitHub       -> Auth0's GitHub social connection, straight to GitHub.
 //
 // Both go through /auth/login, which the SDK turns into an /authorize request.
 // Credentials are entered on Auth0's page, never on this origin: that keeps
 // Auth0's bot/brute-force protection, its password policy, and our own app free
 // of password handling. There is no Supabase credential path any more.
+//
+// The password path is listed FIRST and sends `screen_hint=login`. Without it
+// Auth0's Universal Login can open on the "Create account" tab, so a member who
+// had just set a password in onboarding typed it into a signup form and was told
+// the account already existed. Sign-in and sign-up are different intents; each
+// gets its own button and its own hint.
 //
 // `returnTo` carries a sanitized destination, so signing in deep-links to the
 // page that sent the user here instead of dumping them on the default home.
@@ -47,13 +53,16 @@ function AuthOptions() {
         </p>
       )}
       <a
-        href={`/auth/login?connection=github&${returnTo}`}
+        href={`/auth/login?screen_hint=login&${returnTo}`}
         className="btn-ink w-full justify-center"
       >
-        Continue with GitHub
+        Continue with email &amp; password
       </a>
-      <a href={`/auth/login?${returnTo}`} className="btn-ghost w-full justify-center">
-        Continue with email or username
+      <a
+        href={`/auth/login?connection=github&${returnTo}`}
+        className="btn-ghost w-full justify-center"
+      >
+        Continue with GitHub
       </a>
     </>
   );
@@ -61,11 +70,11 @@ function AuthOptions() {
 
 const fallbackLinks = (
   <>
-    <a href="/auth/login?connection=github&returnTo=%2Fauth%2Fcontinue" className="btn-ink w-full justify-center">
-      Continue with GitHub
+    <a href="/auth/login?screen_hint=login&returnTo=%2Fauth%2Fcontinue" className="btn-ink w-full justify-center">
+      Continue with email &amp; password
     </a>
-    <a href="/auth/login?returnTo=%2Fauth%2Fcontinue" className="btn-ghost w-full justify-center">
-      Continue with email or username
+    <a href="/auth/login?connection=github&returnTo=%2Fauth%2Fcontinue" className="btn-ghost w-full justify-center">
+      Continue with GitHub
     </a>
   </>
 );
@@ -77,7 +86,7 @@ export default function LoginPage() {
         Sign in
       </h1>
       <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        One login for members, leads and admins.
+        Use the email and password you set up, or the provider you signed up with.
       </p>
 
       <div className="mt-6 space-y-3">
@@ -91,7 +100,7 @@ export default function LoginPage() {
         New here?{" "}
         <Link
           prefetch={false}
-          href="/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue"
+          href="/register"
           className="font-semibold hover:underline"
           style={{ color: "var(--accent)" }}
         >

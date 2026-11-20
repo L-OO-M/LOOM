@@ -357,7 +357,7 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
 
           <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
             <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}>
-              <KeyRound size={15} aria-hidden="true" /> Password
+              <KeyRound size={15} aria-hidden="true" /> Email &amp; password
             </p>
             {!identityLoaded ? (
               <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Checking your sign-in methods…</p>
@@ -366,12 +366,21 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
             ) : passwordUnavailable ? (
               <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>Password setup is not enabled on this deployment yet. Keep using your current method.</p>
             ) : security?.hasPassword ? (
-              <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>Set. You can sign in with email and password as well as your providers.</p>
+              <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                Set. On the sign-in page choose <span className="font-semibold">Continue with email &amp; password</span>
+                {security?.email ? <> and enter <span className="font-mono">{security.email}</span></> : null} — not
+                &ldquo;Create an account&rdquo;, which tries to register a second one.
+              </p>
             ) : (
               <>
                 <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
                   Optional: add one so you can sign in without a social provider.
                 </p>
+                {security?.email ? (
+                  <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                    You will sign in as <span className="font-mono">{security.email}</span>.
+                  </p>
+                ) : null}
                 {!showPassword ? (
                   <button type="button" onClick={() => setShowPassword(true)} className="mt-2 text-xs font-semibold hover:underline" style={{ color: "var(--accent)" }}>
                     Add a password →

@@ -80,6 +80,7 @@ describe("summarizeAuth0Security", () => {
     }).hasPassword).toBe(false);
     expect(summarizeAuth0Security(null)).toEqual({
       hasPassword: false,
+      email: null,
       emailVerified: false,
       identities: []
     });

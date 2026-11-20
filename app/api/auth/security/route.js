@@ -37,6 +37,7 @@ export async function GET() {
       auth0: true,
       managementConfigured: false,
       hasPassword: null,
+      email: session.user.email || null,
       emailVerified: session.user.email_verified === true,
       identities: []
     });
@@ -51,6 +52,7 @@ export async function GET() {
         auth0: true,
         managementConfigured: false,
         hasPassword: null,
+        email: session.user.email || null,
         emailVerified: session.user.email_verified === true,
         identities: []
       });

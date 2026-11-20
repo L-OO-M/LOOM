@@ -14,7 +14,7 @@ test("homepage sign in and join buttons reach the existing auth pages", async ({
   await expect(page).toHaveURL("/login");
   // Auth0 is the only front door: two real paths, no credential form locally.
   await expect(page.getByRole("link", { name: /Continue with GitHub/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Continue with email or username/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Continue with email & password/i })).toBeVisible();
   await expect(page.locator("#email")).toHaveCount(0);
   await expect(page.locator("#password")).toHaveCount(0);
   await page.goto("/");

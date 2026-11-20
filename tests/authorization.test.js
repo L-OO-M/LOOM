@@ -112,6 +112,10 @@ describe("auth callback errors", () => {
     const redirect = Object.assign(new Error("redirect_uri mismatch"), { code: "authorization_error" });
     expect(providerCallbackErrorCode(redirect)).toBe("redirect_not_allowed");
 
+    // A connection the client is not authorised to use answers with these.
+    expect(providerCallbackErrorCode(Object.assign(new Error("invalid_client"), { code: "invalid_client" }))).toBe("provider_disabled");
+    expect(providerCallbackErrorCode(Object.assign(new Error("unauthorized_client"), { code: "unauthorized_client" }))).toBe("provider_disabled");
+
     // Anything else collapses to a generic failure, never to provider text.
     expect(providerCallbackErrorCode(new Error("something odd happened"))).toBe("auth_callback_failed");
     expect(providerCallbackErrorCode(null)).toBe("auth_callback_failed");
