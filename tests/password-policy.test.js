@@ -10,7 +10,8 @@ describe("password policy alignment", () => {
     // set of rules that drift apart.
     const page = read("app/(auth)/register/page.jsx");
     expect(page).not.toContain('type="password"');
-    expect(page).toContain("Continue with Auth0");
+    expect(page).toContain("Sign up with GitHub");
+    expect(page).toContain("Sign up with email or username");
   });
 
   it("keeps the server minimum at eight characters for password changes", () => {

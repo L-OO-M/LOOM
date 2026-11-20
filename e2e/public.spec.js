@@ -39,7 +39,8 @@ test.describe("LOOM public pages", () => {
   test("login page accessible from home", async ({ page }) => {
     await open(page, "/login");
     await expect(page.locator("h1")).toContainText("Sign in");
-    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue with GitHub/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue with email or username/i })).toBeVisible();
     // The Supabase credential form is retired, not merely hidden.
     await expect(page.locator('input[type="email"]')).toHaveCount(0);
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
@@ -48,7 +49,7 @@ test.describe("LOOM public pages", () => {
   test("register page accessible from home", async ({ page }) => {
     await open(page, "/register");
     await expect(page.locator("h1")).toContainText("Create account");
-    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Sign up with GitHub/i })).toBeVisible();
     await expect(page.locator('input[type="email"]')).toHaveCount(0);
   });
 

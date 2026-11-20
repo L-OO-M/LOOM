@@ -1,4 +1,4 @@
-// One line under every "Continue with Auth0" button.
+// One line under the sign-in buttons.
 //
 // Auth0 signs people in on its own origin, so the URL changes to
 // lets-loom.jp.auth0.com for a few seconds. The hop itself is fine -- it is two

@@ -256,9 +256,15 @@ manual reconciliation path.
 ## Auth (Auth0 is the only front door)
 
 Sign-in, sign-up, email verification, and password policy are owned by Auth0's
-Universal Login. The app holds no Supabase credential path: the login/register
-forms, the client helper, and the server session fallback were removed, not
-flagged off. `/login` and `/register` render one Auth0 CTA each.
+Universal Login. `/login` and `/register` render two paths — **Continue with
+GitHub** (`/auth/login?connection=github`) and **email or username + password**
+(`/auth/login`, Auth0's database connection) — and no credential form of their
+own. The app holds no Supabase credential path: the login/register forms, the
+client helper, and the server session fallback were removed, not flagged off.
+
+GitHub must be enabled for the Auth0 application (Authentication → Social →
+GitHub → Applications). When it is not, clicking the GitHub path returns
+Auth0's `connection is not enabled` error; email/username keeps working.
 
 The retired Supabase endpoints are kept as **unconditional 410 Gone**
 tombstones so cached bundles, bookmarks, and old clients get an explanation

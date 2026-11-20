@@ -114,7 +114,7 @@ password from `/student/settings` after signing in.
 For one migrated password user:
 
 1. Sign out.
-2. Go to `/login` and choose **Continue with Auth0**.
+2. Go to `/login` and choose **Continue with GitHub** (or **Continue with email or username**).
 3. Sign in with the migrated email/password.
 4. Confirm the same profile, role, tenant, and projects load.
 5. Confirm `user_identities` now has the Auth0 `sub` mapped to the original

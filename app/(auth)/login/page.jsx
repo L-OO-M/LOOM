@@ -7,12 +7,19 @@ import { authCallbackMessage, safeRedirectPath } from "@/lib/auth";
 import { AuthShell } from "@/app/(auth)/_components/AuthShell";
 import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 
-// Auth0 owns the front door. There is no email/password form here any more:
-// Supabase sign-in has been retired, so this page shows one action and nothing
-// that implies a second way in.
+// Auth0 owns the front door, but "one Auth0 button" is not a sign-in page.
+// This page offers the two real paths a member expects:
 //
-// `returnTo` carries a sanitized destination, so an Auth0 login deep-links to
-// the page that sent the user here instead of dumping them on the default home.
+//   1. GitHub       -> Auth0's GitHub social connection, straight to GitHub.
+//   2. Email/username + password -> Auth0's database connection form.
+//
+// Both go through /auth/login, which the SDK turns into an /authorize request.
+// Credentials are entered on Auth0's page, never on this origin: that keeps
+// Auth0's bot/brute-force protection, its password policy, and our own app free
+// of password handling. There is no Supabase credential path any more.
+//
+// `returnTo` carries a sanitized destination, so signing in deep-links to the
+// page that sent the user here instead of dumping them on the default home.
 // The SDK validates returnTo again on its side (toSafeRedirect), so this is
 // defence in depth.
 //
@@ -20,11 +27,11 @@ import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 // The SDK's own default is the root, which is the public marketing page -- a
 // member who had just signed in landed there and it reads as "login did not
 // work". /auth/continue resolves the role and sends them to the right workspace.
-function Auth0Cta() {
+function AuthOptions() {
   const params = useSearchParams();
   const redirect = safeRedirectPath(params.get("redirect"));
   const target = redirect || "/auth/continue";
-  const href = `/auth/login?returnTo=${encodeURIComponent(target)}`;
+  const returnTo = `returnTo=${encodeURIComponent(target)}`;
   // The callback redirects here with a code, never the provider's raw wording.
   const callbackError = authCallbackMessage(params.get("error"));
 
@@ -39,10 +46,29 @@ function Auth0Cta() {
           {callbackError}
         </p>
       )}
-      <a href={href} className="btn-ink w-full justify-center">Continue with Auth0</a>
+      <a
+        href={`/auth/login?connection=github&${returnTo}`}
+        className="btn-ink w-full justify-center"
+      >
+        Continue with GitHub
+      </a>
+      <a href={`/auth/login?${returnTo}`} className="btn-ghost w-full justify-center">
+        Continue with email or username
+      </a>
     </>
   );
 }
+
+const fallbackLinks = (
+  <>
+    <a href="/auth/login?connection=github&returnTo=%2Fauth%2Fcontinue" className="btn-ink w-full justify-center">
+      Continue with GitHub
+    </a>
+    <a href="/auth/login?returnTo=%2Fauth%2Fcontinue" className="btn-ghost w-full justify-center">
+      Continue with email or username
+    </a>
+  </>
+);
 
 export default function LoginPage() {
   return (
@@ -55,8 +81,8 @@ export default function LoginPage() {
       </p>
 
       <div className="mt-6 space-y-3">
-        <Suspense fallback={<a href="/auth/login?returnTo=%2Fauth%2Fcontinue" className="btn-ink w-full justify-center">Continue with Auth0</a>}>
-          <Auth0Cta />
+        <Suspense fallback={<div className="space-y-3">{fallbackLinks}</div>}>
+          <AuthOptions />
         </Suspense>
         <AuthHandoffNote className="text-center" />
       </div>

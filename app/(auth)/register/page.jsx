@@ -12,8 +12,15 @@ import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 // first sign-in, where they can be validated against the chapter that actually
 // owns the account.
 //
+// Two real paths, same as /login: GitHub, or email/username + password. Both
+// open Auth0's Universal Login with `screen_hint=signup`, so the form is
+// Auth0's, with Auth0's password policy and email verification.
+//
 // The page stays because /register is linked from the marketing site and old
 // emails, and a 404 there looks like the product is broken.
+const SIGNUP = "/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue";
+const SIGNUP_GITHUB = "/auth/login?connection=github&screen_hint=signup&returnTo=%2Fauth%2Fcontinue";
+
 export default function RegisterPage() {
   return (
     <AuthShell>
@@ -24,13 +31,17 @@ export default function RegisterPage() {
       <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
         Create your account once, then link GitHub or another provider from the same identity.
       </p>
-      <a
-        href="/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue"
-        className="btn-ink mt-6 w-full justify-center"
-      >
-        Continue with Auth0
-      </a>
-      <AuthHandoffNote className="mt-3" />
+
+      <div className="mt-6 space-y-3">
+        <a href={SIGNUP_GITHUB} className="btn-ink w-full justify-center">
+          Sign up with GitHub
+        </a>
+        <a href={SIGNUP} className="btn-ghost w-full justify-center">
+          Sign up with email or username
+        </a>
+        <AuthHandoffNote className="text-center" />
+      </div>
+
       <p className="mt-5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
         By continuing you agree to LOOM&apos;s{" "}
         <Link prefetch={false} href="/terms" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
@@ -46,6 +57,7 @@ export default function RegisterPage() {
         </Link>
         .
       </p>
+
       <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
         Already registered?{" "}
         <Link prefetch={false} href="/login" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>

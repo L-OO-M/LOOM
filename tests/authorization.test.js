@@ -88,7 +88,7 @@ describe("auth callback errors", () => {
   });
 
   it("explains the disabled-provider case instead of a raw provider error", () => {
-    expect(authCallbackMessage("provider_disabled")).toMatch(/not enabled/i);
+    expect(authCallbackMessage("provider_disabled")).toMatch(/not available/i);
     expect(authCallbackMessage("access_denied")).toMatch(/cancelled/i);
   });
 });

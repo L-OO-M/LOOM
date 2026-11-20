@@ -1,33 +1,42 @@
 const { test, expect } = require("@playwright/test");
 
-// The login surface is one door now.
+// The auth surface: two real paths, no credential form on our origin.
 //
 // This replaces the old credential regression suite (a successful Supabase
-// sign-in used to render "did not produce a session"). There is no credential
-// form left to drive, so the assertions are about the shape of the surface and
-// about the retired endpoint staying retired.
+// sign-in used to render "did not produce a session"). Sign-in now completes on
+// Auth0, so the assertions are about the shape of the surface, the destination
+// each button carries, and the retired endpoint staying retired.
 test.describe("sign in", () => {
-  test("shows only the Auth0 front door", async ({ page }) => {
+  test("offers GitHub and email/username without a local credential form", async ({ page }) => {
     await page.goto("/login");
 
-    const cta = page.getByRole("link", { name: /Continue with Auth0/i });
-    await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute("href", /^\/auth\/login\?returnTo=/);
+    const github = page.getByRole("link", { name: /Continue with GitHub/i });
+    await expect(github).toBeVisible();
+    await expect(github).toHaveAttribute("href", /^\/auth\/login\?connection=github&returnTo=/);
 
-    // The retired controls must not creep back in a future restyle.
+    const email = page.getByRole("link", { name: /Continue with email or username/i });
+    await expect(email).toBeVisible();
+    await expect(email).toHaveAttribute("href", /^\/auth\/login\?returnTo=/);
+
+    // Credentials are entered on Auth0, never here; a stray form would mean a
+    // second credential path exists again.
     await expect(page.locator("input#email")).toHaveCount(0);
     await expect(page.locator("input#password")).toHaveCount(0);
     await expect(page.locator("form")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Continue with GitHub/i })).toHaveCount(0);
     await expect(page.getByText(/legacy email\/password/i)).toHaveCount(0);
   });
 
-  test("carries a sanitized destination to Auth0", async ({ page }) => {
+  test("carries a sanitized destination to both paths", async ({ page }) => {
     await page.goto("/login?redirect=/student/roadmap");
-    const cta = page.getByRole("link", { name: /Continue with Auth0/i });
-    await expect(cta).toHaveAttribute(
+    const target = encodeURIComponent("/student/roadmap");
+
+    await expect(page.getByRole("link", { name: /Continue with GitHub/i })).toHaveAttribute(
       "href",
-      `/auth/login?returnTo=${encodeURIComponent("/student/roadmap")}`
+      `/auth/login?connection=github&returnTo=${target}`
+    );
+    await expect(page.getByRole("link", { name: /Continue with email or username/i })).toHaveAttribute(
+      "href",
+      `/auth/login?returnTo=${target}`
     );
   });
 
@@ -47,9 +56,10 @@ test.describe("sign in", () => {
     expect(body.error.code).toBe("AUTH0_ONLY");
   });
 
-  test("register is Auth0-only too", async ({ page }) => {
+  test("register offers the same two paths", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Sign up with GitHub/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Sign up with email or username/i })).toBeVisible();
     await expect(page.locator("form")).toHaveCount(0);
     await expect(page.locator("input#password")).toHaveCount(0);
   });
