@@ -6,27 +6,30 @@
 // is_active, so shipping them inactive hid publicity/design/sponsorship from the
 // website entirely. An admin can still archive any department by hand.
 //
-// Embedded / Backend / DevOps were added because the roadmap graph already
-// carried 153 nodes across those domains (migration 023 + seed-roadmap-graph)
-// while no department existed for them — so students had a path with no org
-// unit to belong to, and the homepage domain grid silently omitted them.
+// Technical departments (6): align with PRIMARY_DOMAINS in lib/domains.js
+// Non-technical departments (7): functional units for society operations
 import postgres from "postgres";
 import { databaseUrl } from "./env-local.js";
 
 const DATABASE_URL = databaseUrl();
 
 const DEPARTMENTS = [
+  // Technical vertical (6) — maps 1:1 with PRIMARY_DOMAINS
   { name: "AI / ML", slug: "ai_ml", vertical: "technical", description: "Machine learning fundamentals, paper reading, dataset contests, applied projects." },
   { name: "Web Development", slug: "web", vertical: "technical", description: "Modern web fundamentals, frameworks, Git workflow, deployment — including this very site." },
   { name: "Cybersecurity", slug: "cybersecurity", vertical: "technical", description: "Ethical hacking within legal boundaries, CTFs, cryptography, secure coding." },
   { name: "DSA & Problem Solving", slug: "dsa", vertical: "technical", description: "Weekly problem-solving, contests, interview prep, mock assessments." },
   { name: "Blockchain", slug: "blockchain", vertical: "technical", description: "Distributed ledgers, smart contracts, and Web3 mini-projects." },
   { name: "Embedded & Hardware", slug: "embedded", vertical: "technical", description: "Microcontrollers, Arduino, Raspberry Pi, sensors and firmware — build things you can hold." },
-  { name: "Backend & APIs", slug: "backend", vertical: "technical", description: "Databases, service design, auth, queues and the plumbing behind every web product." },
-  { name: "DevOps & Infra", slug: "devops", vertical: "technical", description: "Linux, containers, CI/CD, observability and shipping reliably." },
-  { name: "PR & Outreach", slug: "pr_outreach", vertical: "non_technical", description: "Socials, campus presence, event promotions, external communications." },
-  { name: "Design", slug: "design", vertical: "non_technical", description: "Visual identity, posters, merch, slide systems, media assets." },
-  { name: "Sponsorship & EVM", slug: "sponsorship_evm", vertical: "non_technical", description: "Sponsor pipeline, budget coordination, event logistics and venue management." }
+
+  // Non-technical vertical (7) — functional departments
+  { name: "Design", slug: "design", vertical: "non_technical", description: "Visual identity, posters, banners, merch, slide systems, media assets, brand templates." },
+  { name: "Documentation", slug: "documentation", vertical: "non_technical", description: "Event records, reports, minutes, budgets, post-event analysis, official documentation templates." },
+  { name: "SMM & Content Creation", slug: "smm_content", vertical: "non_technical", description: "Social media content calendars, video editing, photography, reels, content archives, publishing workflows." },
+  { name: "Publicity", slug: "publicity", vertical: "non_technical", description: "Promotional campaigns, event awareness, campus presence, campaign effectiveness tracking, distribution coordination." },
+  { name: "Sponsorship", slug: "sponsorship", vertical: "non_technical", description: "Sponsor pipeline, outreach, proposals, commitments, deliverables, sponsorship agreements." },
+  { name: "Management", slug: "management", vertical: "non_technical", description: "Event execution, logistics, task assignment, interdepartmental coordination, schedules, event-day operations." },
+  { name: "Public Relations", slug: "public_relations", vertical: "non_technical", description: "External institutional contacts, outreach records, collaborations, partnerships, external communication follow-ups." }
 ];
 
 const sql = postgres(DATABASE_URL, { max: 1 });

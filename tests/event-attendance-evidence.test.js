@@ -17,12 +17,12 @@ function recorder(handler = () => []) {
   return sql;
 }
 
-async function load({ sql, role = "admin", userId = ADMIN }) {
+async function load({ sql, role = "admin", userId = ADMIN, memberships = [] }) {
   vi.resetModules();
   vi.doMock("@/lib/auth-server", () => ({
     getRequestContext: async () => ({
       user: { id: userId },
-      profile: { role, memberships: [] },
+      profile: { role, memberships },
       tenant: { id: TENANT },
       sql
     }),
@@ -111,7 +111,12 @@ describe("event check-in evidence", () => {
       }
       return [];
     });
-    const { POST } = await load({ sql, role: "dept_lead", userId: "lead-1" });
+    const { POST } = await load({ 
+      sql, 
+      role: "dept_lead", 
+      userId: "lead-1",
+      memberships: [{ department_id: "dept-1", level: "dept_lead", department_slug: "web" }]
+    });
 
     const response = await POST(request(STUDENT), { params: Promise.resolve({ id: EVENT }) });
 

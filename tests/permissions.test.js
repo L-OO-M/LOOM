@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { can, isAdmin, ACTIONS } from "@/lib/permissions";
 
 const D1 = "dept-1";
-const lead = (level, departmentId = D1) => ({
+const lead = (level, departmentId = D1, departmentSlug = "web") => ({
   id: "u-lead", role: "dept_lead", vertical: "technical",
-  memberships: [{ department_id: departmentId, level }]
+  memberships: [{ department_id: departmentId, level, department_slug: departmentSlug }]
 });
 const vlead = (vertical = "technical") => ({ id: "u-v", role: "vertical_lead", vertical, memberships: [] });
 const core = (id = "u-core") => ({ id, role: "core", vertical: null, memberships: [] });
@@ -12,14 +12,20 @@ const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vert
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
 
 describe("permissions matrix (Website Plan Section 3)", () => {
-  it("covers all 29 matrix rows", () => {
+  it("covers all 43 matrix rows", () => {
     // 20 plan rows, verify_evidence from the ranking redesign, the 6 lead-tool
     // actions (view_lead_tools, manage_mou, manage_leads, manage_event_ops,
     // view_assets, manage_assets), and the chapter-wide contest/handover tools.
+    // New: create_event_documentation, upload_roadmap, manage_event_tasks,
+    // view_assigned_event_tasks, approve_event, view_event_budget,
+    // manage_sponsorship_finance, register_event, submit_project, edit_own_profile,
+    // draft_announcement, publish_announcement, help:request,
+    // manage_sponsorship_leads, manage_outreach_leads, manage_promotional_campaigns,
+    // manage_social_content, check_in_attendees
     // The count is asserted rather than left open because ACTIONS is the
     // authority for every gate in the app -- a row added without a test is a
     // row nobody has checked.
-    expect(ACTIONS).toHaveLength(29);
+    expect(ACTIONS).toHaveLength(43);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {
@@ -192,19 +198,49 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(can(vlead(), "manage_advisor", { vertical: "non_technical" }).note).toBeNull();
   });
 
-  it("lead tools: leads edit, core reads only, students denied", () => {
-    const manage = ["manage_mou", "manage_leads", "manage_event_ops", "manage_assets"];
-    for (const a of manage) {
-      expect(can(admin(), a).ok, `admin ${a}`).toBe(true);
-      expect(can(vlead(), a).ok, `vlead ${a}`).toBe(true);
-      expect(can(lead("dept_lead"), a, { departmentId: D1 }).ok, `head ${a}`).toBe(true);
-      expect(can(core(), a).ok, `core ${a}`).toBe(false);
-      expect(can(student(), a).ok, `student ${a}`).toBe(false);
-    }
-    // Read access is wider: core is explicitly view-only.
+  it("lead tools: department-specific permissions", () => {
+    // manage_mou: Sponsorship, PR, vertical, admin
+    expect(can(admin(), "manage_mou").ok).toBe(true);
+    expect(can(vlead(), "manage_mou", { vertical: "technical" }).ok).toBe(true);
+    // Sponsorship lead
+    expect(can(lead("dept_lead", D1, "sponsorship"), "manage_mou", { departmentId: D1 }).ok).toBe(true);
+    // PR lead
+    expect(can(lead("dept_lead", D1, "public_relations"), "manage_mou", { departmentId: D1 }).ok).toBe(true);
+    // Other dept leads should not have manage_mou
+    expect(can(lead("dept_lead", D1, "web"), "manage_mou", { departmentId: D1 }).ok).toBe(false);
+    expect(can(core(), "manage_mou").ok).toBe(false);
+    expect(can(student(), "manage_mou").ok).toBe(false);
+
+    // manage_leads: deprecated (but admin still has unrestricted access)
+    expect(can(admin(), "manage_leads").ok).toBe(true);
+    expect(can(admin(), "manage_leads").note).toContain("deprecated");
+    expect(can(vlead(), "manage_leads", { vertical: "technical" }).ok).toBe(false);
+    expect(can(lead("dept_lead"), "manage_leads", { departmentId: D1 }).ok).toBe(false);
+    expect(can(core(), "manage_leads").ok).toBe(false);
+    expect(can(student(), "manage_leads").ok).toBe(false);
+
+    // manage_event_ops: Management, vertical, admin
+    expect(can(admin(), "manage_event_ops").ok).toBe(true);
+    expect(can(vlead(), "manage_event_ops", { vertical: "technical" }).ok).toBe(true);
+    expect(can(lead("dept_lead", D1, "management"), "manage_event_ops", { departmentId: D1 }).ok).toBe(true);
+    expect(can(lead("dept_lead", D1, "web"), "manage_event_ops", { departmentId: D1 }).ok).toBe(false);
+    expect(can(core(), "manage_event_ops").ok).toBe(false);
+    expect(can(student(), "manage_event_ops").ok).toBe(false);
+
+    // manage_assets: Design, SMM, vertical, admin
+    expect(can(admin(), "manage_assets").ok).toBe(true);
+    expect(can(vlead(), "manage_assets", { vertical: "technical" }).ok).toBe(true);
+    expect(can(lead("dept_lead", D1, "design"), "manage_assets", { departmentId: D1 }).ok).toBe(true);
+    expect(can(lead("dept_lead", D1, "smm_content"), "manage_assets", { departmentId: D1 }).ok).toBe(true);
+    expect(can(lead("dept_lead", D1, "web"), "manage_assets", { departmentId: D1 }).ok).toBe(false);
+    expect(can(core(), "manage_assets").ok).toBe(false);
+    expect(can(student(), "manage_assets").ok).toBe(false);
+  });
+
+  it("lead tools read access: core view-only, students denied", () => {
     for (const a of ["view_lead_tools", "view_assets"]) {
       expect(can(admin(), a).ok).toBe(true);
-      expect(can(vlead(), a).ok).toBe(true);
+      expect(can(vlead(), a, { vertical: "technical" }).ok).toBe(true);
       const r = can(core(), a);
       expect(r.ok).toBe(true);
       expect(r.note).toBe("view_only");
@@ -212,13 +248,27 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     }
   });
 
-  it("chapter programs: every lead tier manages, core and students don't", () => {
-    for (const a of ["manage_contests", "manage_handover"]) {
-      expect(can(admin(), a).ok).toBe(true);
-      expect(can(vlead(), a).ok).toBe(true);
-      expect(can(lead("dept_lead"), a, { departmentId: D1 }).ok).toBe(true);
-      expect(can(core(), a).ok).toBe(false);
-      expect(can(student(), a).ok).toBe(false);
+  it("chapter programs: department-specific permissions", () => {
+    // manage_contests: technical dept leads, vertical, admin
+    expect(can(admin(), "manage_contests").ok).toBe(true);
+    expect(can(vlead(), "manage_contests", { vertical: "technical" }).ok).toBe(true);
+    // Technical dept leads
+    for (const slug of ["ai_ml", "web", "cybersecurity", "dsa", "blockchain", "embedded"]) {
+      expect(can(lead("dept_lead", D1, slug), "manage_contests", { departmentId: D1 }).ok).toBe(true);
     }
+    // Non-technical dept leads should not have manage_contests
+    for (const slug of ["design", "documentation", "smm_content", "publicity", "sponsorship", "management", "public_relations"]) {
+      expect(can(lead("dept_lead", D1, slug), "manage_contests", { departmentId: D1 }).ok).toBe(false);
+    }
+    expect(can(core(), "manage_contests").ok).toBe(false);
+    expect(can(student(), "manage_contests").ok).toBe(false);
+
+    // manage_handover: all dept leads, admin
+    for (const slug of ["ai_ml", "web", "cybersecurity", "dsa", "blockchain", "embedded", "design", "documentation", "smm_content", "publicity", "sponsorship", "management", "public_relations"]) {
+      expect(can(lead("dept_lead", D1, slug), "manage_handover", { departmentId: D1 }).ok).toBe(true);
+    }
+    expect(can(admin(), "manage_handover").ok).toBe(true);
+    expect(can(core(), "manage_handover").ok).toBe(false);
+    expect(can(student(), "manage_handover").ok).toBe(false);
   });
 });

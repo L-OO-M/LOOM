@@ -14,12 +14,11 @@ const attendSchema = z.object({
 // Check in an attendee by door code (or student id override), mark attended,
 // and issue their certificate exactly once.
 export async function POST(request, { params }) {
-  // Admins and any live lead tier may run the door: `manage_event_ops` is the
-  // permission the lead console already uses for event operations. The tenant
-  // predicate below keeps the grant inside the caller's chapter.
+  // Admins, vertical leads, and any live dept_lead may run the door.
+  // `check_in_attendees` allows any dept_lead to check in attendees.
   let ctx;
   try {
-    ctx = await requireCan("manage_event_ops");
+    ctx = await requireCan("check_in_attendees");
   } catch (e) {
     const guard = toGuardResponse(e);
     if (!guard) throw e;

@@ -311,6 +311,34 @@ with the app's own secret). Register them by hand:
 An OAuth App holds exactly **one** callback URL, so a single app cannot serve
 both local dev and production: two apps are required, one per origin.
 
+**GitHub as a sign-in option is a second switch, not the same one.** The OAuth App
+credentials above make the *connection* exist; the connection also has to be
+enabled *for this application* (`enabled_clients`). With valid credentials but the
+client missing from that list, `/authorize?...&connection=github` answers as if
+the connection did not exist and drops the member on Auth0's "Oops" page — the
+same response as a misspelt connection name, so the error page cannot tell you
+which of the two is wrong.
+
+`npm run auth:github` flips that switch and proves it:
+
+> `npm run auth:github:check` — probe only, no token, no writes. Exit `1`
+> while GitHub is still unreachable, `0` once it forwards to github.com.
+>
+> `npm run auth:github` — adds the LOOM client to `enabled_clients` on every
+> GitHub connection in the tenant (additive; no other application loses access),
+> then retries the probe. It fails with the exact dashboard path when the M2M
+> grant lacks `read:connections` / `update:connections`, and reports the OAuth App
+> credentials as the suspect when the client is enabled but GitHub is still not
+> reached.
+
+The check mode is a separate npm script rather than `npm run auth:github --
+--check`: npm drops forwarded arguments in this checkout (verified — the script
+receives none), so the flag has to live in the script definition.
+
+The scope grant lives in the same place as the client scopes above:
+Applications → *(the M2M app)* → APIs → **Auth0 Management API** → Authorized
+Scopes → tick `read:connections` and `update:connections` → Update.
+
 Anything marked ✅ below was proven by a real request on 2026-11-16.
 
 ### Provider state after this pass

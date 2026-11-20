@@ -4,7 +4,7 @@ import { Users, Star, Clock3, Search, MapPin, ArrowUpRight } from "lucide-react"
 import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
-import { EventForm } from "./EventBits";
+import { EventForm } from "@/components/admin/EventForm";
 import { DOMAIN_LABEL, DOMAIN_ORDER } from "@/lib/domains";
 import "../_components/admin-ledger.css";
 

@@ -33,6 +33,8 @@
     "check:live": "node load/check-live.mjs",
     "check:auth": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON load/check-authenticated.mjs",
     "auth:verify": "node load/verify-auth-config.mjs",
+    "auth:github": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON load/auth0-enable-github.js",
+    "auth:github:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON load/auth0-enable-github.js --check",
     "auth0:migrate:plan": "node load/auth0-migrate.mjs plan",
     "auth0:migrate:export": "node load/auth0-migrate.mjs export",
     "auth0:migrate:import": "node load/auth0-migrate.mjs import --confirm",
