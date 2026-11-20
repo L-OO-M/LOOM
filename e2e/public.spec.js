@@ -200,8 +200,18 @@ test.describe("LOOM SEO surfaces", () => {
     const res = await request.get("/sitemap.xml");
     expect(res.ok()).toBeTruthy();
     const xml = await res.text();
+    // The declaration is what makes the response unambiguously UTF-8 XML; a
+    // reader cannot infer it from the body alone.
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/cookies", "/terms", "/disclaimer", "/contact"]) {
       expect(xml).toContain(path);
+    }
+    // Google ignores both tags, and a fixed priority/changefreq per route is a
+    // fabricated signal. Omitting them is deliberate, not an oversight.
+    expect(xml).not.toContain("<changefreq>");
+    expect(xml).not.toContain("<priority>");
+    for (const path of ["/privacy", "/cookies", "/terms", "/disclaimer"]) {
+      expect(xml).toMatch(new RegExp(`<loc>[^<]*${path}</loc>\\s*<lastmod>2026-11-05`));
     }
   });
 
@@ -357,6 +367,15 @@ test.describe("LOOM SEO surfaces", () => {
     const ld = page.locator('script[type="application/ld+json"]');
     await expect(ld.first()).toBeAttached();
     expect(await ld.first().textContent()).toContain("AboutPage");
+  });
+
+  test("homepage names the organization for entity disambiguation", async ({ page }) => {
+    await open(page, "/");
+    const structured = (await page.locator('script[type="application/ld+json"]').allTextContents()).join("\n");
+    expect(structured).toContain('"@type":"Organization"');
+    expect(structured).toContain('"name":"LOOM"');
+    expect(structured).toContain("Learning Opportunity Open Source Mentorship");
+    expect(structured).toContain("https://github.com/L-OO-M");
   });
 
   test("faq ships FAQPage structured data", async ({ page }) => {

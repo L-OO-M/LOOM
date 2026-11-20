@@ -1,6 +1,7 @@
 import { getSql } from "@/lib/db";
 import { absoluteUrl, defaultTenantSlug } from "@/lib/seo";
 import { createLogger } from "@/lib/log";
+import { POLICY_VERSIONS } from "@/lib/legal";
 
 // debug: this also runs during `next build` and on every revalidation. A
 // missing/inactive table is normal early in a deployment, so it stays quiet
@@ -9,9 +10,31 @@ const log = createLogger("sitemap");
 
 export const revalidate = 3600;
 
-// Real last-edit time for the hand-written pages. Emitting `new Date()` on
-// every regeneration told crawlers static copy changed daily; it never does.
-const STATIC_PAGES_MODIFIED = new Date("2026-10-15T00:00:00Z");
+// Real last-edit date of each hand-written page, from the commit that last
+// changed its source. A single shared constant for every route was the
+// "default date" pattern: Google learns it is not page-specific and ignores it,
+// which costs the one signal a sitemap can still give it for these routes.
+const STATIC_PAGES = Object.freeze([
+  { path: "/", modified: "2026-10-23" },
+  { path: "/about", modified: "2026-11-03" },
+  { path: "/events", modified: "2026-10-26" },
+  { path: "/domains", modified: "2026-11-03" },
+  { path: "/faq", modified: "2026-11-03" },
+  { path: "/contact", modified: "2026-11-03" }
+]);
+
+// A legal page's last significant change is its policy version, so bumping
+// POLICY_VERSIONS updates this file in the same commit as the policy text.
+const LEGAL_PAGES = Object.freeze([
+  { path: "/privacy", policy: "privacy" },
+  { path: "/cookies", policy: "cookies" },
+  { path: "/terms", policy: "terms" },
+  { path: "/disclaimer", policy: "disclaimer" }
+]);
+
+function utcDate(value) {
+  return new Date(`${value}T00:00:00Z`);
+}
 
 async function activeDepartmentSlugs() {
   try {
@@ -112,33 +135,21 @@ export default async function sitemap() {
     log.debug("tenant id lookup failed; sitemap omits db-derived pages", { err });
   }
 
-  const pages = [
-    { path: "/", priority: 1.0, changeFrequency: "daily" },
-    { path: "/about", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/events", priority: 0.9, changeFrequency: "daily" },
-    { path: "/domains", priority: 0.8, changeFrequency: "weekly" },
-    { path: "/faq", priority: 0.7, changeFrequency: "monthly" },
-    { path: "/privacy", priority: 0.4, changeFrequency: "yearly" },
-    { path: "/cookies", priority: 0.4, changeFrequency: "yearly" },
-    { path: "/terms", priority: 0.4, changeFrequency: "yearly" },
-    { path: "/disclaimer", priority: 0.4, changeFrequency: "yearly" },
-    { path: "/contact", priority: 0.4, changeFrequency: "yearly" }
-  ];
-  const entries = pages.map((p) => ({
+  const entries = STATIC_PAGES.map((p) => ({
     url: absoluteUrl(p.path),
-    // Not `now`. lastModified on every regeneration told crawlers these pages
-    // changed daily when they never do, which is a fabricated freshness signal.
-    lastModified: STATIC_PAGES_MODIFIED,
-    changeFrequency: p.changeFrequency,
-    priority: p.priority
+    lastModified: utcDate(p.modified)
   }));
-  for (const slug of await activeDepartmentSlugs()) {
+  for (const p of LEGAL_PAGES) {
     entries.push({
-      url: absoluteUrl(`/domains/${slug}`),
-      lastModified: STATIC_PAGES_MODIFIED,
-      changeFrequency: "weekly",
-      priority: 0.7
+      url: absoluteUrl(p.path),
+      lastModified: utcDate(POLICY_VERSIONS[p.policy])
     });
+  }
+  for (const slug of await activeDepartmentSlugs()) {
+    // The department row is the page's source, but it has no updated_at and its
+    // events and projects add their own dated entries below. Omitting lastmod is
+    // honest; reusing a shared date here would fabricate one.
+    entries.push({ url: absoluteUrl(`/domains/${slug}`) });
   }
   // Fail closed. The helpers used to accept a null tenant and match every
   // chapter, so a transient lookup failure advertised the whole federation.
@@ -146,33 +157,25 @@ export default async function sitemap() {
   for (const u of await publicUsernames(tenantId)) {
     entries.push({
       url: absoluteUrl(`/u/${u.username}`),
-      lastModified: u.updated_at || now,
-      changeFrequency: "weekly",
-      priority: 0.6
+      lastModified: u.updated_at || now
     });
   }
   for (const ev of await publicEventIds(tenantId)) {
     entries.push({
       url: absoluteUrl(`/events/${ev.id}`),
-      lastModified: ev.starts_at || now,
-      changeFrequency: "daily",
-      priority: 0.7
+      lastModified: ev.starts_at || now
     });
   }
   for (const c of await publicCredentialIds(tenantId)) {
     entries.push({
       url: absoluteUrl(`/verify/credential/${c.id}`),
-      lastModified: c.issued_at || now,
-      changeFrequency: "monthly",
-      priority: 0.4
+      lastModified: c.issued_at || now
     });
   }
   for (const c of await publicCertificateCodes(tenantId)) {
     entries.push({
       url: absoluteUrl(`/verify/certificate/${c.verification_code}`),
-      lastModified: c.issued_at || now,
-      changeFrequency: "monthly",
-      priority: 0.4
+      lastModified: c.issued_at || now
     });
   }
   return entries;

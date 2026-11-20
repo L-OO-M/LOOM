@@ -1,4 +1,4 @@
-import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl, siteUrl } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, absoluteUrl, siteUrl } from "@/lib/seo";
 
 /**
  * Renders JSON-LD structured data. Pass plain serializable objects only —
@@ -27,10 +27,18 @@ export function organizationSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: `${SITE_NAME} — Learning Operating System for colleges`,
+    // `name` is the entity a search engine has to disambiguate from the video
+    // product that dominates the word "Loom". Keep it the bare brand and put
+    // the expansion in alternateName rather than inventing a compound name.
+    name: SITE_NAME,
+    alternateName: "Learning Opportunity Open Source Mentorship",
+    slogan: SITE_TAGLINE,
     url: siteUrl(),
     logo: absoluteUrl("/logo.png"),
-    description: SITE_DESCRIPTION
+    description: SITE_DESCRIPTION,
+    // The project's public code organisation. This is the one verified profile
+    // the site can point at today; add others only when they really exist.
+    sameAs: ["https://github.com/L-OO-M"]
   };
 }
 

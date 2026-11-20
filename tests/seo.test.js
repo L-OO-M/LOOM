@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aboutPageSchema,
   breadcrumbSchema,
+  organizationSchema,
   profilePageSchema,
   toJsonLdString,
   webPageSchema
@@ -34,7 +35,19 @@ describe("structured data helpers", () => {
     expect(schema).toMatchObject({ "@type": "AboutPage", inLanguage: "en-IN" });
     expect(schema.about).toMatchObject({ "@type": "Organization" });
     expect(schema).not.toHaveProperty("foundingDate");
-    expect(schema).not.toHaveProperty("sameAs");
+  });
+
+  it("names the organization exactly once and links only the real code org", () => {
+    const schema = organizationSchema();
+    expect(schema).toMatchObject({
+      "@type": "Organization",
+      name: "LOOM",
+      alternateName: "Learning Opportunity Open Source Mentorship",
+      sameAs: ["https://github.com/L-OO-M"]
+    });
+    // sameAs is a claim of ownership. It may only ever list profiles that exist
+    // and belong to this project, so the list is pinned rather than free-form.
+    expect(schema.sameAs).toHaveLength(1);
   });
 
   it("describes a public profile only from available profile fields", () => {
