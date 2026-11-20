@@ -119,7 +119,9 @@ export default async function sitemap() {
     { path: "/domains", priority: 0.8, changeFrequency: "weekly" },
     { path: "/faq", priority: 0.7, changeFrequency: "monthly" },
     { path: "/privacy", priority: 0.4, changeFrequency: "yearly" },
+    { path: "/cookies", priority: 0.4, changeFrequency: "yearly" },
     { path: "/terms", priority: 0.4, changeFrequency: "yearly" },
+    { path: "/disclaimer", priority: 0.4, changeFrequency: "yearly" },
     { path: "/contact", priority: 0.4, changeFrequency: "yearly" }
   ];
   const entries = pages.map((p) => ({

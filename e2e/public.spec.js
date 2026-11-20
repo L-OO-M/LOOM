@@ -99,8 +99,10 @@ test.describe("LOOM public site", () => {
 
   test("legal pages load with headings", async ({ page }) => {
     for (const [path, heading] of [
-      ["/privacy", "Privacy notice."],
-      ["/terms", "Terms of use."],
+      ["/privacy", "Privacy policy."],
+      ["/cookies", "Cookie policy."],
+      ["/terms", "Terms and conditions."],
+      ["/disclaimer", "Disclaimer."],
       ["/contact", "Contact the chapter."]
     ]) {
       const res = await open(page, path);
@@ -111,7 +113,13 @@ test.describe("LOOM public site", () => {
 
   test("legal footer links point to public policies", async ({ page }) => {
     await open(page, "/about");
-    for (const [label, url] of [["Privacy", "/privacy"], ["Terms", "/terms"], ["Contact", "/contact"]]) {
+    for (const [label, url] of [
+      ["Privacy", "/privacy"],
+      ["Cookies", "/cookies"],
+      ["Terms", "/terms"],
+      ["Disclaimer", "/disclaimer"],
+      ["Contact", "/contact"]
+    ]) {
       const link = page.getByRole("link", { name: label, exact: true }).filter({ visible: true }).first();
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute("href", url);
@@ -123,6 +131,7 @@ test.describe("LOOM public site", () => {
     const consent = page.getByText("I have read the");
     await expect(consent).toBeVisible();
     await expect(page.getByRole("link", { name: "Privacy notice", exact: true })).toHaveAttribute("href", "/privacy");
+    await expect(page.getByRole("link", { name: "Cookie notice", exact: true })).toHaveAttribute("href", "/cookies");
     await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");
   });
 
@@ -191,7 +200,7 @@ test.describe("LOOM SEO surfaces", () => {
     const res = await request.get("/sitemap.xml");
     expect(res.ok()).toBeTruthy();
     const xml = await res.text();
-    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/cookies", "/terms", "/disclaimer", "/contact"]) {
       expect(xml).toContain(path);
     }
   });
@@ -207,7 +216,7 @@ test.describe("LOOM SEO surfaces", () => {
     expect(res.ok()).toBeTruthy();
     expect(res.headers()["content-type"]).toContain("text/plain");
     const txt = await res.text();
-    for (const path of ["/about", "/api/public/events", "/sitemap.xml", "/privacy", "/terms", "/contact"]) {
+    for (const path of ["/about", "/api/public/events", "/sitemap.xml", "/privacy", "/cookies", "/terms", "/disclaimer", "/contact"]) {
       expect(txt).toContain(path);
     }
   });
@@ -233,8 +242,43 @@ test.describe("LOOM SEO surfaces", () => {
     expect(txt).toContain("/admin");
   });
 
+  test("Search Console ownership is discoverable by meta tag and file", async ({ page, request }) => {
+    const token = "qSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc";
+    // The meta tag is the committed default unless a deployment overrides it;
+    // the server and this runner read the same environment. The file method has
+    // no override, so it must always carry the committed token.
+    const expectedMeta = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || token;
+    await open(page, "/");
+    const meta = page.locator('meta[name="google-site-verification"]');
+    expect(await meta.count()).toBe(1);
+    expect(await meta.getAttribute("content")).toBe(expectedMeta);
+
+    // The file method is fetched anonymously by Google; a login redirect here
+    // would make verification fail silently.
+    const res = await request.get(`/google${token}.html`);
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain(`google-site-verification: google${token}.html`);
+  });
+
+  test("robots.txt names the search and assistant crawlers it serves", async ({ request }) => {
+    const res = await request.get("/robots.txt");
+    expect(res.ok()).toBeTruthy();
+    const txt = (await res.text()).toLowerCase();
+    for (const agent of [
+      "googlebot",
+      "bingbot",
+      "oai-searchbot",
+      "perplexitybot",
+      "claude-searchbot",
+      "mistralai-user",
+      "duckassistbot"
+    ]) {
+      expect(txt).toContain(`user-agent: ${agent}`);
+    }
+  });
+
   test("public pages carry canonical + description + single h1", async ({ page }) => {
-    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/terms", "/contact"]) {
+    for (const path of ["/about", "/faq", "/events", "/domains", "/privacy", "/cookies", "/terms", "/disclaimer", "/contact"]) {
       await open(page, path);
       await expect(page.locator("h1")).toHaveCount(1);
       const canonical = page.locator('link[rel="canonical"]');

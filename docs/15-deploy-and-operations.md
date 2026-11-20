@@ -32,7 +32,7 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `RESEND_API_KEY` | no | Optional email-verification sender. Unset = verification is unavailable and the UI says so; accounts are never blocked |
 | `EMAIL_FROM` | no | Verified sender for `RESEND_API_KEY`, e.g. `LOOM <noreply@yourdomain>` |
 | `AEO_BLOCK_TRAINING` | no | `1` blocks training-only crawlers (GPTBot, CCBot, …) in `robots.txt` while keeping search/assistant crawlers allowed. Unset = allow all public crawling |
-| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Search Console ownership meta tag, emitted once in `app/layout.jsx` |
+| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Overrides the Search Console ownership meta tag. A live token for lets-loom.xyz is already the default in `app/layout.jsx`, so a plain deploy verifies without it |
 | `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET` |
 | `NEXT_PUBLIC_AUTH0_ONLY` | no (default `0`) | `1` hides the legacy Supabase email/password and GitHub forms on `/login` and `/register`. Enable only after existing accounts can sign in through Auth0 |
 | `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` | no (password onboarding) | Machine-to-Machine app authorized for the Auth0 Management API with `read:users`, `create:users`, `update:users`, `delete:users`. Used only by `lib/auth0-management.js` to add a database identity/password to social accounts. Unset = the UI reports password setup unavailable and keeps social sign-in usable |
@@ -56,22 +56,35 @@ For moving existing Supabase accounts, including password-hash export and bulk i
 
 ### Search Console verification
 
-Two independent methods are wired. Either one is sufficient — use both if unsure.
+Two independent methods are wired, and both are active for `lets-loom.xyz`. Either
+one is sufficient.
 
-1. **HTML file (active).** `public/google98eae5c43ea32d19.html` is served at
-   `https://<domain>/google98eae5c43ea32d19.html`. The middleware matcher excludes
-   `.html` so an anonymous crawler is never redirected to `/login`, and
-   `robots.txt` allows it via `Allow: /`. **Do not delete this file as unused** —
-   `tests/search-console-verification.test.js` guards its presence, its exact
-   token, and the matcher exclusion.
-2. **Meta tag.** Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` and redeploy. The tag
-   is emitted once in `app/layout.jsx`, not per page.
+1. **HTML file.** `public/googleqSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc.html`
+   (and the earlier `public/google98eae5c43ea32d19.html`) is served at
+   `https://<domain>/google<token>.html`. The middleware matcher excludes `.html`
+   so an anonymous crawler is never redirected to `/login`, and `robots.txt`
+   allows it via `Allow: /`. **Never delete a verification file as unused** —
+   removing it un-verifies the Search Console property that owns that token.
+   `tests/search-console-verification.test.js` guards their presence, exact
+   tokens, and the matcher exclusion.
+2. **Meta tag.** `app/layout.jsx` emits
+   `google-site-verification: qSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc` on
+   every page by default. Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` only to
+   override it with a different property's token. `e2e/public.spec.js` asserts
+   both the tag and the file.
+
+The override value is the **bare token** (`qSiVffVox-…`), not the `.html` file
+name. A deployment that still has `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` set to a
+filename overrides the committed default with an invalid tag; clear it (or set
+the bare token) in Vercel and redeploy. The HTML-file method keeps working either
+way.
 
 Verify what the internet would actually see:
 
 ```bash
-curl -sI https://<your-domain>/google98eae5c43ea32d19.html   # expect 200
-curl -s  https://<your-domain>/google98eae5c43ea32d19.html   # expect the token
+curl -sI https://<your-domain>/googleqSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc.html   # expect 200
+curl -s  https://<your-domain>/googleqSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc.html   # expect the token
+curl -s  https://<your-domain>/ | grep google-site-verification                          # expect the meta tag
 ```
 
 A `307` to `/login` means the middleware matcher regressed.
@@ -481,12 +494,14 @@ creates a paid resource.
    default privileges are part of the schema; a partial restore can drop them).
 5. Delete the scratch project after the drill.
 
-**Legal decisions.** The public legal pages no longer contain bracketed
-placeholders; they read operator/contact/retention/governing-law values from
-`lib/legal.js`. Set `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_NAME`,
-`LEGAL_CONTACT_EMAIL`, `LEGAL_RETENTION_PERIOD`, `LEGAL_GOVERNING_LAW`,
-`LEGAL_LIABILITY_CAP`, and `LEGAL_PUBLISHED_DATE` at deploy time. The defaults
-are honest but generic; the chapter still needs to confirm the legal details.
+**Legal decisions.** The public legal pages (`/privacy`, `/cookies`, `/terms`,
+`/disclaimer`) contain no bracketed placeholders; they read operator, address,
+contact, grievance-officer, retention, governing-law, jurisdiction and
+arbitration values from `lib/legal.js`. Override the `LEGAL_*` variables listed
+in `.env.example` at deploy time. The defaults are the published LOOM values, so
+a deployment that mirrors them needs no changes; a chapter operating under a
+different entity must confirm the address, grievance officer and entity details
+before going live.
 
 ## 5. Runbook
 

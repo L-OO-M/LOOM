@@ -29,7 +29,7 @@ The guiding rule, from the society core: an **ecosystem, not an event organizer*
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → paste into `.env.local` | ⬜ Empty — admin user APIs limited until set |
 | GitHub webhook secret | `GITHUB_WEBHOOK_SECRET` in env + repo/org webhook settings | ⬜ Only needed when enabling ingestion (§9) |
 | Vercel/hosting + domain | For production; set `NEXT_PUBLIC_APP_URL` to the public origin | ⬜ Not yet deployed |
-| Google Search Console | Add site, set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | ⬜ Placeholder only |
+| Google Search Console | Domain `lets-loom.xyz`; verification token committed both as a meta tag (`app/layout.jsx`) and `public/google<token>.html` | ✅ Configured — no env var needed |
 
 ---
 

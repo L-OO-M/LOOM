@@ -16,7 +16,7 @@ test("homepage sign in and join buttons reach the existing auth pages", async ({
 
 test("homepage feature and legal links retain real routes", async ({ page }) => {
   await page.goto("/");
-  for (const href of ["/about", "/domains", "/events", "/faq", "/contact", "/student/roadmap", "/student/opensource", "/student/mentorship", "/privacy", "/terms"]) {
+  for (const href of ["/about", "/domains", "/events", "/faq", "/contact", "/student/roadmap", "/student/opensource", "/student/mentorship", "/privacy", "/cookies", "/terms", "/disclaimer"]) {
     await expect(page.locator(`a[href="${href}"]`).first()).toBeAttached();
   }
   await expect(page.locator('a[href="#"]')).toHaveCount(0);

@@ -38,6 +38,15 @@
 .loom-information .information-article ul { margin-top: 14px; font-size: 15px; line-height: 1.9; }
 .loom-information .information-article li { padding-left: 4px; }
 .loom-information .information-article li::marker { color: var(--accent); }
+.loom-information .information-article code {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
 .loom-information .information-article > p:last-child { margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 14px; }
 .loom-information .information-article a { text-underline-offset: 4px; }
 .loom-information a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }

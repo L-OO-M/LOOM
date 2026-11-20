@@ -46,7 +46,8 @@ function ConsentBox({ checked, onChange, error }) {
       </span>
       <span>
         I have read the{" "}
-        <Link prefetch={false} href="/privacy" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Privacy notice</Link>{" "}
+        <Link prefetch={false} href="/privacy" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Privacy notice</Link>,{" "}
+        <Link prefetch={false} href="/cookies" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Cookie notice</Link>{" "}
         and{" "}
         <Link prefetch={false} href="/terms" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Terms</Link>.
         {error && <span id="consent-error" className="mt-1 block text-xs leading-5" style={{ color: "var(--danger)" }}>{error}</span>}

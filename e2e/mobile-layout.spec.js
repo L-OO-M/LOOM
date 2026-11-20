@@ -30,7 +30,9 @@ const ROUTES = [
   "/domains",
   "/faq",
   "/privacy",
+  "/cookies",
   "/terms",
+  "/disclaimer",
   "/contact",
   "/login",
   "/register"
