@@ -5,10 +5,9 @@ import { AppShell } from "@/components/AppShell";
 import { Meta } from "@/components/loom/primitives";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import SettingsClient from "./SettingsClient";
-import EmailVerificationCard from "./EmailVerificationCard";
 import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
 import { AppearancePanel } from "./AppearancePanel";
-import { maskEmail, verificationConfigured } from "@/lib/email-verification";
+import { maskEmail } from "@/lib/email-verification";
 import { socialLinksForDisplay, LINK_LABELS } from "@/lib/profileFolio";
 
 export default async function SettingsPage() {
@@ -102,11 +101,27 @@ export default async function SettingsPage() {
           </WorkspaceSection>
         </div>
 
-        <EmailVerificationCard
-          verifiedAt={profile?.email_verified_at ? String(profile.email_verified_at) : null}
-          email={maskEmail(user.email)}
-          configured={verificationConfigured()}
-        />
+        {/* Read-only: Auth0 verifies the address during sign-in, so there is no
+            in-app "send link" control any more. The badge reports what Auth0
+            already confirmed instead of offering a button that would 410. */}
+        <section aria-label="Email verification" className="mt-10">
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Email</h2>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span
+              className="rounded-full border px-3 py-1 text-xs font-semibold"
+              style={{
+                borderColor: profile?.email_verified_at ? "var(--accent)" : "var(--line)",
+                color: profile?.email_verified_at ? "var(--accent)" : "var(--text-muted)"
+              }}
+            >
+              {profile?.email_verified_at ? "Verified" : "Not verified"}
+            </span>
+            <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>{maskEmail(user.email)}</span>
+          </div>
+          <p className="meta mt-2 normal-case tracking-normal">
+            Verification is handled by Auth0. Your account works without it.
+          </p>
+        </section>
 
         <AccountSecurityCard />
 

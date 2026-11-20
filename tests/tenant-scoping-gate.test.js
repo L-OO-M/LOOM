@@ -279,29 +279,6 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
   });
 });
 
-describe("auth endpoints are rate limited server-side", () => {
-  // The login and register forms used to call Supabase directly from the
-  // browser, which put every attempt outside this app's limiter.
-  it("proxies login through a rate-limited API route", () => {
-    const route = readFileSync("app/api/auth/login/route.js", "utf8");
-    expect(route).toContain("checkRateLimit");
-    expect(route).toMatch(/limit:\s*\d+/);
-    const client = readFileSync("lib/auth-client.js", "utf8");
-    const signIn = client.slice(client.indexOf("export async function signIn"), client.indexOf("export async function signUp"));
-    expect(signIn).toContain("/api/auth/login");
-    expect(signIn).not.toContain("signInWithPassword");
-  });
-
-  it("proxies registration through a rate-limited API route", () => {
-    const route = readFileSync("app/api/auth/register/route.js", "utf8");
-    expect(route).toContain("checkRateLimit");
-    const client = readFileSync("lib/auth-client.js", "utf8");
-    const signUp = client.slice(client.indexOf("export async function signUp"));
-    expect(signUp).toContain("/api/auth/register");
-    expect(signUp).not.toContain("auth.signUp(");
-  });
-});
-
 describe("public legal pages render per request", () => {
   it("keeps the zero-database pages dynamic for the nonce CSP", () => {
     // These pages were force-static so the CDN could cache them. The nonce-based

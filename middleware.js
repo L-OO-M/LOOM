@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { auth0 } from "@/lib/auth0";
 import { checkSameOrigin, UNSAFE_METHODS } from "@/lib/csrf";
 import { checkBodySize } from "@/lib/request-limits";
 import { buildCsp, createNonce } from "@/lib/csp";
-import { AUTH_UNAVAILABLE, isTransientAuthError } from "@/lib/auth-errors";
 
 // Paths owned by the Auth0 SDK's middleware (login, logout, OAuth callback,
 // profile, token). They MUST be delegated to the SDK -- treating them as public
 // (a plain NextResponse.next()) would skip the OAuth code exchange entirely.
 //
-// /auth/callback is now Auth0's. The Supabase PKCE callback that used to live
-// there has moved to /auth/supabase-callback (kept for the legacy GitHub
-// sign-in path during the migration).
+// /auth/callback is Auth0's. The retired Supabase PKCE callback now lives at
+// /auth/supabase-callback and only redirects to /login?error=auth0_only.
 const AUTH0_PATHS = new Set([
   "/auth/login",
   "/auth/logout",
@@ -173,9 +170,9 @@ export async function middleware(request) {
   // request reaches the gating logic below it would be treated as an app page
   // and (for logged-out users) bounced to /login instead of completing auth.
   //
-  // `auth0` is null when the Auth0 env vars are not configured (see lib/auth0.js);
-  // in that case these paths fall through to the normal Supabase gating, so the
-  // app behaves exactly as before Auth0 was introduced.
+  // `auth0` is null only when the Auth0 env vars are not configured (see
+  // lib/auth0.js). In that case these paths fall through to the gate below,
+  // which fails closed: an unconfigured deployment has no session source at all.
   if (auth0 && AUTH0_PATHS.has(pathname)) {
     return withCsp(await auth0.middleware(request));
   }
@@ -214,148 +211,56 @@ export async function middleware(request) {
 
   // Session read + REFRESH.
   //
-  // TWO identity providers can hold a session during the migration:
-  //   - Auth0, the front door (lib/auth0.js);
-  //   - Supabase, kept as a fallback for legacy sessions and the E2E suite.
-  //
-  // Auth0 is checked FIRST. Skipping it was a hard bug: every user who signed in
-  // through the new front door had a valid Auth0 cookie but no Supabase cookie,
-  // so this middleware 307'd them to /login on every protected page -- including
-  // /lead/directory -- and they could never get in.
+  // Auth0 is the only identity provider. The Supabase branch that used to live
+  // here is gone: the anon key is public, so while Supabase's own signup was
+  // reachable anyone could mint a Supabase user and have this middleware treat
+  // the resulting cookie as a valid session. Authentication is now one door.
   //
   // Auth0's own middleware is invoked for the request so ROLLING sessions work:
   // its default branch (no auth route matched) re-issues the session cookie with
   // a fresh maxAge. Only /auth/* used to be delegated, which meant the cookie
   // was never rolled on app pages and users silently expired after the
   // inactivity window.
+  let auth0Session = null;
   if (auth0) {
-    let auth0Session = null;
     try {
       auth0Session = await auth0.getSession(request);
     } catch {
       // A corrupt/undecryptable cookie is "not signed in", never a 500.
       auth0Session = null;
     }
-    if (auth0Session?.user) {
-      const res = NextResponse.next({ request: { headers: requestHeaders } });
-      try {
-        const rolled = await auth0.middleware(request);
-        for (const cookie of rolled.cookies.getAll()) res.cookies.set(cookie);
-        // Carry the SDK's cache-control (no-store for session responses) so a
-        // CDN or the browser does not cache an authenticated page.
-        const cacheControl = rolled.headers.get("cache-control");
-        if (cacheControl) res.headers.set("cache-control", cacheControl);
-      } catch {
-        /* rolling is best-effort; the session is still valid for this request */
-      }
-      return withCsp(res);
-    }
   }
 
-  // Session read + REFRESH (Supabase fallback).
-  //
-  // The refresh half used to be missing entirely: getSession() is a purely
-  // cookie-local read, so nothing ever renewed the access token, and setAll
-  // wrote only to `request.cookies` -- a mutation that dies with the request
-  // and is never sent to the browser. So even when Supabase handed back fresh
-  // tokens, they were discarded. The browser kept the original, eventually
-  // expired pair, and the next visit looked logged out.
-  //
-  // The response object is created up front so refreshed cookies can be
-  // attached to it, and the mutated request is threaded through so downstream
-  // handlers see the new values in the same pass.
-  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        }
-      }
+  if (auth0Session?.user) {
+    const res = NextResponse.next({ request: { headers: requestHeaders } });
+    try {
+      const rolled = await auth0.middleware(request);
+      for (const cookie of rolled.cookies.getAll()) res.cookies.set(cookie);
+      // Carry the SDK's cache-control (no-store for session responses) so a
+      // CDN or the browser does not cache an authenticated page.
+      const cacheControl = rolled.headers.get("cache-control");
+      if (cacheControl) res.headers.set("cache-control", cacheControl);
+    } catch {
+      /* rolling is best-effort; the session is still valid for this request */
     }
-  );
+    return withCsp(res);
+  }
 
-  // getUser() (not getSession) is what validates the JWT with Auth and triggers
-  // the token refresh when the access token is near expiry. getSession() alone
-  // would keep returning the stale cookie forever.
-  const {
-    data: { user },
-    error: sessionError
-  } = await supabase.auth.getUser();
-
-  if (!user && isTransientAuthError(sessionError)) {
-    // We could not ask who this is, which is not the same answer as "nobody".
-    // Redirecting to /login here signs a valid session out (that is exactly
-    // what failed e2e/student-audit.spec.js), and answering 401 would make an
-    // outage look like a permission problem. Say "try again" instead, and say
-    // it in a way a client can retry on.
-    if (pathname.startsWith("/api/")) {
-      return withCsp(
-        NextResponse.json(
-          {
-            ok: false,
-            error: { code: AUTH_UNAVAILABLE, message: "Session check temporarily unavailable" }
-          },
-          { status: 503, headers: { "retry-after": "2" } }
-        )
-      );
-    }
-    // Script-free on purpose: the CSP nonce is stamped by withCsp, and an inline
-    // <script> or style attribute here would be the one page that violates it.
+  // No session. API routes get machine-readable 401; pages get a login redirect.
+  //
+  // `auth0` being null (unconfigured) lands here too: with no identity provider
+  // there is no session that could be valid, so fail closed rather than open.
+  if (pathname.startsWith("/api/")) {
     return withCsp(
-      new NextResponse(
-        '<!doctype html><meta charset="utf-8"><title>Temporarily unavailable</title>' +
-          "<h1>We could not verify your session</h1>" +
-          "<p>This is temporary, and you have not been signed out. Reload in a moment.</p>",
-        {
-          status: 503,
-          headers: { "content-type": "text/html; charset=utf-8", "retry-after": "2" }
-        }
+      NextResponse.json(
+        { ok: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } },
+        { status: 401 }
       )
     );
   }
-
-  if (!user) {
-    // API routes get machine-readable 401; pages get a login redirect.
-    if (pathname.startsWith("/api/")) {
-      return withCsp(
-        NextResponse.json(
-          { ok: false, error: { code: "UNAUTHORIZED", message: "Authentication required" } },
-          { status: 401 }
-        )
-      );
-    }
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    const redirectResponse = NextResponse.redirect(loginUrl);
-    // Carry any refreshed cookies onto the redirect, otherwise a user whose
-    // token was refreshed on this request loses it at the hop.
-    supabaseResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
-    return withCsp(redirectResponse);
-  }
-
-  // Security headers other than CSP (X-Frame-Options, HSTS, ...) are defined in
-  // next.config.mjs `headers()` because that also covers static assets and SEO
-  // files, which this middleware's matcher deliberately excludes. CSP is NOT
-  // there: it needs a per-request nonce, so this middleware owns it (see
-  // lib/csp.js) and stamps it on every response it returns.
-  //
-  // Returns the response carrying the refreshed session cookies -- not a fresh
-  // NextResponse.next(), which is what silently dropped them before. The CSP is
-  // attached in place (same header `withCsp` would set) so this statement stays
-  // the single, greppable return that tests/session-persistence.test.js pins.
-  supabaseResponse.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  return supabaseResponse;
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("redirect", pathname);
+  return withCsp(NextResponse.redirect(loginUrl));
 }
 
 export const config = {

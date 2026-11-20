@@ -29,13 +29,11 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `DEBUG_CHALLENGE_REPO` | no | Public `owner/repo` holding Debug & Build starter bugs. Defaults to `L-OO-M/buggy`; not set = that default is used |
 | `GITHUB_ISSUES_REPO` | no | `owner/repo` that feature requests mirror into. Unset = the GitHub Issues bridge is off and submissions behave exactly as before |
 | `GITHUB_ISSUES_TOKEN` | no | Fine-grained token with **issues: write** on that repo (≥20 chars). Server-only — never `NEXT_PUBLIC_`. Missing token = bridge off, not a crash |
-| `RESEND_API_KEY` | no | Optional email-verification sender. Unset = verification is unavailable and the UI says so; accounts are never blocked |
-| `EMAIL_FROM` | no | Verified sender for `RESEND_API_KEY`, e.g. `LOOM <noreply@yourdomain>` |
+| `RESEND_API_KEY` | no | Legacy: sender for the retired in-app email-verification flow. Auth0 sends verification mail now; removing this no longer affects sign-in |
 | `AEO_BLOCK_TRAINING` | no | `1` blocks training-only crawlers (GPTBot, CCBot, …) in `robots.txt` while keeping search/assistant crawlers allowed. Unset = allow all public crawling |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | no | Overrides the Search Console ownership meta tag. A live token for lets-loom.xyz is already the default in `app/layout.jsx`, so a plain deploy verifies without it |
-| `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET` |
-| `NEXT_PUBLIC_AUTH0_ONLY` | no (default `0`) | `1` hides the legacy Supabase email/password and GitHub forms on `/login` and `/register`. Enable only after existing accounts can sign in through Auth0 |
-| `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` | no (password onboarding) | Machine-to-Machine app authorized for the Auth0 Management API with `read:users`, `create:users`, `update:users`, `delete:users`. Used only by `lib/auth0-management.js` to add a database identity/password to social accounts. Unset = the UI reports password setup unavailable and keeps social sign-in usable |
+| `AUTH0_DOMAIN` / `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` / `AUTH0_SECRET` | yes | **Auth0 login front door — the only one.** `AUTH0_SECRET` encrypts the session cookie (≥32 chars). Read only by `@auth0/nextjs-auth0` (via `lib/auth0.js`); **never** `NEXT_PUBLIC_`. Production boot rejects a missing or placeholder/short `AUTH0_SECRET`. There is no cutover flag: the retired Supabase email/password routes are gone, not gated |
+| `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` | no (password onboarding) | Machine-to-Machine app authorized for the Auth0 Management API with `read:users`, `create:users`, `update:users`, `delete:users`. Used only by `lib/auth0-management.js` to add a database identity/password to social accounts. Unset = the UI reports password setup unavailable and keeps Auth0 sign-in usable |
 | `AUTH0_DB_CONNECTION` | no (default `Username-Password-Authentication`) | Auth0 database connection used when creating the password identity |
 | `AUTH0_DB_CONNECTION_ID` | migration only | `con_...` ID for `load/auth0-migrate.mjs`; avoids needing `read:connections`. See `24-auth0-migration.md` |
 | `AUTH0_MIGRATION_SCOPES` | no | Optional token scopes for migration; use `read:users create:users read:connections` only if those scopes are granted to the M2M app |
@@ -94,19 +92,19 @@ A `307` to `/login` means the middleware matcher regressed.
 
 ### Optional integrations
 
-`GITHUB_ISSUES_*`, `RESEND_API_KEY`/`EMAIL_FROM`, and `AEO_BLOCK_TRAINING` are
-deliberately optional and are **not** listed as required secrets in `lib/env.js`.
-The app must boot and behave correctly without them: the feature-request board
-simply hides the issue controls, the settings page reports that verification is
-unavailable (`NOT_CONFIGURED`), and `robots.txt` allows all public crawling.
-Adding one of these to the production boot guard would take the whole site down
-for a convenience feature — don't.
+`GITHUB_ISSUES_*` and `AEO_BLOCK_TRAINING` are deliberately optional and are
+**not** listed as required secrets in `lib/env.js`. The app must boot and behave
+correctly without them: the feature-request board simply hides the issue
+controls, and `robots.txt` allows all public crawling. Adding one of these to
+the production boot guard would take the whole site down for a convenience
+feature — don't.
 
-Keep **Supabase Auth email confirmation disabled**. Signup reports
-`confirmationRequired` but never gates on it, for two reasons: the free-tier
-shared SMTP rate limit cannot sustain production signups, and many colleges
-issue no student mailbox at all. Address verification is the optional Resend
-flow in `lib/email-verification.js`, not an access requirement.
+`RESEND_API_KEY`/`EMAIL_FROM` are legacy: they belonged to the retired in-app
+verification flow. Auth0 sends verification mail now, so neither is needed for
+sign-in and both can be removed from a deployment.
+
+Supabase's own email confirmation is irrelevant now: no Supabase credential path
+exists. Address verification is Auth0's responsibility during sign-in.
 
 Feature-request issues are mirrored only for **new** submissions. After setting
 `GITHUB_ISSUES_REPO` + `GITHUB_ISSUES_TOKEN` and redeploying, backfill the rows

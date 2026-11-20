@@ -1,24 +1,33 @@
 # Auth0 migration for existing Supabase accounts
 
-This is the controlled path from the Supabase Auth fallback to Auth0 as the
-primary identity provider. It is **additive and reversible**: Supabase stays
-available until every existing account has a working Auth0 path and
-`NEXT_PUBLIC_AUTH0_ONLY=1` is deliberately deployed.
+> **Status: complete (2026-11).** Auth0 is the only sign-in flow. The Supabase
+> email/password forms, the client helper, the `/api/auth/{login,register}`
+> endpoints, and the server-side Supabase session fallback have all been
+> **removed**. There is no cutover flag and no rollback to the legacy form.
+> This document is kept as the record of how the migration was performed and as
+> the reference for importing accounts exported from an older deployment.
+>
+> The production tenant was wiped before this cutover: every prior account was
+> a test account, and all member-owned rows were deleted. The chapter catalogue
+> (domains, departments, roadmap, resources, FAQs, OSS picks, events, planner)
+> was retained. After the wipe there were no accounts to import.
+
+The migration path this document describes was **additive and reversible while
+it ran**: Supabase stayed available until every existing account had a working
+Auth0 path. That end state has now been reached and the reversal path retired.
 
 The app never uses the Auth0 `sub` as the database key. `lib/user-identities.js`
-maps every verified Auth0/Supabase OAuth identity to the existing canonical
+maps every verified Auth0 identity to the existing canonical
 `profiles.user_id`, so importing users does not rewrite profiles, projects,
 memberships, or audit history.
 
-## Current snapshot (run again before importing)
+## Current snapshot
 
-The dry run on the current database found:
-
-- 17 Supabase `auth.users`
-- 17 confirmed email addresses
-- 17 password hashes, all `$2a$` bcrypt with cost `10` (Auth0-importable)
-- 0 duplicate email groups
-- 1 existing linked GitHub identity
+Before the wipe, the database held 17 Supabase `auth.users`, 17 confirmed
+addresses, 17 bcrypt `$2a$` cost-10 password hashes (Auth0-importable), and one
+linked GitHub identity. **Those were all test accounts and have been deleted**,
+so the live database now has 0 `profiles`, 0 `auth.users`, and 0 Auth0 users.
+There is nothing left to import.
 
 Auth0 bulk import only accepts bcrypt `$2a$`/`$2b$` hashes with cost `10`. The
 script refuses hashes it cannot import and reports how many users would need a
@@ -100,7 +109,7 @@ creating a second Auth0 database identity for someone who already signs in with
 Google or GitHub. They continue using their social identity and can add a
 password from `/student/settings` after signing in.
 
-## Verify before hiding the fallback
+## Verify the Auth0 path (historical checklist)
 
 For one migrated password user:
 
@@ -114,21 +123,18 @@ For one migrated password user:
 For one existing social user, repeat with Google/GitHub and confirm it still
 lands on the same profile.
 
-Do not set `NEXT_PUBLIC_AUTH0_ONLY=1` until:
+The gate before removing the fallback was: `npm run auth0:migrate:verify`
+reports `missingFromAuth0: 0`, at least one imported password login succeeds,
+at least one social login succeeds, password onboarding works from
+`/student/settings`, and Auth0's email delivery is configured for password
+resets. All four were satisfied before the fallback was deleted.
 
-- `npm run auth0:migrate:verify` reports `missingFromAuth0: 0`
-- at least one imported password login succeeds
-- at least one social login succeeds
-- password onboarding works from `/student/settings`
-- Auth0's email delivery is configured for password resets
+## Cut over (done)
 
-## Cut over
-
-In Vercel → Project → Settings → Environment Variables:
+The deployment now requires these Auth0 variables:
 
 | Name | Value |
 |---|---|
-| `NEXT_PUBLIC_AUTH0_ONLY` | `1` |
 | `AUTH0_DOMAIN` | your tenant domain |
 | `AUTH0_CLIENT_ID` | existing Auth0 application client ID |
 | `AUTH0_CLIENT_SECRET` | existing Auth0 application secret |
@@ -149,8 +155,10 @@ Rules:
 - Rotate the M2M secret after any exposure; an already-issued access token
   remains valid until it expires, so treat the exposure window as active.
 
-The legacy Supabase routes remain deployed even when the flag is `1`; the flag
-only hides the forms. That is the rollback path.
+The legacy Supabase routes are **not** a rollback path any more: they return
+`410 AUTH0_ONLY` unconditionally. Removing the old session fallback is what
+closed the second door — the public anon key made a Supabase session an
+Auth0 bypass for anyone who could reach Supabase's own signup.
 
 ## After sign-in: where a member lands
 
@@ -310,13 +318,14 @@ is dashboard configuration — there is nothing to deploy.
 The app's own `/login` page stays as the front door and keeps its Auth0
 "Continue" button; after this it simply lands on a branded, first-party host.
 
-## Rollback
+## Rollback (no longer available)
 
-1. Set `NEXT_PUBLIC_AUTH0_ONLY=0` in Vercel.
-2. Redeploy.
-3. Existing Supabase password users can sign in through the legacy form again.
+The legacy form is gone, so there is nothing to flip back to. Rolling back the
+application code to a commit before the cutover would restore the Supabase
+fallback, which is exactly the second door this change closed; do that only as a
+deliberate incident decision, not as a routine option.
 
-Imported Auth0 users can be removed from Auth0 without touching Supabase. Their
+Auth0 users can be removed from Auth0 without touching Supabase. Their
 `app_metadata.supabase_user_id` identifies them. Do not delete Supabase users
 until the Auth0 path has been stable for a full term.
 

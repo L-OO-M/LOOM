@@ -1,90 +1,56 @@
 const { test, expect } = require("@playwright/test");
 
-// Real login path, end to end. This is the regression test for a bug that made
-// every successful sign-in surface as a failure: auth-client.js asserted a
-// readable session immediately after signInWithPassword and rejected the login
-// when it was not readable yet. No other test covered the real flow, because
-// every other spec is unauthenticated.
+// The login surface is one door now.
+//
+// This replaces the old credential regression suite (a successful Supabase
+// sign-in used to render "did not produce a session"). There is no credential
+// form left to drive, so the assertions are about the shape of the surface and
+// about the retired endpoint staying retired.
 test.describe("sign in", () => {
-  // These tests render /student, the heaviest authenticated page in the app, and
-  // they run under the full suite alongside every other spec on one dev server.
-  // The 30s default is not enough for a cold compile of that route while the
-  // rest of the suite is competing for the same connection pool -- the same
-  // page passes comfortably in isolation, so this is a budget, not a mask.
-  test.describe.configure({ timeout: 90_000 });
-
-  test("reaches the app after valid credentials instead of erroring", async ({ page }) => {
-    const email = process.env.E2E_LOGIN_EMAIL;
-    const password = process.env.E2E_LOGIN_PASSWORD;
-    test.skip(!email || !password, "set E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD to run");
-
+  test("shows only the Auth0 front door", async ({ page }) => {
     await page.goto("/login");
 
-    await page.fill("#email", email);
-    await page.fill("#password", password);
-    await page.click('button[type="submit"]');
+    const cta = page.getByRole("link", { name: /Continue with Auth0/i });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute("href", /^\/auth\/login\?returnTo=/);
 
-    // The regression: a successful sign-in rendered this message and stopped.
-    const bogus = page.getByText(/did not produce a session/i);
-    await expect(bogus).toHaveCount(0, { timeout: 15000 });
-
-    // A real credential failure must still be reported, not swallowed.
-    const serverError = page.locator("#login-err");
-    if (await serverError.count()) {
-      const text = (await serverError.textContent()) || "";
-      expect(text, `login was rejected: ${text}`).not.toMatch(/invalid login credentials/i);
-    }
-
-    // Either way we must land somewhere authenticated rather than bounced back.
-    await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 20000 });
-    expect(page.url()).toMatch(/\/(student|lead|admin)/);
+    // The retired controls must not creep back in a future restyle.
+    await expect(page.locator("input#email")).toHaveCount(0);
+    await expect(page.locator("input#password")).toHaveCount(0);
+    await expect(page.locator("form")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Continue with GitHub/i })).toHaveCount(0);
+    await expect(page.getByText(/legacy email\/password/i)).toHaveCount(0);
   });
 
-  // Regression: a disabled Supabase GitHub provider used to navigate the whole
-  // page to /auth/v1/authorize, which answers with raw JSON ("Unsupported
-  // provider: provider is not enabled"). The user was stranded off-site with no
-  // explanation. The button now checks first and reports it in place.
-  test("reports a disabled GitHub provider without leaving /login", async ({ page }) => {
-    await page.route("**/api/auth/providers", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ ok: true, data: { email: true, github: false } })
-      })
+  test("carries a sanitized destination to Auth0", async ({ page }) => {
+    await page.goto("/login?redirect=/student/roadmap");
+    const cta = page.getByRole("link", { name: /Continue with Auth0/i });
+    await expect(cta).toHaveAttribute(
+      "href",
+      `/auth/login?returnTo=${encodeURIComponent("/student/roadmap")}`
     );
-
-    await page.goto("/login");
-    await page.getByRole("button", { name: /Continue with GitHub/i }).click();
-
-    // Next.js also renders a route-announcer with role=alert, so scope to the
-    // message this button owns.
-    await expect(page.getByRole("alert").filter({ hasText: /not enabled/i }))
-      .toContainText(/GitHub sign-in is not enabled/i);
-    expect(new URL(page.url()).pathname).toBe("/login");
   });
 
-  test("keeps the session across a new browser context (persistence)", async ({ browser }, testInfo) => {
-    const email = process.env.E2E_LOGIN_EMAIL;
-    const password = process.env.E2E_LOGIN_PASSWORD;
-    test.skip(!email || !password, "set E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD to run");
+  test("explains a retired callback instead of looping", async ({ page }) => {
+    await page.goto("/auth/supabase-callback?code=abc");
+    await page.waitForURL(/\/login\?error=auth0_only/);
+    await expect(page.getByRole("alert").filter({ hasText: /retired/i })).toBeVisible();
+  });
 
-    // Sign in once, then reuse the SAME context after a full reload. This is the
-    // persistence guarantee that the original fix was chasing.
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    await page.goto("/login");
-    await page.fill("#email", email);
-    await page.fill("#password", password);
-    await page.click('button[type="submit"]');
-    await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 20000 });
+  test("the retired email endpoint answers 410, not 200", async ({ request }) => {
+    const res = await request.post("/api/auth/login", {
+      data: { email: "someone@example.com", password: "not-a-real-password" }
+    });
+    expect(res.status()).toBe(410);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe("AUTH0_ONLY");
+  });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.goto("/student", { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1500);
-
-    expect(page.url(), "session should survive a reload, not redirect to /login").not.toContain("/login");
-
-    await testInfo.attach("persistence-url", { body: page.url(), contentType: "text/plain" });
-    await context.close();
+  test("register is Auth0-only too", async ({ page }) => {
+    await page.goto("/register");
+    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    await expect(page.locator("form")).toHaveCount(0);
+    await expect(page.locator("input#password")).toHaveCount(0);
   });
 });

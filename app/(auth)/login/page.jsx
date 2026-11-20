@@ -1,131 +1,46 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { signIn } from "@/lib/auth-client";
-import { authCallbackMessage, homeForRole, safeRedirectPath } from "@/lib/auth";
-import { AuthField, AuthShell, authInputClass } from "@/app/(auth)/_components/AuthShell";
-import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
+import { useSearchParams } from "next/navigation";
+import { authCallbackMessage, safeRedirectPath } from "@/lib/auth";
+import { AuthShell } from "@/app/(auth)/_components/AuthShell";
 import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 
-const AUTH0_ONLY = process.env.NEXT_PUBLIC_AUTH0_ONLY === "1";
-
-// Auth0 owns the front door. `returnTo` carries the same sanitized destination
-// the email form honours, so an Auth0 login deep-links to the page that sent the
-// user here instead of dumping them on the default home. The SDK validates
-// returnTo again on its side (toSafeRedirect), so this is defence in depth.
+// Auth0 owns the front door. There is no email/password form here any more:
+// Supabase sign-in has been retired, so this page shows one action and nothing
+// that implies a second way in.
+//
+// `returnTo` carries a sanitized destination, so an Auth0 login deep-links to
+// the page that sent the user here instead of dumping them on the default home.
+// The SDK validates returnTo again on its side (toSafeRedirect), so this is
+// defence in depth.
 //
 // With no explicit destination the default is /auth/continue, NOT the site root.
 // The SDK's own default is the root, which is the public marketing page -- a
 // member who had just signed in landed there and it reads as "login did not
 // work". /auth/continue resolves the role and sends them to the right workspace.
 function Auth0Cta() {
-  const redirect = safeRedirectPath(useSearchParams().get("redirect"));
+  const params = useSearchParams();
+  const redirect = safeRedirectPath(params.get("redirect"));
   const target = redirect || "/auth/continue";
   const href = `/auth/login?returnTo=${encodeURIComponent(target)}`;
-  return <a href={href} className="btn-ink w-full justify-center">Continue with Auth0</a>;
-}
-
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  // `?redirect=` is attacker-controlled. It must be sanitised before it is ever
-  // handed to router.push, or `/login?redirect=https://evil.example` turns this
-  // page into an open redirect for freshly authenticated users.
-  const redirect = safeRedirectPath(searchParams.get("redirect"));
   // The callback redirects here with a code, never the provider's raw wording.
-  const callbackError = authCallbackMessage(searchParams.get("error"));
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const { error: signInError } = await signIn(email, password);
-    if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Explicit bounce targets are honored (layouts enforce access); otherwise
-    // each level lands where it works: leads in /lead, admins in /admin. A
-    // student who has not finished onboarding is sent straight there rather than
-    // to a home page whose layout would only bounce them a hop later.
-    if (redirect) {
-      router.push(redirect);
-    } else {
-      try {
-        const res = await fetch("/api/profile");
-        const data = await res.json();
-        const profile = data?.data?.profile;
-        const dest =
-          profile && profile.role === "student" && !profile.onboarding_completed
-            ? "/student/onboarding"
-            : homeForRole(profile?.role);
-        router.push(dest);
-      } catch {
-        router.push("/student");
-      }
-    }
-    router.refresh();
-  }
+  const callbackError = authCallbackMessage(params.get("error"));
 
   return (
-    <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+    <>
       {callbackError && (
-        <p role="alert" className="rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}>
+        <p
+          role="alert"
+          className="mb-3 rounded-lg border px-3 py-2 text-sm"
+          style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}
+        >
           {callbackError}
         </p>
       )}
-
-      <AuthField id="email" label="Email">
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className={authInputClass}
-          style={{ borderColor: "var(--line)", color: "var(--text)" }}
-          placeholder="you@example.com"
-          aria-describedby={error ? "login-err" : undefined}
-        />
-      </AuthField>
-
-      <AuthField id="password" label="Password">
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={authInputClass}
-          style={{ borderColor: "var(--line)", color: "var(--text)" }}
-        />
-      </AuthField>
-
-      {error && (
-        <p id="login-err" role="alert" className="rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}>
-          {error}
-        </p>
-      )}
-
-      <button type="submit" disabled={loading} aria-busy={loading} className="btn-ink w-full justify-center disabled:opacity-50">
-        {loading ? "Signing in…" : "Sign in"}
-        {!loading && <ArrowRight size={15} />}
-      </button>
-    </form>
+      <a href={href} className="btn-ink w-full justify-center">Continue with Auth0</a>
+    </>
   );
 }
 
@@ -146,29 +61,11 @@ export default function LoginPage() {
         <AuthHandoffNote className="text-center" />
       </div>
 
-      {!AUTH0_ONLY && (
-        <>
-          <div className="my-6 flex items-center gap-3" aria-hidden="true">
-            <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>or use a legacy email/password account</span>
-            <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-          </div>
-
-          <Suspense fallback={<p className="mt-7 text-sm" style={{ color: "var(--text-muted)" }}>Loading…</p>}>
-            <LoginForm />
-          </Suspense>
-
-          <Suspense fallback={null}>
-            <GitHubSignInButton />
-          </Suspense>
-        </>
-      )}
-
       <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
         New here?{" "}
         <Link
           prefetch={false}
-          href={AUTH0_ONLY ? "/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue" : "/register"}
+          href="/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue"
           className="font-semibold hover:underline"
           style={{ color: "var(--accent)" }}
         >

@@ -30,8 +30,7 @@ const AUDITED = [
   "app/api/help/signals/route.js",
   "app/api/roadmap/progress/route.js",
   "app/domains/[slug]/page.jsx",
-  "app/sitemap.js",
-  "app/auth/supabase-callback/route.js"
+  "app/sitemap.js"
 ];
 
 function read(rel) {

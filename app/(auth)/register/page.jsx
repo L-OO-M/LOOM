@@ -1,194 +1,20 @@
 "use client";
 
-import { Suspense, useState } from "react";
 import Link from "next/link";
-import { signUp } from "@/lib/auth-client";
-import { AuthField, AuthShell, authInputClass } from "@/app/(auth)/_components/AuthShell";
-import GitHubSignInButton from "@/app/(auth)/_components/GitHubSignInButton";
+import { AuthShell } from "@/app/(auth)/_components/AuthShell";
 import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
-import { PRIMARY_DOMAINS, domainLabel } from "@/lib/domains";
 
-// Derived from the single source of truth instead of a second hardcoded copy.
-// This list had drifted: it was missing `embedded`, so a student on the biggest
-// roadmap in the catalogue (144 nodes) could not pick their own track at signup.
-const DOMAINS = PRIMARY_DOMAINS.map((slug) => [slug, domainLabel(slug)]);
-const AUTH0_ONLY = process.env.NEXT_PUBLIC_AUTH0_ONLY === "1";
-
-function ConsentBox({ checked, onChange, error }) {
-  return (
-    <label className="flex min-h-[44px] cursor-pointer items-start gap-3 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-      {/* The visible box stays 20px, but the input itself spans the full 44px tap
-          target. An opacity-0 input keeps native checkbox semantics, keyboard
-          focus, and screen-reader behavior. */}
-      <span className="relative inline-flex size-11 shrink-0 items-center justify-center">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          required
-          aria-invalid={!!error}
-          aria-describedby={error ? "consent-error" : undefined}
-          className="peer absolute inset-0 size-11 cursor-pointer opacity-0"
-        />
-        <span
-          aria-hidden="true"
-          className="grid size-5 place-items-center rounded-md border transition peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--accent)]"
-          style={
-            checked
-              ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
-              : { borderColor: "var(--line)", background: "transparent", color: "transparent" }
-          }
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M2 6.5 4.8 9 10 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      </span>
-      <span>
-        I have read the{" "}
-        <Link prefetch={false} href="/privacy" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Privacy notice</Link>,{" "}
-        <Link prefetch={false} href="/cookies" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Cookie notice</Link>{" "}
-        and{" "}
-        <Link prefetch={false} href="/terms" className="font-medium hover:underline" style={{ color: "var(--accent)" }}>Terms</Link>.
-        {error && <span id="consent-error" className="mt-1 block text-xs leading-5" style={{ color: "var(--danger)" }}>{error}</span>}
-      </span>
-    </label>
-  );
-}
-
+// Account creation is Auth0's job now.
+//
+// This route used to host the Supabase signup form (email, password, roll
+// number, branch, year, domains, consent). All of that moved: Auth0 owns the
+// credential, and the profile fields are collected in onboarding after the
+// first sign-in, where they can be validated against the chapter that actually
+// owns the account.
+//
+// The page stays because /register is linked from the marketing site and old
+// emails, and a 404 there looks like the product is broken.
 export default function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [rollNumber, setRollNumber] = useState("");
-  const [branch, setBranch] = useState("");
-  const [year, setYear] = useState("");
-  const [domains, setDomains] = useState([]);
-  const [accepted, setAccepted] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [needsConfirm, setNeedsConfirm] = useState(true);
-
-  function toggleDomain(slug) {
-    setDomains((d) => (d.includes(slug) ? d.filter((x) => x !== slug) : [...d, slug]));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-
-    // Inline errors rather than the browser's transient tooltip: an empty
-    // submit used to say nothing at all in the page itself.
-    const next = {};
-    if (!name.trim()) next.name = "Enter your full name.";
-    if (!email.trim()) next.email = "Enter your email address.";
-    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) next.email = "That email address looks incomplete.";
-    if (!password) next.password = "Choose a password.";
-    else if (password.length < 8) next.password = "Use at least 8 characters.";
-    if (!accepted) next.accepted = "Please accept the Privacy notice and Terms to continue.";
-    setFieldErrors(next);
-    if (Object.keys(next).length > 0) {
-      const first = ["name", "email", "password"].find((key) => next[key]);
-      if (first) requestAnimationFrame(() => document.getElementById(first)?.focus());
-      return;
-    }
-
-    setLoading(true);
-
-    const yearNum = year === "" ? null : Number(year);
-    const { data, error: signUpError } = await signUp(email, password, {
-      name,
-      roll_number: rollNumber || null,
-      branch: branch || null,
-      year: Number.isInteger(yearNum) && yearNum >= 1 && yearNum <= 6 ? yearNum : null,
-      domains,
-      terms_accepted_at: new Date().toISOString()
-    });
-    if (signUpError) {
-      setError(signUpError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Self-detect instead of hardcoding "check your email". With Supabase's
-    // "Confirm Email" ON, signUp returns no session until the link is clicked.
-    // With it OFF (which is how the chapter runs, to avoid the built-in SMTP
-    // rate limit) the session is returned immediately — so telling the user to
-    // go read their inbox would be a lie.
-    setNeedsConfirm(!data?.session);
-    setSent(true);
-    setLoading(false);
-  }
-
-  if (AUTH0_ONLY) {
-    return (
-      <AuthShell>
-        <p className="kicker">Join the chapter</p>
-        <h1 className="font-display mt-3 text-3xl font-medium tracking-tight" style={{ color: "var(--text)" }}>
-          Create account
-        </h1>
-        <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-          Create your account once, then link GitHub or another provider from the same identity.
-        </p>
-        <a
-          href="/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue"
-          className="btn-ink mt-6 w-full justify-center"
-        >
-          Continue with Auth0
-        </a>
-        <AuthHandoffNote className="mt-3" />
-        <p className="mt-5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-          By continuing you agree to LOOM&apos;s{" "}
-          <Link prefetch={false} href="/terms" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            Terms
-          </Link>{" "}
-          and acknowledge the{" "}
-          <Link prefetch={false} href="/privacy" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            Privacy notice
-          </Link>
-          .
-        </p>
-        <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Already registered?{" "}
-          <Link prefetch={false} href="/login" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
-            Sign in
-          </Link>
-        </p>
-      </AuthShell>
-    );
-  }
-
-  if (sent) {
-    return (
-      <AuthShell>
-        <p className="kicker">{needsConfirm ? "One more step" : "Account ready"}</p>
-        <h1 className="font-display mt-3 text-3xl font-medium tracking-tight" style={{ color: "var(--text)" }}>
-          {needsConfirm ? "Check your email" : "You're in"}
-        </h1>
-        <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
-          {needsConfirm ? (
-            <>We sent a confirmation link to <strong style={{ color: "var(--text)" }}>{email}</strong>. Open it to activate your account, then sign in.</>
-          ) : (
-            <>Your account is created and you are signed in. Pick your first domain to get a roadmap.</>
-          )}
-        </p>
-        <div className="mt-7 space-y-3">
-          {!needsConfirm && (
-            <Link prefetch={false} href="/student/onboarding" className="btn-ink w-full justify-center">
-              Start onboarding
-            </Link>
-          )}
-          <Link prefetch={false} href="/login" className={`${needsConfirm ? "btn-ink" : "btn-ghost"} w-full justify-center`}>
-            Back to sign in
-          </Link>
-        </div>
-      </AuthShell>
-    );
-  }
-
   return (
     <AuthShell>
       <p className="kicker">Join the chapter</p>
@@ -196,9 +22,8 @@ export default function RegisterPage() {
         Create account
       </h1>
       <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        Register with your email. Every domain is open to join instantly.
+        Create your account once, then link GitHub or another provider from the same identity.
       </p>
-
       <a
         href="/auth/login?screen_hint=signup&returnTo=%2Fauth%2Fcontinue"
         className="btn-ink mt-6 w-full justify-center"
@@ -206,112 +31,21 @@ export default function RegisterPage() {
         Continue with Auth0
       </a>
       <AuthHandoffNote className="mt-3" />
-
-      <div className="my-6 flex items-center gap-3" aria-hidden="true">
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>or create an email/password account</span>
-        <span className="h-px flex-1" style={{ background: "var(--line)" }} />
-      </div>
-
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        <AuthField id="name" label="Full name" error={fieldErrors.name}>
-          <input id="name" type="text" required autoComplete="name" value={name}
-            onChange={(e) => { setName(e.target.value); setFieldErrors((p) => ({ ...p, name: undefined })); }}
-            aria-invalid={!!fieldErrors.name}
-            aria-describedby={fieldErrors.name ? "name-error" : undefined}
-            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
-        </AuthField>
-
-        <AuthField id="email" label="Email" error={fieldErrors.email}>
-          <input id="email" type="email" required autoComplete="email" value={email}
-            onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
-            aria-invalid={!!fieldErrors.email}
-            aria-describedby={fieldErrors.email ? "email-error" : undefined}
-            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="you@example.com" />
-        </AuthField>
-
-        <AuthField id="password" label="Password" hint="At least 8 characters" error={fieldErrors.password}>
-          <div className="relative">
-            <input id="password" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="new-password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
-              aria-invalid={!!fieldErrors.password}
-              aria-describedby={`password-hint${fieldErrors.password ? " password-error" : ""}`}
-              className={`${authInputClass} pr-16`} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-pressed={showPassword}
-              aria-controls="password"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-1.5 top-1/2 grid min-h-[44px] min-w-[44px] -translate-y-1/2 place-items-center rounded-md px-2 text-xs font-semibold"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-        </AuthField>
-
-        <div className="grid grid-cols-2 gap-3">
-          <AuthField id="roll" label="Roll number" hint="Optional">
-            <input id="roll" type="text" value={rollNumber} onChange={(e) => setRollNumber(e.target.value)}
-              className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
-          </AuthField>
-          <AuthField id="year" label="Year" hint="1–6">
-            <input id="year" type="number" min={1} max={6} value={year} onChange={(e) => setYear(e.target.value)}
-              className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} />
-          </AuthField>
-        </div>
-
-        <AuthField id="branch" label="Branch" hint="Optional">
-          <input id="branch" type="text" value={branch} onChange={(e) => setBranch(e.target.value)}
-            className={authInputClass} style={{ borderColor: "var(--line)", color: "var(--text)" }} placeholder="e.g. CSE" />
-        </AuthField>
-
-        <fieldset>
-          <legend className="text-sm font-medium" style={{ color: "var(--text)" }}>
-            Domains of interest
-            <span className="ml-1.5 font-normal" style={{ color: "var(--text-muted)" }}>(join instantly)</span>
-          </legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {DOMAINS.map(([slug, label]) => {
-              const on = domains.includes(slug);
-              return (
-                <button
-                  key={slug}
-                  type="button"
-                  onClick={() => toggleDomain(slug)}
-                  aria-pressed={on}
-                  className="inline-flex min-h-[44px] items-center rounded-full border px-3.5 py-2 text-xs font-semibold transition active:scale-97"
-                  style={on
-                    ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#101314" }
-                    : { borderColor: "var(--line)", color: "var(--text-muted)" }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        <ConsentBox checked={accepted} onChange={(v) => { setAccepted(v); setFieldErrors((p) => ({ ...p, accepted: undefined })); }} error={fieldErrors.accepted} />
-
-        {error && (
-          <p role="alert" className="rounded-lg border px-3 py-2 text-sm"
-            style={{ borderColor: "var(--danger)", color: "var(--danger)", background: "var(--wash)" }}>
-            {error}
-          </p>
-        )}
-
-        <button type="submit" disabled={loading} aria-busy={loading} className="btn-ink w-full justify-center disabled:opacity-50">
-          {loading ? "Creating account…" : "Create account"}
-        </button>
-      </form>
-
-      <Suspense fallback={null}>
-        <GitHubSignInButton label="Sign up with GitHub" />
-      </Suspense>
-
+      <p className="mt-5 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+        By continuing you agree to LOOM&apos;s{" "}
+        <Link prefetch={false} href="/terms" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+          Terms
+        </Link>{" "}
+        and acknowledge the{" "}
+        <Link prefetch={false} href="/privacy" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+          Privacy notice
+        </Link>{" "}
+        and{" "}
+        <Link prefetch={false} href="/cookies" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>
+          Cookie notice
+        </Link>
+        .
+      </p>
       <p className="mt-7 text-center text-sm" style={{ color: "var(--text-muted)" }}>
         Already registered?{" "}
         <Link prefetch={false} href="/login" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>

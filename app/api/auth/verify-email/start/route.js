@@ -1,52 +1,21 @@
-import { fail, ok } from "@/lib/api";
-import { getRequestContext } from "@/lib/auth-server";
-import { auth0OnlyEnabled } from "@/lib/env";
-import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  createVerificationToken,
-  maskEmail,
-  sendVerificationEmail,
-  verificationConfigured,
-} from "@/lib/email-verification";
+import { fail } from "@/lib/api";
 
-// POST /api/auth/verify-email/start
+// Retired: minting our own email-verification tokens.
 //
-// Session required. Mints a single-use token and asks the configured provider to
-// send it. Deliberately does NOT require a profile or an allowlisted domain:
-// this is a trust signal, not an access gate.
+// Auth0 verifies the address during sign-in and reports `email_verified` on the
+// session, so a second verification channel would be a parallel truth about the
+// same fact. Tokens are no longer minted, mailed, or accepted.
+//
+// 410 Gone, not 403: the capability is removed.
+//
+// The settings card still calls this path; it now shows this message instead of
+// a network failure.
+export const dynamic = "force-dynamic";
+
 export async function POST() {
-  if (auth0OnlyEnabled()) {
-    return fail("AUTH0_ONLY", "Email verification now happens during Auth0 sign-in.", 403);
-  }
-  const ctx = await getRequestContext();
-  if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Sign in first", 401);
-  const { user, profile, tenant, sql } = ctx;
-
-  if (!verificationConfigured()) {
-    return fail(
-      "NOT_CONFIGURED",
-      "Email verification is not switched on for this deployment. Your account works without it.",
-      400
-    );
-  }
-  if (profile?.email_verified_at) {
-    return ok({ alreadyVerified: true, email: maskEmail(user.email) });
-  }
-  if (!user.email) return fail("NO_EMAIL", "This account has no email address to verify", 400);
-
-  const limited = checkRateLimit(`verify-email:${user.id}`, { limit: 3, windowMs: 60 * 60_000 });
-  if (!limited.ok) return fail("RATE_LIMITED", "A link was sent recently. Try again in an hour.", 429);
-
-  const { token } = await createVerificationToken({
-    sql,
-    userId: user.id,
-    tenantId: tenant?.id ?? null,
-    email: user.email,
-  });
-  const sent = await sendVerificationEmail({ to: user.email, token, name: profile?.name });
-  if (!sent.ok) {
-    // Keep the code but not the provider's raw response.
-    return fail(sent.code || "EMAIL_FAILED", sent.message || "Could not send the email", 502);
-  }
-  return ok({ sent: true, email: maskEmail(user.email) });
+  return fail(
+    "AUTH0_ONLY",
+    "Email verification is handled by Auth0 during sign-in.",
+    410
+  );
 }

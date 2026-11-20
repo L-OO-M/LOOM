@@ -1,12 +1,16 @@
-// Provision a dedicated, login-able LOCAL student for the authenticated
-// end-to-end audit (e2e/student-audit.spec.js) and give it enough real rows
-// that every data-bearing student surface renders populated, not empty.
+// LEGACY (Auth0 cutover): this script creates a SUPABASE auth user, which can no
+// longer sign in -- /api/auth/login is retired and /login only offers Auth0. The
+// authenticated E2E suites are gated on E2E_AUTH0_READY=1 and need an Auth0 test
+// identity instead (see docs/24-auth0-migration.md). Kept for the fixture rows
+// it seeds; do not expect a usable session from it.
+//
+// Provision a dedicated LOCAL student fixture for the authenticated end-to-end
+// audit (e2e/student-audit.spec.js) and give it enough real rows that every
+// data-bearing student surface renders populated, not empty.
 //
 // WHY THIS EXISTS
-// e2e/login.spec.js and every authenticated spec skip themselves unless
-// E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD are set, so the whole student area had
-// no runtime coverage. This script creates that account and its data so the
-// audit can log in and click through for real.
+// The student area had no runtime coverage, so this script seeds that account's
+// data. Historically it also signed in through the Supabase form.
 //
 // Usage:
 //   1. add to .env.local (never committed):

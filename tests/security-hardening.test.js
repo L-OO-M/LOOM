@@ -22,23 +22,14 @@ describe("request body caps", () => {
 });
 
 describe("credential endpoints", () => {
-  it("does not echo the identity provider's message on a failed signup", () => {
-    // Comments are stripped first: the module's own explanation quotes the old
-    // line, and a guard that trips on its own documentation is noise.
-    const code = read("app/api/auth/register/route.js")
-      .split("\n")
-      .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-      .join("\n");
-    // The old line that printed "User already registered" verbatim.
-    expect(code).not.toContain("fail(\"SIGNUP_FAILED\", error.message");
-    expect(code).toContain("SIGNUP_UNAVAILABLE");
-  });
-
-  it("counts login and registration per account, not only per header", () => {
+  it("has no Supabase credential path left to attack", () => {
+    // Both routes are tombstones now. If either grows a Supabase call back, the
+    // retired front door is open again without the login form existing.
     for (const file of ["app/api/auth/login/route.js", "app/api/auth/register/route.js"]) {
       const src = read(file);
-      expect(src, file).toContain("accountKey(body.email)");
-      expect(src, file).toContain("durable: true");
+      expect(src, file).not.toContain("@/lib/supabase");
+      expect(src, file).not.toContain("signInWithPassword");
+      expect(src, file).not.toContain("signUp(");
     }
   });
 

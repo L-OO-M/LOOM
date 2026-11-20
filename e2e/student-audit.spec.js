@@ -7,12 +7,15 @@ const { AUTH_STATE_FILE } = require("./auth-state");
 // test would notice. This suite logs in as the dedicated local E2E student
 // (load/seed-e2e-student.js) and walks the real pages.
 //
-// Requires E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD in .env.local, and the seeded
-// fixture rows. Skips itself otherwise, like login.spec.js.
-
-const EMAIL = process.env.E2E_LOGIN_EMAIL;
-const PASSWORD = process.env.E2E_LOGIN_PASSWORD;
-test.skip(!EMAIL || !PASSWORD, "set E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD to run the student audit");
+// Requires E2E_AUTH0_READY=1 and an Auth0 test identity plus the seeded fixture
+// rows. Skips otherwise.
+//
+// This used to key on E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD, which the retired
+// Supabase form consumed. Those variables no longer describe a usable session.
+test.skip(
+  process.env.E2E_AUTH0_READY !== "1",
+  "authenticated E2E needs E2E_AUTH0_READY=1 and an Auth0 test identity"
+);
 
 // The sweep touches ~30 routes on a dev server that compiles them on demand.
 test.describe.configure({ timeout: 300_000 });

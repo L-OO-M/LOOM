@@ -12,15 +12,15 @@ const { ADMIN_STATE_FILE } = require("./auth-state");
 // the attendee CSV export (profiles has no email column). Both are asserted
 // here.
 //
-// Requires E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD. Skips otherwise.
+// Requires E2E_AUTH0_READY=1 and an Auth0 operator test identity. Skips
+// otherwise: the Supabase form this session used to come from is retired.
 //
-// The skip is keyed on the credentials, not on the session file: test files are
+// The skip is keyed on readiness, not on the session file: test files are
 // collected before the `admin-setup` dependency runs, so a file-existence check
-// here would always be false on a clean checkout and skip the whole audit. The
-// project dependency guarantees the file exists by the time a test starts.
+// here would always be false on a clean checkout and skip the whole audit.
 test.skip(
-  !process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD,
-  "set E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD to run the operator audit"
+  process.env.E2E_AUTH0_READY !== "1",
+  "operator E2E needs E2E_AUTH0_READY=1 and an Auth0 admin test identity"
 );
 test.use({ storageState: ADMIN_STATE_FILE });
 test.describe.configure({ timeout: 300_000 });

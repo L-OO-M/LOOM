@@ -39,14 +39,17 @@ test.describe("LOOM public pages", () => {
   test("login page accessible from home", async ({ page }) => {
     await open(page, "/login");
     await expect(page.locator("h1")).toContainText("Sign in");
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    // The Supabase credential form is retired, not merely hidden.
+    await expect(page.locator('input[type="email"]')).toHaveCount(0);
+    await expect(page.locator('input[type="password"]')).toHaveCount(0);
   });
 
   test("register page accessible from home", async ({ page }) => {
     await open(page, "/register");
     await expect(page.locator("h1")).toContainText("Create account");
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue with Auth0/i })).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toHaveCount(0);
   });
 
   test("student route redirects to login when unauthenticated", async ({ page }) => {
@@ -128,8 +131,9 @@ test.describe("LOOM public site", () => {
 
   test("registration discloses privacy and terms before signup", async ({ page }) => {
     await open(page, "/register");
-    const consent = page.getByText("I have read the");
-    await expect(consent).toBeVisible();
+    // Account creation moved to Auth0, so the disclosure now sits under the CTA
+    // as "by continuing you agree…" rather than a consent checkbox.
+    await expect(page.getByText(/By continuing you agree to LOOM/i)).toBeVisible();
     await expect(page.getByRole("link", { name: "Privacy notice", exact: true })).toHaveAttribute("href", "/privacy");
     await expect(page.getByRole("link", { name: "Cookie notice", exact: true })).toHaveAttribute("href", "/cookies");
     await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");

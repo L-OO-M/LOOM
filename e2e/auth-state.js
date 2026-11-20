@@ -1,18 +1,12 @@
 // Shared authenticated session for the E2E suite.
 //
-// Why this exists: `POST /api/auth/login` is rate limited to 8 attempts per 10
-// minutes per IP (app/api/auth/login/route.js). Every authenticated spec used to
-// perform its own real sign-in, in both the chromium and mobile projects
-// (login.spec.js, drawer-focus.spec.js, student-audit.spec.js), which consumed
-// that budget. When a run was slow enough for those attempts to land inside one
-// window, whichever spec ran ninth failed in `waitForURL` with the login form
-// still showing "Too many requests. Retry after Ns" -- a self-inflicted flake
-// that had nothing to do with the code under test.
+// The session is produced once per run by e2e/auth.setup.js and stored here, so
+// the authenticated specs do not each perform their own sign-in.
 //
-// Now `e2e/auth.setup.js` signs in once per run and writes the storage state
-// here, and the specs that only need "a signed-in student" load it. login.spec.js
-// deliberately keeps its own real sign-in: that spec is the login regression
-// test, so its whole point is to exercise the endpoint.
+// IMPORTANT (Auth0 cutover): sign-in now completes on Auth0's hosted Universal
+// Login, so producing this file requires an Auth0 test identity and automation
+// of that page. Until that exists the setup and the specs that consume it skip
+// unless E2E_AUTH0_READY=1 is set. Everything unauthenticated still runs.
 //
 // The file holds a live session cookie, so `e2e/.auth/` is gitignored.
 const path = require("node:path");

@@ -1,95 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-// These are structural regression tests, not behavioural ones. The bug they
-// guard against -- middleware reading the session but never writing the
-// refreshed cookies back -- is invisible to unit tests and to the whole E2E
-// suite, because every test signs in fresh inside one browser session. It only
-// shows up when a user returns after the access token has expired.
+// Structural regression tests for the auth gate. The failures they guard
+// against are invisible to unit tests: a middleware that reads a session but
+// never writes the rolled cookie back only breaks a returning user, and one that
+// accepts a retired identity provider is a second front door.
 const middleware = readFileSync("middleware.js", "utf8");
-const serverClient = readFileSync("lib/supabase/server.js", "utf8");
 
-describe("session persistence", () => {
-  it("refreshes the session in middleware instead of only reading it", () => {
-    // getSession() is a cookie-local read with no network call: it can never
-    // renew an expired token.
-    expect(middleware).toContain("supabase.auth.getUser()");
+describe("Auth0 is the only session source", () => {
+  it("reads the Auth0 session, rolling it on app pages", () => {
+    expect(middleware).toContain("auth0.getSession(request)");
+    // Only delegating /auth/* meant the cookie was never rolled elsewhere and
+    // members silently expired after the inactivity window.
+    expect(middleware).toMatch(/rolled\s*=\s*await auth0\.middleware\(request\)/);
+    expect(middleware).toMatch(/rolled\.cookies\.getAll\(\)[\s\S]{0,80}res\.cookies\.set\(/);
   });
 
-  it("writes refreshed cookies onto the response, not just the request", () => {
-    expect(middleware).toContain("supabaseResponse.cookies.set(");
-    // The response is recreated forwarding the (modified) request so refreshed
-    // cookies attach. It now also carries the x-pathname request header the
-    // student layout reads to gate first-run onboarding.
-    expect(middleware).toMatch(/supabaseResponse\s*=\s*NextResponse\.next\(\{\s*request\b/);
-  });
-
-  it("returns the response carrying the refreshed cookies", () => {
-    expect(middleware).toContain("return supabaseResponse;");
-  });
-
-  it("preserves the refreshed cookies across a login redirect", () => {
-    // Cookies are copied FROM the (possibly refreshed) response TO the redirect.
-    expect(middleware).toMatch(
-      /supabaseResponse\.cookies\.getAll\(\)[\s\S]{0,120}redirectResponse\.cookies\.set\(/
-    );
-  });
-
-  it("does not pin the session cookie to sameSite=strict", () => {
-    // strict withholds the cookie on cross-site navigations (bookmarks, shared
-    // links, returning from Supabase), which reads to users as "logged out".
-    expect(serverClient).not.toMatch(/sameSite:\s*"strict"/);
-    expect(serverClient).toMatch(/sameSite:\s*"lax"/);
-  });
-
-  it("keeps Supabase's maxAge so the session outlives the tab", () => {
-    // The options spread must come first so upstream maxAge is not clobbered.
-    expect(serverClient).toMatch(/\.\.\.options,[\s\S]*sameSite/);
-  });
-
-  // Regression guard. A `getSession()` assertion was added after sign-in to
-// "wait for the cookie write". It returned null on a fully successful login and
-// turned it into a spurious error, locking every user out. Persistence is
-// middleware's job, not the client helper's.
-//
-// The helper now routes through /api/auth/login (so attempts are rate limited),
-// so it no longer calls the auth SDK directly -- the invariant asserted here is
-// the absence of the assertion, not the presence of a particular call.
-it("does not assert on getSession() after a successful sign-in", () => {
-  const authClient = readFileSync("lib/auth-client.js", "utf8");
-  expect(authClient).not.toContain("Sign in did not produce a session");
-  const signInBody = authClient.slice(
-    authClient.indexOf("export async function signIn"),
-    authClient.indexOf("export async function signUp")
-  );
-  expect(signInBody).toContain("/api/auth/login");
-  expect(signInBody).not.toMatch(/supabase\.auth\.getSession\(\)/);
-});
-});
-
-// Regression guard for the reported break: users who signed in through the Auth0
-// front door were 307'd to /login on every protected route -- /lead/directory in
-// particular -- because the middleware only ever read a Supabase session. These
-// are structural because the failure needs a real Auth0 cookie to reproduce, and
-// it was invisible to every existing spec (none of them hold an Auth0 session).
-describe("Auth0 sessions survive the middleware gate", () => {
-  it("reads the Auth0 session before falling back to Supabase", () => {
-    const auth0At = middleware.indexOf("auth0.getSession(request)");
-    const supabaseAt = middleware.indexOf("supabase.auth.getUser()");
-    expect(auth0At).toBeGreaterThan(-1);
-    expect(supabaseAt).toBeGreaterThan(-1);
-    expect(auth0At).toBeLessThan(supabaseAt);
+  it("no longer builds a Supabase session client", () => {
+    // The anon key is public, so a Supabase session was a door around Auth0.
+    expect(middleware).not.toContain("createServerClient");
+    expect(middleware).not.toContain("supabase.auth.getUser()");
+    expect(middleware).not.toContain("supabaseResponse");
   });
 
   it("lets an Auth0 session through instead of redirecting to /login", () => {
     // The allow branch must return a next() response; a redirect there is the bug.
-    expect(middleware).toMatch(/auth0Session\?\.user[\s\S]{0,200}NextResponse\.next\(/);
+    expect(middleware).toMatch(/auth0Session\?\.user[\s\S]{0,600}NextResponse\.next\(/);
   });
 
   it("keeps /auth/signout reachable without a session", () => {
     // Sign-out is a POST from app chrome. The gate used to 307 it to /login
     // (?redirect=/auth/signout) before the handler could clear anything.
     expect(middleware).toMatch(/publicPaths[\s\S]*"\/auth\/signout"/);
+  });
+
+  it("answers signed-out API requests with a machine 401", () => {
+    expect(middleware).toMatch(/pathname\.startsWith\("\/api\/"\)[\s\S]{0,400}UNAUTHORIZED/);
+  });
+
+  it("redirects a signed-out page request to /login with a redirect param", () => {
+    expect(middleware).toMatch(/loginUrl\.searchParams\.set\("redirect", pathname\)/);
   });
 });
 

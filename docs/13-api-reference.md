@@ -253,23 +253,29 @@ requester is notified. The repository webhook must be subscribed to **Issues**
 events for this to fire; `node load/sync-feature-requests.js --refresh` is the
 manual reconciliation path.
 
-## Auth & email verification
+## Auth (Auth0 is the only front door)
 
-Verification is **optional**. There is no college-domain allowlist and no account is blocked
-for being unverified; see `lib/email-verification.js` for the reasoning. When
-`RESEND_API_KEY` + `EMAIL_FROM` are set, a member can prove control of their address; the link
-is single-use, expires in 24h, and only its SHA-256 hash is stored.
+Sign-in, sign-up, email verification, and password policy are owned by Auth0's
+Universal Login. The app holds no Supabase credential path: the login/register
+forms, the client helper, and the server session fallback were removed, not
+flagged off. `/login` and `/register` render one Auth0 CTA each.
+
+The retired Supabase endpoints are kept as **unconditional 410 Gone**
+tombstones so cached bundles, bookmarks, and old clients get an explanation
+instead of a bare 404, and so the paths keep their middleware body-size and
+rate-limit plumbing. No environment variable can re-enable them.
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET | `/api/auth/providers` | public | capability probe for the auth screens: whether Supabase email and GitHub providers are enabled (`null` = could not check) |
-| GET | `/api/auth/state` | public | lightweight session probe for client components: `{signedIn, email}` from either front door, never a profile or tenant |
-| POST | `/api/auth/register` | public, 5/hour/IP | creates the Supabase user; `confirmationRequired` is reported, but no confirmation is enforced |
-| POST | `/api/auth/login` | public, 8/10 min/IP | server-proxied so the app limiter sees attempts |
+| GET | `/api/auth/state` | public | lightweight session probe for client components: `{signedIn, email}` from the Auth0 session, never a profile or tenant |
+| GET | `/api/auth/providers` | public | static capability probe: `{auth0:true, email:false, github:false}`. Supabase provider flags are gone; Auth0's Universal Login decides which social connections appear |
 | GET | `/api/auth/security` | session | Auth0 sign-in methods and whether a database password is linked. `managementConfigured:false` means the deployment cannot add a password yet |
 | POST | `/api/auth/password` | session, 5/hour/user | adds or updates an Auth0 database password for the signed-in account. Body `{password}` (8–200 chars); 400 `EMAIL_UNVERIFIED` / `PASSWORD_REJECTED`, 409 `PASSWORD_IDENTITY_CONFLICT`, 503 `PASSWORD_SETUP_UNAVAILABLE` |
-| POST | `/api/auth/verify-email/start` | session | 3/hour/user. Mints a token and sends one email. 400 `NOT_CONFIGURED` when no provider is configured |
-| GET | `/api/auth/verify-email/confirm?token=` | public | consumes the token (once), stamps `profiles.email_verified_at/source`, 303-redirects to `/verify-email?status=verified\|expired\|invalid` |
+| GET | `/api/auth/verify-email/confirm?token=` | public | legacy only: consumes a token mailed before the cutover (single-use, 24h), stamps `profiles.email_verified_at/source`, 303-redirects to `/verify-email?status=verified\|expired\|invalid`. No new tokens are minted |
+| POST | `/api/auth/register` | — | **retired**, always `410 AUTH0_ONLY`. Accounts are created at Auth0 Universal Login |
+| POST | `/api/auth/login` | — | **retired**, always `410 AUTH0_ONLY`. Use `/auth/login` (Auth0 SDK) |
+| POST | `/api/auth/verify-email/start` | — | **retired**, always `410 AUTH0_ONLY`. Auth0 sends the verification email |
+| GET | `/auth/supabase-callback` | — | **retired**, 307 to `/login?error=auth0_only`. Auth0's callback is `/auth/callback` |
 
 ## Health
 

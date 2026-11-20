@@ -7,12 +7,12 @@ const { AUTH_STATE_FILE } = require("./auth-state");
 // the overlay and was left with focus lost after closing. This suite drives the
 // real inbox drawer as an authenticated student and asserts both behaviours.
 //
-// Requires E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD in .env.local, like
-// login.spec.js and student-audit.spec.js. Skips itself otherwise.
-
-const EMAIL = process.env.E2E_LOGIN_EMAIL;
-const PASSWORD = process.env.E2E_LOGIN_PASSWORD;
-test.skip(!EMAIL || !PASSWORD, "set E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD to run the drawer focus test");
+// Requires E2E_AUTH0_READY=1 and an Auth0 test identity, like
+// student-audit.spec.js. Skips otherwise.
+test.skip(
+  process.env.E2E_AUTH0_READY !== "1",
+  "authenticated E2E needs E2E_AUTH0_READY=1 and an Auth0 test identity"
+);
 
 // Same budget as login.spec.js: /student is the heaviest route and pays a cold
 // compile on a dev server shared with the rest of the suite.
