@@ -3,6 +3,7 @@ import { PublicInformationPage } from "@/components/landing/PublicInformationPag
 import { JsonLd, webPageSchema } from "@/components/seo/JsonLd";
 import { canonicalFor } from "@/lib/seo";
 import { legalConfig } from "@/lib/legal";
+import { SITE_SOCIAL } from "@/lib/site";
 
 // This page has no database, tenant, or request input of its own, but it is
 // rendered per request: the nonce-based CSP in middleware.js only stamps the
@@ -51,6 +52,20 @@ export default function ContactPage() {
         <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
           Signed-in members can also use their chapter&apos;s published community and notification channels.
           Operators can set <code>LEGAL_CONTACT_NAME</code> and <code>LEGAL_CONTACT_EMAIL</code> at deploy time.
+        </p>
+        <p className="mt-3 text-sm leading-7" style={{ color: "var(--text-muted)" }}>
+          Public updates and recaps from past events are posted on{" "}
+          <a
+            href={SITE_SOCIAL.instagram}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="font-semibold hover:underline"
+            style={{ color: "var(--accent)" }}
+          >
+            Instagram
+          </a>
+          . Contact details for an account, privacy request or safety report still belong on this page — social
+          messages are not a support channel.
         </p>
 
         <h2 id="what-to-include" className="font-display mt-10 text-2xl font-medium sm:text-3xl" style={{ color: "var(--text)" }}>

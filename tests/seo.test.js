@@ -37,17 +37,17 @@ describe("structured data helpers", () => {
     expect(schema).not.toHaveProperty("foundingDate");
   });
 
-  it("names the organization exactly once and links only the real code org", () => {
+  it("names the organization exactly once and links only the real profiles", () => {
     const schema = organizationSchema();
     expect(schema).toMatchObject({
       "@type": "Organization",
       name: "LOOM",
       alternateName: "Learning Opportunity Open Source Mentorship",
-      sameAs: ["https://github.com/L-OO-M"]
+      sameAs: ["https://github.com/L-OO-M", "https://www.instagram.com/lets_loom._/"]
     });
     // sameAs is a claim of ownership. It may only ever list profiles that exist
     // and belong to this project, so the list is pinned rather than free-form.
-    expect(schema.sameAs).toHaveLength(1);
+    expect(schema.sameAs).toHaveLength(2);
   });
 
   it("describes a public profile only from available profile fields", () => {

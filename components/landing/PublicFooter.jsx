@@ -1,10 +1,18 @@
 import Link from "next/link";
+import { Github, Instagram } from "lucide-react";
 import { publicFooterLinks } from "@/lib/nav";
-import { SITE_YEAR } from "@/lib/site";
+import { SITE_SOCIAL, SITE_YEAR } from "@/lib/site";
 
 /* The final knot for public pages: mantra, registers, cross-links.
    The link list lives in lib/nav.js so the homepage footer cannot drift from
-   this one, and the copyright comes from lib/site.js so both read one year. */
+   this one, and the copyright comes from lib/site.js so both read one year.
+   Social accounts come from SITE_SOCIAL for the same reason: the events page
+   and the Organization structured data point at the same profiles. */
+const SOCIAL = [
+  { key: "instagram", label: "LOOM on Instagram", href: SITE_SOCIAL.instagram, Icon: Instagram },
+  { key: "github", label: "LOOM on GitHub", href: SITE_SOCIAL.github, Icon: Github }
+];
+
 export function PublicFooter() {
   return (
     <footer className="px-5 py-16 lg:px-8" style={{ background: "#101314", color: "#f2f3f1" }}>
@@ -23,6 +31,22 @@ export function PublicFooter() {
             <Link key={href} prefetch={false} href={href} className="tap-target transition hover:opacity-100 hover:underline">
               {label}
             </Link>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
+          {SOCIAL.map(({ key, label, href, Icon }) => (
+            <a
+              key={key}
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={label}
+              className="tap-target inline-flex items-center gap-2 text-xs font-semibold transition hover:opacity-100"
+              style={{ color: "rgba(242,243,241,0.72)" }}
+            >
+              <Icon size={15} aria-hidden="true" />
+              {key === "instagram" ? "Instagram" : "GitHub"}
+            </a>
           ))}
         </div>
         <p className="mt-8 text-center font-mono text-[11px] uppercase tracking-[0.3em]" style={{ color: "rgba(242,243,241,0.62)" }} aria-hidden="true">

@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays } from "lucide-react";
 import { EVENT_TYPES, TYPE_LABEL } from "@/lib/events";
 import { seatsLeft, whenLabel } from "./EventBits";
 import { PublicFooter } from "@/components/landing/PublicFooter";
+import { SITE_SOCIAL } from "@/lib/site";
 
 function filterHref(type, domain) {
   const params = new URLSearchParams();
@@ -70,7 +71,16 @@ export default function EventsCalendar({ events, domains, pastCount, loadError, 
             // eslint-disable-next-line @next/next/no-html-link-for-pages -- a failed fetch needs a full reload, not client-side navigation
             <a href="/events#calendar" className="events-filter">Try again</a>
           ) : filtered ? <Link href="/events#calendar" prefetch={false} className="events-filter">Clear filters</Link> : <Link href="/domains" prefetch={false} className="events-filter">Explore the domains</Link>}</div>}
-        {pastCount > 0 && <p className="events-past-note">{pastCount} {pastCount === 1 ? "event has" : "events have"} already brought this chapter together. More to come.</p>}
+        <p className="events-past-note">
+          {pastCount > 0
+            ? `${pastCount} ${pastCount === 1 ? "event has" : "events have"} already brought this chapter together. `
+            : ""}
+          Photos and recaps from past gatherings live on{" "}
+          <a href={SITE_SOCIAL.instagram} target="_blank" rel="noreferrer noopener" style={{ color: "inherit", textDecoration: "underline" }}>
+            Instagram
+          </a>
+          .
+        </p>
       </section>
 
       <section id="join" className="events-wrap events-joining" aria-labelledby="joining-title">

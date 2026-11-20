@@ -1,4 +1,5 @@
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, absoluteUrl, siteUrl } from "@/lib/seo";
+import { SITE_SOCIAL } from "@/lib/site";
 
 /**
  * Renders JSON-LD structured data. Pass plain serializable objects only —
@@ -36,9 +37,10 @@ export function organizationSchema() {
     url: siteUrl(),
     logo: absoluteUrl("/logo.png"),
     description: SITE_DESCRIPTION,
-    // The project's public code organisation. This is the one verified profile
-    // the site can point at today; add others only when they really exist.
-    sameAs: ["https://github.com/L-OO-M"]
+    // The project's public profiles. This is the one claim of ownership the
+    // site can make today: the code organisation and the chapter's Instagram.
+    // Add others only when they really exist.
+    sameAs: [SITE_SOCIAL.github, SITE_SOCIAL.instagram]
   };
 }
 

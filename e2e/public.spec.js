@@ -381,6 +381,14 @@ test.describe("LOOM SEO surfaces", () => {
     expect(structured).toContain('"name":"LOOM"');
     expect(structured).toContain("Learning Opportunity Open Source Mentorship");
     expect(structured).toContain("https://github.com/L-OO-M");
+    expect(structured).toContain("https://www.instagram.com/lets_loom._/");
+  });
+
+  test("the events page points at the chapter's real Instagram for past events", async ({ page }) => {
+    await open(page, "/events");
+    const link = page.locator('a[href="https://www.instagram.com/lets_loom._/"]').first();
+    await expect(link).toBeAttached();
+    await expect(link).toHaveAttribute("rel", /noreferrer/);
   });
 
   test("faq ships FAQPage structured data", async ({ page }) => {

@@ -381,7 +381,10 @@ export default function HalftoneWordmarkFooter({ wordmark = "halden", label = "H
             </h3>
             <ul>
               {col.links.map((l) => (<li key={l.label}>
-                  <a href={l.href || "#"}>{l.label}</a>
+                  <a
+                    href={l.href || "#"}
+                    {...(l.external ? { target: "_blank", rel: "noreferrer noopener" } : null)}
+                  >{l.label}</a>
                 </li>))}
             </ul>
           </nav>))}

@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/theme";
 import { useWorkspaceLink } from "@/lib/use-workspace-link";
 import "./story.css";
 import { studentNav, publicFooterLinks } from "@/lib/nav";
-import { SITE_YEAR } from "@/lib/site";
+import { SITE_SOCIAL, SITE_YEAR } from "@/lib/site";
 import { Brain, Code, Database, Shield, Link2, Server, Zap, Cpu } from "lucide-react";
 const learning = "/storyloom/learning.png";
 const hackathon = "/storyloom/hackathon.png";
@@ -145,6 +145,13 @@ export default function StoryHome() {
                 links: group.children.map(({ label, href }) => ({ label, href }))
             })),
             { title: "Join", links: [{ label: "Start your journey", href: "/register" }, ...publicFooterLinks.slice(5).map(([label, href]) => ({ label, href }))] },
+            {
+                title: "Follow",
+                links: [
+                    { label: "Instagram", href: SITE_SOCIAL.instagram, external: true },
+                    { label: "GitHub", href: SITE_SOCIAL.github, external: true }
+                ]
+            },
         ]}/>
         </Suspense>
       </>
