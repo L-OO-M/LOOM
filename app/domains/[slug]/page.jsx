@@ -187,8 +187,8 @@ export default async function DomainPage({ params }) {
           <Image
             src={`/departments/${meta.slug}.png`}
             alt={`${dept.name} department cover artwork`}
-            width={1600}
-            height={1000}
+            width={816}
+            height={816}
             sizes="(max-width: 768px) 100vw, 768px"
             className="h-auto w-full"
           />
