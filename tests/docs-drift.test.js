@@ -41,8 +41,8 @@ describe("migration and documentation drift", () => {
 
   it("keeps docs/17 honest about the data layer and department count", () => {
     expect(DOC17).not.toMatch(/drizzle/i);
-    expect(DOC17).not.toMatch(/8 departments|eight departments/i);
-    expect(DOC17).toMatch(/11 seeded/);
+    expect(DOC17).not.toMatch(/8 departments|eight departments|11 seeded org units/i);
+    expect(DOC17).toMatch(/13 seeded org units/);
     expect(DOC17).toMatch(/no ORM or schema mirror/i);
   });
 
