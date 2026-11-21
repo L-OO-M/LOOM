@@ -339,14 +339,19 @@ test.describe("LOOM SEO surfaces", () => {
     }
     const first = events[0];
     await open(page, `/events/${first.id}`);
-    // toHaveCount() polls: a bare count() can run mid-stream while the route's
-    // loading skeleton ("One moment." h1) is still mounted, flaking to 2.
     await expect(page.locator("h1")).toHaveCount(1);
-    const canonical = page.locator('link[rel="canonical"]');
-    expect(await canonical.count()).toBe(1);
-    expect(await canonical.getAttribute("href")).toContain(`/events/${first.id}`);
-    const desc = page.locator('meta[name="description"]');
-    expect(await desc.count()).toBe(1);
+    // Identity is asserted on the server response, not the live DOM. Under load
+    // Next streams the page's metadata after the root layout's, so the browser
+    // can hold the root canonical and the event's own at the same time until
+    // hydration reconciles them — a bare DOM count is racy. The bytes a crawler
+    // receives are deterministic, and that is what this contract is about.
+    const html = await (await request.get(`/events/${first.id}`)).text();
+    const canonicals = [...html.matchAll(/<link rel="canonical"[^>]*>/g)].map((m) => m[0]);
+    expect(canonicals).toHaveLength(1);
+    expect(canonicals[0]).toContain(`/events/${first.id}`);
+    expect([...html.matchAll(/<meta name="description" content="[^"]+"/g)]).toHaveLength(1);
+    // The page still carries its own canonical in the rendered document.
+    await expect(page.locator(`link[rel="canonical"][href$="/events/${first.id}"]`)).toHaveCount(1);
     const ld = page.locator('script[type="application/ld+json"]');
     await expect(ld.first()).toBeAttached();
     const structured = (await ld.allTextContents()).join("\n");
