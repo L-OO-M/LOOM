@@ -154,7 +154,13 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/departments` | user | active tenant departments + member counts + my level |
 | POST | `/api/departments/[id]/join` | user | instant approval-free join as `general` (idempotent) |
 | POST | `/api/departments/[id]/request-core` | user | one-click core request (creates `general` + `core_requested` if needed) |
-| PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | `{level: core}` by dept Head/Co-Head or admin; `{level: dept_lead}` admin-only; upward-only role sync + audit |
+| PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | `{level: core|general}` by dept Head/Co-Head or admin (upward role sync; demotion to `general` lowers `profiles.role` to `student` only when no Core/Head seat remains elsewhere); `{level: dept_lead}` admin-only; a Head's seat cannot be edited by another head + audit |
+| DELETE | `/api/departments/[id]/members/[userId]` | lead/admin | remove a member from this department (never a `dept_lead`); deletes the seat only, so assigned work and contributions stay attributed; same role-downgrade rule + audit + notification |
+| POST | `/api/departments/[id]/members` | lead/admin | `{userId, level?: general|core}` add an existing chapter member to this department; refuses to touch an existing Head; audit + notification |
+| GET | `/api/departments/[id]/tasks` | dept member, assignee, VL own vertical, admin | the department's work board (`?mine=1` narrows to the caller's assignments); each row carries assignee, due date, evidence, completion note and reviewer |
+| POST | `/api/departments/[id]/tasks` | dept Head/Co-Head (`manage_department_tasks`), VL own vertical, admin | assign work (`title`, `detail`, `kind`, `priority`, `assigneeId`, `dueAt`); the assignee must already be on the roster; notifies them |
+| GET | `/api/departments/[id]/tasks/[taskId]` | as the board | one task, tenant- and department-scoped |
+| PATCH | `/api/departments/[id]/tasks/[taskId]` | assignee / Head / Co-Head / admin | one transition: `update`, `start`, `block`, `submit` (evidence URL required), `approve`, `return` (reason required), `reopen`, `cancel` (soft delete). A submission cannot be approved or returned by the person who submitted it; every transition is audited |
 | GET/POST | `/api/announcements` | user | scoped feed (published + unexpired; society + my verticals + my departments) / post (`status=draft|published`, optional `expiresAt`; `post_announcement`: VL own vertical or society-wide, dept_lead own department feed) + fan-out only when published. `?manage=1` returns drafts to leads/admins |
 | PATCH | `/api/announcements/[id]` | author/admin | publish a draft (`{status:"published"}`), stamp `published_at`, audit the transition, fan out once |
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |

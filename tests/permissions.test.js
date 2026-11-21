@@ -12,7 +12,7 @@ const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vert
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
 
 describe("permissions matrix (Website Plan Section 3)", () => {
-  it("covers all 43 matrix rows", () => {
+  it("covers all 48 matrix rows", () => {
     // 20 plan rows, verify_evidence from the ranking redesign, the 6 lead-tool
     // actions (view_lead_tools, manage_mou, manage_leads, manage_event_ops,
     // view_assets, manage_assets), and the chapter-wide contest/handover tools.
@@ -21,11 +21,13 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     // manage_sponsorship_finance, register_event, submit_project, edit_own_profile,
     // draft_announcement, publish_announcement, help:request,
     // manage_sponsorship_leads, manage_outreach_leads, manage_promotional_campaigns,
-    // manage_social_content, check_in_attendees
+    // manage_social_content, check_in_attendees, and the five department-work
+    // rows (manage_department_tasks, update_assigned_department_task,
+    // verify_department_work, manage_department_roster, view_department_tasks).
     // The count is asserted rather than left open because ACTIONS is the
     // authority for every gate in the app -- a row added without a test is a
     // row nobody has checked.
-    expect(ACTIONS).toHaveLength(43);
+    expect(ACTIONS).toHaveLength(48);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {
@@ -316,5 +318,52 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(can(admin(), "manage_handover").ok).toBe(true);
     expect(can(core(), "manage_handover").ok).toBe(false);
     expect(can(student(), "manage_handover").ok).toBe(false);
+  });
+});
+
+describe("department work board", () => {
+  const dept = { departmentId: D1 };
+
+  it("heads run their own board and nothing else", () => {
+    for (const a of ["manage_department_tasks", "verify_department_work", "manage_department_roster"]) {
+      expect(can(lead("dept_lead"), a, dept).ok).toBe(true);
+      expect(can(lead("dept_lead"), a, { departmentId: "other" }).ok).toBe(false);
+      // A core member of the department is not a head.
+      expect(can(core(), a, dept).ok).toBe(false);
+    }
+  });
+
+  it("a vertical lead oversees tasks in its own vertical only", () => {
+    expect(can(vlead(), "manage_department_tasks", { vertical: "technical" }).ok).toBe(true);
+    expect(can(vlead("non_technical"), "manage_department_tasks", { vertical: "technical" }).ok).toBe(false);
+    // Roster stays inside the department: a vertical lead appoints nobody.
+    expect(can(vlead(), "manage_department_roster", { vertical: "technical" }).ok).toBe(false);
+  });
+
+  it("an assignee can move their own task, and nobody else's", () => {
+    const assignee = core("u-core");
+    expect(can(assignee, "update_assigned_department_task", { ...dept, assigneeId: "u-core" }).ok).toBe(true);
+    expect(can(assignee, "update_assigned_department_task", { ...dept, assigneeId: "u-other" }).ok).toBe(false);
+    // Reading own work survives losing the membership: scope names the assignee.
+    const removed = student("u-removed", []);
+    const r = can(removed, "view_department_tasks", { ...dept, assigneeId: "u-removed" });
+    expect(r.ok).toBe(true);
+    expect(r.note).toBe("own_only");
+  });
+
+  it("department members read the board, outsiders do not", () => {
+    const member = student("u-stu", [{ department_id: D1, level: "general", slug: "web" }]);
+    const r = can(member, "view_department_tasks", dept);
+    expect(r.ok).toBe(true);
+    expect(r.note).toBeNull();
+    expect(can(student("u-out", []), "view_department_tasks", dept).ok).toBe(false);
+  });
+
+  it("head and co-head have identical board powers", () => {
+    const head = lead("dept_lead");
+    const cohead = { ...lead("dept_lead"), id: "u-cohead" };
+    for (const a of ["manage_department_tasks", "verify_department_work", "manage_department_roster", "view_department_tasks"]) {
+      expect(can(cohead, a, dept)).toEqual(can(head, a, dept));
+    }
   });
 });

@@ -14,6 +14,7 @@ export const LEARN_TABS = [
 
 export const BUILD_TABS = [
   { href: "/student/projects", label: "Projects" },
+  { href: "/student/work", label: "Department work" },
   { href: "/student/github", label: "GitHub" },
   { href: "/student/opensource", label: "Open source" },
   { href: "/student/debug", label: "Debug" }

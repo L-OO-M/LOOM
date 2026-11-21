@@ -107,28 +107,32 @@ describe("listWorkspaceDepartments", () => {
     expect(text).toMatch(/t\.status <> 'done'/);
     expect(text).toMatch(/e\.starts_at >= NOW\(\)/);
     expect(text).toMatch(/e\.status = 'upcoming'/);
+    // The department's own work board is counted separately from event ops.
+    expect(text).toMatch(/FROM department_tasks/);
   });
 });
 
 describe("getDepartmentWorkspace", () => {
   it("reads every module for one department without batching", async () => {
-    const sql = recorder([[], [], [], [], [], [], [], [], [], [], []]);
+    const sql = recorder([[], [], [], [], [], [], [], [], [], [], [], []]);
     const workspace = await getDepartmentWorkspace(sql, { tenantId: "tenant-1", department: DEPT });
 
     // one query per module, run in sequence
-    expect(sql.calls).toHaveLength(11);
+    expect(sql.calls).toHaveLength(12);
     expect(sql.calls.map((c) => c.text.slice(0, 6))).toEqual([
       "SELECT", "SELECT", "SELECT", "SELECT", "SELECT", "SELECT",
-      "SELECT", "SELECT", "SELECT", "SELECT", "SELECT"
+      "SELECT", "SELECT", "SELECT", "SELECT", "SELECT", "SELECT"
     ]);
-    for (const key of ["heads", "members", "events", "tasks", "reports", "contributions", "assets", "expenses", "allocations", "mous", "directory"]) {
+    for (const key of ["heads", "members", "events", "tasks", "departmentTasks", "reports", "contributions", "assets", "expenses", "allocations", "mous", "directory"]) {
       expect(workspace[key]).toEqual([]);
     }
-    expect(workspace.counts).toMatchObject({ members: 0, heads: 0, upcoming: 0, openTasks: 0, spent: 0, allocated: 0 });
+    expect(workspace.counts).toMatchObject({
+      members: 0, heads: 0, upcoming: 0, openTasks: 0, openWork: 0, awaitingReview: 0, spent: 0, allocated: 0
+    });
   });
 
   it("scopes department work to that department and that tenant", async () => {
-    const sql = recorder([[], [], [], [], [], [], [], [], [], [], []]);
+    const sql = recorder([[], [], [], [], [], [], [], [], [], [], [], []]);
     await getDepartmentWorkspace(sql, { tenantId: "tenant-1", department: DEPT });
     const byTable = (needle) => sql.calls.find((c) => c.text.includes(needle));
     expect(byTable("FROM department_memberships").values).toContain("d-design");
@@ -141,8 +145,7 @@ describe("getDepartmentWorkspace", () => {
 
   it("only counts approved or paid money as spent", async () => {
     const sql = recorder([
-      [], [], [], [], [], [],
-      [],
+      [], [], [], [], [], [], [], [],
       [
         { amount: "1000", status: "approved" },
         { amount: "500", status: "paid" },
@@ -163,7 +166,7 @@ describe("getDepartmentWorkspace", () => {
       [],
       [{ id: "e1", status: "upcoming" }, { id: "e2", status: "completed" }],
       [{ id: "t1", status: "open" }, { id: "t2", status: "done" }],
-      [], [], [], [], [], [], []
+      [], [], [], [], [], [], [], []
     ]);
     const { counts } = await getDepartmentWorkspace(sql, { tenantId: "tenant-1", department: DEPT });
     expect(counts.upcoming).toBe(1);

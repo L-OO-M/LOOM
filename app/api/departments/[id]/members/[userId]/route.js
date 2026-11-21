@@ -1,14 +1,18 @@
 import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
-import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin, roleRank } from "@/lib/permissions";
+import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { can, isAdmin, roleRank } from "@/lib/permissions";
 
-const grantSchema = z.object({ level: z.enum(["core", "dept_lead"]) });
+const grantSchema = z.object({ level: z.enum(["core", "general", "dept_lead"]) });
 
-// Grant Core (Head/Co-Head of the dept, or admin) or assign dept_lead
-// (admin only). Roles sync upward only — demotion stays on the admin
-// students endpoint. Head and Co-Head are indistinguishable here by design.
+// Department roster control.
+//
+// A Head and a Co-Head have identical authority inside their own department:
+// grant Core, demote back to General, remove someone, and (admins only) appoint
+// a Head. Nobody may edit a Head's seat except a Super Admin, nobody may reach
+// into another department, and removal never deletes work history — the member
+// rows go, the tasks/contributions they produced stay attributed to them.
 export async function PATCH(request, { params }) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
@@ -29,12 +33,11 @@ export async function PATCH(request, { params }) {
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
 
   const admin = isAdmin({ role: profile.role });
-  const myLevel = (profile.memberships || []).find((m) => m.department_id === dept.id)?.level;
   if (body.level === "dept_lead" && !admin) {
     return fail("FORBIDDEN", "Only a Super Admin can assign department leads", 403);
   }
-  if (body.level === "core" && !admin && myLevel !== "dept_lead") {
-    return fail("FORBIDDEN", "Only the department's Head or Co-Head can grant Core status", 403);
+  if (!admin && !can(profile, "manage_department_roster", { departmentId: dept.id }).ok) {
+    return fail("FORBIDDEN", "Only this department's Head or Co-Head can change its roster", 403);
   }
 
   const [target] = await sql`
@@ -44,21 +47,131 @@ export async function PATCH(request, { params }) {
   `;
   if (!target) return fail("NOT_FOUND", "User not in your college", 404);
 
+  const [existing] = await sql`
+    SELECT * FROM department_memberships
+    WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+    LIMIT 1
+  `;
+  // A Head's seat is an appointment, not a roster edit. Only an admin changes it.
+  if (existing?.level === "dept_lead" && !admin) {
+    return fail("FORBIDDEN", "Only a Super Admin can change a department Head's position", 403);
+  }
+
   const [membership] = await sql`
     INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
     VALUES (${userId}, ${dept.id}, ${body.level}, false, ${dept.tenant_id})
     ON CONFLICT (user_id, department_id) DO UPDATE SET level = EXCLUDED.level, core_requested = false
     RETURNING *
   `;
-  // Upward-only role sync: core < dept_lead; never demote here.
-  const wantRole = body.level === "dept_lead" ? "dept_lead" : "core";
-  if (roleRank(target.role) < roleRank(wantRole)) {
+
+  // Upward-only role sync; demotion to General is handled below and only when
+  // no elevated membership remains anywhere else.
+  const wantRole = body.level === "dept_lead" ? "dept_lead" : body.level === "core" ? "core" : null;
+  if (wantRole && roleRank(target.role) < roleRank(wantRole)) {
     await sql`UPDATE profiles SET role = ${wantRole}, updated_at = NOW() WHERE user_id = ${userId}`;
   }
+  const downgraded = body.level === "general" && target.role === "core"
+    && !(await hasElevatedMembership(sql, { tenantId: tenant.id, userId, exceptDepartmentId: dept.id }));
+  if (downgraded) {
+    await sql`UPDATE profiles SET role = 'student', updated_at = NOW() WHERE user_id = ${userId}`;
+  }
+
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id, action: "granted_membership",
     resource: "department", resourceId: dept.id,
-    before: { role: target.role }, after: { userId, level: body.level, slug: dept.slug }
+    before: { role: target.role, level: existing?.level ?? null },
+    after: { userId, level: body.level, slug: dept.slug, roleDowngraded: downgraded }
   });
+
+  if (body.level !== "dept_lead" && userId !== user.id) {
+    await notify({
+      sql, tenantId: tenant.id, userId, type: "department_membership",
+      title: body.level === "core"
+        ? `You are now Core in ${dept.name}`
+        : `Your role in ${dept.name} changed to General`,
+      body: null,
+      link: "/student"
+    });
+  }
+
   return ok({ membership });
+}
+
+export async function DELETE(request, { params }) {
+  const ctx = await getRequestContext();
+  if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
+  if (ctx.error) return fail(ctx.error, "Profile not found", 404);
+  const { user, profile, tenant, sql } = ctx;
+  const { id, userId } = await params;
+
+  const [dept] = await sql`
+    SELECT id, name, slug FROM departments WHERE id = ${id}
+      AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+    LIMIT 1
+  `;
+  if (!dept) return fail("NOT_FOUND", "Department not found", 404);
+
+  const admin = isAdmin({ role: profile.role });
+  if (!admin && !can(profile, "manage_department_roster", { departmentId: dept.id }).ok) {
+    return fail("FORBIDDEN", "Only this department's Head or Co-Head can change its roster", 403);
+  }
+
+  const [existing] = await sql`
+    SELECT * FROM department_memberships
+    WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+    LIMIT 1
+  `;
+  if (!existing) return fail("NOT_FOUND", "That person is not in this department", 404);
+  if (existing.level === "dept_lead" && !admin) {
+    return fail("FORBIDDEN", "Only a Super Admin can remove a department Head", 403);
+  }
+
+  await sql`
+    DELETE FROM department_memberships
+    WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+      AND tenant_id = ${tenant?.id ?? null}::uuid
+  `;
+
+  // Their work stays attributed to them; only the seat is gone.
+  const [target] = await sql`
+    SELECT role FROM profiles
+    WHERE user_id = ${userId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+    LIMIT 1
+  `;
+  const downgraded = target?.role === "core"
+    && !(await hasElevatedMembership(sql, { tenantId: tenant.id, userId, exceptDepartmentId: dept.id }));
+  if (downgraded) {
+    await sql`UPDATE profiles SET role = 'student', updated_at = NOW() WHERE user_id = ${userId}`;
+  }
+
+  await writeAudit({
+    sql, actorId: user.id, tenantId: tenant?.id, action: "removed_membership",
+    resource: "department", resourceId: dept.id,
+    before: { userId, level: existing.level },
+    after: { slug: dept.slug, roleDowngraded: downgraded }
+  });
+
+  if (userId !== user.id) {
+    await notify({
+      sql, tenantId: tenant.id, userId, type: "department_membership",
+      title: `You were removed from ${dept.name}`,
+      body: "Work you already recorded stays on your record.",
+      link: "/student"
+    });
+  }
+
+  return ok({ removed: true });
+}
+
+/** True when the member keeps Core/Head standing in another department. */
+async function hasElevatedMembership(sql, { tenantId, userId, exceptDepartmentId }) {
+  const [row] = await sql`
+    SELECT 1 AS present FROM department_memberships
+    WHERE tenant_id = ${tenantId}::uuid
+      AND user_id = ${userId}
+      AND department_id <> ${exceptDepartmentId}::uuid
+      AND level IN ('core', 'dept_lead')
+    LIMIT 1
+  `;
+  return !!row;
 }

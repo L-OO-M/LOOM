@@ -15,6 +15,8 @@ import {
   catalogueIndex,
   getDepartmentWorkspace,
 } from "@/lib/department-workspace";
+import { DepartmentWorkBoard } from "./_components/DepartmentWorkBoard";
+import { DepartmentRoster } from "./_components/DepartmentRoster";
 
 export const dynamic = "force-dynamic";
 
@@ -76,10 +78,14 @@ export default async function DepartmentWorkspacePage({ params }) {
   const scope = { departmentId: department.id, vertical: department.vertical };
 
   const workspace = await getDepartmentWorkspace(sql, { tenantId: tenant.id, department });
-  const { heads, members, events, tasks, reports, contributions, assets, expenses, mous, directory, counts } = workspace;
+  const { heads, members, events, tasks, departmentTasks, reports, contributions, assets, expenses, mous, directory, counts } = workspace;
 
   const showRoster = can(me, "view_roster", scope).ok;
   const showTasks = can(me, "view_assigned_event_tasks", scope).ok || can(me, "manage_event_ops", scope).ok;
+  const showWork = can(me, "view_department_tasks", scope).ok;
+  const canManageWork = can(me, "manage_department_tasks", scope).ok;
+  const canVerifyWork = can(me, "verify_department_work", scope).ok;
+  const canManageRoster = can(me, "manage_department_roster", scope).ok;
   const showReports = can(me, "export_reports", scope).ok || can(me, "view_lead_tools", scope).ok;
   const showAssets = can(me, "view_assets", scope).ok;
   const showBudget = can(me, "view_event_budget", scope).ok;
@@ -88,6 +94,22 @@ export default async function DepartmentWorkspacePage({ params }) {
     can(me, "manage_sponsorship_leads", scope).ok ||
     can(me, "manage_outreach_leads", scope).ok;
   const showDirectory = can(me, "view_lead_tools", scope).ok;
+
+  // People a head may add: chapter members not already in this department.
+  // Only fetched when the head can actually use the list.
+  const candidates = canManageRoster
+    ? await sql`
+        SELECT p.user_id, p.name
+        FROM profiles p
+        WHERE p.tenant_id = ${tenant.id}::uuid
+          AND NOT EXISTS (
+            SELECT 1 FROM department_memberships m
+            WHERE m.user_id = p.user_id AND m.department_id = ${department.id}::uuid
+          )
+        ORDER BY p.name ASC
+        LIMIT 200
+      `
+    : [];
 
   const index = catalogueIndex(meta.slug);
   const total = catalogCounts().total;
@@ -119,8 +141,8 @@ export default async function DepartmentWorkspacePage({ params }) {
           stats={[
             { value: counts.members, label: "members" },
             { value: counts.heads, label: "co-equal heads" },
-            { value: counts.upcoming, label: "upcoming events" },
-            { value: counts.openTasks, label: "open tasks" }
+            { value: counts.openWork, label: "open work" },
+            { value: counts.awaitingReview, label: "awaiting review" }
           ]}
         />
 
@@ -159,31 +181,37 @@ export default async function DepartmentWorkspacePage({ params }) {
             )}
           </WorkspaceSection>
 
-          {showRoster && (
-            <WorkspaceSection index="02" title="Members" note={`Everyone in ${department.name}. Levels are assigned upward only.`}>
-              <Rows
-                items={members}
-                empty="No members yet — joining a department is instant, so the first one is one click away."
-                render={(m) => (
-                  <>
-                    <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--text)" }}>
-                      <span className="font-medium">{m.name || "Unnamed member"}</span>
-                      <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                        {m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}
-                        {m.succession_ready ? " · succession-ready" : ""}
-                        {m.year ? ` · year ${m.year}` : ""}
-                      </span>
-                    </span>
-                    <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
-                      joined {day(m.joined_at)}
-                    </span>
-                  </>
-                )}
+          {showWork && (
+            <WorkspaceSection
+              index="02"
+              title="Work board"
+              note="Assign work inside this department, attach proof, and have it reviewed by the other head. Nobody approves their own submission."
+            >
+              <DepartmentWorkBoard
+                departmentId={department.id}
+                tasks={departmentTasks}
+                members={members}
+                meId={user.id}
+                canManage={canManageWork}
+                canVerify={canVerifyWork}
               />
             </WorkspaceSection>
           )}
 
-          <WorkspaceSection index="03" title="Events" note="Everything this department scheduled, newest first.">
+          {showRoster && (
+            <WorkspaceSection index="03" title="Members" note={`Everyone in ${department.name}. A head may add, promote, demote and remove within this department; a Head's seat stays an admin appointment.`}>
+              <DepartmentRoster
+                departmentId={department.id}
+                departmentName={department.name}
+                initialMembers={members}
+                candidates={candidates}
+                canManage={canManageRoster}
+                meId={user.id}
+              />
+            </WorkspaceSection>
+          )}
+
+          <WorkspaceSection index="04" title="Events" note="Everything this department scheduled, newest first.">
             <Rows
               items={events}
               empty="No events yet. A department with nothing scheduled has nothing to promote, document, or staff."
@@ -203,7 +231,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           </WorkspaceSection>
 
           {showTasks && (
-            <WorkspaceSection index="04" title="Tasks" note="Operational work assigned to this department, across every event it owns.">
+            <WorkspaceSection index="05" title="Event operations" note="Operational work assigned to this department, across every event it owns.">
               <Rows
                 items={tasks}
                 empty="No active tasks. Management assigns tasks when an event needs staffing."
@@ -223,7 +251,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           )}
 
           {showReports && (
-            <WorkspaceSection index="05" title="Reports" note="Monthly submissions and their review status.">
+            <WorkspaceSection index="06" title="Reports" note="Monthly submissions and their review status.">
               <Rows
                 items={reports}
                 empty="No monthly report submitted yet. Documentation owns the record; the head submits it."
@@ -237,7 +265,7 @@ export default async function DepartmentWorkspacePage({ params }) {
             </WorkspaceSection>
           )}
 
-          <WorkspaceSection index="06" title="Contributions" note="Work logged against this department, latest first.">
+          <WorkspaceSection index="07" title="Contributions" note="Work logged against this department, latest first.">
             <Rows
               items={contributions}
               empty="Nothing logged yet. Contributions are the department's proof of output."
@@ -254,7 +282,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           </WorkspaceSection>
 
           {showAssets && (
-            <WorkspaceSection index="07" title="Assets" note="Department-owned files plus the shared society library every team reuses.">
+            <WorkspaceSection index="08" title="Assets" note="Department-owned files plus the shared society library every team reuses.">
               <Rows
                 items={assets}
                 empty="No assets yet. Design and SMM upload posters, templates, and footage here."
@@ -271,7 +299,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           )}
 
           {showBudget && (
-            <WorkspaceSection index="08" title="Budget" note="Allocated and spent for this department. Approval stays with an authorised administrator.">
+            <WorkspaceSection index="09" title="Budget" note="Allocated and spent for this department. Approval stays with an authorised administrator.">
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
                   { label: "Allocated", value: money(allocated) },
@@ -300,7 +328,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           )}
 
           {showAgreements && (
-            <WorkspaceSection index="09" title="Agreements & leads" note="MoUs and external relationships for this vertical.">
+            <WorkspaceSection index="10" title="Agreements & leads" note="MoUs and external relationships for this vertical.">
               <Rows
                 items={mous}
                 empty="No MoU records for this vertical yet."
@@ -318,7 +346,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           )}
 
           {showDirectory && (
-            <WorkspaceSection index="10" title="Leadership record" note="Current heads and past holders in this department.">
+            <WorkspaceSection index="11" title="Leadership record" note="Current heads and past holders in this department.">
               <Rows
                 items={directory}
                 empty="No leadership entries recorded for this department yet."
