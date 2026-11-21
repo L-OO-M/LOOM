@@ -132,7 +132,7 @@ FROM public.profiles p
 JOIN LATERAL (
   SELECT a.user_id FROM public.profiles a
   WHERE a.tenant_id = p.tenant_id AND a.role = 'admin'
-  ORDER BY a.created_at ASC NULLS LAST, a.user_id
+  ORDER BY a.updated_at ASC NULLS LAST, a.user_id
   LIMIT 1
 ) grantor ON true
 WHERE p.role = 'vertical_lead'
@@ -158,7 +158,7 @@ FROM public.department_memberships m
 JOIN LATERAL (
   SELECT a.user_id FROM public.profiles a
   WHERE a.tenant_id = m.tenant_id AND a.role = 'admin'
-  ORDER BY a.created_at ASC NULLS LAST, a.user_id
+  ORDER BY a.updated_at ASC NULLS LAST, a.user_id
   LIMIT 1
 ) grantor ON true
 WHERE m.level = 'dept_lead'
