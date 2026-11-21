@@ -4,6 +4,7 @@ import {
   fetchAccepted,
   fetchProfile,
   normalizeLeetCodeUsername,
+  recentCalendar,
   statsSummary
 } from "@/lib/leetcode";
 
@@ -180,17 +181,41 @@ describe("LeetCode stats normalisation", () => {
     });
   });
 
-  it("summarises stats without shipping the full calendar", () => {
-    const summary = statsSummary({
-      total: 253,
-      easy: 60,
-      calendar: { "2025-11-18": 3 },
-      extra: "ignore me"
-    });
+  it("summarises stats and ships only the recent calendar", () => {
+    const summary = statsSummary(
+      {
+        total: 253,
+        easy: 60,
+        calendar: { "2025-11-18": 3, "2020-01-01": 9, "2025-11-17": 0 },
+        extra: "ignore me"
+      },
+      { now: Date.parse("2025-11-21T00:00:00Z") }
+    );
 
     expect(summary).toMatchObject({ total: 253, easy: 60, medium: 0, hard: 0 });
-    expect(summary.calendar).toBeUndefined();
+    expect(summary.calendar).toEqual({ "2025-11-18": 3 });
     expect(summary.extra).toBeUndefined();
     expect(statsSummary(null)).toBeNull();
+  });
+});
+
+describe("recentCalendar", () => {
+  it("keeps only days inside the window and drops zeroes", () => {
+    const now = Date.parse("2026-11-21T00:00:00Z");
+    expect(
+      recentCalendar({ "2026-11-20": 2, "2026-11-19": 0, "2025-01-01": 7, "nope": 4 }, { days: 30, now })
+    ).toEqual({ "2026-11-20": 2 });
+  });
+
+  it("accepts the epoch-second encoding LeetCode returns", () => {
+    const now = Date.parse("2026-11-21T00:00:00Z");
+    const stamp = Math.floor(Date.parse("2026-11-18T00:00:00Z") / 1000);
+    expect(recentCalendar({ [stamp]: 3 }, { days: 30, now })).toEqual({ "2026-11-18": 3 });
+  });
+
+  it("degrades to an empty object for junk", () => {
+    expect(recentCalendar(null)).toEqual({});
+    expect(recentCalendar("not json")).toEqual({});
+    expect(recentCalendar([1, 2, 3])).toEqual({});
   });
 });

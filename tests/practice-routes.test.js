@@ -53,6 +53,10 @@ async function loadRefresh(sql, syncConnection) {
   return import("@/app/api/practice/refresh/route");
 }
 
+// A day inside the shipped 400-day calendar window, computed at run time so the
+// assertion cannot rot as the real clock advances.
+const RECENT_DAY = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+
 const REAL_STATS = {
   total: 253,
   easy: 60,
@@ -62,7 +66,7 @@ const REAL_STATS = {
   reputation: 12,
   streak: 17,
   activeDays: 128,
-  calendar: { "2025-11-18": 3 }
+  calendar: { [RECENT_DAY]: 3, "2019-01-01": 9 }
 };
 
 describe("practice week locking", () => {
@@ -178,8 +182,8 @@ describe("practice refresh response", () => {
       hard: 52,
       streak: 17
     });
-    // The submission calendar is ~years of daily counts; it must not ship.
-    expect(data.stats.calendar).toBeUndefined();
+    // The submission calendar can be years long; only the recent slice ships.
+    expect(data.stats.calendar).toEqual({ [RECENT_DAY]: 3 });
   });
 
   it("reports a failed sync without inventing progress numbers", async () => {

@@ -122,6 +122,18 @@ describe("leetcodeStats", () => {
     expect(leetcodeStats(JSON.stringify(stored))).toMatchObject({ total: 169, easy: 49 });
   });
 
+  it("ships only the recent submission calendar", () => {
+    const stats = leetcodeStats(
+      {
+        total: 10,
+        easy: 4,
+        calendar: { "2026-11-20": 2, "2020-01-01": 9, "2026-11-19": 0 }
+      },
+      { now: Date.parse("2026-11-21T00:00:00Z") }
+    );
+    expect(stats.calendar).toEqual({ "2026-11-20": 2 });
+  });
+
   it("does not publish submission-attempt counts as difficulty denominators", () => {
     // LeetCode's totalSubmissionNum looks like a denominator but counts
     // attempts; exposing it made "solved / total" meaningless.

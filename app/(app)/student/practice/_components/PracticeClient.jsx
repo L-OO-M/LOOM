@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Check, CircleDot, Clock3, ExternalLink, Play, RefreshCw, UserRound } from "lucide-react";
 import { ActionLink, Meta, SegControl, StatusPill } from "@/components/loom/primitives";
+import { Heatmap } from "@/components/loom/Heatmap";
 import { StatTile } from "@/components/loom/StatTiles";
 import { WorkspaceEmpty, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { Field, inputStyle } from "@/components/ui";
@@ -247,6 +248,12 @@ export function PracticeClient({ snapshot, userId, progress }) {
   const connection = snapshot.connection;
   const stale = connection?.lastSyncAt && snapshot.now - connection.lastSyncAt > snapshot.staleAfterMs;
   const leetcodeStats = liveStats || connection?.leetcodeStats || null;
+  const submissionCalendar =
+    leetcodeStats?.calendar && typeof leetcodeStats.calendar === "object"
+      ? Object.entries(leetcodeStats.calendar)
+          .map(([day, count]) => ({ day, count: Number(count) || 0 }))
+          .filter((row) => row.count > 0)
+      : [];
   const statsCheckedAt = liveStats
     ? snapshot.now
     : connection?.statsSyncedAt || connection?.lastSyncAt || null;
@@ -702,7 +709,7 @@ export function PracticeClient({ snapshot, userId, progress }) {
               <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{connection ? ago(statsCheckedAt, snapshot.now) : "LeetCode not linked"}</p>
             </div>
             <p className="narrative mt-4 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-              LeetCode exposes recent public submissions. A solve outside the practice window is recorded on this page but never scored.
+              LeetCode exposes public submissions only. A solve outside the practice window is recorded on this page but never scored, and LOOM never asks for a LeetCode password or session cookie.
             </p>
           </aside>
         </div>
@@ -721,7 +728,7 @@ export function PracticeClient({ snapshot, userId, progress }) {
       <WorkspaceSection
         index="03"
         title="LeetCode progress"
-        note="Your overall LeetCode account, separate from LOOM weekly scoring."
+        note="Your overall LeetCode account, separate from LOOM weekly scoring. Read from public data only."
         action={<StatusPill>not LOOM scoring</StatusPill>}
       >
         {!connection ? (
@@ -780,6 +787,30 @@ export function PracticeClient({ snapshot, userId, progress }) {
                 <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text)" }}>{ago(statsCheckedAt, snapshot.now)}</p>
               </div>
             </div>
+            {submissionCalendar.length > 0 ? (
+              <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Submission calendar</p>
+                  <p className="meta">public LeetCode activity</p>
+                </div>
+                <p className="narrative mt-1 text-xs leading-5">
+                  Each square is one day of accepted submissions on @{connection.username}, read from your public
+                  LeetCode profile. No session cookie or password is ever used.
+                </p>
+                <div className="mt-3 overflow-x-auto pb-1">
+                  <div className="min-w-[240px]">
+                    <Heatmap rows={submissionCalendar} weeks={20} valueField="count" unit="submission" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>No accepted submissions in the last 20 weeks.</p>
+                <p className="narrative mt-1 text-xs leading-5">
+                  LeetCode carries a day in the public calendar only when it has an accepted submission, so there is nothing to draw yet.
+                </p>
+              </div>
+            )}
             <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Recent accepted solves</p>
