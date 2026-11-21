@@ -26,8 +26,8 @@ export async function POST(request, { params }) {
     return ok({ membership: existing, alreadyElevated: true });
   }
   const [membership] = await sql`
-    INSERT INTO department_memberships (user_id, department_id, level, core_requested)
-    VALUES (${user.id}, ${dept.id}, 'general', true)
+    INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
+    VALUES (${user.id}, ${dept.id}, 'general', true, ${dept.tenant_id})
     ON CONFLICT (user_id, department_id) DO UPDATE SET core_requested = true
     RETURNING *
   `;

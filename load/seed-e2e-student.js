@@ -116,8 +116,8 @@ async function main() {
     // --- department membership ----------------------------------------------
     const [dept] = await sql`SELECT id FROM departments WHERE tenant_id = ${tid} AND slug = ${DOMAIN} LIMIT 1`;
     if (dept) {
-      await sql`INSERT INTO department_memberships (user_id, department_id, level)
-                VALUES (${userId}, ${dept.id}, 'general')
+      await sql`INSERT INTO department_memberships (user_id, department_id, level, tenant_id)
+                VALUES (${userId}, ${dept.id}, 'general', ${tid}::uuid)
                 ON CONFLICT (user_id, department_id) DO NOTHING`;
       console.log(`department_memberships: ${DOMAIN}`);
     } else {

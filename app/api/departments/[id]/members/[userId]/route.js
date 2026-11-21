@@ -45,8 +45,8 @@ export async function PATCH(request, { params }) {
   if (!target) return fail("NOT_FOUND", "User not in your college", 404);
 
   const [membership] = await sql`
-    INSERT INTO department_memberships (user_id, department_id, level, core_requested)
-    VALUES (${userId}, ${dept.id}, ${body.level}, false)
+    INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
+    VALUES (${userId}, ${dept.id}, ${body.level}, false, ${dept.tenant_id})
     ON CONFLICT (user_id, department_id) DO UPDATE SET level = EXCLUDED.level, core_requested = false
     RETURNING *
   `;

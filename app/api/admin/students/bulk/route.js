@@ -60,8 +60,8 @@ async function assignDepartments({ body, user, tenant, sql }) {
   await sql.begin(async (tx) => {
     for (const uid of ids) {
       await tx`
-        INSERT INTO department_memberships (user_id, department_id, level, core_requested)
-        VALUES (${uid}, ${dept.id}, ${body.membershipLevel}, false)
+        INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
+        VALUES (${uid}, ${dept.id}, ${body.membershipLevel}, false, ${dept.tenant_id})
         ON CONFLICT (user_id, department_id) DO UPDATE
           SET level = CASE
                 WHEN department_memberships.level = 'dept_lead' THEN department_memberships.level
@@ -236,8 +236,9 @@ export async function POST(request) {
       for (const uid of ids) {
         await tx`
           INSERT INTO department_memberships
-            (user_id, department_id, level, core_requested, term_start, term_end)
-          VALUES (${uid}, ${departmentId}, 'dept_lead', false, ${termStart}, ${termEnd})
+            (user_id, department_id, level, core_requested, term_start, term_end, tenant_id)
+          VALUES (${uid}, ${departmentId}, 'dept_lead', false, ${termStart}, ${termEnd},
+                  (SELECT tenant_id FROM departments WHERE id = ${departmentId}))
           ON CONFLICT (user_id, department_id) DO UPDATE
             SET level = 'dept_lead', core_requested = false,
                 term_start = EXCLUDED.term_start, term_end = EXCLUDED.term_end

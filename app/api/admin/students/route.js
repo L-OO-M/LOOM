@@ -180,8 +180,9 @@ export async function PATCH(request) {
     if (departmentId) {
       await tx`
         INSERT INTO department_memberships
-          (user_id, department_id, level, core_requested, term_start, term_end)
-        VALUES (${body.userId}, ${departmentId}, 'dept_lead', false, ${termStart}, ${termEnd})
+          (user_id, department_id, level, core_requested, term_start, term_end, tenant_id)
+        VALUES (${body.userId}, ${departmentId}, 'dept_lead', false, ${termStart}, ${termEnd},
+                (SELECT tenant_id FROM departments WHERE id = ${departmentId}))
         ON CONFLICT (user_id, department_id) DO UPDATE
           SET level = 'dept_lead', core_requested = false,
               term_start = EXCLUDED.term_start, term_end = EXCLUDED.term_end

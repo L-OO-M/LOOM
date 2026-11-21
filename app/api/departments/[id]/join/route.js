@@ -16,8 +16,8 @@ export async function POST(request, { params }) {
   `;
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
   const [membership] = await sql`
-    INSERT INTO department_memberships (user_id, department_id, level)
-    VALUES (${user.id}, ${dept.id}, 'general')
+    INSERT INTO department_memberships (user_id, department_id, level, tenant_id)
+    VALUES (${user.id}, ${dept.id}, 'general', ${dept.tenant_id})
     ON CONFLICT (user_id, department_id) DO NOTHING
     RETURNING *
   `;
