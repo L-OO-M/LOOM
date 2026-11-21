@@ -52,6 +52,7 @@ const protectedPages = [
   "/lead",
   "/lead/overview",
   "/lead/roster",
+  "/lead/departments",
   "/lead/workshops",
   "/lead/practice",
   "/lead/debug",

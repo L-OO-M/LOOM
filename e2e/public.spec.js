@@ -98,7 +98,7 @@ test.describe("LOOM public site", () => {
   test("domains index lists every department", async ({ page }) => {
     const res = await open(page, "/domains");
     expect(res?.status()).toBe(200);
-    await expect(page.locator("h1")).toContainText("Choose your domain.");
+    await expect(page.locator("h1")).toContainText("Choose your department.");
   });
 
   test("legal pages load with headings", async ({ page }) => {
