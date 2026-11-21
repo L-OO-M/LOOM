@@ -71,13 +71,44 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     }
   });
 
+  it("reads the membership slug the auth query actually returns", () => {
+    // Real sessions attach `slug`; older fixtures used `department_slug`. The
+    // matrix shipped reading only the latter, so every department-specific
+    // action silently denied its own head against production data.
+    const real = {
+      id: "u-real", role: "dept_lead", vertical: "non_technical",
+      memberships: [{ department_id: "d-design", level: "dept_lead", slug: "design" }]
+    };
+    expect(can(real, "manage_assets").ok).toBe(true);
+    expect(can(real, "manage_social_content").ok).toBe(true); // limited
+    expect(can(real, "manage_event_ops").ok).toBe(false);
+  });
+
   it("dept content/roadmap/workshops: own dept only", () => {
     for (const a of ["edit_dept_content", "upload_roadmap", "post_workshop_dept"]) {
       expect(can(lead("dept_lead"), a, { departmentId: D1 }).ok).toBe(true);
       expect(can(lead("dept_lead"), a, { departmentId: "other" }).ok).toBe(false);
-      expect(can(lead("dept_lead"), a).ok).toBe(false);
-      expect(can(core(), a, { departmentId: D1 }).ok).toBe(false);
+      // A head of exactly one department is acting for it even without a scope:
+      // the Lead console does not name a department on every button.
+      expect(can(lead("dept_lead"), a).ok).toBe(true);
+      expect(can(core(), a).ok).toBe(false);
     }
+  });
+
+  it("a head of several departments must name one", () => {
+    const multi = {
+      id: "u-multi", role: "dept_lead", vertical: "technical",
+      memberships: [
+        { department_id: "d-web", level: "dept_lead", slug: "web" },
+        { department_id: "d-design", level: "dept_lead", slug: "design" }
+      ]
+    };
+    // Ambiguous scope: no department is guessed.
+    expect(can(multi, "manage_assets").ok).toBe(false);
+    // Named scope resolves each identity independently.
+    expect(can(multi, "manage_assets", { departmentSlug: "design" }).ok).toBe(true);
+    expect(can(multi, "manage_assets", { departmentSlug: "web" }).ok).toBe(false);
+    expect(can(multi, "edit_dept_content", { departmentId: "d-web" }).ok).toBe(true);
   });
 
   it("society-wide events: dept_lead posts into an approval queue", () => {
@@ -132,15 +163,30 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     }
   });
 
-  it("roster: leads+core full, general members own dept only", () => {
-    expect(can(lead("dept_lead"), "view_roster", { departmentId: D1 }).ok).toBe(true);
-    expect(can(core(), "view_roster", { departmentId: D1 }).ok).toBe(true);
-    const member = student("u-stu", [{ department_id: D1, level: "general" }]);
-    const r = can(member, "view_roster", { departmentId: D1 });
+  it("roster: department heads see their own department only", () => {
+    const r = can(lead("dept_lead"), "view_roster", { departmentId: D1 });
     expect(r.ok).toBe(true);
     expect(r.note).toBe("own_only");
-    expect(can(member, "view_roster", { departmentId: "other" }).ok).toBe(false);
-    expect(can(student(), "view_roster", { departmentId: D1 }).ok).toBe(false);
+    // Sole-lead fallback: the head's own department resolves without a scope.
+    expect(can(lead("dept_lead"), "view_roster").ok).toBe(true);
+    // Another department's roster is not theirs.
+    expect(can(lead("dept_lead"), "view_roster", { departmentId: "other" }).ok).toBe(false);
+    // A core member is not a department head: no roster.
+    expect(can(core(), "view_roster", { departmentId: D1 }).ok).toBe(false);
+    const member = student("u-stu", [{ department_id: D1, level: "general" }]);
+    expect(can(member, "view_roster", { departmentId: D1 }).ok).toBe(false);
+  });
+
+  it("check-in: only the event's own department, its vertical, or admin", () => {
+    // The event belongs to D1.
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: D1 }).ok).toBe(true);
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: "other" }).ok).toBe(false);
+    // A society-wide event (explicit null department) is not any head's door.
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: null }).ok).toBe(false);
+    expect(can(vlead(), "check_in_attendees", { vertical: "technical" }).ok).toBe(true);
+    expect(can(vlead(), "check_in_attendees", { vertical: "non_technical" }).ok).toBe(false);
+    expect(can(core(), "check_in_attendees").ok).toBe(false);
+    expect(can(admin(), "check_in_attendees").ok).toBe(true);
   });
 
   it("directory: vertical full, dept_lead limited, rest denied", () => {

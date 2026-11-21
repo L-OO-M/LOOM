@@ -98,8 +98,12 @@ describe("event check-in evidence", () => {
     expect(recomputeScore).not.toHaveBeenCalled();
   });
 
-  it("lets a department lead run the door, not just an admin", async () => {
+  it("lets a department lead run the door for their own department's event", async () => {
     const sql = recorder((text) => {
+      if (text.startsWith("SELECT e.department_id")) {
+        // The event belongs to the department this lead heads.
+        return [{ department_id: "dept-1", department_vertical: "technical" }];
+      }
       if (text.startsWith("SELECT * FROM events")) {
         return [{ id: EVENT, title: "Hack night", status: "upcoming", starts_at: "2020-01-01T00:00:00Z" }];
       }
@@ -115,12 +119,35 @@ describe("event check-in evidence", () => {
       sql, 
       role: "dept_lead", 
       userId: "lead-1",
-      memberships: [{ department_id: "dept-1", level: "dept_lead", department_slug: "web" }]
+      memberships: [{ department_id: "dept-1", level: "dept_lead", slug: "web" }]
     });
 
     const response = await POST(request(STUDENT), { params: Promise.resolve({ id: EVENT }) });
 
     expect(response.status).toBe(200);
+  });
+
+  it("refuses the door to a head whose department does not own the event", async () => {
+    const sql = recorder((text) => {
+      if (text.startsWith("SELECT e.department_id")) {
+        return [{ department_id: "dept-1", department_vertical: "technical" }];
+      }
+      if (text.startsWith("SELECT * FROM events")) {
+        return [{ id: EVENT, title: "Hack night", status: "upcoming", starts_at: "2020-01-01T00:00:00Z" }];
+      }
+      return [];
+    });
+    const { POST, recordEvidence } = await load({
+      sql,
+      role: "dept_lead",
+      userId: "lead-2",
+      memberships: [{ department_id: "dept-2", level: "dept_lead", slug: "design" }]
+    });
+
+    const response = await POST(request(STUDENT), { params: Promise.resolve({ id: EVENT }) });
+
+    expect(response.status).toBe(403);
+    expect(recordEvidence).not.toHaveBeenCalled();
   });
 
   it("refuses the door to a student", async () => {

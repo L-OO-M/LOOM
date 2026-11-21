@@ -14,18 +14,29 @@ const attendSchema = z.object({
 // Check in an attendee by door code (or student id override), mark attended,
 // and issue their certificate exactly once.
 export async function POST(request, { params }) {
-  // Admins, vertical leads, and any live dept_lead may run the door.
-  // `check_in_attendees` allows any dept_lead to check in attendees.
+  const { id } = await params;
+  // The door belongs to the department that owns the event, the lead of that
+  // vertical, or an admin. `check_in_attendees` reads the event's department,
+  // so a head cannot run the door for an event their department does not own.
   let ctx;
   try {
-    ctx = await requireCan("check_in_attendees");
+    ctx = await requireCan("check_in_attendees", async ({ sql, tenant }) => {
+      const [row] = await sql`
+        SELECT e.department_id, d.vertical AS department_vertical
+        FROM events e
+        LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.id = ${id} AND e.tenant_id = ${tenant?.id ?? null}::uuid
+        LIMIT 1
+      `;
+      // Explicit null = society-wide event, not "fall back to my department".
+      return { departmentId: row?.department_id ?? null, vertical: row?.department_vertical ?? null };
+    });
   } catch (e) {
     const guard = toGuardResponse(e);
     if (!guard) throw e;
     return fail(guard.error.code, guard.error.message, guard.status);
   }
   const { user, tenant, sql } = ctx;
-  const { id } = await params;
   let body;
   try {
     body = attendSchema.parse(await request.json());

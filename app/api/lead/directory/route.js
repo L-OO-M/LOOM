@@ -76,7 +76,7 @@ export async function GET(request) {
 export async function POST(request) {
   let ctx;
   try {
-    ctx = await requireCan("manage_leads");
+    ctx = await requireCan("manage_handover");
   } catch (e) {
     const r = guard(e);
     if (r) return r;

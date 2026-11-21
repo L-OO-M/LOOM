@@ -1,8 +1,11 @@
 import { scope } from "@/lib/tenant-scope";
 import Link from "next/link";
+import Image from "next/image";
 import { headers } from "next/headers";
+import { permanentRedirect } from "next/navigation";
 import { getSql, queryTenant } from "@/lib/db";
 import { listPublicDepartments } from "@/lib/departments";
+import { departmentMeta, legacyDepartmentRedirect } from "@/lib/department-catalog";
 import { resolveTenantFromHost } from "@/lib/tenant";
 import { env } from "@/lib/env";
 import { getSessionIdentity } from "@/lib/auth-server";
@@ -20,6 +23,9 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
+  // Retired slugs still exist in old links and search results; the page body
+  // redirects them. Metadata simply describes the successor so a crawler that
+  // sees the old URL first is not told a 404.
   let name = null;
   let description = null;
   try {
@@ -87,6 +93,9 @@ function JoinButton({ departmentId }) {
 
 export default async function DomainPage({ params }) {
   const { slug } = await params;
+  const legacy = legacyDepartmentRedirect(slug);
+  if (legacy) permanentRedirect(`/domains/${legacy}`);
+  const meta = departmentMeta(slug);
   const tenant = await resolvePublicTenant();
   const tid = tenant?.id ?? null;
   const sql = getSql();
@@ -173,6 +182,19 @@ export default async function DomainPage({ params }) {
       {dept.description && <p className="mt-4 leading-7" style={{ color: "var(--text-muted)" }}>{dept.description}</p>}
       <HeadBylines head={{ name: dept.head_name, photo: dept.head_avatar }} coHead={{ name: dept.co_head_name, photo: dept.co_head_avatar }} />
 
+      {meta && (
+        <div className="mt-8 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line)" }}>
+          <Image
+            src={`/departments/${meta.slug}.png`}
+            alt={`${dept.name} department cover artwork`}
+            width={1600}
+            height={1000}
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="h-auto w-full"
+          />
+        </div>
+      )}
+
       <div className="mt-6">
         {loggedIn ? (
           <JoinButton departmentId={dept.id} />
@@ -182,6 +204,30 @@ export default async function DomainPage({ params }) {
           </Link>
         )}
       </div>
+
+      {meta?.owns?.length > 0 && (
+        <section aria-labelledby="owns-heading" className="mt-10">
+          <h2 id="owns-heading" className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>
+            What this department owns
+          </h2>
+          <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
+            The work is scoped on purpose. These are the responsibilities this
+            department is accountable for — not a list of everything it can click.
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {meta.owns.map((item) => (
+              <li
+                key={item}
+                className="flex gap-2 rounded-xl border px-4 py-3 text-sm leading-6"
+                style={{ borderColor: "var(--line)", background: "var(--bg-elevated)", color: "var(--text)" }}
+              >
+                <span aria-hidden="true" style={{ color: "var(--accent)" }}>—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <h2 className="font-display mt-10 text-2xl font-medium" style={{ color: "var(--text)" }}>Learning roadmap</h2>
       <div className="mt-4 space-y-3">

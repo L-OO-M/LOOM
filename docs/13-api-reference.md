@@ -164,7 +164,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | PATCH | `/api/lead/handover/[id]` | outgoing lead | save a draft, submit for approval, or cancel (scope re-checked server-side) |
 | POST | `/api/lead/handover/[id]/transfer` | admin (not the outgoing or incoming account) | approve and atomically move role, head slot, planner sessions and open event-ops |
 | GET | `/api/lead/assets` | dept_lead+ (`view_assets`) | creative asset library list (`?category=&kind=&q=`) |
-| POST | `/api/lead/assets` | dept_lead+ (`manage_assets`) | create an asset: multipart file upload, or JSON link-out with `externalUrl` |
+| POST | `/api/lead/assets` | dept_lead+ (`manage_assets`) | create an asset: multipart file upload, or JSON link-out with `externalUrl`. Optional `departmentId` must be a department the caller leads (admins may pick any); with no `departmentId`, a head of exactly one department files into it, everyone else into the shared library |
 | GET | `/api/lead/assets/[id]` | dept_lead+ (`view_assets`) | one asset + its version history |
 | PATCH | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | edit title/description/category/tags/kind; set or clear `externalUrl`; `isActive` |
 | DELETE | `/api/lead/assets/[id]` | dept_lead+ (`manage_assets`) | archive (soft delete `is_active = false`; files and versions are kept) |
@@ -181,10 +181,10 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/lead/mous/[id]/documents` | dept_lead+ (`view_lead_tools`/`manage_mou`) | list signed copies / upload a new labelled version (multipart `file`, `label`); owned vertical only for writes |
 | GET | `/api/lead/mous/[id]/documents/[documentId]/download` | dept_lead+ (`view_lead_tools`) | `302` to a short-lived signed URL (raw `<a>`); non-null vertical must be owned |
 | GET | `/api/lead/directory` | dept_lead+ (`view_lead_tools`) | leadership directory (`?department=&vertical=&current=1&q=`); leads see own-domain + society-wide entries |
-| POST | `/api/lead/directory` | dept_lead+ (`manage_leads`) | add a person; entry vertical follows its department, otherwise must be owned; `photoUrl` is the required public portrait for current leads |
+| POST | `/api/lead/directory` | dept_lead+ (`manage_handover`) | add a person; entry vertical follows its department, otherwise must be owned; `photoUrl` is the required public portrait for current leads |
 | GET | `/api/lead/directory/[id]` | dept_lead+ (`view_lead_tools`) | one directory entry (non-null vertical must be owned to read) |
-| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | edit fields (incl. `photoUrl`) / flip current ↔ past / archive; current and next vertical must be owned |
-| DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_leads`) | remove (soft delete); owned vertical only |
+| PATCH | `/api/lead/directory/[id]` | dept_lead+ (`manage_handover`) | edit fields (incl. `photoUrl`) / flip current ↔ past / archive; current and next vertical must be owned |
+| DELETE | `/api/lead/directory/[id]` | dept_lead+ (`manage_handover`) | remove (soft delete); owned vertical only |
 | GET | `/api/lead/event-ops` | dept_lead+ (`view_lead_tools`) | operations tasks (`?event=&status=&owner=&due=soon&q=`); own tasks + own-domain events |
 | POST | `/api/lead/event-ops` | dept_lead+ (`manage_event_ops`) | add a task; event must be in an owned vertical, society-wide task is admin-only |
 | GET | `/api/lead/event-ops/[id]` | dept_lead+ (`view_lead_tools`) | one task (own, or event in an owned vertical) |

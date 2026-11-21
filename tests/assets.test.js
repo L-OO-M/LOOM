@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ASSET_KINDS, normalizeTags, listCategories, listAssets, getAsset, categoryBelongsToTenant
+  ASSET_KINDS, normalizeTags, listCategories, listAssets, getAsset, categoryBelongsToTenant,
+  departmentBelongsToTenant, resolveAssetDepartment
 } from "@/lib/assets";
 
 // Minimal stand-in for the postgres.js tagged-template client. Returns canned
@@ -78,5 +79,45 @@ describe("asset categories and listing", () => {
     expect(await categoryBelongsToTenant(recorder([]), "tenant-1", null)).toBe(true);
     expect(await categoryBelongsToTenant(recorder([[{ id: "c1" }]]), "tenant-1", "c1")).toBe(true);
     expect(await categoryBelongsToTenant(recorder([[]]), "tenant-1", "c9")).toBe(false);
+  });
+
+  it("only accepts a department that belongs to the tenant", async () => {
+    expect(await departmentBelongsToTenant(recorder([]), "tenant-1", null)).toBe(true);
+    expect(await departmentBelongsToTenant(recorder([[{ id: "d1" }]]), "tenant-1", "d1")).toBe(true);
+    expect(await departmentBelongsToTenant(recorder([[]]), "tenant-1", "d9")).toBe(false);
+  });
+});
+
+describe("resolveAssetDepartment", () => {
+  const head = (ids) => ({
+    role: "dept_lead",
+    memberships: ids.map((id) => ({ department_id: id, level: "dept_lead" }))
+  });
+
+  it("defaults a sole department head to their own department", () => {
+    expect(resolveAssetDepartment(head(["d-design"]))).toEqual({ ok: true, departmentId: "d-design" });
+  });
+
+  it("makes a head of several departments choose", () => {
+    // No silent guess: the asset stays in the shared library until they name one.
+    expect(resolveAssetDepartment(head(["d-design", "d-smm"]))).toEqual({ ok: true, departmentId: null });
+  });
+
+  it("lets a head file into a department they do not lead only by refusing", () => {
+    expect(resolveAssetDepartment(head(["d-design"]), "d-design")).toEqual({ ok: true, departmentId: "d-design" });
+    expect(resolveAssetDepartment(head(["d-design"]), "d-web")).toEqual({ ok: false, departmentId: null });
+  });
+
+  it("lets an admin file anywhere, or nowhere", () => {
+    expect(resolveAssetDepartment({ role: "admin", memberships: [] }, "d-web")).toEqual({ ok: true, departmentId: "d-web" });
+    expect(resolveAssetDepartment({ role: "admin", memberships: [] })).toEqual({ ok: true, departmentId: null });
+    expect(resolveAssetDepartment({ role: "platform_admin", memberships: [] }, "d-web").ok).toBe(true);
+  });
+
+  it("gives everyone else the shared library, never a department", () => {
+    expect(resolveAssetDepartment({ role: "vertical_lead", memberships: [] })).toEqual({ ok: true, departmentId: null });
+    expect(resolveAssetDepartment({ role: "core", memberships: [{ department_id: "d-design", level: "core" }] }))
+      .toEqual({ ok: true, departmentId: null });
+    expect(resolveAssetDepartment(null)).toEqual({ ok: true, departmentId: null });
   });
 });

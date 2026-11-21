@@ -23,6 +23,7 @@ const tints = {
 export function GradientCard({
   badgeText,
   badgeColor,
+  accent,
   title,
   description,
   ctaText,
@@ -31,48 +32,55 @@ export function GradientCard({
   gradient,
 }) {
   const reduced = useReducedMotion();
+  const tint = accent || tints[gradient] || tints.orange;
   return (
     <motion.div
       initial="rest"
       animate="rest"
       whileHover={reduced ? undefined : "hover"}
-      variants={{ rest: { scale: 1, y: 0 }, hover: { scale: 1.03, y: -4 } }}
+      variants={{ rest: { scale: 1, y: 0 }, hover: { scale: 1.02, y: -4 } }}
       className="h-full"
     >
       <div
-        className="relative flex flex-col justify-between h-full w-full overflow-hidden rounded-2xl p-8 loom-domain-card shadow-sm transition-shadow duration-300 hover:shadow-lg"
-        style={{ "--card-tint": tints[gradient] || tints.orange }}
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl p-6 loom-domain-card shadow-sm transition-shadow duration-300 hover:shadow-lg sm:p-7"
+        style={{ "--card-tint": tint }}
       >
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-70" />
-        <motion.div
-          variants={{
-            rest: { scale: 1, rotate: 0 },
-            hover: reduced ? {} : { scale: 1.1, rotate: 3 },
-          }}
-          transition={{ type: "spring", stiffness: 400, damping: 15 }}
-          className="absolute -right-1/4 -bottom-1/4 w-3/4 opacity-25 pointer-events-none"
-          aria-hidden="true"
-        >
-          <Image
-            src={imageUrl}
-            alt=""
-            width={1024}
-            height={1024}
-            sizes="(max-width: 768px) 75vw, 420px"
-            className="h-auto w-full"
-          />
-        </motion.div>
-        <div className="z-10 flex flex-col h-full">
-          <div className="loom-domain-badge mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-xs font-medium text-primary backdrop-blur-sm w-fit">
+        {imageUrl && (
+          <motion.div
+            variants={{ rest: { scale: 1 }, hover: reduced ? {} : { scale: 1.04 } }}
+            transition={{ type: "spring", stiffness: 300, damping: 22 }}
+            className="relative z-10 mb-6 aspect-[16/9] w-full overflow-hidden rounded-xl border"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <Image
+              src={imageUrl}
+              alt=""
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 540px"
+              className="object-cover"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, transparent 55%, color-mix(in oklch, var(--card) 65%, transparent) 100%)",
+              }}
+            />
+          </motion.div>
+        )}
+        <div className="z-10 flex h-full flex-col">
+          <div className="loom-domain-badge mb-4 inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 font-mono text-xs font-medium text-primary backdrop-blur-sm">
             <span
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: badgeColor }}
+              style={{ backgroundColor: badgeColor || tint }}
             />
             {badgeText}
           </div>
           <div className="flex-grow">
-            <h3 className="text-2xl font-bold text-foreground mb-2">{title}</h3>
-            <p className="text-muted-foreground max-w-xs">{description}</p>
+            <h3 className="mb-2 text-2xl font-bold text-foreground">{title}</h3>
+            <p className="max-w-xs text-muted-foreground">{description}</p>
           </div>
           <Link
             prefetch={false}

@@ -20,6 +20,22 @@ export default async function Page() {
   const assets = await listAssets(sql, { tenantId: tenant.id });
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   const canManage = can(me, "manage_assets").ok;
+
+  // Where may this person file an asset? Admins file anywhere; a head files
+  // into the departments they lead. With one department the route fills it in
+  // for them, so the picker only appears when there is an actual choice.
+  const ledIds = new Set(
+    (profile.memberships || []).filter((m) => m.level === "dept_lead").map((m) => m.department_id)
+  );
+  const allDepartments = await sql`
+    SELECT id, name FROM departments
+    WHERE tenant_id = ${tenant.id}::uuid AND is_active
+    ORDER BY vertical, name
+  `;
+  const filings = profile.role === "admin"
+    ? allDepartments
+    : allDepartments.filter((d) => ledIds.has(d.id));
+
   const kinds = new Set(assets.map((a) => a.kind)).size;
   const recent = assets.filter((a) => a.created_at && Date.now() - new Date(a.created_at).getTime() <= 30 * 24 * 60 * 60 * 1000).length;
 
@@ -46,7 +62,7 @@ export default async function Page() {
           title="The shelf"
           note="Filter by category or kind, then download, preview, or add a new version. Everything here stays inside the chapter."
         >
-          <AssetLibrary initialAssets={assets} categories={categories} canManage={canManage} />
+          <AssetLibrary initialAssets={assets} categories={categories} departments={filings} canManage={canManage} />
         </WorkspaceSection>
       </main>
     </AppShell>

@@ -36,12 +36,24 @@ function TabButton({ active, onClick, icon: Icon, children }) {
   );
 }
 
+function DepartmentPicker({ departments }) {
+  if (departments.length < 2) return null;
+  return (
+    <select name="departmentId" style={input} defaultValue="" aria-label="Department">
+      <option value="">Shared library (all teams)</option>
+      {departments.map((d) => (
+        <option key={d.id} value={d.id}>{d.name}</option>
+      ))}
+    </select>
+  );
+}
+
 async function postForm(url, formData) {
   const res = await fetch(url, { method: "POST", body: formData });
   return res.json().catch(() => ({ ok: false }));
 }
 
-export function AssetLibrary({ initialAssets = [], categories = [], canManage = false }) {
+export function AssetLibrary({ initialAssets = [], categories = [], departments = [], canManage = false }) {
   const [assets, setAssets] = useState(initialAssets);
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -108,9 +120,30 @@ export function AssetLibrary({ initialAssets = [], categories = [], canManage = 
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
+    // The link path is JSON: the route branches on content-type, and a link has
+    // no file to upload.
+    const payload = {
+      title: String(fd.get("title") || "").trim(),
+      description: String(fd.get("description") || "").trim(),
+      externalUrl: String(fd.get("externalUrl") || "").trim(),
+      kind: String(fd.get("kind") || "link"),
+      categoryId: String(fd.get("categoryId") || "") || null,
+      departmentId: String(fd.get("departmentId") || "") || null,
+      tags: String(fd.get("tags") || "")
+    };
     setBusy(true);
     setMsg("");
-    const d = await postForm("/api/lead/assets", fd);
+    let d;
+    try {
+      const res = await fetch("/api/lead/assets", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      d = await res.json();
+    } catch {
+      d = { ok: false };
+    }
     setBusy(false);
     if (d.ok) {
       form.reset();
@@ -233,6 +266,7 @@ export function AssetLibrary({ initialAssets = [], categories = [], canManage = 
                   {Object.entries(KIND_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                 </select>
               </div>
+              <DepartmentPicker departments={departments} />
               <input name="tags" placeholder="Tags, comma separated (optional)" style={input} />
               <input name="file" type="file" required style={input} aria-label="File" />
               <button disabled={busy} className="btn-ink !py-2 justify-self-start text-sm disabled:opacity-50">{busy ? "Uploading…" : "Upload"}</button>
@@ -252,6 +286,7 @@ export function AssetLibrary({ initialAssets = [], categories = [], canManage = 
                   {Object.entries(KIND_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                 </select>
               </div>
+              <DepartmentPicker departments={departments} />
               <input name="tags" placeholder="Tags, comma separated (optional)" style={input} />
               <button disabled={busy} className="btn-ink !py-2 justify-self-start text-sm disabled:opacity-50">{busy ? "Saving…" : "Save link"}</button>
             </form>
@@ -285,6 +320,9 @@ export function AssetLibrary({ initialAssets = [], categories = [], canManage = 
                   {KIND_LABELS[a.kind] || a.kind} · {formatSize(a.size_bytes)}
                   {a.storage_path ? ` · v${a.current_version}` : ""}
                   {a.created_by_name ? ` · ${a.created_by_name.split(" ")[0]}` : ""}
+                </p>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>
+                  {a.department_name || "Shared library"}
                 </p>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">

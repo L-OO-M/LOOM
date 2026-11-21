@@ -3,7 +3,14 @@ import { randomUUID } from "node:crypto";
 import { ok, fail, validationError } from "@/lib/api";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { writeAudit } from "@/lib/auth-server";
-import { ASSET_KINDS, listAssets, normalizeTags, categoryBelongsToTenant } from "@/lib/assets";
+import {
+  ASSET_KINDS,
+  listAssets,
+  normalizeTags,
+  categoryBelongsToTenant,
+  departmentBelongsToTenant,
+  resolveAssetDepartment
+} from "@/lib/assets";
 import { validateUpload, buildStoragePath } from "@/lib/media";
 import { uploadObject, removeObjects } from "@/lib/storage";
 import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
@@ -16,6 +23,7 @@ const linkSchema = z.object({
   description: z.string().max(600).default(""),
   kind: z.enum(ASSET_KINDS).default("link"),
   categoryId: z.string().uuid().nullable().optional(),
+  departmentId: z.string().uuid().nullable().optional(),
   tags: z.union([z.array(z.string().max(30)), z.string().max(400)]).optional(),
   externalUrl: z.string().max(600).refine(isOptionalHttpUrl, HTTP_URL_MESSAGE)
 });
@@ -53,16 +61,16 @@ export async function POST(request) {
     if (r) return r;
     throw e;
   }
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
   const contentType = request.headers.get("content-type") || "";
 
   if (contentType.includes("multipart/form-data")) {
-    return createFileAsset({ request, user, tenant, sql });
+    return createFileAsset({ request, user, profile, tenant, sql });
   }
-  return createLinkAsset({ request, user, tenant, sql });
+  return createLinkAsset({ request, user, profile, tenant, sql });
 }
 
-async function createFileAsset({ request, user, tenant, sql }) {
+async function createFileAsset({ request, user, profile, tenant, sql }) {
   const form = await request.formData();
   const title = String(form.get("title") || "").trim().slice(0, 160);
   const description = String(form.get("description") || "").trim().slice(0, 600);
@@ -81,6 +89,16 @@ async function createFileAsset({ request, user, tenant, sql }) {
     return fail("VALIDATION_ERROR", "Unknown category", 400);
   }
 
+  // An asset belongs to the department that uploaded it (or to the shared
+  // society library when the caller leads no single department). A department
+  // id is never trusted from the form alone: the caller must actually lead it.
+  const ownership = resolveAssetDepartment(profile, asUuid(form.get("departmentId")));
+  if (!ownership.ok) return fail("FORBIDDEN", "You do not lead that department", 403);
+  if (!(await departmentBelongsToTenant(sql, tenant.id, ownership.departmentId))) {
+    return fail("VALIDATION_ERROR", "Unknown department", 400);
+  }
+  const departmentId = ownership.departmentId;
+
   const id = randomUUID();
   const fileId = randomUUID();
   const path = buildStoragePath({
@@ -95,9 +113,9 @@ async function createFileAsset({ request, user, tenant, sql }) {
     await sql.begin(async (tx) => {
       await tx`
         INSERT INTO media_assets
-          (id, tenant_id, category_id, kind, title, description, tags, storage_path, mime_type, size_bytes, current_version, created_by)
+          (id, tenant_id, category_id, department_id, kind, title, description, tags, storage_path, mime_type, size_bytes, current_version, created_by)
         VALUES
-          (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${kind}, ${title}, ${description},
+          (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${departmentId}::uuid, ${kind}, ${title}, ${description},
            ${tags}::text[], ${path}, ${check.mime}, ${file.size}, 1, ${user.id})
       `;
       await tx`
@@ -116,12 +134,12 @@ async function createFileAsset({ request, user, tenant, sql }) {
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant.id,
     action: "asset.create", resource: "media_assets", resourceId: id,
-    after: { title, kind, mime: check.mime }
+    after: { title, kind, mime: check.mime, departmentId }
   });
-  return ok({ asset: { id, title, kind } }, { status: 201 });
+  return ok({ asset: { id, title, kind, departmentId } }, { status: 201 });
 }
 
-async function createLinkAsset({ request, user, tenant, sql }) {
+async function createLinkAsset({ request, user, profile, tenant, sql }) {
   let body;
   try {
     body = linkSchema.parse(await request.json());
@@ -132,19 +150,26 @@ async function createLinkAsset({ request, user, tenant, sql }) {
   if (categoryId && !(await categoryBelongsToTenant(sql, tenant.id, categoryId))) {
     return fail("VALIDATION_ERROR", "Unknown category", 400);
   }
+  const ownership = resolveAssetDepartment(profile, asUuid(body.departmentId));
+  if (!ownership.ok) return fail("FORBIDDEN", "You do not lead that department", 403);
+  if (!(await departmentBelongsToTenant(sql, tenant.id, ownership.departmentId))) {
+    return fail("VALIDATION_ERROR", "Unknown department", 400);
+  }
+  const departmentId = ownership.departmentId;
   const tags = normalizeTags(body.tags);
   const id = randomUUID();
   const [asset] = await sql`
     INSERT INTO media_assets
-      (id, tenant_id, category_id, kind, title, description, tags, external_url, current_version, created_by)
+      (id, tenant_id, category_id, department_id, kind, title, description, tags, external_url, current_version, created_by)
     VALUES
-      (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${body.kind}, ${body.title}, ${body.description},
+      (${id}::uuid, ${tenant.id}::uuid, ${categoryId}::uuid, ${departmentId}::uuid, ${body.kind}, ${body.title}, ${body.description},
        ${tags}::text[], ${body.externalUrl}, 1, ${user.id})
-    RETURNING id, title, kind, external_url
+    RETURNING id, title, kind, external_url, department_id
   `;
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant.id,
-    action: "asset.create", resource: "media_assets", resourceId: id, after: { title: body.title, kind: body.kind }
+    action: "asset.create", resource: "media_assets", resourceId: id,
+    after: { title: body.title, kind: body.kind, departmentId }
   });
   return ok({ asset }, { status: 201 });
 }

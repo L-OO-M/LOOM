@@ -69,7 +69,7 @@ export async function GET(request, { params }) {
 export async function PATCH(request, { params }) {
   let ctx;
   try {
-    ctx = await requireCan("manage_leads");
+    ctx = await requireCan("manage_handover");
   } catch (e) {
     const r = guard(e);
     if (r) return r;
@@ -155,7 +155,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   let ctx;
   try {
-    ctx = await requireCan("manage_leads");
+    ctx = await requireCan("manage_handover");
   } catch (e) {
     const r = guard(e);
     if (r) return r;

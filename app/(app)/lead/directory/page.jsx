@@ -23,7 +23,7 @@ export default async function Page() {
   `;
   const entries = await listDirectory(sql, { tenantId: tenant.id });
   const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
-  const canManage = can(me, "manage_leads").ok;
+  const canManage = can(me, "manage_handover").ok;
   const current = entries.filter((e) => e.is_current).length;
 
   return (

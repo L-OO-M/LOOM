@@ -110,12 +110,28 @@ describe("eventArt", () => {
 });
 
 describe("departmentArt", () => {
-  it("matches a department name by theme", () => {
-    expect(departmentArt("Artificial Intelligence & ML")).toBe("/domains-art/domain-ai.png");
-    expect(departmentArt("Web Development")).toBe("/domains-art/domain-web.png");
-    expect(departmentArt("Cyber Security")).toBe("/domains-art/domain-infra.png");
-    expect(departmentArt("Design and Creative")).toBe("/domains-art/domain-creative.png");
-    expect(departmentArt("Sponsorship")).toBe("/domains-art/domain-creative.png");
+  it("returns the department's own cover, not a shared theme image", () => {
+    expect(departmentArt("ai_ml")).toBe("/departments/ai_ml.png");
+    expect(departmentArt("Artificial Intelligence & ML")).toBe("/departments/ai_ml.png");
+    expect(departmentArt("Web Development")).toBe("/departments/web.png");
+    expect(departmentArt("Cyber Security")).toBe("/departments/cybersecurity.png");
+    expect(departmentArt("Design and Creative")).toBe("/departments/design.png");
+    expect(departmentArt("Documentation")).toBe("/departments/documentation.png");
+    expect(departmentArt("SMM & Content Creation")).toBe("/departments/smm_content.png");
+    expect(departmentArt("Publicity")).toBe("/departments/publicity.png");
+    expect(departmentArt("Sponsorship")).toBe("/departments/sponsorship.png");
+    expect(departmentArt("Management")).toBe("/departments/management.png");
+    expect(departmentArt("Public Relations")).toBe("/departments/public_relations.png");
+    expect(departmentArt("Embedded Systems & Hardware")).toBe("/departments/embedded.png");
+    expect(departmentArt("Blockchain")).toBe("/departments/blockchain.png");
+    expect(departmentArt("DSA & Problem Solving")).toBe("/departments/dsa.png");
+  });
+
+  it("keeps retired slugs pointing at the department that absorbed them", () => {
+    expect(departmentArt("backend")).toBe("/departments/web.png");
+    expect(departmentArt("devops")).toBe("/departments/web.png");
+    expect(departmentArt("pr_outreach")).toBe("/departments/public_relations.png");
+    expect(departmentArt("sponsorship_evm")).toBe("/departments/sponsorship.png");
   });
 
   it("returns null for a name with no matching theme", () => {
