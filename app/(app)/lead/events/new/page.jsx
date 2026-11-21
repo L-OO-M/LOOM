@@ -67,7 +67,7 @@ export default async function LeadEventNewPage() {
             <li>• Department events go live immediately for your department members.</li>
             <li>• Society-wide events from department leads enter the <strong>proposed</strong> queue for Vertical Lead approval.</li>
             <li>• Vertical leads and admins can publish society-wide events directly.</li>
-            <li>• You can edit any field later from the event&apos;s workspace page (<kbd>/lead/events/{id}</kbd>).</li>
+            <li>• You can edit any field later from the event&apos;s workspace page (<kbd>{'/lead/events/{id}'}</kbd>).</li>
             <li>• Past events can be created by setting the start date in the past and status to <strong>Completed</strong>.</li>
           </ul>
         </WorkspaceSection>
