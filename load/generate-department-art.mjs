@@ -15,7 +15,20 @@
 // need a native image toolchain to build.
 import fs from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
+
+// sharp is not a declared dependency: it arrives as one of Next's optional
+// dependencies for image optimization. Say so plainly instead of dying with an
+// ERR_MODULE_NOT_FOUND stack trace on a half-installed tree.
+let sharp;
+try {
+  ({ default: sharp } = await import("sharp"));
+} catch {
+  console.error(
+    "This script needs sharp, which Next.js installs for image optimization.\n" +
+      "Run `npm ci` (sharp is one of Next's optional dependencies), then retry."
+  );
+  process.exit(1);
+}
 
 const OUT_DIR = path.join(process.cwd(), "public", "departments");
 const SRC_DIR = path.join(process.cwd(), "public", "domains-art");
