@@ -134,7 +134,9 @@ export async function PATCH(request, { params }) {
     if (isLastAdminError(error)) {
       return fail("FORBIDDEN", "Cannot suspend the last active admin in this chapter", 403);
     }
-    throw error;
+    // Handle any other database/constraint errors gracefully
+    console.error("Status update error:", error);
+    return fail("INTERNAL_ERROR", "Failed to update account status", 500);
   }
 
   return ok({ profile: updated, offboarding });
