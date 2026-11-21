@@ -10,8 +10,10 @@ import { Evidence } from "@/components/loom/Evidence";
 import { OnboardingState } from "@/components/loom/States";
 import { eventUrlFromPayload, isGithubEnabled, nextMoveState, repoFullNameFromPayload } from "@/lib/github";
 import { dailyTable, summarizeActivity } from "@/lib/github-activity";
+import { calendarSyncDue, syncContributionCalendar } from "@/lib/github-contributions";
+import { readAccessToken } from "@/lib/github-oauth";
 import { cryptoConfigured } from "@/lib/crypto";
-import { GithubTabs, ConnectionControls, RepoVerifyPicker } from "./GithubBits";
+import { GithubTabs, ConnectionControls, RepoVerifyPicker, SyncActivityButton } from "./GithubBits";
 import { GithubDiagnostics } from "./GithubDiagnostics";
 import { BuildTabs } from "@/components/student/SectionRails";
 
@@ -33,9 +35,31 @@ export default async function GithubPage() {
   const [conn] = await sql`SELECT * FROM github_connections WHERE user_id = ${user.id} LIMIT 1`;
   const paused = tenant?.id ? !(await isGithubEnabled(sql, tenant.id)) : true;
 
-  const activity = await sql`SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
+  // Self-healing read. The grid is fed by webhooks, which only exist where the
+  // hook was installed; a member who linked before this calendar existed would
+  // otherwise keep an empty grid until they found the sync button. Reading it
+  // here is bounded to once per six hours, never runs for a connection without
+  // a token, and its failure changes nothing on the page.
+  let calendarSync = null;
+  if (conn?.access_token_cipher && calendarSyncDue(conn.contributions_synced_at)) {
+    const token = await readAccessToken({ sql, userId: user.id });
+    if (token.ok) {
+      calendarSync = await syncContributionCalendar({
+        sql,
+        userId: user.id,
+        tenantId: tenant?.id ?? null,
+        accessToken: token.accessToken,
+        timeoutMs: 6_000
+      });
+      if (calendarSync.ok) conn.contributions_synced_at = new Date();
+    }
+  }
+
+  const activity = await sql`SELECT to_char(day, 'YYYY-MM-DD') AS day, commits, pull_requests, reviews, github_contributions FROM student_daily_activity WHERE student_id = ${user.id} ORDER BY day DESC LIMIT 120`;
   const summary = summarizeActivity(activity);
   const daily = dailyTable(activity, 30);
+  // Webhook-derived commit count. The masthead shows `summary.contributions`,
+  // which includes days only GitHub's calendar knows about.
   const total = summary.commits;
   const prs = summary.pullRequests;
   const streak = summary.currentStreak;
@@ -221,7 +245,7 @@ export default async function GithubPage() {
           art="/domains-art/domain-infra.png"
           artAlt=""
           stats={[
-            { value: total, label: "commits recorded" },
+            { value: summary.contributions, label: "contributions recorded" },
             { value: prs, label: "pull requests opened" },
             { value: streak, unit: streak === 1 ? "day" : "days", label: "current streak" },
             { value: summary.activeDays, label: `active of ${summary.windowDays} days` }
@@ -270,11 +294,16 @@ export default async function GithubPage() {
                 </div>
                 <div className="min-w-0 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0" style={{ borderColor: "var(--line)" }}>
                   <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                    Each square is one day. Shade deepens with more recorded commits, pull requests, and reviews — empty squares are days with nothing recorded, not a verdict.
+                    Each square is one day. Shade deepens with more contributions — commits, pull requests, reviews, and days taken from your own GitHub contribution calendar. Empty squares are days with nothing recorded, not a verdict.
                   </p>
                   <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-muted)" }}>
-                    Only activity GitHub attributes to @{conn.github_username} is counted. The window is the same 120-day table the daily log and the export read from.
+                    Only activity GitHub attributes to @{conn.github_username} counts: webhook deliveries from this chapter plus the calendar on your GitHub profile. The two views are merged per day, never added, so a day cannot count twice.
                   </p>
+                  <div className="mt-3">
+                    <SyncActivityButton
+                      lastSyncedAt={conn.contributions_synced_at ? new Date(conn.contributions_synced_at).toISOString() : null}
+                    />
+                  </div>
                 </div>
               </div>
 

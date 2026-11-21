@@ -58,7 +58,7 @@ export async function loadPublicBuilderCard(clean, sqlOverride) {
         SELECT COUNT(*)::int AS n FROM student_daily_activity
         WHERE student_id = ${card.user_id}
           AND day >= CURRENT_DATE - INTERVAL '120 days'
-          AND (commits + pull_requests + reviews) > 0`;
+          AND (commits + pull_requests + reviews > 0 OR github_contributions > 0)`;
       activeDays = days;
     } catch {
       /* a missing feature table must not reduce the card to "not found" */

@@ -4,7 +4,9 @@ import {
   currentStreak,
   dailyTable,
   dayKey,
+  dayTotal,
   longestStreak,
+  summarizeActivity,
   toIsoDay,
 } from "@/lib/github-activity";
 import { statusForIssue } from "@/lib/github-issues";
@@ -102,6 +104,51 @@ describe("activity calendar keys", () => {
     ];
     expect(currentStreak(rows, new Date(2026, 9, 16))).toBe(2);
     expect(longestStreak(rows)).toBe(2);
+  });
+});
+
+/**
+ * Two views of the same day.
+ *
+ * Webhook deliveries and GitHub's contribution calendar describe the same work;
+ * a push is one commit AND one contribution. Summing them would double every
+ * day the webhook saw, while ignoring the calendar leaves days the webhook
+ * never saw blank. The rule is per-day max.
+ */
+describe("webhook + calendar merge", () => {
+  it("takes the larger value, never the sum", () => {
+    expect(dayTotal({ commits: 2, pull_requests: 1, reviews: 0, github_contributions: 3 })).toBe(3);
+    expect(dayTotal({ commits: 2, pull_requests: 1, reviews: 0, github_contributions: 1 })).toBe(3);
+    expect(dayTotal({ commits: 0, github_contributions: 7 })).toBe(7);
+    expect(dayTotal({ commits: 0, github_contributions: 0 })).toBe(0);
+    expect(dayTotal(null)).toBe(0);
+  });
+
+  it("counts a calendar-only day as active and streaks through it", () => {
+    const rows = [
+      { day: new Date(2026, 9, 16), github_contributions: 4 },
+      { day: new Date(2026, 9, 15), github_contributions: 1 },
+    ];
+    expect(currentStreak(rows, new Date(2026, 9, 16))).toBe(2);
+    expect(longestStreak(rows)).toBe(2);
+    const table = dailyTable(rows, 2, new Date(2026, 9, 16));
+    expect(table.map((r) => r.total)).toEqual([4, 1]);
+  });
+
+  it("summarises each day once and derives the weekly average from it", () => {
+    const now = new Date(2026, 9, 16);
+    const summary = summarizeActivity(
+      [
+        { day: new Date(2026, 9, 16), commits: 2, github_contributions: 5 },
+        { day: new Date(2026, 9, 15), github_contributions: 3 },
+      ],
+      { days: 14, now }
+    );
+    expect(summary.commits).toBe(2);
+    expect(summary.contributions).toBe(8);
+    expect(summary.activeDays).toBe(2);
+    expect(summary.weeklyAverage).toBe(4);
+    expect(summary.bestDayTotal).toBe(5);
   });
 });
 

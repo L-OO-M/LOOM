@@ -1,20 +1,26 @@
 "use client";
 
 import { useMemo } from "react";
-import { dayKey, toIsoDay } from "@/lib/github-activity";
+import { dayKey, dayTotal, toIsoDay } from "@/lib/github-activity";
 
 /* Contribution heatmap — honest levels from real daily activity.
    Expects rows: [{ day: "YYYY-MM-DD", commits, pull_requests, reviews }].
+   A caller rendering a different measure (LeetCode submissions) passes
+   `valueField` so the same grid can show it without inventing a second one.
    No data invented: empty days render empty, labelled as such. */
 
-function levelOf(row) {
-  if (!row) return 0;
-  const v = (row.commits || 0) + (row.pull_requests || 0) + (row.reviews || 0);
-  if (v <= 0) return 0;
-  if (v === 1) return 1;
-  if (v <= 3) return 2;
-  if (v <= 6) return 3;
+function levelOf(value) {
+  if (!value || value <= 0) return 0;
+  if (value === 1) return 1;
+  if (value <= 3) return 2;
+  if (value <= 6) return 3;
   return 4;
+}
+
+function valueOf(row, valueField) {
+  if (!row) return 0;
+  if (valueField) return Number(row[valueField]) || 0;
+  return dayTotal(row);
 }
 
 function fmtDay(iso) {
@@ -26,7 +32,7 @@ function fmtDay(iso) {
    The default 11px from globals.css is kept for callers that do not opt in.
    Width and height are set from the same value so a cell can never stop being
    square, which is the one thing a contribution grid must not get wrong. */
-export function Heatmap({ rows = [], weeks = 16, cellSize = null }) {
+export function Heatmap({ rows = [], weeks = 16, cellSize = null, valueField = null, unit = "contribution" }) {
   const cells = useMemo(() => {
     const byDay = new Map(rows.map((r) => [dayKey(r), r]));
     const today = new Date();
@@ -49,7 +55,8 @@ export function Heatmap({ rows = [], weeks = 16, cellSize = null }) {
     return out;
   }, [rows, weeks]);
 
-  const active = cells.filter((c) => !c.future && levelOf(c.row) > 0).length;
+  const measure = unit === "submission" ? "Submission" : "Contribution";
+  const active = cells.filter((c) => !c.future && levelOf(valueOf(c.row, valueField)) > 0).length;
   const cellStyle = cellSize ? { width: cellSize, height: cellSize } : undefined;
 
   return (
@@ -57,15 +64,15 @@ export function Heatmap({ rows = [], weeks = 16, cellSize = null }) {
       <div
         className={cellSize ? "heat w-max" : "heat"}
         role="img"
-        aria-label={`Contribution activity, ${active} active days in the last ${weeks} weeks`}
+        aria-label={`${measure} activity, ${active} active days in the last ${weeks} weeks`}
         style={cellSize ? { gap: "4px" } : undefined}
       >
         {cells.map((c) => {
           if (c.future) return <span key={c.iso} className="heat-cell" style={{ ...cellStyle, opacity: 0.35 }} title={fmtDay(c.iso)} />;
-          const l = levelOf(c.row);
-          const v = c.row ? (c.row.commits || 0) + (c.row.pull_requests || 0) + (c.row.reviews || 0) : 0;
+          const value = valueOf(c.row, valueField);
+          const l = levelOf(value);
           const tip = c.row
-            ? `${fmtDay(c.iso)} — ${v} contribution${v === 1 ? "" : "s"}`
+            ? `${fmtDay(c.iso)} — ${value} ${unit}${value === 1 ? "" : "s"}`
             : `${fmtDay(c.iso)} — no recorded activity`;
           return <span key={c.iso} className="heat-cell" data-l={l} title={tip} style={cellStyle} />;
         })}

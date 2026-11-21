@@ -2,11 +2,17 @@ import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { listWritableRepos, readAccessToken } from "@/lib/github-oauth";
 import { rememberRepoMetadata } from "@/lib/github-repos";
+import { syncContributionCalendar } from "@/lib/github-contributions";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 // Refresh cached repository metadata (stars, open issues, language, last push)
-// for the linked student. Capped at three pages: beyond 300 owned repositories
-// the picker is no longer the right interface anyway.
+// and GitHub's contribution calendar for the linked student. Capped at three
+// pages: beyond 300 owned repositories the picker is no longer the right
+// interface anyway.
+//
+// The calendar is the part that fixes an empty heatmap: webhook deliveries only
+// exist for repositories whose hook was installed, while the calendar covers
+// every contribution GitHub itself attributes to the account.
 export async function POST() {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
@@ -48,5 +54,15 @@ export async function POST() {
     if (listed.repos.length < 100) break;
   }
 
-  return ok({ refreshed: total });
+  // Best effort by design: a repository refresh that succeeded must not be
+  // reported as failed because the calendar read did not. The result is still
+  // returned so the caller can tell the difference.
+  const contributions = await syncContributionCalendar({
+    sql,
+    userId: user.id,
+    tenantId: tenant?.id ?? null,
+    accessToken: token.accessToken
+  });
+
+  return ok({ refreshed: total, contributions });
 }

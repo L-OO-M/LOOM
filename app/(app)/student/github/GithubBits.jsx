@@ -440,6 +440,61 @@ export function RepoVerifyPicker({ verified = [] }) {
   );
 }
 
+/* Reads GitHub's own contribution calendar.
+   The webhook only knows repositories where it was installed, so a member with
+   months of commits can still show an empty grid. This is the one-click repair,
+   and the same POST refreshes cached repository metadata. */
+export function SyncActivityButton({ lastSyncedAt = null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [error, setError] = useState("");
+
+  async function sync() {
+    setBusy(true);
+    setMsg("");
+    setError("");
+    try {
+      const res = await fetch("/api/github/sync", { method: "POST" });
+      const data = await res.json();
+      if (!data?.ok) {
+        setError(data?.error?.message || "GitHub could not be reached.");
+        return;
+      }
+      const calendar = data.data?.contributions;
+      if (calendar?.ok) {
+        setMsg(
+          `Read ${calendar.total} contribution${calendar.total === 1 ? "" : "s"} across ${calendar.days} recorded day${calendar.days === 1 ? "" : "s"}.`
+        );
+      } else if (calendar?.reason === "GRAPHQL_ERROR" || calendar?.reason === "HTTP_401") {
+        setError("GitHub did not return a calendar. Renew GitHub access and try again.");
+      } else {
+        setError("Repositories refreshed, but the contribution calendar could not be read.");
+      }
+      router.refresh();
+    } catch {
+      setError("Network error — nothing was refreshed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <button type="button" onClick={sync} disabled={busy} className="text-xs font-semibold hover:underline disabled:opacity-50" style={{ color: "var(--accent)" }}>
+        {busy ? "Reading GitHub…" : "Sync contribution calendar →"}
+      </button>
+      {lastSyncedAt && !busy && (
+        <span className="meta normal-case tracking-normal">
+          Calendar read {new Date(lastSyncedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+        </span>
+      )}
+      {msg && <span className="text-xs" style={{ color: "var(--accent)" }}>{msg}</span>}
+      {error && <span role="alert" className="text-xs" style={{ color: "var(--danger)" }}>{error}</span>}
+    </div>
+  );
+}
+
 export function ConnectionControls({
   username,
   exportData,

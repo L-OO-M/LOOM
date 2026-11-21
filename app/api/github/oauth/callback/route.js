@@ -8,6 +8,7 @@ import {
   isValidPkceVerifier
 } from "@/lib/github-oauth";
 import { activateProvenProjects, confirmRepoGrant } from "@/lib/github-grants";
+import { syncContributionCalendar } from "@/lib/github-contributions";
 import { seal } from "@/lib/crypto";
 import { appBaseUrl } from "@/lib/app-url";
 import { env } from "@/lib/env";
@@ -191,6 +192,16 @@ export async function GET(request) {
   // must track the verified login or attribution silently splits in two.
   await sql`UPDATE profiles SET github_username = ${me.login} WHERE user_id = ${user.id}`;
 
+  // Freshly minted token, so the calendar can be backfilled immediately instead
+  // of waiting for the member to press "refresh". Best effort: the link itself
+  // is already stored, and /api/github/sync retries this later.
+  const calendar = await syncContributionCalendar({
+    sql,
+    userId: user.id,
+    tenantId: tenant?.id ?? null,
+    accessToken: exchanged.accessToken
+  });
+
   // --- repository grants ---
   const requested = decodeRepos(encodedRepos);
   const results = [];
@@ -235,7 +246,7 @@ export async function GET(request) {
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant?.id,
     action: "linked_github_oauth", resource: "github_connection", resourceId: user.id,
-    after: { login: me.login, githubUserId: me.id, scopes: exchanged.scopes, repos: requested.length, activated }
+    after: { login: me.login, githubUserId: me.id, scopes: exchanged.scopes, repos: requested.length, activated, calendarDays: calendar.days }
   });
 
   await notify({
