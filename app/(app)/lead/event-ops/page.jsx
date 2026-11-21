@@ -5,6 +5,7 @@ import { listTasks } from "@/lib/event-ops";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { EventOpsBoard } from "@/components/lead/EventOpsBoard";
+import { ownedVerticals } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -19,20 +20,41 @@ export default async function Page({ searchParams }) {
   // Deep link from an event workspace: open the board already filtered to it.
   const initialEvent = typeof sp?.event === "string" ? sp.event : "";
 
-  const events = await sql`
-    SELECT id, title FROM events
-    WHERE tenant_id = ${tenant.id}::uuid AND starts_at >= (NOW() - INTERVAL '90 days')
-    ORDER BY starts_at DESC
+  const owned = ownedVerticals({ ...profile, tenantId: tenant.id });
+  const eventRows = await sql`
+    SELECT e.id, e.title, d.vertical
+    FROM events e
+    LEFT JOIN departments d ON d.id = e.department_id AND d.tenant_id = e.tenant_id
+    WHERE e.tenant_id = ${tenant.id}::uuid AND e.starts_at >= (NOW() - INTERVAL '90 days')
+    ORDER BY e.starts_at DESC
     LIMIT 100
   `;
+  const events = owned.all
+    ? eventRows
+    : eventRows.filter((event) => event.vertical && owned.has(event.vertical));
   const members = await sql`
     SELECT user_id, name FROM profiles
     WHERE tenant_id = ${tenant.id}::uuid
     ORDER BY name
     LIMIT 200
   `;
-  const tasks = await listTasks(sql, { tenantId: tenant.id, eventId: initialEvent || null });
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const taskRows = await listTasks(sql, { tenantId: tenant.id, eventId: initialEvent || null });
+  const tasks = owned.all
+    ? taskRows
+    : taskRows.filter((task) =>
+        task.owner_id === user.id ||
+        task.created_by === user.id ||
+        (task.event_vertical && owned.has(task.event_vertical))
+      );
+  const me = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null
+  };
   const canManage = can(me, "manage_event_ops").ok;
   const open = tasks.filter((t) => t.status !== "done").length;
   const done = tasks.filter((t) => t.status === "done").length;

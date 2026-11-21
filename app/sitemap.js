@@ -62,6 +62,7 @@ async function publicUsernames(tenantId) {
       FROM user_profiles up
       JOIN profiles p ON p.user_id = up.user_id
       WHERE up.is_public = true
+        AND COALESCE(p.passport_privacy->>'visibility', 'chapter') = 'public'
         AND p.tenant_id = ${tenantId}::uuid
       ORDER BY up.updated_at DESC LIMIT 500`;
     return rows;
@@ -95,7 +96,9 @@ async function publicCertificateCodes(tenantId) {
     const sql = getSql();
     const rows = await sql`
       SELECT verification_code, issued_at FROM certificates
-      WHERE tenant_id = ${tenantId}::uuid AND revoked_at IS NULL
+      WHERE tenant_id = ${tenantId}::uuid
+        AND revoked_at IS NULL
+        AND (expires_at IS NULL OR expires_at > NOW())
       ORDER BY issued_at DESC LIMIT 500`;
     return rows;
   } catch (err) {
@@ -111,7 +114,7 @@ async function publicEventIds(tenantId) {
     const sql = getSql();
     const rows = await sql`
       SELECT id, starts_at FROM events
-      WHERE status IN ('upcoming', 'live')
+      WHERE status IN ('published', 'registration_closed', 'live', 'upcoming')
         AND tenant_id = ${tenantId}::uuid
       ORDER BY starts_at ASC LIMIT 200`;
     return rows;

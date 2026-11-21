@@ -17,6 +17,13 @@ import { buildProof } from "@/lib/proof";
 import { loadIdentityStatus } from "@/lib/identity";
 import { domainLabel } from "@/lib/builderCard";
 import {
+  DEFAULT_PASSPORT_PRIVACY,
+  filterProfileForPassport,
+  filterProofForPassport,
+  isPassportPublic,
+  isFieldVisible
+} from "@/lib/passport-privacy";
+import {
   folioNumber,
   leetcodeStats,
   monthYear,
@@ -334,7 +341,12 @@ export async function generateMetadata({ params }) {
 
     const sql = getSql();
     const [profile] = await sql`
-      SELECT name, primary_domain FROM profiles WHERE user_id = ${card.user_id} LIMIT 1`;
+      SELECT name, primary_domain, passport_privacy
+      FROM profiles WHERE user_id = ${card.user_id} LIMIT 1`;
+    // Metadata and unfurls are anonymous/public representations. A chapter- or
+    // owner-only passport must not leak its name/bio to crawlers even though an
+    // authenticated page request may be allowed to render it.
+    if (!profile || !isPassportPublic(profile.passport_privacy)) return fallback;
     const name = profile?.name || card.username;
     const bio = String(card.bio || "").replace(/\s+/g, " ").trim();
     const description =
@@ -375,7 +387,44 @@ export default async function PublicProfilePage({ params }) {
 
   const sql = getSql();
 
-  const [profile] = await sql`SELECT name, primary_domain FROM profiles WHERE user_id = ${card.user_id} LIMIT 1`;
+  const [rawProfile] = await sql`
+    SELECT p.name, p.primary_domain, p.roll_number, p.branch, p.year,
+      p.passport_privacy, p.tenant_id, t.settings AS tenant_settings
+    FROM profiles p
+    JOIN tenants t ON t.id = p.tenant_id
+    WHERE p.user_id = ${card.user_id} LIMIT 1
+  `;
+  const sessionViewer = await getSessionIdentity().catch(() => null);
+  const isOwner = !!sessionViewer?.userId && sessionViewer.userId === card.user_id;
+  let isSameChapter = false;
+  if (sessionViewer?.userId && rawProfile?.tenant_id) {
+    if (isOwner) {
+      isSameChapter = true;
+    } else {
+      const [viewerProfile] = await sql`SELECT tenant_id FROM profiles WHERE user_id = ${sessionViewer.userId} LIMIT 1`;
+      isSameChapter = viewerProfile?.tenant_id === rawProfile.tenant_id;
+    }
+  }
+
+  const profile = filterProfileForPassport(rawProfile, rawProfile?.passport_privacy, { isOwner, isSameChapter });
+  if (!profile) notFound();
+  const privacy = { ...DEFAULT_PASSPORT_PRIVACY, ...(rawProfile?.passport_privacy || {}) };
+  const canShowProjects = isFieldVisible({
+    fieldLevel: privacy.show_department_work,
+    isOwner,
+    isSameChapter
+  });
+  const canShowGithub = isFieldVisible({
+    fieldLevel: privacy.show_github_stats,
+    isOwner,
+    isSameChapter
+  });
+  const canShowCertificates = isFieldVisible({
+    fieldLevel: privacy.show_certificates,
+    isOwner,
+    isSameChapter
+  });
+  const showUnverifiedProjects = !!rawProfile?.tenant_settings?.public_passport_defaults?.show_unverified_projects;
   const rep = await reputationFor(sql, card.user_id).catch(() => ({
     score: 0, achievements: 0, ossVerified: 0, solutions: 0, wikiPages: 0, eventsAttended: 0, endorsements: 0
   }));
@@ -392,38 +441,47 @@ export default async function PublicProfilePage({ params }) {
     FROM student_achievements a
     LEFT JOIN skill_badges b ON b.id = a.badge_id
     WHERE a.student_id = ${card.user_id} ORDER BY a.earned_at DESC LIMIT 6`;
-  const projects = await sql`
+  const projects = canShowProjects ? await sql`
     SELECT id, title, status, repo_url FROM projects
-    WHERE owner_id = ${card.user_id} ORDER BY created_at DESC LIMIT 6`;
+    WHERE owner_id = ${card.user_id}
+      AND tenant_id = ${rawProfile.tenant_id}::uuid
+      AND (${showUnverifiedProjects} OR evidence_state = 'verified')
+    ORDER BY created_at DESC LIMIT 6` : [];
   const ossMerges = await sql`
     SELECT id, title, repo_url, pr_url, merged_at, created_at
     FROM student_oss_contributions
     WHERE student_id = ${card.user_id} AND status = 'verified'
     ORDER BY merged_at DESC NULLS LAST LIMIT 6`;
-  const certificates = await sql`
+  const certificates = canShowCertificates ? await sql`
     SELECT id, title, verification_code, issued_at FROM certificates
-    WHERE student_id = ${card.user_id} ORDER BY issued_at DESC LIMIT 6`;
+    WHERE student_id = ${card.user_id} AND tenant_id = ${rawProfile.tenant_id}::uuid
+      AND revoked_at IS NULL
+      AND (expires_at IS NULL OR expires_at > NOW())
+    ORDER BY issued_at DESC LIMIT 6` : [];
 
   // GitHub: the handle comes from the OAuth connection, never from a typed
   // field, so the card cannot show an account the member does not control.
   let github = null;
-  try {
-    const [row] = await sql`
-      SELECT github_username, (github_user_id IS NOT NULL) AS verified
-      FROM github_connections WHERE user_id = ${card.user_id} LIMIT 1`;
-    github = row || null;
-  } catch {
+  if (canShowGithub) {
     try {
       const [row] = await sql`
-        SELECT github_username FROM github_connections WHERE user_id = ${card.user_id} LIMIT 1`;
-      github = row ? { ...row, verified: false } : null;
+        SELECT github_username, (github_user_id IS NOT NULL) AS verified
+        FROM github_connections WHERE user_id = ${card.user_id} LIMIT 1`;
+      github = row || null;
     } catch {
-      github = null;
+      try {
+        const [row] = await sql`
+          SELECT github_username FROM github_connections WHERE user_id = ${card.user_id} LIMIT 1`;
+        github = row ? { ...row, verified: false } : null;
+      } catch {
+        github = null;
+      }
     }
   }
 
   let reposVerified = 0;
   try {
+    if (!canShowGithub) throw new Error("github_stats_hidden");
     const [row] = await sql`
       SELECT COUNT(*)::int AS n FROM github_repo_grants
       WHERE user_id = ${card.user_id} AND can_push = true`;
@@ -434,6 +492,7 @@ export default async function PublicProfilePage({ params }) {
 
   let activityRows = [];
   try {
+    if (!canShowGithub) throw new Error("github_stats_hidden");
     activityRows = await sql`
       SELECT day, commits, pull_requests, reviews, github_contributions FROM student_daily_activity
       WHERE student_id = ${card.user_id}
@@ -464,7 +523,11 @@ export default async function PublicProfilePage({ params }) {
   // already loaded -- it never invents a verified item.
   let proof = null;
   try {
-    proof = await buildProof(sql, { userId: card.user_id, tenantId: card.tenant_id || null });
+    const rawProof = await buildProof(sql, {
+      userId: card.user_id,
+      tenantId: rawProfile.tenant_id
+    });
+    proof = filterProofForPassport(rawProof, privacy, { isOwner, isSameChapter });
   } catch {
     proof = null;
   }
@@ -501,7 +564,7 @@ export default async function PublicProfilePage({ params }) {
       at: c.issued_at
     }))
   ];
-  const proofItems = Array.isArray(proof?.items) && proof.items.length > 0 ? proof.items : fallbackItems;
+  const proofItems = proof ? proof.items : fallbackItems;
   const counts = proof?.counts
     ? {
         verifiedProjects: asInt(proof.counts.verifiedProjects),

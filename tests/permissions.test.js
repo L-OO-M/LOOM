@@ -6,7 +6,18 @@ const lead = (level, departmentId = D1, departmentSlug = "web") => ({
   id: "u-lead", role: "dept_lead", vertical: "technical",
   memberships: [{ department_id: departmentId, level, department_slug: departmentSlug }]
 });
-const vlead = (vertical = "technical") => ({ id: "u-v", role: "vertical_lead", vertical, memberships: [] });
+const vlead = (vertical = "technical") => ({
+  id: "u-v", role: "vertical_lead", vertical,
+  memberships: [],
+  scopedGrants: [{
+    role_name: "vertical_lead",
+    scope_type: "vertical",
+    scope_id: vertical,
+    is_active: true,
+    starts_at: null,
+    expires_at: null
+  }]
+});
 const core = (id = "u-core") => ({ id, role: "core", vertical: null, memberships: [] });
 const student = (id = "u-stu", memberships = []) => ({ id, role: "student", vertical: null, memberships });
 const admin = () => ({ id: "u-admin", role: "admin", vertical: null, memberships: [] });
@@ -27,7 +38,7 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     // The count is asserted rather than left open because ACTIONS is the
     // authority for every gate in the app -- a row added without a test is a
     // row nobody has checked.
-    expect(ACTIONS).toHaveLength(48);
+    expect(ACTIONS).toHaveLength(49);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {
@@ -47,8 +58,11 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     expect(can({ role: "ghost" }, "manage_users").ok).toBe(false);
   });
 
-  it("Super Admin is unrestricted", () => {
-    for (const a of ACTIONS) expect(can(admin(), a, { departmentId: D1 }).ok).toBe(true);
+  it("Super Admin is unrestricted except explicit break-glass", () => {
+    for (const a of ACTIONS.filter((action) => action !== "platform_break_glass")) {
+      expect(can(admin(), a, { departmentId: D1 }).ok).toBe(true);
+    }
+    expect(can(admin(), "platform_break_glass").ok).toBe(false);
     expect(isAdmin(admin())).toBe(true);
     expect(isAdmin(student())).toBe(false);
   });
@@ -181,12 +195,13 @@ describe("permissions matrix (Website Plan Section 3)", () => {
 
   it("check-in: only the event's own department, its vertical, or admin", () => {
     // The event belongs to D1.
-    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: D1 }).ok).toBe(true);
-    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: "other" }).ok).toBe(false);
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: D1, eventId: "evt-1" }).ok).toBe(true);
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: "other", eventId: "evt-1" }).ok).toBe(false);
     // A society-wide event (explicit null department) is not any head's door.
-    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: null }).ok).toBe(false);
-    expect(can(vlead(), "check_in_attendees", { vertical: "technical" }).ok).toBe(true);
-    expect(can(vlead(), "check_in_attendees", { vertical: "non_technical" }).ok).toBe(false);
+    expect(can(lead("dept_lead"), "check_in_attendees", { departmentId: null, eventId: "evt-1" }).ok).toBe(false);
+    // Vertical lead needs eventId to check vertical grant
+    expect(can(vlead(), "check_in_attendees", { vertical: "technical", eventId: "evt-1" }).ok).toBe(true);
+    expect(can(vlead(), "check_in_attendees", { vertical: "non_technical", eventId: "evt-1" }).ok).toBe(false);
     expect(can(core(), "check_in_attendees").ok).toBe(false);
     expect(can(admin(), "check_in_attendees").ok).toBe(true);
   });
@@ -365,5 +380,72 @@ describe("department work board", () => {
     for (const a of ["manage_department_tasks", "verify_department_work", "manage_department_roster", "view_department_tasks"]) {
       expect(can(cohead, a, dept)).toEqual(can(head, a, dept));
     }
+  });
+
+  describe("segregation of duties and scoped grants", () => {
+    it("denies verify_department_work when actor is the submitter or assignee, even for admin", () => {
+      const uAdmin = admin();
+      // Admin inspecting someone else's submission is ok
+      expect(can(uAdmin, "verify_department_work", { departmentId: D1, submittedBy: "other-user" }).ok).toBe(true);
+
+      // Admin approving own submission is blocked
+      const selfReview = can(uAdmin, "verify_department_work", { departmentId: D1, submittedBy: uAdmin.id });
+      expect(selfReview.ok).toBe(false);
+      expect(selfReview.reason).toBe("cannot_approve_own_submission");
+
+      // Dept lead approving own submission is blocked
+      const uLead = lead("dept_lead");
+      expect(can(uLead, "verify_department_work", { departmentId: D1, submittedBy: uLead.id }).ok).toBe(false);
+      expect(can(uLead, "verify_department_work", { departmentId: D1, assigneeId: uLead.id }).ok).toBe(false);
+      expect(can(uLead, "verify_department_work", { departmentId: D1, contributors: [uLead.id] }).ok).toBe(false);
+    });
+
+    it("denies approve_budget when actor is the proposer, even for admin", () => {
+      const uAdmin = admin();
+      expect(can(uAdmin, "approve_budget", { ownerId: "other-user" }).ok).toBe(true);
+      const selfBudget = can(uAdmin, "approve_budget", { ownerId: uAdmin.id });
+      expect(selfBudget.ok).toBe(false);
+      expect(selfBudget.reason).toBe("cannot_approve_own_budget");
+    });
+
+    it("permits event door staff to check in attendees when granted an active scoped grant", () => {
+      const uStudent = student("u-volunteer");
+      const eventId = "event-hack-2026";
+
+      // Without grant: student cannot check in
+      expect(can(uStudent, "check_in_attendees", { eventId }).ok).toBe(false);
+
+      // With active non-expired grant for this event: allowed!
+      const uStaff = {
+        ...uStudent,
+        scopedGrants: [
+          {
+            role_name: "event_door_staff",
+            is_active: true,
+            scope_type: "event",
+            scope_id: eventId,
+            starts_at: "2020-01-01T00:00:00Z",
+            expires_at: "2030-01-01T00:00:00Z"
+          }
+        ]
+      };
+      expect(can(uStaff, "check_in_attendees", { eventId }).ok).toBe(true);
+
+      // Expired grant: denied
+      const uExpired = {
+        ...uStudent,
+        scopedGrants: [
+          {
+            role_name: "event_door_staff",
+            is_active: true,
+            scope_type: "event",
+            scope_id: eventId,
+            starts_at: "2020-01-01T00:00:00Z",
+            expires_at: "2020-01-02T00:00:00Z"
+          }
+        ]
+      };
+      expect(can(uExpired, "check_in_attendees", { eventId }).ok).toBe(false);
+    });
   });
 });

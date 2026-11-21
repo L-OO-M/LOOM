@@ -2,7 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { hasAnyActiveScopedGrant, hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
 import { PLANNER_YEAR, isoDate, isRelaxationDate } from "@/lib/planner";
 
 const createSchema = z.object({
@@ -52,8 +52,8 @@ export async function GET(request) {
     FROM events e
     WHERE e.tenant_id = ${tenant?.id ?? null}::uuid
       AND ${scope === "past"
-        ? sql`e.status IN ('upcoming', 'live', 'past') AND e.starts_at < now() - interval '2 hours'`
-        : sql`e.status IN ('upcoming', 'live') AND e.starts_at >= now() - interval '2 hours'`}
+        ? sql`e.status IN ('published', 'registration_closed', 'live', 'completed', 'upcoming', 'past') AND e.starts_at < now() - interval '2 hours'`
+        : sql`e.status IN ('published', 'registration_closed', 'live', 'upcoming') AND e.starts_at >= now() - interval '2 hours'`}
     ORDER BY e.starts_at ${scope === "past" ? sql`DESC` : sql`ASC`}
     LIMIT 50
   `;
@@ -74,25 +74,36 @@ export async function POST(request) {
   const admin = isAdmin({ role: profile.role });
   const role = profile.role;
 
-  // The 20 Nov – 20 Dec 2026 relaxation window is closed to every workshop,
-  // lab and society event. The collective planner owns the calendar; a stray
-  // event booking must not reopen a slot the planner has deliberately paused.
+  // The relaxation window is closed to every workshop, lab and society event.
+  // The window bounds are tenant-configurable via tenants.settings.relaxation_window;
+  // the default falls back to the hardcoded 20 Nov – 20 Dec 2026 period.
+  // Note: the client may never pass an `isExempt` flag — the check is server-only.
+  const tenantSettings = typeof tenant?.settings === "object" ? tenant.settings : null;
   const startDate = isoDate(body.startsAt);
   const endDate = body.endsAt ? isoDate(body.endsAt) : startDate;
-  if (isRelaxationDate(startDate) || isRelaxationDate(endDate)) {
+  if (isRelaxationDate(startDate, tenantSettings) || isRelaxationDate(endDate, tenantSettings)) {
     return fail(
       "RELAXATION_WINDOW",
-      "20 Nov – 20 Dec 2026 is a relaxation window: no workshops, labs or society events may be scheduled.",
+      "This period is a relaxation window: no workshops, labs or society events may be scheduled.",
       409
     );
   }
 
-  // Who may publish what: admins and vertical leads go live; a dept lead's
-  // department workshop goes live attached to its department; a dept lead's
-  // society-wide post waits as 'proposed' for the approval queue.
-  let status = "upcoming";
+  // Who may publish what: admins and scoped vertical leads publish; a dept
+  // lead's society-wide post enters the FSM as submitted for independent review.
+  let status = "published";
   let departmentId = null;
-  if (admin || role === "vertical_lead") {
+  const grantUser = {
+    id: user.id,
+    tenantId: tenant?.id,
+    scopedGrants: profile.scopedGrants || []
+  };
+  const verticalLead = role === "vertical_lead" && hasAnyActiveScopedGrant(
+    grantUser,
+    "vertical_lead",
+    "vertical"
+  );
+  if (admin || verticalLead) {
     departmentId = body.scope === "department" ? body.departmentId || null : null;
     if (body.scope === "department" && body.departmentId) {
       const [d] = await sql`
@@ -104,18 +115,24 @@ export async function POST(request) {
       if (!d) return fail("NOT_FOUND", "Department not found", 404);
       // A vertical lead runs their own domain only. Admins are the only
       // cross-vertical authority in a chapter.
-      if (!admin && profile.vertical && d.vertical !== profile.vertical) {
+      if (!admin && !hasVerticalLeadGrant(grantUser, d.vertical)) {
         return fail("FORBIDDEN", "You can only schedule events for departments in your vertical", 403);
       }
     }
   } else if (role === "dept_lead") {
+    const liveLedMemberships = (profile.memberships || []).filter((membership) =>
+      membership.level === "dept_lead" && !termExpired(membership.term_end)
+    );
+    if (liveLedMemberships.length === 0) {
+      return fail("FORBIDDEN", "An active department appointment is required to post events", 403);
+    }
     if (body.scope === "department") {
       if (!body.departmentId) return fail("VALIDATION_ERROR", "departmentId is required for department workshops", 400);
-      const mine = (profile.memberships || []).find((m) => m.department_id === body.departmentId);
-      if (mine?.level !== "dept_lead") return fail("FORBIDDEN", "You can only post workshops for departments you lead", 403);
+      const mine = liveLedMemberships.find((membership) => membership.department_id === body.departmentId);
+      if (!mine) return fail("FORBIDDEN", "You can only post workshops for departments you lead", 403);
       departmentId = body.departmentId;
     } else {
-      status = "proposed";
+      status = "submitted";
     }
   } else {
     return fail("FORBIDDEN", "Only leads and admins can post events", 403);
@@ -126,6 +143,6 @@ export async function POST(request) {
     VALUES (${tenant?.id ?? null}, ${departmentId}, ${body.eventType}, ${body.title}, ${body.description}, ${body.domain}, ${body.speakerName || null}, ${body.speakerBio || null}, ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, ${body.capacity ?? null}, ${body.isOnline}, ${status}, ${user.id}, ${body.plannerWeek != null ? PLANNER_YEAR : null}, ${body.plannerWeek ?? null}, ${body.plannerKind || null}, ${body.plannerRef || null})
     RETURNING *
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: status === "proposed" ? "proposed_event" : "created_event", resource: "event", resourceId: event.id, after: { title: body.title, status } });
+  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: status === "submitted" ? "submitted_event" : "created_event", resource: "event", resourceId: event.id, after: { title: body.title, status } });
   return ok({ event }, { status: 201 });
 }

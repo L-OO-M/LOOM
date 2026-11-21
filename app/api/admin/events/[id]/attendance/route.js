@@ -3,8 +3,9 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { writeAudit, notify } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
-import { signCertificate } from "@/lib/certificates";
-import { recordEvidence, recomputeScore } from "@/lib/ranking";
+import { signCertificateForTenant } from "@/lib/credential-keyring";
+import { recordEvidence } from "@/lib/ranking";
+import { enqueue } from "@/lib/outbox";
 
 const attendSchema = z.object({
   checkInCode: z.string().min(4).max(20)
@@ -29,7 +30,11 @@ export async function POST(request, { params }) {
         LIMIT 1
       `;
       // Explicit null = society-wide event, not "fall back to my department".
-      return { departmentId: row?.department_id ?? null, vertical: row?.department_vertical ?? null };
+      return {
+        departmentId: row?.department_id ?? null,
+        vertical: row?.department_vertical ?? null,
+        eventId: id
+      };
     });
   } catch (e) {
     const guard = toGuardResponse(e);
@@ -77,6 +82,14 @@ export async function POST(request, { params }) {
         source: "event_checkin",
         evidence: { eventId: id, checkedInBy: user.id }
       });
+      if (tenant?.id) {
+        await enqueue(tx, {
+          tenantId: tenant.id,
+          topic: "ranking.recompute",
+          payload: { userId: reg.student_id },
+          dedupeKey: `ranking.recompute:${tenant.id}:${reg.student_id}:event:${id}`
+        });
+      }
     }
 
     // One certificate per student per event - enforced by
@@ -85,7 +98,7 @@ export async function POST(request, { params }) {
     // the previous version minted a duplicate on every re-check-in.
     const certId = randomUUID();
     const issuedAt = new Date();
-    const signature = signCertificate({
+    const signed = await signCertificateForTenant(tx, {
       id: certId,
       studentId: reg.student_id,
       tenantId: tenant?.id ?? null,
@@ -93,7 +106,10 @@ export async function POST(request, { params }) {
       issuedAt
     });
     const [cert] = await tx`
-      INSERT INTO certificates (id, event_id, student_id, tenant_id, title, verification_code, issued_at, signature)
+      INSERT INTO certificates (
+        id, event_id, student_id, tenant_id, title, verification_code, issued_at,
+        signature, credential_version, algorithm, key_id, signed_payload
+      )
       VALUES (
         ${certId},
         ${id},
@@ -102,11 +118,19 @@ export async function POST(request, { params }) {
         ${`Participation - ${event.title}`},
         ${`CERT-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`},
         ${issuedAt},
-        ${signature}
+        ${signed.signature},
+        ${signed.credentialVersion},
+        ${signed.algorithm},
+        ${signed.keyId},
+        ${signed.payload ? tx.json(signed.payload) : null}
       )
       ON CONFLICT (event_id, student_id) DO UPDATE SET
         title = EXCLUDED.title,
-        signature = COALESCE(certificates.signature, EXCLUDED.signature)
+        signature = COALESCE(certificates.signature, EXCLUDED.signature),
+        credential_version = CASE WHEN certificates.signature IS NULL THEN EXCLUDED.credential_version ELSE certificates.credential_version END,
+        algorithm = CASE WHEN certificates.signature IS NULL THEN EXCLUDED.algorithm ELSE certificates.algorithm END,
+        key_id = CASE WHEN certificates.signature IS NULL THEN EXCLUDED.key_id ELSE certificates.key_id END,
+        signed_payload = CASE WHEN certificates.signature IS NULL THEN EXCLUDED.signed_payload ELSE certificates.signed_payload END
       RETURNING *
     `;
     return { reg, cert };
@@ -116,9 +140,6 @@ export async function POST(request, { params }) {
   const existing = result.cert;
   if (!existing) return fail("NOT_FOUND", "No registration matches", 404);
 
-  if (reg.student_id !== user.id) {
-    await recomputeScore(sql, tenant?.id, reg.student_id);
-  }
   await notify({
     sql, tenantId: tenant?.id, userId: reg.student_id, type: "certificate",
     title: `Certificate issued: ${event.title}`,

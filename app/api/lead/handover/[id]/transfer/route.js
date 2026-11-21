@@ -62,7 +62,23 @@ export async function POST(request, { params }) {
            FROM department_memberships m
            JOIN departments d ON d.id = m.department_id
            WHERE m.user_id = p.user_id AND d.tenant_id = ${tenant.id}::uuid
-          ) AS memberships
+           ) AS memberships
+          ,(SELECT json_agg(json_build_object(
+              'tenant_id', g.tenant_id,
+              'role_name', g.role_name,
+              'scope_type', g.scope_type,
+              'scope_id', g.scope_id,
+              'is_active', g.is_active,
+              'starts_at', g.starts_at,
+              'expires_at', g.expires_at,
+              'revoked_at', g.revoked_at
+            ))
+            FROM scoped_role_grants g
+            WHERE g.user_id = p.user_id AND g.tenant_id = ${tenant.id}::uuid
+              AND g.is_active = true AND g.revoked_at IS NULL
+              AND g.starts_at <= now()
+              AND (g.expires_at IS NULL OR g.expires_at > now())
+           ) AS scoped_grants
         FROM profiles p
         WHERE p.user_id = ${handover.from_user_id} AND p.tenant_id = ${tenant.id}::uuid
         LIMIT 1
@@ -73,8 +89,10 @@ export async function POST(request, { params }) {
 
       const scope = handoverScope({
         ...outgoing,
+        tenantId: tenant.id,
         roleTermEnd: outgoing.role_term_end,
-        memberships: outgoing.memberships || []
+        memberships: outgoing.memberships || [],
+        scopedGrants: outgoing.scoped_grants || []
       });
       if (scope.error) return { res: fail("CONFLICT", scope.error, 409) };
       if (scope.role !== handover.role

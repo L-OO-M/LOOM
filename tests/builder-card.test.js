@@ -22,6 +22,18 @@ import { scoreReputation } from "@/lib/reputation";
  */
 
 const USER_ROW = { user_id: "u1", username: "ada", bio: "Countess of loops", is_public: true };
+const PROFILE_ROW = {
+  name: "Ada Lovelace",
+  primary_domain: "web",
+  tenant_id: "11111111-1111-4111-8111-111111111111",
+  passport_privacy: {
+    visibility: "public",
+    show_department_work: "public",
+    show_github_stats: "public",
+    show_certificates: "public"
+  },
+  tenant_settings: { public_passport_defaults: { show_unverified_projects: false } }
+};
 
 function project(firstChunk) {
   const m = firstChunk.match(/SELECT\s+([\s\S]+?)\s+FROM\s+user_profiles/i);
@@ -32,7 +44,7 @@ function project(firstChunk) {
   );
 }
 
-function makeSql({ rows = USER_ROW } = {}) {
+function makeSql({ rows = USER_ROW, profile = PROFILE_ROW } = {}) {
   const calls = [];
   const sql = async (strings, ...values) => {
     const first = strings[0] || "";
@@ -42,7 +54,7 @@ function makeSql({ rows = USER_ROW } = {}) {
     if (values.some((v) => v === undefined)) throw new Error("UNDEFINED_VALUE: bind parameter is undefined");
 
     if (/from user_profiles/i.test(text)) return rows ? [project(first)] : [];
-    if (/from profiles/i.test(text)) return [{ name: "Ada Lovelace", primary_domain: "web" }];
+    if (/from profiles/i.test(text)) return profile ? [profile] : [];
     if (/from followers/i.test(text)) return [{ followers: 7 }];
     if (/count\(\*\)/i.test(text)) {
       return [{ achievements: 4, ossVerified: 3, solutions: 0, wikiPages: 0, eventsAttended: 2, endorsements: 1 }];
@@ -92,6 +104,16 @@ describe("public builder card", () => {
   it("returns null for a missing or private profile rather than throwing", async () => {
     const sql = makeSql({ rows: null });
     expect(await loadPublicBuilderCard("ghost", sql)).toBeNull();
+  });
+
+  it("does not render an anonymous card for a chapter-only passport", async () => {
+    const sql = makeSql({
+      profile: {
+        ...PROFILE_ROW,
+        passport_privacy: { ...PROFILE_ROW.passport_privacy, visibility: "chapter" }
+      }
+    });
+    expect(await loadPublicBuilderCard("ada", sql)).toBeNull();
   });
 
   it("returns null for a blank username without touching the database", async () => {

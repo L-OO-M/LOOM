@@ -2,7 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
 import { listReportRevisions, recordReportRevision } from "@/lib/report-revisions";
 import { REPORT_NARRATIVE_LIMIT } from "@/lib/report-export";
 
@@ -33,8 +33,12 @@ export async function GET(request, { params }) {
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
-  const verticalLead = profile.role === "vertical_lead";
-  const wide = admin || (verticalLead && report.vertical === profile.vertical);
+  const verticalLead = profile.role === "vertical_lead" && hasVerticalLeadGrant({
+    id: profile.user_id,
+    tenantId: tid,
+    scopedGrants: profile.scopedGrants || []
+  }, report.vertical);
+  const wide = admin || verticalLead;
   const mine = (profile.memberships || []).some((m) => m.department_id === report.department_id);
   if (!wide && !mine) return fail("FORBIDDEN", "Only that department's leads, vertical leads, and admins can read reports", 403);
   const revisions = await listReportRevisions({ sql, reportId: report.id, tenantId: tid });
@@ -62,8 +66,16 @@ export async function PATCH(request, { params }) {
   `;
   if (!report) return fail("NOT_FOUND", "Report not found", 404);
   const admin = isAdmin({ role: profile.role });
-  const lead = (profile.memberships || []).some((m) => m.department_id === report.department_id && m.level === "dept_lead");
-  const verticalLead = profile.role === "vertical_lead" && report.vertical === profile.vertical;
+  const lead = (profile.memberships || []).some((m) =>
+    m.department_id === report.department_id &&
+    m.level === "dept_lead" &&
+    !termExpired(m.term_end)
+  );
+  const verticalLead = profile.role === "vertical_lead" && hasVerticalLeadGrant({
+    id: user.id,
+    tenantId: tid,
+    scopedGrants: profile.scopedGrants || []
+  }, report.vertical);
   if (!admin && !verticalLead && !lead) {
     return fail("FORBIDDEN", "Only that department's Head/Co-Head can edit or submit its report", 403);
   }
@@ -77,7 +89,7 @@ export async function PATCH(request, { params }) {
       narrative = COALESCE(${body.narrative ?? null}, narrative),
       submitted_by = CASE WHEN ${body.status ?? null} = 'submitted' THEN ${user.id} ELSE submitted_by END,
       submitted_at = CASE WHEN ${body.status ?? null} = 'submitted' THEN NOW() ELSE submitted_at END
-    WHERE id = ${id}
+    WHERE id = ${id} AND tenant_id = ${scope(tid)}::uuid
     RETURNING *
   `.then((rows) => rows[0]);
   const revision = await recordReportRevision({ sql, report: next, actorId: user.id });

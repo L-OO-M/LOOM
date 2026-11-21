@@ -21,7 +21,7 @@ const oldStart = new Date("2026-09-10T12:00:00Z").toISOString();
 function event(over = {}) {
   return {
     id: "e1",
-    status: "upcoming",
+    status: "published",
     event_type: "workshop",
     domain: "web",
     starts_at: upcomingStart,
@@ -40,8 +40,10 @@ describe("events scopes and visibility", () => {
     expect(resolveScope(undefined)).toBe("upcoming");
   });
 
-  it("exposes only upcoming/live to students (never proposed/cancelled)", () => {
-    expect(VISIBLE_STATUSES).toEqual(["upcoming", "live"]);
+  it("exposes only published lifecycle states to students", () => {
+    expect(VISIBLE_STATUSES).toEqual(["published", "registration_closed", "live", "upcoming"]);
+    expect(isStudentVisible({ status: "published" })).toBe(true);
+    expect(isStudentVisible({ status: "registration_closed" })).toBe(true);
     expect(isStudentVisible({ status: "upcoming" })).toBe(true);
     expect(isStudentVisible({ status: "live" })).toBe(true);
     expect(isStudentVisible({ status: "proposed" })).toBe(false);
@@ -68,7 +70,7 @@ describe("events display state", () => {
   });
 
   it("marks old events past even when their status column is stale", () => {
-    expect(displayState(event({ starts_at: oldStart, status: "upcoming" }), null, NOW).key).toBe("past");
+    expect(displayState(event({ starts_at: oldStart, status: "published" }), null, NOW).key).toBe("past");
     expect(displayState(event({ status: "past", starts_at: upcomingStart }), null, NOW).key).toBe("past");
     // Legacy spelling the CHECK constraint never accepted: still read as past
     // rather than falling through to "open" and offering a registration.
@@ -80,6 +82,7 @@ describe("events display state", () => {
     expect(displayState(event({ seats_taken: 3, capacity: 10 }), null, NOW).key).toBe("open");
     expect(displayState(event({ seats_taken: 50, capacity: null }), null, NOW).key).toBe("open");
     expect(displayState(event({ status: "live" }), null, NOW).key).toBe("live");
+    expect(displayState(event({ status: "registration_closed" }), null, NOW).key).toBe("closed");
     expect(displayState(event(), { status: "cancelled" }, NOW).key).toBe("open");
   });
 

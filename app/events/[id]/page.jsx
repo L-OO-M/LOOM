@@ -33,7 +33,7 @@ export async function generateMetadata({ params }) {
       SELECT title, description FROM events
       WHERE id = ${id}::uuid
         AND tenant_id = ${tenant.id}::uuid
-        AND status IN ('upcoming', 'live', 'past')
+        AND status IN ('published', 'registration_closed', 'live', 'completed', 'upcoming', 'past')
       LIMIT 1
     `;
     if (!ev) return notFound;
@@ -81,7 +81,7 @@ export default async function EventDetailPage({ params }) {
       LEFT JOIN departments d ON d.id = e.department_id
       WHERE e.id = ${id}::uuid
         AND e.tenant_id = ${tenant.id}::uuid
-        AND e.status IN ('upcoming', 'live', 'past')
+        AND e.status IN ('published', 'registration_closed', 'live', 'completed', 'upcoming', 'past')
       LIMIT 1
     `;
     event = rows[0] || null;
@@ -100,7 +100,7 @@ export default async function EventDetailPage({ params }) {
 
   const left = seatsLeft(event);
   const full = left === 0;
-  const isPast = event.status === "past" || new Date(event.starts_at) < new Date();
+  const isPast = ["completed", "archived", "past"].includes(event.status) || new Date(event.starts_at) < new Date();
 
   const facts = [
     // One WHEN string: pinned to IST, lowercase meridiem, en-dash range. The

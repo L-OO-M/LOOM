@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { DOMAIN_LABEL, DOMAIN_ORDER } from "@/lib/domains";
 import { EventForm } from "@/components/admin/EventForm";
+import { termExpired } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,11 @@ export default async function LeadEventNewPage() {
   let visibleDepartments = departments;
   if (profile.role === "dept_lead") {
     const myDeptIds = (profile.memberships || [])
-      .filter((m) => m.level === "dept_lead")
+      .filter((membership) =>
+        membership.level === "dept_lead" && !termExpired(membership.term_end)
+      )
       .map((m) => m.department_id);
+    if (myDeptIds.length === 0) redirect("/student");
     visibleDepartments = departments.filter((d) => myDeptIds.includes(d.id));
   } else if (profile.role === "vertical_lead") {
     visibleDepartments = departments.filter((d) => d.vertical === profile.vertical);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { hasAnyActiveScopedGrant, isAdmin } from "@/lib/permissions";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
 import { PLANNER_YEAR, isoDate, isRelaxationDate } from "@/lib/planner";
 import { loadPlanner } from "@/lib/planner-data";
@@ -51,7 +51,12 @@ export async function POST(request) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
-  if (!isAdmin({ role: profile.role }) && profile.role !== "vertical_lead") {
+  const verticalLead = profile.role === "vertical_lead" && hasAnyActiveScopedGrant({
+    id: user.id,
+    tenantId: tenant.id,
+    scopedGrants: profile.scopedGrants || []
+  }, "vertical_lead", "vertical");
+  if (!isAdmin({ role: profile.role }) && !verticalLead) {
     return fail("FORBIDDEN", "Only leads and admins can schedule society events", 403);
   }
 
@@ -64,10 +69,10 @@ export async function POST(request) {
 
   const startDate = isoDate(body.startsAt);
   const endDate = body.endsAt ? isoDate(body.endsAt) : startDate;
-  if (isRelaxationDate(startDate) || isRelaxationDate(endDate)) {
+  if (isRelaxationDate(startDate, tenant.settings) || isRelaxationDate(endDate, tenant.settings)) {
     return fail(
       "RELAXATION_WINDOW",
-      "20 Nov – 20 Dec 2026 is a relaxation window: no workshops, labs or society events may be scheduled.",
+      "This period is a relaxation window: no workshops, labs or society events may be scheduled.",
       409
     );
   }
@@ -75,7 +80,7 @@ export async function POST(request) {
   try {
     const [event] = await sql`
       INSERT INTO events (tenant_id, event_type, title, description, domain, starts_at, ends_at, location, is_online, status, created_by, planner_year, planner_week, planner_kind, planner_ref)
-      VALUES (${tenant.id}, ${body.eventType}, ${body.title}, ${body.description}, 'general', ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, false, 'upcoming', ${user.id}, ${PLANNER_YEAR}, ${body.week}, ${body.kind}, ${body.ref || null})
+      VALUES (${tenant.id}, ${body.eventType}, ${body.title}, ${body.description}, 'general', ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, false, 'published', ${user.id}, ${PLANNER_YEAR}, ${body.week}, ${body.kind}, ${body.ref || null})
       RETURNING *
     `;
     await writeAudit({
@@ -111,7 +116,12 @@ export async function PATCH(request) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
-  if (!isAdmin({ role: profile.role }) && profile.role !== "vertical_lead") {
+  const verticalLead = profile.role === "vertical_lead" && hasAnyActiveScopedGrant({
+    id: user.id,
+    tenantId: tenant.id,
+    scopedGrants: profile.scopedGrants || []
+  }, "vertical_lead", "vertical");
+  if (!isAdmin({ role: profile.role }) && !verticalLead) {
     return fail("FORBIDDEN", "Only an admin or vertical lead can reassign planner ownership", 403);
   }
 

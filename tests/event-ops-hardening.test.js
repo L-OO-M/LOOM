@@ -64,7 +64,7 @@ describe("event detail change notifications", () => {
   it("notifies registered students when an event is cancelled", async () => {
     const notifications = [];
     const sql = recorder((text) => {
-      if (text.startsWith("SELECT * FROM events")) {
+      if (text.startsWith("SELECT e.*")) {
         return [{
           id: EVENT,
           tenant_id: TENANT,
@@ -75,7 +75,8 @@ describe("event detail change notifications", () => {
           capacity: 40,
           speaker_name: null,
           is_online: false,
-          status: "upcoming"
+          status: "upcoming",
+          lock_version: 1
         }];
       }
       if (text.startsWith("UPDATE events")) {
@@ -87,7 +88,12 @@ describe("event detail change notifications", () => {
       return [];
     });
     vi.doMock("@/lib/requirePermission", () => ({
-      requireCan: async () => ({ user: { id: ADMIN }, tenant: { id: TENANT }, sql }),
+      requireCan: async () => ({
+        user: { id: ADMIN },
+        profile: { role: "admin", vertical: null, memberships: [] },
+        tenant: { id: TENANT },
+        sql
+      }),
       toGuardResponse: () => null
     }));
     vi.doMock("@/lib/auth-server", () => ({
@@ -114,7 +120,7 @@ describe("event detail change notifications", () => {
   it("does not notify for a non-material edit", async () => {
     const notifications = [];
     const sql = recorder((text) => {
-      if (text.startsWith("SELECT * FROM events")) {
+      if (text.startsWith("SELECT e.*")) {
         return [{
           id: EVENT,
           tenant_id: TENANT,
@@ -134,7 +140,12 @@ describe("event detail change notifications", () => {
       return [];
     });
     vi.doMock("@/lib/requirePermission", () => ({
-      requireCan: async () => ({ user: { id: ADMIN }, tenant: { id: TENANT }, sql }),
+      requireCan: async () => ({
+        user: { id: ADMIN },
+        profile: { role: "admin", vertical: null, memberships: [] },
+        tenant: { id: TENANT },
+        sql
+      }),
       toGuardResponse: () => null
     }));
     vi.doMock("@/lib/auth-server", () => ({

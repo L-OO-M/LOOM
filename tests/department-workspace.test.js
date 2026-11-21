@@ -23,6 +23,19 @@ function recorder(results = []) {
 }
 
 const DEPT = { id: "d-design", name: "Design", slug: "design", vertical: "non_technical" };
+const verticalProfile = (vertical) => ({
+  role: "vertical_lead",
+  vertical,
+  memberships: [],
+  scopedGrants: [{
+    role_name: "vertical_lead",
+    scope_type: "vertical",
+    scope_id: vertical,
+    is_active: true,
+    starts_at: null,
+    expires_at: null
+  }]
+});
 
 describe("canViewDepartment", () => {
   it("opens for admins and platform admins", () => {
@@ -31,15 +44,23 @@ describe("canViewDepartment", () => {
   });
 
   it("opens for a vertical lead inside their own vertical only", () => {
-    expect(canViewDepartment({ role: "vertical_lead", vertical: "non_technical", memberships: [] }, DEPT)).toBe(true);
-    expect(canViewDepartment({ role: "vertical_lead", vertical: "technical", memberships: [] }, DEPT)).toBe(false);
+    expect(canViewDepartment(verticalProfile("non_technical"), DEPT)).toBe(true);
+    expect(canViewDepartment(verticalProfile("technical"), DEPT)).toBe(false);
   });
 
-  it("opens for a member of that department, whatever their level", () => {
-    for (const level of ["general", "core", "dept_lead"]) {
-      const profile = { role: "student", memberships: [{ department_id: "d-design", level }] };
-      expect(canViewDepartment(profile, DEPT)).toBe(true);
+  it("opens only for a live head of that department", () => {
+    expect(canViewDepartment({
+      role: "dept_lead",
+      memberships: [{ department_id: "d-design", level: "dept_lead", term_end: null }]
+    }, DEPT)).toBe(true);
+    for (const level of ["general", "core"]) {
+      const profile = { role: "dept_lead", memberships: [{ department_id: "d-design", level }] };
+      expect(canViewDepartment(profile, DEPT)).toBe(false);
     }
+    expect(canViewDepartment({
+      role: "dept_lead",
+      memberships: [{ department_id: "d-design", level: "dept_lead", term_end: "2020-01-01" }]
+    }, DEPT)).toBe(false);
   });
 
   it("stays closed to everyone else", () => {
@@ -62,12 +83,18 @@ describe("departmentsForProfile", () => {
   });
 
   it("shows a vertical lead their vertical", () => {
-    expect(departmentsForProfile({ role: "vertical_lead", vertical: "non_technical", memberships: [] }, rows))
+    expect(departmentsForProfile(verticalProfile("non_technical"), rows))
       .toEqual([rows[1], rows[2]]);
   });
 
   it("shows a head only the departments they belong to", () => {
-    const profile = { role: "dept_lead", memberships: [{ department_id: "d-design", level: "dept_lead" }] };
+    const profile = {
+      role: "dept_lead",
+      memberships: [
+        { department_id: "d-design", level: "dept_lead" },
+        { department_id: "d-ai", level: "general" }
+      ]
+    };
     expect(departmentsForProfile(profile, rows)).toEqual([rows[1]]);
   });
 
@@ -106,7 +133,7 @@ describe("listWorkspaceDepartments", () => {
     // Open tasks exclude closed ones; upcoming events exclude the past.
     expect(text).toMatch(/t\.status <> 'done'/);
     expect(text).toMatch(/e\.starts_at >= NOW\(\)/);
-    expect(text).toMatch(/e\.status = 'upcoming'/);
+    expect(text).toMatch(/e\.status IN \('published', 'registration_closed', 'live', 'upcoming'\)/);
     // The department's own work board is counted separately from event ops.
     expect(text).toMatch(/FROM department_tasks/);
   });

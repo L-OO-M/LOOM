@@ -2,7 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { activeScopedGrantIds, isAdmin } from "@/lib/permissions";
 
 const createSchema = z.object({
   name: z.string().min(2).max(200),
@@ -29,7 +29,13 @@ export async function POST(request) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   const admin = isAdmin({ role: profile.role });
-  if (!admin && profile.role !== "vertical_lead") {
+  const grantUser = {
+    id: user.id,
+    tenantId: tenant?.id,
+    scopedGrants: profile.scopedGrants || []
+  };
+  const verticals = activeScopedGrantIds(grantUser, "vertical_lead", "vertical");
+  if (!admin && verticals.length === 0) {
     return fail("FORBIDDEN", "Only admins and vertical leads can create sponsorships", 403);
   }
   let body;
@@ -38,7 +44,7 @@ export async function POST(request) {
   } catch (e) {
     return validationError(e);
   }
-  if (!admin && body.vertical !== profile.vertical) {
+  if (!admin && (!body.vertical || !verticals.includes(body.vertical))) {
     return fail("FORBIDDEN", "Vertical leads must create sponsorships inside their own vertical", 403);
   }
   const [row] = await sql`
@@ -60,7 +66,13 @@ export async function PUT(request) {
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
   const admin = isAdmin({ role: profile.role });
-  if (!admin && profile.role !== "vertical_lead") {
+  const grantUser = {
+    id: user.id,
+    tenantId: tenant?.id,
+    scopedGrants: profile.scopedGrants || []
+  };
+  const verticals = activeScopedGrantIds(grantUser, "vertical_lead", "vertical");
+  if (!admin && verticals.length === 0) {
     return fail("FORBIDDEN", "Only admins and vertical leads can update sponsorships", 403);
   }
   let body;
@@ -69,10 +81,20 @@ export async function PUT(request) {
   } catch (e) {
     return validationError(e);
   }
-  if (!admin && body.vertical && body.vertical !== profile.vertical) {
+  if (!admin && body.vertical && !verticals.includes(body.vertical)) {
     return fail("FORBIDDEN", "You can only move sponsorships inside your own vertical", 403);
   }
   const tid = tenant?.id ?? null;
+  const [existing] = await sql`
+    SELECT id, vertical FROM sponsorships
+    WHERE id = ${body.id} AND tenant_id = ${scope(tid)}::uuid
+    LIMIT 1
+  `;
+  if (!existing) return fail("NOT_FOUND", "Sponsorship not found", 404);
+  const targetVertical = body.vertical ?? existing.vertical;
+  if (!admin && (!targetVertical || !verticals.includes(targetVertical) || !verticals.includes(existing.vertical))) {
+    return fail("FORBIDDEN", "You can only update sponsorships inside your granted vertical", 403);
+  }
   const [row] = await sql`
     UPDATE sponsorships SET
       name = COALESCE(${body.name ?? null}, name),
@@ -83,7 +105,7 @@ export async function PUT(request) {
       updated_at = now(),
       updated_by = ${user.id}
     WHERE id = ${body.id} AND tenant_id = ${scope(tid)}::uuid
-      AND (${admin ? sql`TRUE` : sql`vertical = ${profile.vertical}`})
+      AND (${admin ? sql`TRUE` : sql`vertical = ${existing.vertical}`})
     RETURNING *
   `;
   if (!row) return fail("NOT_FOUND", "Sponsorship not found", 404);

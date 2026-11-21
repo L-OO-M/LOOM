@@ -1,4 +1,5 @@
 import { ZodError, z } from "zod";
+import { revalidatePath } from "next/cache";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
@@ -73,6 +74,17 @@ const booleanField = z.preprocess(
   z.boolean({ error: "Expected true or false" }).optional()
 );
 
+const visibility = z.enum(["private", "chapter", "public", "hidden"]);
+const passportPrivacyField = z.object({
+  visibility,
+  show_roll_number: visibility,
+  show_branch: visibility,
+  show_year: visibility,
+  show_department_work: visibility,
+  show_github_stats: visibility,
+  show_certificates: visibility
+}).strict().optional();
+
 const patchSchema = z.object({
   name: z.preprocess(
     (value) => {
@@ -94,7 +106,8 @@ const patchSchema = z.object({
   location: optionalText(80, "Location"),
   year: yearField,
   primaryDomain: domainField,
-  onboardingCompleted: booleanField
+  onboardingCompleted: booleanField,
+  passportPrivacy: passportPrivacyField
 });
 
 // githubUsername is deliberately NOT settable here.
@@ -165,6 +178,7 @@ export async function PATCH(request) {
       primary_domain = COALESCE(${body.primaryDomain ?? null}, primary_domain),
       institution = COALESCE(${body.institution ?? null}, institution),
       location = COALESCE(${body.location ?? null}, location),
+      passport_privacy = COALESCE(${body.passportPrivacy ? sql.json(body.passportPrivacy) : null}, passport_privacy),
       onboarding_completed = COALESCE(${body.onboardingCompleted ?? null}, onboarding_completed),
       updated_at = NOW()
     WHERE user_id = ${user.id}
@@ -178,6 +192,12 @@ export async function PATCH(request) {
     before,
     institution: body.institution ?? null
   });
+
+  if (body.passportPrivacy) {
+    // The passport page has a short public cache; privacy changes must take
+    // effect immediately rather than waiting for revalidation.
+    revalidatePath("/u/[username]", "page");
+  }
 
   return ok({ profile: chapter.moved ? { ...updated, tenant_id: chapter.chapter.id } : updated, chapter });
 }

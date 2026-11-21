@@ -117,7 +117,7 @@ export default async function DomainPage({ params }) {
         SELECT id, title, event_type, description, starts_at, ends_at, location, is_online, speaker_name
         FROM events
         WHERE tenant_id = ${scope(tid)}::uuid
-          AND status IN ('upcoming', 'live')
+          AND status IN ('published', 'registration_closed', 'live', 'upcoming')
           AND starts_at >= NOW() - INTERVAL '2 hours'
           AND (department_id = ${dept.id} OR domain = ${slug})
         ORDER BY starts_at ASC

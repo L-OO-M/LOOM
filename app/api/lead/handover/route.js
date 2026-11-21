@@ -47,7 +47,7 @@ export async function GET(request) {
   const all = searchParams.get("all") === "1";
   if (all && !isAdmin(profile)) return fail("FORBIDDEN", "Admin only", 403);
 
-  const scope = handoverScope(profile);
+  const scope = handoverScope({ ...profile, tenantId: tenant.id });
   const candidates = scope.error || all ? [] : await listCandidates(sql, {
     tenantId: tenant.id,
     scope,
@@ -81,7 +81,7 @@ export async function POST(request) {
   const c = await leadContext();
   if (c.res) return c.res;
   const { user, profile, tenant, sql } = c;
-  const scope = handoverScope(profile);
+  const scope = handoverScope({ ...profile, tenantId: tenant.id });
   if (scope.error) return fail("VALIDATION_ERROR", scope.error, 400);
   if (!HANDOVER_ROLES.includes(scope.role)) {
     return fail("FORBIDDEN", "This role cannot be handed over", 403);

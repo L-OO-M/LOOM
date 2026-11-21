@@ -54,7 +54,7 @@ export function seatsLine(event) {
 }
 
 function isPastEvent(event) {
-  if (event?.status === "past") return true;
+  if (event?.status === "past" || event?.status === "completed" || event?.status === "archived") return true;
   const starts = new Date(event?.starts_at).getTime();
   return Number.isFinite(starts) && starts < Date.now();
 }

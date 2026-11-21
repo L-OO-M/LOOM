@@ -20,11 +20,14 @@ function makeDb({ events, registrations = [], failOn = null }) {
     queries.push(text);
     if (failOn && failOn(text, values)) throw new Error(`simulated failure: ${text}`);
 
-    if (/^SELECT \* FROM events WHERE id = \? AND tenant_id = \?::uuid AND status IN \('upcoming', 'live', 'past'\) LIMIT 1 FOR UPDATE$/.test(text)) {
+    if (/^SELECT \* FROM events WHERE id = \? AND tenant_id = \?::uuid AND status IN \('published', 'registration_closed', 'live'(, 'completed')?\) LIMIT 1 FOR UPDATE$/.test(text)) {
       if (!inTx) throw new Error("event lock must run inside a transaction");
       const [id, tenantId] = values;
+      const allowed = text.includes("'completed'")
+        ? ["published", "registration_closed", "live", "completed"]
+        : ["published", "registration_closed", "live"];
       const event = state.events.find(
-        (e) => e.id === id && e.tenant_id === tenantId && ["upcoming", "live", "past"].includes(e.status)
+        (e) => e.id === id && e.tenant_id === tenantId && allowed.includes(e.status)
       );
       return event ? [{ ...event }] : [];
     }
@@ -135,7 +138,7 @@ function event(over = {}) {
     title: "Systems Workshop",
     capacity: null,
     registered_count: 0,
-    status: "upcoming",
+    status: "published",
     ...over
   };
 }

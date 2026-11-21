@@ -4,14 +4,15 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { can, isAdmin, roleRank } from "@/lib/permissions";
 
-const grantSchema = z.object({ level: z.enum(["core", "general", "dept_lead"]) });
+const grantSchema = z.object({ level: z.enum(["core", "general"]) });
 
 // Department roster control.
 //
 // A Head and a Co-Head have identical authority inside their own department:
-// grant Core, demote back to General, remove someone, and (admins only) appoint
-// a Head. Nobody may edit a Head's seat except a Super Admin, nobody may reach
-// into another department, and removal never deletes work history — the member
+// grant Core, demote back to General, and remove someone. Leadership seats are
+// deliberately not writable here: the admin role-management transaction owns
+// the profile role, term history, membership term, head/co-head slot and scoped
+// grant as one atomic lifecycle. Removal never deletes work history — the member
 // rows go, the tasks/contributions they produced stay attributed to them.
 export async function PATCH(request, { params }) {
   const ctx = await getRequestContext();
@@ -33,9 +34,6 @@ export async function PATCH(request, { params }) {
   if (!dept) return fail("NOT_FOUND", "Department not found", 404);
 
   const admin = isAdmin({ role: profile.role });
-  if (body.level === "dept_lead" && !admin) {
-    return fail("FORBIDDEN", "Only a Super Admin can assign department leads", 403);
-  }
   if (!admin && !can(profile, "manage_department_roster", { departmentId: dept.id }).ok) {
     return fail("FORBIDDEN", "Only this department's Head or Co-Head can change its roster", 403);
   }
@@ -52,9 +50,14 @@ export async function PATCH(request, { params }) {
     WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
     LIMIT 1
   `;
-  // A Head's seat is an appointment, not a roster edit. Only an admin changes it.
-  if (existing?.level === "dept_lead" && !admin) {
-    return fail("FORBIDDEN", "Only a Super Admin can change a department Head's position", 403);
+  // A Head's seat is an appointment, not a roster edit. Even an admin must use
+  // PATCH /api/admin/students so every leadership record changes atomically.
+  if (existing?.level === "dept_lead") {
+    return fail(
+      "LEADERSHIP_APPOINTMENT_REQUIRED",
+      "Change a department Head through Admin role management",
+      409
+    );
   }
 
   const [membership] = await sql`
@@ -66,7 +69,7 @@ export async function PATCH(request, { params }) {
 
   // Upward-only role sync; demotion to General is handled below and only when
   // no elevated membership remains anywhere else.
-  const wantRole = body.level === "dept_lead" ? "dept_lead" : body.level === "core" ? "core" : null;
+  const wantRole = body.level === "core" ? "core" : null;
   if (wantRole && roleRank(target.role) < roleRank(wantRole)) {
     await sql`UPDATE profiles SET role = ${wantRole}, updated_at = NOW() WHERE user_id = ${userId}`;
   }
@@ -83,7 +86,7 @@ export async function PATCH(request, { params }) {
     after: { userId, level: body.level, slug: dept.slug, roleDowngraded: downgraded }
   });
 
-  if (body.level !== "dept_lead" && userId !== user.id) {
+  if (userId !== user.id) {
     await notify({
       sql, tenantId: tenant.id, userId, type: "department_membership",
       title: body.level === "core"
@@ -122,8 +125,12 @@ export async function DELETE(request, { params }) {
     LIMIT 1
   `;
   if (!existing) return fail("NOT_FOUND", "That person is not in this department", 404);
-  if (existing.level === "dept_lead" && !admin) {
-    return fail("FORBIDDEN", "Only a Super Admin can remove a department Head", 403);
+  if (existing.level === "dept_lead") {
+    return fail(
+      "LEADERSHIP_APPOINTMENT_REQUIRED",
+      "Remove a department Head through Admin role management",
+      409
+    );
   }
 
   await sql`

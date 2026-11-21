@@ -66,7 +66,22 @@ const deptLead = {
   vertical: "technical",
   memberships: [{ department_id: "d1", level: "dept_lead" }]
 };
-const verticalLead = { id: "v", role: "vertical_lead", vertical: "technical", memberships: [] };
+const verticalLead = {
+  id: "v",
+  role: "vertical_lead",
+  vertical: "technical",
+  memberships: [],
+  scopedGrants: [{
+    tenant_id: "tenant-1",
+    role_name: "vertical_lead",
+    scope_type: "vertical",
+    scope_id: "technical",
+    is_active: true,
+    revoked_at: null,
+    starts_at: null,
+    expires_at: null
+  }]
+};
 
 async function overviewFor(profile) {
   const sql = overviewSql();
@@ -116,7 +131,7 @@ describe("lead workshop scope", () => {
 describe("lead proposed-event scope", () => {
   it("limits a vertical lead's proposed queue to their vertical plus chapter-wide events", async () => {
     const sql = await overviewFor(verticalLead);
-    const proposed = queryCall(sql, "status = 'proposed'");
+    const proposed = queryCall(sql, "status IN ('submitted', 'under_review', 'proposed')");
 
     expect(proposed).toBeTruthy();
     expect(proposed.text).not.toMatch(/OR\s+TRUE/i);
@@ -127,7 +142,7 @@ describe("lead proposed-event scope", () => {
 
   it("keeps the admin proposed queue unfiltered", async () => {
     const sql = await overviewFor(admin);
-    const proposed = queryCall(sql, "status = 'proposed'");
+    const proposed = queryCall(sql, "status IN ('submitted', 'under_review', 'proposed')");
 
     expect(proposed).toBeTruthy();
     expect(proposed.text).toContain("TRUE");
@@ -137,7 +152,7 @@ describe("lead proposed-event scope", () => {
   it("does not give a dept lead a proposed-event queue", async () => {
     const sql = await overviewFor(deptLead);
 
-    expect(queryCall(sql, "status = 'proposed'")).toBeUndefined();
+    expect(queryCall(sql, "status IN ('submitted', 'under_review', 'proposed')")).toBeUndefined();
   });
 });
 
@@ -194,7 +209,21 @@ const Page = (await import("@/app/(app)/lead/mous/page.jsx")).default;
 function pageContext(role, vertical) {
   return {
     user: { id: "u1" },
-    profile: { role, vertical, memberships: [] },
+    profile: {
+      role,
+      vertical,
+      memberships: [],
+      scopedGrants: role === "vertical_lead" ? [{
+        tenant_id: "tenant-1",
+        role_name: "vertical_lead",
+        scope_type: "vertical",
+        scope_id: vertical,
+        is_active: true,
+        revoked_at: null,
+        starts_at: null,
+        expires_at: null
+      }] : []
+    },
     tenant: { id: "tenant-1" },
     sql: async () => []
   };

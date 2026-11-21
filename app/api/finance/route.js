@@ -12,7 +12,7 @@ export async function GET() {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = { id: user.id, tenantId: tenant?.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [], scopedGrants: profile.scopedGrants || [] };
   const admin = isAdmin(me);
   if (!admin && !can(me, "view_finance", { vertical: profile.vertical }).ok) {
     return fail("FORBIDDEN", "Finance is visible to admins and vertical leads", 403);

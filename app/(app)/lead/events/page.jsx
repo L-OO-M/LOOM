@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
-import { can } from "@/lib/permissions";
+import { termExpired } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import Link from "next/link";
@@ -39,7 +39,9 @@ export default async function LeadEventsPage({ searchParams }) {
   let extraWhere = sql`TRUE`;
   if (profile.role === "dept_lead") {
     const myDeptIds = (profile.memberships || [])
-      .filter((m) => m.level === "dept_lead")
+      .filter((membership) =>
+        membership.level === "dept_lead" && !termExpired(membership.term_end)
+      )
       .map((m) => m.department_id);
     if (myDeptIds.length > 0) {
       extraWhere = sql`(e.department_id IN ${sql(myDeptIds)} OR e.created_by = ${user.id})`;
@@ -95,11 +97,13 @@ export default async function LeadEventsPage({ searchParams }) {
           </label>
           <select name="status" defaultValue={status} className="aled-select" aria-label="Filter by status">
             <option value="">All statuses</option>
-            <option value="upcoming">Upcoming</option>
+            <option value="published">Published</option>
+            <option value="registration_closed">Registration closed</option>
             <option value="live">Live</option>
-            <option value="past">Completed</option>
+            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
-            <option value="proposed">Proposed</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under review</option>
           </select>
           <Link href="/lead/events/new" prefetch={false} className="btn-ink !py-2 text-xs">Create event</Link>
           {(q || status) && <Link href="/lead/events" prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}

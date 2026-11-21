@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
     const result = await sql.begin(async (tx) => {
       const [event] = await tx`
         SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tid}::uuid
-          AND status IN ('upcoming', 'live', 'past') LIMIT 1 FOR UPDATE
+          AND status IN ('published', 'registration_closed', 'live', 'completed') LIMIT 1 FOR UPDATE
       `;
       if (!event) return { kind: "NOT_FOUND" };
       const [cancelled] = await tx`UPDATE event_registrations SET status = 'cancelled' WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' RETURNING id`;
@@ -71,13 +71,20 @@ export async function POST(request, { params }) {
   const result = await sql.begin(async (tx) => {
     const [event] = await tx`
       SELECT * FROM events WHERE id = ${id} AND tenant_id = ${tid}::uuid
-        AND status IN ('upcoming', 'live', 'past') LIMIT 1 FOR UPDATE
+        AND status IN ('published', 'registration_closed', 'live') LIMIT 1 FOR UPDATE
     `;
     if (!event) return { kind: "NOT_FOUND" };
 
     const [{ seats = 0 }] = await tx`SELECT COUNT(*)::int AS seats FROM event_registrations WHERE event_id = ${id} AND status <> 'cancelled'`;
     const [mine] = await tx`SELECT id FROM event_registrations WHERE event_id = ${id} AND student_id = ${user.id} AND status <> 'cancelled' LIMIT 1`;
     if (mine) return { kind: "ALREADY", event };
+    const now = Date.now();
+    if (event.status === "registration_closed" || (event.registration_closes_at && new Date(event.registration_closes_at).getTime() <= now)) {
+      return { kind: "CLOSED", event };
+    }
+    if (event.registration_opens_at && new Date(event.registration_opens_at).getTime() > now) {
+      return { kind: "NOT_OPEN", event };
+    }
     if (event.capacity && seats >= event.capacity) return { kind: "FULL", event };
     // Registration closes two hours after the start. `status` is a manual field
     // and was 'past' for an event seven months gone that still accepted seats —
@@ -97,6 +104,8 @@ export async function POST(request, { params }) {
   });
   if (result.kind === "NOT_FOUND") return fail("NOT_FOUND", "Event not found", 404);
   if (result.kind === "FULL") return fail("EVENT_FULL", "This event is full", 409);
+  if (result.kind === "CLOSED") return fail("REGISTRATION_CLOSED", "Registration is closed", 409);
+  if (result.kind === "NOT_OPEN") return fail("REGISTRATION_NOT_OPEN", "Registration has not opened yet", 409);
   if (result.kind === "CONCLUDED") return fail("EVENT_CONCLUDED", "This event has already happened", 409);
   if (result.kind === "ALREADY") return ok({ already: true });
 

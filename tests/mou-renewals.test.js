@@ -4,6 +4,24 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const MOU = "22222222-2222-4222-8222-222222222222";
 const TASK = "33333333-3333-4333-8333-333333333333";
 
+function verticalLead(vertical = "technical") {
+  return {
+    role: "vertical_lead",
+    vertical,
+    memberships: [],
+    scopedGrants: [{
+      tenant_id: TENANT,
+      role_name: "vertical_lead",
+      scope_type: "vertical",
+      scope_id: vertical,
+      is_active: true,
+      revoked_at: null,
+      starts_at: null,
+      expires_at: null
+    }]
+  };
+}
+
 function recorder(handler = () => []) {
   const calls = [];
   const sql = (strings, ...values) => {
@@ -55,7 +73,7 @@ describe("MoU renewal tasks", () => {
     });
     const { POST, audits } = await loadRoute({
       sql,
-      profile: { role: "vertical_lead", vertical: "technical", memberships: [] }
+      profile: verticalLead()
     });
 
     const res = await POST(req("POST", { nextAction: "Call sponsor", dueOn: "2030-01-10" }), {
@@ -73,7 +91,7 @@ describe("MoU renewal tasks", () => {
     const sql = recorder();
     const { POST } = await loadRoute({
       sql,
-      profile: { role: "vertical_lead", vertical: "technical", memberships: [] },
+      profile: verticalLead(),
       mou: { id: MOU, title: "Other domain", vertical: "non_technical" }
     });
 
@@ -94,7 +112,7 @@ describe("MoU renewal tasks", () => {
     });
     const { PATCH, audits } = await loadRoute({
       sql,
-      profile: { role: "vertical_lead", vertical: "technical", memberships: [] }
+      profile: verticalLead()
     });
 
     const res = await PATCH(req("PATCH", { action: "close", taskId: TASK }), {
@@ -133,7 +151,7 @@ describe("MoU sponsorship link", () => {
     });
     const { POST } = await loadCreate({
       sql,
-      profile: { role: "vertical_lead", vertical: "technical", memberships: [] }
+      profile: verticalLead()
     });
 
     const res = await POST(new Request("http://localhost/api/lead/mous", {
@@ -156,7 +174,7 @@ describe("MoU sponsorship link", () => {
     });
     const { POST } = await loadCreate({
       sql,
-      profile: { role: "vertical_lead", vertical: "technical", memberships: [] }
+      profile: verticalLead()
     });
 
     const res = await POST(new Request("http://localhost/api/lead/mous", {

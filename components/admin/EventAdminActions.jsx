@@ -3,15 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, inputStyle } from "@/components/ui";
+import { allowedTargets } from "@/lib/event-transitions";
 
-// The values the events table actually stores (see events_status_check). "past"
-// is what the UI calls Completed: writing "completed" used to fail the CHECK
-// constraint and 500 the request.
 const STATUSES = [
-  { value: "upcoming", label: "Upcoming" },
+  { value: "draft", label: "Draft" },
+  { value: "submitted", label: "Submitted" },
+  { value: "under_review", label: "Under review" },
+  { value: "approved", label: "Approved" },
+  { value: "published", label: "Published" },
+  { value: "registration_closed", label: "Registration closed" },
   { value: "live", label: "Live now" },
-  { value: "past", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" }
+  { value: "completed", label: "Completed" },
+  { value: "archived", label: "Archived" },
+  { value: "rejected", label: "Rejected" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "postponed", label: "Postponed" }
 ];
 
 const EVENT_TYPES = [
@@ -22,7 +28,7 @@ const EVENT_TYPES = [
   { value: "contest", label: "Contest" }
 ];
 
-const STATUS_ALIASES = { completed: "past" };
+const STATUS_ALIASES = { past: "completed", upcoming: "published", proposed: "submitted" };
 
 function toLocalInput(value) {
   if (!value) return "";
@@ -42,7 +48,7 @@ function toLocalInput(value) {
 // until approval, forcing approve → edit → re-open the page.
 export function EventAdminActions({ event, departments = [], domains = [] }) {
   const router = useRouter();
-  const storedStatus = STATUS_ALIASES[event.status] || event.status || "upcoming";
+  const storedStatus = STATUS_ALIASES[event.status] || event.status || "draft";
   const [status, setStatus] = useState(storedStatus);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -94,13 +100,13 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
 
   async function approve(approve) {
     const ok = await call(`/api/events/${event.id}/approve`, "POST", { approve });
-    if (ok && approve) setStatus("upcoming");
-    if (ok && !approve) setStatus("cancelled");
+    if (ok && approve) setStatus("published");
+    if (ok && !approve) setStatus("rejected");
   }
 
   async function saveStatus(next) {
     setStatus(next);
-    await call(`/api/admin/events/${event.id}`, "PATCH", { status: next });
+    await call(`/api/admin/events/${event.id}`, "PATCH", { status: next, lockVersion: event.lock_version });
   }
 
   async function saveDetails(e) {
@@ -122,7 +128,10 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
     if (ok) setEditing(false);
   }
 
-  const isProposed = event.status === "proposed";
+  const isProposed = ["submitted", "under_review", "proposed"].includes(event.status);
+  const availableStatuses = STATUSES.filter((item) =>
+    item.value === storedStatus || allowedTargets(storedStatus).includes(item.value)
+  );
 
   return (
     <div className="mt-4 grid gap-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
@@ -153,7 +162,7 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
                 className="aled-select ml-2"
                 style={{ padding: "0.3rem 0.4rem" }}
               >
-                {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {availableStatuses.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </label>
           )}

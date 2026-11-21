@@ -40,12 +40,46 @@ describe("handover scope", () => {
     expect(scope.error).toContain("more than one department");
   });
 
+  it("ignores expired department seats when resolving a handover", () => {
+    const scope = handoverScope(member("dept_lead", {
+      memberships: [{
+        department_id: "d1",
+        level: "dept_lead",
+        name: "AI / ML",
+        vertical: "technical",
+        term_end: "2020-01-01"
+      }]
+    }));
+    expect(scope.error).toContain("do not lead a department");
+  });
+
   it("keeps a vertical lead inside their own vertical", () => {
-    expect(handoverScope(member("vertical_lead", { vertical: "non_technical" }))).toEqual({
+    expect(handoverScope(member("vertical_lead", {
+      tenantId: "tenant-1",
+      vertical: "non_technical",
+      scopedGrants: [{
+        tenant_id: "tenant-1",
+        role_name: "vertical_lead",
+        scope_type: "vertical",
+        scope_id: "non_technical",
+        is_active: true,
+        revoked_at: null,
+        starts_at: null,
+        expires_at: null
+      }]
+    }))).toEqual({
       role: "vertical_lead",
       vertical: "non_technical"
     });
     expect(handoverScope(member("vertical_lead")).error).toContain("vertical is not set");
+  });
+
+  it("rejects a stale vertical role label without an active grant", () => {
+    expect(handoverScope(member("vertical_lead", {
+      tenantId: "tenant-1",
+      vertical: "technical",
+      scopedGrants: []
+    })).error).toMatch(/grant is inactive/i);
   });
 
   it("lets an admin hand over the admin seat", () => {

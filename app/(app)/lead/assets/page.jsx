@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
-import { can } from "@/lib/permissions";
+import { can, termExpired } from "@/lib/permissions";
 import { listAssets, listCategories } from "@/lib/assets";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
@@ -18,14 +18,26 @@ export default async function Page() {
 
   const categories = await listCategories(sql, tenant.id);
   const assets = await listAssets(sql, { tenantId: tenant.id });
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null
+  };
   const canManage = can(me, "manage_assets").ok;
 
   // Where may this person file an asset? Admins file anywhere; a head files
   // into the departments they lead. With one department the route fills it in
   // for them, so the picker only appears when there is an actual choice.
   const ledIds = new Set(
-    (profile.memberships || []).filter((m) => m.level === "dept_lead").map((m) => m.department_id)
+    (profile.memberships || [])
+      .filter((membership) =>
+        membership.level === "dept_lead" && !termExpired(membership.term_end)
+      )
+      .map((membership) => membership.department_id)
   );
   const allDepartments = await sql`
     SELECT id, name FROM departments

@@ -94,12 +94,12 @@ describe("department roster route", () => {
     expect(sql.calls.some((c) => c.text.includes("SET role = ?") || c.text.includes("SET role = core"))).toBe(true);
   });
 
-  it("refuses to appoint a Head", async () => {
+  it("refuses to appoint a Head through the roster endpoint", async () => {
     const { mod } = await load("@/app/api/departments/[id]/members/[userId]/route", {
       profile: headProfile, sql: rosterSql()
     });
     const res = await mod.PATCH(request({ level: "dept_lead" }), { params: Promise.resolve({ id: DEPT, userId: TARGET }) });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
   });
 
   it("refuses to edit an existing Head's seat", async () => {
@@ -107,7 +107,8 @@ describe("department roster route", () => {
       profile: headProfile, sql: rosterSql({ existing: "dept_lead" })
     });
     const res = await mod.PATCH(request({ level: "core" }), { params: Promise.resolve({ id: DEPT, userId: TARGET }) });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("LEADERSHIP_APPOINTMENT_REQUIRED");
   });
 
   it("cannot reach another department's roster", async () => {
@@ -148,7 +149,7 @@ describe("department roster route", () => {
       profile: headProfile, sql: rosterSql({ existing: "dept_lead" })
     });
     const blocked = await guarded.DELETE(request(null, "DELETE"), { params: Promise.resolve({ id: DEPT, userId: TARGET }) });
-    expect(blocked.status).toBe(403);
+    expect(blocked.status).toBe(409);
   });
 });
 

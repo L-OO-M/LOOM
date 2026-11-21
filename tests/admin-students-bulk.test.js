@@ -42,6 +42,7 @@ function makeDb({ failOn = null, profiles = ["u1", "u2"] } = {}) {
       for (const term of state.terms) term.status = "ended";
       return [];
     }
+    if (/UPDATE scoped_role_grants/.test(text)) return [];
     if (/INSERT INTO leadership_terms/.test(text)) {
       state.terms.push({ user_id: values[1], role: values[2], status: "active" });
       return [];

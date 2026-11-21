@@ -17,12 +17,15 @@ export default async function Page() {
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role)) redirect("/student");
 
-  // A vertical lead only sees MoUs inside their vertical. Admin and dept lead
-  // keep their existing chapter-wide view.
-  const verticalScope = profile.role === "vertical_lead" ? { vertical: profile.vertical } : {};
+  const owned = ownedVerticals({ ...profile, tenantId: tenant.id });
+  // A vertical lead only sees a currently granted vertical. A stale role label
+  // without an active scoped grant has no lead-console authority.
+  if (profile.role === "vertical_lead" && !owned.all && owned.size === 0) redirect("/student");
+  const verticalScope = profile.role === "vertical_lead" && !owned.all && owned.size === 1
+    ? { vertical: [...owned][0] }
+    : {};
   const mous = await listMous(sql, { tenantId: tenant.id, ...verticalScope });
   const renewals = await listRenewals(sql, { tenantId: tenant.id, ...verticalScope });
-  const owned = ownedVerticals(profile);
   const sponsorRows = await sql`
     SELECT id, name, vertical, status, amount
     FROM sponsorships
@@ -31,8 +34,15 @@ export default async function Page() {
     LIMIT 200
   `;
   const sponsors = sponsorRows.filter((s) => owned.all || (s.vertical && owned.has(s.vertical)));
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
-  const canManage = can(me, "manage_mou").ok;
+  const me = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || []
+  };
+  const canManage = can(me, "manage_mou", verticalScope).ok;
   const active = mous.filter((m) => m.status === "active").length;
   const horizon = Date.now() + MOU_EXPIRING_DAYS * 24 * 60 * 60 * 1000;
   const expiring = mous.filter((m) => m.status === "active" && m.ends_on && new Date(m.ends_on).getTime() <= horizon).length;

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { homeForRole } from "@/lib/auth";
+import { syncLeadershipScopedGrant } from "@/lib/scoped-grants";
 import { normalizeTier, rosterTierIndex, filterIdsByTier } from "@/lib/tiers";
 import { assertAdminFloor, isLastAdminError } from "@/lib/last-admin";
 
@@ -161,6 +162,18 @@ export async function PATCH(request) {
         )
       `;
     }
+    await syncLeadershipScopedGrant(tx, {
+      tenantId: tenant?.id,
+      userId: body.userId,
+      actorId: user.id,
+      role: body.role,
+      vertical: body.role === "vertical_lead" ? body.vertical : null,
+      departmentId,
+      startsAt: termStart,
+      expiresAt: termEnd,
+      revokeAllLeadership: true,
+      reason: "role_changed"
+    });
     // Demotion cleanup: when moving away from dept_lead, downgrade any
     // dept_lead memberships to core (preserves engagement history, Q1) and
     // free head/co_head slots where they were occupant.

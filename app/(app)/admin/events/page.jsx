@@ -10,14 +10,20 @@ import "../_components/admin-ledger.css";
 
 function statusTone(s) {
   const m = {
-    upcoming: { label: "Upcoming", className: "aled-tag--info" },
+    draft: { label: "Draft", className: "" },
+    submitted: { label: "Submitted", className: "aled-tag--warn" },
+    under_review: { label: "Under review", className: "aled-tag--warn" },
+    approved: { label: "Approved", className: "aled-tag--info" },
+    published: { label: "Published", className: "aled-tag--info" },
+    registration_closed: { label: "Registration closed", className: "" },
+    upcoming: { label: "Published", className: "aled-tag--info" },
     live: { label: "Live", className: "aled-tag--success" },
     // "past" is the stored value for a finished event; "completed" is the legacy
     // spelling that the CHECK constraint never accepted. Label both as Completed.
     past: { label: "Completed", className: "" },
     completed: { label: "Completed", className: "" },
     cancelled: { label: "Cancelled", className: "" },
-    proposed: { label: "Proposed", className: "aled-tag--warn" },
+    proposed: { label: "Submitted", className: "aled-tag--warn" },
   };
   return m[s] || m.upcoming;
 }
@@ -33,14 +39,14 @@ export default async function AdminEventsPage({ searchParams }) {
   // Old bookmarks and cached bundles link to status=completed; the stored value
   // is "past". Normalise so the filter does not silently return zero rows.
   const requestedStatus = sp?.status || "";
-  const status = requestedStatus === "completed" ? "past" : requestedStatus;
+  const status = ({ upcoming: "published", past: "completed", proposed: "submitted" })[requestedStatus] || requestedStatus;
 
   const [stats] = await sql`
     SELECT
       COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE status = 'upcoming')::int AS upcoming,
+      COUNT(*) FILTER (WHERE status IN ('published', 'registration_closed', 'upcoming'))::int AS upcoming,
       COUNT(*) FILTER (WHERE status = 'live')::int AS live,
-      COUNT(*) FILTER (WHERE status IN ('past', 'completed'))::int AS completed
+      COUNT(*) FILTER (WHERE status IN ('completed', 'archived', 'past'))::int AS completed
     FROM events WHERE tenant_id = ${tenant?.id ?? null}::uuid
   `;
 
@@ -103,11 +109,13 @@ export default async function AdminEventsPage({ searchParams }) {
           </label>
           <select name="status" defaultValue={status} className="aled-select" aria-label="Filter by status">
             <option value="">All statuses</option>
-            <option value="upcoming">Upcoming</option>
+            <option value="published">Published</option>
+            <option value="registration_closed">Registration closed</option>
             <option value="live">Live</option>
-            <option value="past">Completed</option>
+            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
-            <option value="proposed">Proposed</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under review</option>
           </select>
           <button className="btn-ink !py-2 text-xs">Filter</button>
           {(q || status) && <Link href="/admin/events" prefetch={false} className="aled-meta" style={{ color: "var(--accent)" }}>Clear</Link>}

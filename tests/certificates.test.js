@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { signCertificate, verifyCertificateSignature } from "@/lib/certificates";
+import {
+  signCertificate,
+  verifyCertificateSignature,
+  generateEd25519Keypair,
+  signCertificateEd25519,
+  verifyCertificateEd25519,
+  canonicalJsonStringify
+} from "@/lib/certificates";
 
 // Signing takes camelCase arguments; verification takes the database row it is
 // stored in, so the fixture carries both shapes.
@@ -32,5 +39,66 @@ describe("certificate signatures", () => {
   it("rejects missing and malformed signatures", () => {
     expect(verifyCertificateSignature({ ...base, signature: null })).toBe(false);
     expect(verifyCertificateSignature({ ...base, signature: "nope" })).toBe(false);
+  });
+
+  describe("Ed25519 asymmetric signatures", () => {
+    it("produces deterministic canonical JSON regardless of object key order", () => {
+      const a = { z: 1, a: 2, m: { y: 10, x: 20 } };
+      const b = { a: 2, z: 1, m: { x: 20, y: 10 } };
+      expect(canonicalJsonStringify(a)).toBe(canonicalJsonStringify(b));
+      expect(canonicalJsonStringify(a)).toBe('{"a":2,"m":{"x":20,"y":10},"z":1}');
+    });
+
+    it("signs and verifies certificates with Ed25519 keypair", () => {
+      const { publicKeyPem, privateKeyPem } = generateEd25519Keypair();
+      const signed = signCertificateEd25519({ ...base, privateKeyPem, keyId: "test-key-1" });
+
+      expect(signed.signature).toBeTruthy();
+      expect(signed.algorithm).toBe("Ed25519");
+
+      // Verify using verifyCertificateEd25519
+      const ok = verifyCertificateEd25519({
+        payload: signed.payload,
+        signature: signed.signature,
+        publicKeyPem
+      });
+      expect(ok).toBe(true);
+
+      // Verify through universal verifyCertificateSignature
+      const certRow = {
+        ...base,
+        algorithm: "Ed25519",
+        key_id: "test-key-1",
+        signature: signed.signature,
+        payload: signed.payload
+      };
+      expect(verifyCertificateSignature(certRow, { publicKeyPem })).toBe(true);
+    });
+
+    it("rejects Ed25519 verification if payload was tampered with", () => {
+      const { publicKeyPem, privateKeyPem } = generateEd25519Keypair();
+      const signed = signCertificateEd25519({ ...base, privateKeyPem, keyId: "test-key-1" });
+
+      const tamperedPayload = { ...signed.payload, subject: "impostor-student" };
+      const ok = verifyCertificateEd25519({
+        payload: tamperedPayload,
+        signature: signed.signature,
+        publicKeyPem
+      });
+      expect(ok).toBe(false);
+    });
+
+    it("rejects Ed25519 verification when verified with the wrong public key", () => {
+      const keypair1 = generateEd25519Keypair();
+      const keypair2 = generateEd25519Keypair();
+      const signed = signCertificateEd25519({ ...base, privateKeyPem: keypair1.privateKeyPem });
+
+      const ok = verifyCertificateEd25519({
+        payload: signed.payload,
+        signature: signed.signature,
+        publicKeyPem: keypair2.publicKeyPem
+      });
+      expect(ok).toBe(false);
+    });
   });
 });

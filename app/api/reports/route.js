@@ -2,7 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
 import { recordReportRevision } from "@/lib/report-revisions";
 
 const compileSchema = z.object({
@@ -20,15 +20,25 @@ function monthRange(month) {
 function canReadReport({ profile }, departmentId, departmentVertical = null) {
   const me = { id: profile.user_id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   if (isAdmin(me)) return true;
-  if (profile.role === "vertical_lead") return departmentVertical === profile.vertical;
+  if (profile.role === "vertical_lead") return hasVerticalLeadGrant({
+    ...me,
+    tenantId: profile.tenant_id,
+    scopedGrants: profile.scopedGrants || []
+  }, departmentVertical);
   return (profile.memberships || []).some((m) => m.department_id === departmentId && (m.level === "dept_lead" || m.level === "core"));
 }
 
 function canWriteReport({ profile }, departmentId, departmentVertical = null) {
   const me = { id: profile.user_id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
   if (isAdmin(me)) return true;
-  if (profile.role === "vertical_lead") return departmentVertical === profile.vertical;
-  return (profile.memberships || []).some((m) => m.department_id === departmentId && m.level === "dept_lead");
+  if (profile.role === "vertical_lead") return hasVerticalLeadGrant({
+    ...me,
+    tenantId: profile.tenant_id,
+    scopedGrants: profile.scopedGrants || []
+  }, departmentVertical);
+  return (profile.memberships || []).some((m) =>
+    m.department_id === departmentId && m.level === "dept_lead" && !termExpired(m.term_end)
+  );
 }
 
 // Monthly department reports: list (own departments for leads, all for
@@ -46,7 +56,11 @@ export async function GET(request) {
     return fail("VALIDATION_ERROR", "status must be draft or submitted", 400);
   }
   const admin = isAdmin({ role: profile.role });
-  const verticalLead = !admin && profile.role === "vertical_lead";
+  const verticalLead = !admin && profile.role === "vertical_lead" && hasVerticalLeadGrant({
+    id: profile.user_id,
+    tenantId: tenant?.id,
+    scopedGrants: profile.scopedGrants || []
+  }, profile.vertical);
   const wide = admin || verticalLead;
   const mine = (profile.memberships || []).map((m) => m.department_id);
   if (!wide && mine.length === 0) return ok({ reports: [] });
@@ -99,7 +113,7 @@ export async function POST(request) {
     SELECT id, title, starts_at FROM events
     WHERE department_id = ${body.departmentId}
       AND tenant_id = ${scope(tid)}::uuid
-      AND status = 'past'
+      AND status IN ('completed', 'archived', 'past')
       AND starts_at >= ${start}::timestamptz AND starts_at < ${end}::timestamptz
     ORDER BY starts_at ASC
   `;
@@ -107,12 +121,13 @@ export async function POST(request) {
     SELECT id, title, starts_at, status FROM events
     WHERE department_id = ${body.departmentId}
       AND tenant_id = ${scope(tid)}::uuid
-      AND status IN ('upcoming', 'live') AND starts_at >= NOW()
+      AND status IN ('published', 'registration_closed', 'live', 'upcoming') AND starts_at >= NOW()
     ORDER BY starts_at ASC LIMIT 10
   `;
   const [{ c: newMembers }] = await sql`
     SELECT COUNT(*)::int AS c FROM department_memberships m
     WHERE m.department_id = ${body.departmentId}
+      AND m.tenant_id = ${scope(tid)}::uuid
       AND m.joined_at >= ${start}::timestamptz AND m.joined_at < ${end}::timestamptz
   `;
   const contributionsByKind = Object.fromEntries(byKind.map((r) => [r.kind, r.c]));

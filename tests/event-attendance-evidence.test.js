@@ -14,6 +14,7 @@ function recorder(handler = () => []) {
   };
   sql.calls = calls;
   sql.begin = async (fn) => fn(sql);
+  sql.json = (value) => value;
   return sql;
 }
 
@@ -29,7 +30,15 @@ async function load({ sql, role = "admin", userId = ADMIN, memberships = [] }) {
     writeAudit: async () => {},
     notify: async () => {}
   }));
-  vi.doMock("@/lib/certificates", () => ({ signCertificate: () => "signed" }));
+  vi.doMock("@/lib/credential-keyring", () => ({
+    signCertificateForTenant: async () => ({
+      signature: "signed",
+      credentialVersion: 1,
+      algorithm: "HMAC-SHA256",
+      keyId: null,
+      payload: null
+    })
+  }));
   const recordEvidence = vi.fn(async () => ({}));
   const recomputeScore = vi.fn(async () => ({}));
   vi.doMock("@/lib/ranking", () => ({ recordEvidence, recomputeScore }));
@@ -48,7 +57,7 @@ function request(studentId) {
 describe("event check-in evidence", () => {
   beforeEach(() => vi.resetModules());
 
-  it("records verifier-backed attendance and recomputes the student's score", async () => {
+  it("records verifier-backed attendance and atomically queues score recomputation", async () => {
     const sql = recorder((text) => {
       if (text.startsWith("SELECT * FROM events")) {
         return [{ id: EVENT, title: "Hack night", status: "upcoming", starts_at: "2020-01-01T00:00:00Z" }];
@@ -73,7 +82,12 @@ describe("event check-in evidence", () => {
       refId: EVENT,
       verifiedBy: ADMIN
     }));
-    expect(recomputeScore).toHaveBeenCalledWith(sql, TENANT, STUDENT);
+    expect(recomputeScore).not.toHaveBeenCalled();
+    expect(sql.calls.some((call) => call.text.startsWith("INSERT INTO outbox"))).toBe(true);
+    const certificateWrite = sql.calls.find((call) => call.text.startsWith("INSERT INTO certificates"));
+    expect(certificateWrite.text).toContain(
+      "key_id = CASE WHEN certificates.signature IS NULL THEN EXCLUDED.key_id ELSE certificates.key_id END"
+    );
   });
 
   it("does not let staff verify their own attendance", async () => {
@@ -115,9 +129,9 @@ describe("event check-in evidence", () => {
       }
       return [];
     });
-    const { POST } = await load({ 
-      sql, 
-      role: "dept_lead", 
+    const { POST } = await load({
+      sql,
+      role: "dept_lead",
       userId: "lead-1",
       memberships: [{ department_id: "dept-1", level: "dept_lead", slug: "web" }]
     });

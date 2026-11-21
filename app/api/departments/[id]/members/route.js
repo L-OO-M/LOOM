@@ -15,8 +15,8 @@ function guard(e) {
 }
 
 // Add an existing chapter member to this department. Heads may grant General
-// or Core inside their own department; appointing a Head stays admin-only and
-// lives on the [userId] route.
+// or Core inside their own department. Head appointments are deliberately owned
+// by the atomic admin role-management route, never a roster endpoint.
 export async function POST(request, { params }) {
   const { id } = await params;
   let ctx;

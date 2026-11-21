@@ -48,7 +48,7 @@ export async function GET(request) {
           WHERE d.tenant_id = ${tid}::uuid AND d.is_active) AS departments,
         (SELECT COUNT(*)::int FROM events e
           WHERE e.tenant_id = ${tid}::uuid
-            AND e.status IN ('upcoming', 'live')
+            AND e.status IN ('published', 'registration_closed', 'live', 'upcoming')
             AND e.starts_at >= NOW() - INTERVAL '2 hours') AS upcoming_events,
         (SELECT COUNT(*)::int FROM user_profiles up
           WHERE up.tenant_id = ${tid}::uuid AND up.is_public) AS public_builders,

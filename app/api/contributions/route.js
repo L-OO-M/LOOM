@@ -28,7 +28,7 @@ export async function GET(request) {
   if (studentId !== user.id) {
     // Reading another member's log needs a department scope + permission.
     if (!departmentId) return fail("VALIDATION_ERROR", "departmentId is required to view another member's log", 400);
-    const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+    const me = { id: user.id, tenantId: tenant?.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [], scopedGrants: profile.scopedGrants || [] };
     const [dept] = await sql`
       SELECT vertical FROM departments
       WHERE id = ${departmentId}
@@ -67,7 +67,7 @@ export async function POST(request) {
     return validationError(e);
   }
   const targetId = body.studentId || user.id;
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = { id: user.id, tenantId: tenant?.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [], scopedGrants: profile.scopedGrants || [] };
 
   if (targetId !== user.id) {
     // Logging on behalf of a member: needs log_contribution over the dept.

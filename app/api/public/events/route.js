@@ -38,7 +38,7 @@ export async function GET(request) {
       FROM events e
       LEFT JOIN departments d ON d.id = e.department_id
       WHERE e.tenant_id = ${tid}::uuid
-        AND e.status IN ('upcoming', 'live')
+        AND e.status IN ('published', 'registration_closed', 'live', 'upcoming')
         AND e.starts_at >= NOW() - INTERVAL '2 hours'
       ORDER BY e.starts_at ASC
       LIMIT 50

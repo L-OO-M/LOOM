@@ -25,6 +25,7 @@ const patchSchema = z.object({
   kind: z.enum(TASK_KINDS).optional(),
   priority: z.enum(TASK_PRIORITIES).optional(),
   assigneeId: z.string().max(64).nullable().optional(),
+  contributors: z.array(z.string().min(1).max(100)).max(20).optional(),
   dueAt: z.string().datetime().nullable().optional(),
   evidenceUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   completionNote: z.string().max(2000).nullable().optional(),
@@ -80,6 +81,8 @@ export async function PATCH(request, { params }) {
 
   const actor = actorFrom(user, profile);
   const canManage = can(actor, "manage_department_tasks", { departmentId: dept.id }).ok;
+  // verify_department_work permission without anti-self scope — the self-review check
+  // lives in decideTaskAction which has the full task context.
   const canVerify = can(actor, "verify_department_work", { departmentId: dept.id }).ok;
   // Assignee authority is about this row, not about the caller's membership
   // level: the scope names the person the work was actually given to.
@@ -132,6 +135,20 @@ export async function PATCH(request, { params }) {
     `;
     if (!member) return fail("VALIDATION_ERROR", "Add that person to the department first", 400);
   }
+  const nextContributors = editing && body.contributors !== undefined
+    ? [...new Set(body.contributors.filter((id) => id !== nextAssignee))]
+    : (existing.contributors || []);
+  if (editing && body.contributors !== undefined && nextContributors.length) {
+    const members = await sql`
+      SELECT user_id FROM department_memberships
+      WHERE tenant_id = ${tenant.id}::uuid
+        AND department_id = ${dept.id}::uuid
+        AND user_id = ANY(${nextContributors}::text[])
+    `;
+    if (members.length !== nextContributors.length) {
+      return fail("VALIDATION_ERROR", "Every contributor must belong to the department", 400);
+    }
+  }
 
   const nextStatus = decision.patch.status ?? existing.status;
   const isSubmit = body.action === "submit";
@@ -147,6 +164,7 @@ export async function PATCH(request, { params }) {
       priority = ${editing && body.priority !== undefined ? body.priority : existing.priority},
       status = ${nextStatus},
       assignee_id = ${nextAssignee},
+      contributors = ${nextContributors},
       due_at = ${editing && body.dueAt !== undefined ? body.dueAt : existing.due_at}::timestamptz,
       submitted_at = CASE WHEN ${isSubmit} THEN NOW() ELSE submitted_at END,
       submitted_by = CASE WHEN ${isSubmit} THEN ${user.id} ELSE submitted_by END,
@@ -186,7 +204,8 @@ function actorFrom(user, profile) {
     id: user.id,
     role: profile.role,
     vertical: profile.vertical || null,
-    memberships: profile.memberships || []
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || []
   };
 }
 

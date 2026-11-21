@@ -71,9 +71,13 @@ export default async function DepartmentWorkspacePage({ params }) {
 
   const me = {
     id: user.id,
+    tenantId: tenant.id,
     role: profile.role,
     vertical: profile.vertical,
-    memberships: profile.memberships || []
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null,
+    isPlatformAdmin: !!profile.isPlatformAdmin
   };
   const scope = { departmentId: department.id, vertical: department.vertical };
 

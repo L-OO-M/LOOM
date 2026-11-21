@@ -1,6 +1,7 @@
 import { ok, fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
 import { getLeadOverview } from "@/lib/lead";
+import { can } from "@/lib/permissions";
 
 // Thin wrapper — the query lives in lib/lead.js, shared with the page.
 export async function GET(request) {
@@ -8,7 +9,17 @@ export async function GET(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  if (!["dept_lead", "vertical_lead", "admin"].includes(profile.role)) {
+  const subject = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical || null,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null,
+    isPlatformAdmin: !!profile.isPlatformAdmin
+  };
+  if (!can(subject, "manage_handover").ok) {
     return fail("FORBIDDEN", "Lead console is for department and vertical leads", 403);
   }
   const { searchParams } = new URL(request.url);

@@ -2,7 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 
 const createSchema = z.object({
   eventId: z.string().uuid(),
@@ -49,16 +49,27 @@ export async function POST(request) {
   }
   const tid = tenant?.id ?? null;
   const [event] = await sql`
-    SELECT * FROM events WHERE id = ${body.eventId}
-      AND tenant_id = ${scope(tid)}::uuid LIMIT 1
+    SELECT e.*, d.vertical AS department_vertical
+    FROM events e
+    LEFT JOIN departments d ON d.id = e.department_id AND d.tenant_id = e.tenant_id
+    WHERE e.id = ${body.eventId}
+      AND e.tenant_id = ${scope(tid)}::uuid LIMIT 1
   `;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
 
-  const admin = isAdmin({ role: profile.role });
-  const myLevel = event.department_id
-    ? (profile.memberships || []).find((m) => m.department_id === event.department_id)?.level
-    : null;
-  if (!admin && profile.role !== "vertical_lead" && myLevel !== "dept_lead") {
+  const permission = can({
+    id: user.id,
+    tenantId: tid,
+    role: profile.role,
+    vertical: profile.vertical || null,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || []
+  }, "check_in_attendees", {
+    eventId: event.id,
+    departmentId: event.department_id,
+    vertical: event.department_vertical
+  });
+  if (!permission.ok) {
     return fail("FORBIDDEN", "Only the event's department leads (or vertical leads / admins) can open volunteer slots", 403);
   }
   const [slot] = await sql`

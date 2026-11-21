@@ -68,7 +68,7 @@ export async function PATCH(request, { params }) {
     return ok({ handover });
   }
 
-  const scope = handoverScope(profile);
+  const scope = handoverScope({ ...profile, tenantId: tenant.id });
   if (scope.error) return fail("VALIDATION_ERROR", scope.error, 400);
   if (scope.role !== existing.role
     || (scope.departmentId ?? null) !== (existing.department_id ?? null)

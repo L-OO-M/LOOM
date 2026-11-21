@@ -134,7 +134,7 @@ async function seedTenant(sql, tenant, plan) {
     const endsAt = timestamp(endDate, event.end || event.start);
     await sql`
       INSERT INTO events (tenant_id, event_type, title, description, domain, starts_at, ends_at, location, is_online, status, planner_year, planner_week, planner_kind, planner_ref, planner_status)
-      VALUES (${tenant.id}, ${event.type}, ${event.title}, ${event.description || ""}, 'general', ${startsAt}, ${endsAt}, ${event.location || null}, false, ${event.status || "upcoming"}, ${plan.academicYear}, ${event.week}, ${event.kind || event.type}, ${event.ref}, 'scheduled')
+      VALUES (${tenant.id}, ${event.type}, ${event.title}, ${event.description || ""}, 'general', ${startsAt}, ${endsAt}, ${event.location || null}, false, ${event.status || "published"}, ${plan.academicYear}, ${event.week}, ${event.kind || event.type}, ${event.ref}, 'scheduled')
       ON CONFLICT (COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), planner_ref) WHERE planner_ref IS NOT NULL
       DO UPDATE SET event_type = EXCLUDED.event_type, title = EXCLUDED.title, description = EXCLUDED.description,
         starts_at = EXCLUDED.starts_at, ends_at = EXCLUDED.ends_at, location = EXCLUDED.location,

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
 import { PLANNER_ENABLED } from "@/lib/feature-flags";
-import { isAdmin } from "@/lib/permissions";
+import { hasAnyActiveScopedGrant, isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { FeatureOff } from "@/components/loom/FeatureOff";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
@@ -33,11 +33,17 @@ export default async function LeadPlannerPage() {
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role)) redirect("/student");
   if (!tenant?.id) redirect("/lead/overview");
+  const activeVerticalGrant = profile.role === "vertical_lead" && hasAnyActiveScopedGrant({
+    id: user.id,
+    tenantId: tenant.id,
+    scopedGrants: profile.scopedGrants || []
+  }, "vertical_lead", "vertical");
+  if (profile.role === "vertical_lead" && !activeVerticalGrant) redirect("/student");
 
   const data = await loadPlanner({ sql, tenantId: tenant.id });
   const owners = await loadPlannerOwners({ sql, tenantId: tenant.id });
   const assignable = profile.role === "dept_lead" ? [] : await loadAssignableLeads({ sql, tenantId: tenant.id });
-  const canManage = isAdmin({ role: profile.role }) || profile.role === "vertical_lead";
+  const canManage = isAdmin({ role: profile.role }) || activeVerticalGrant;
   const today = new Date().toISOString().slice(0, 10);
 
   return (

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { can, isAdmin } from "@/lib/permissions";
+import { activeScopedGrantIds, can, isAdmin, termExpired } from "@/lib/permissions";
 import { createLogger, requestIdFrom } from "@/lib/log";
 import { fanOutAnnouncement } from "@/lib/announcement-publish";
 
@@ -21,21 +21,40 @@ export async function GET(request) {
   const ctx = await getRequestContext();
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
-  const { profile, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
   const tid = tenant?.id ?? null;
   if (!tid) return fail("TENANT_UNRESOLVED", "Chapter not resolved", 404);
   const manage = new URL(request.url).searchParams.get("manage") === "1";
+  const me = {
+    id: user.id,
+    tenantId: tid,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null,
+    isPlatformAdmin: !!profile.isPlatformAdmin
+  };
+  const admin = isAdmin(me);
   if (manage) {
-    const leadRoles = ["dept_lead", "vertical_lead", "admin"];
-    if (!leadRoles.includes(profile.role) && !isAdmin(profile)) {
+    if (!can(me, "manage_handover", {}).ok) {
       return fail("FORBIDDEN", "Only leads and admins can see drafts", 403);
     }
   }
-  const myDeptIds = (profile.memberships || []).map((m) => m.department_id);
-  const myVerticals = [...new Set([
-    ...(profile.vertical ? [profile.vertical] : []),
-    ...(profile.memberships || []).map((m) => m.vertical).filter(Boolean)
+  const memberDeptIds = (profile.memberships || []).map((membership) => membership.department_id);
+  const managedDeptIds = (profile.memberships || [])
+    .filter((membership) =>
+      membership.level === "dept_lead" && !termExpired(membership.term_end)
+    )
+    .map((membership) => membership.department_id);
+  const grantedVerticals = activeScopedGrantIds(me, "vertical_lead", "vertical");
+  const memberVerticals = [...new Set([
+    ...grantedVerticals,
+    ...(profile.memberships || []).map((membership) => membership.vertical).filter(Boolean)
   ])];
+  const visibleDeptIds = manage ? managedDeptIds : memberDeptIds;
+  const visibleVerticals = manage ? grantedVerticals : memberVerticals;
+  const canSeeSocietyDrafts = admin || grantedVerticals.length > 0;
   const rows = await sql`
     SELECT a.*, d.name AS department_name, d.slug AS department_slug,
       p.name AS author_name
@@ -44,9 +63,10 @@ export async function GET(request) {
     LEFT JOIN profiles p ON p.user_id = a.author_id
     WHERE a.tenant_id = ${tid}::uuid
       AND (
-        a.scope = 'society'
-        OR (a.scope = 'vertical' AND a.vertical = ANY(${myVerticals}))
-        OR (a.scope = 'department' AND a.department_id = ANY(${myDeptIds}))
+        ${admin}::boolean = true
+        OR (a.scope = 'society' AND (${!manage}::boolean = true OR ${canSeeSocietyDrafts}::boolean = true))
+        OR (a.scope = 'vertical' AND a.vertical = ANY(${visibleVerticals}))
+        OR (a.scope = 'department' AND a.department_id = ANY(${visibleDeptIds}))
       )
       AND (
         ${manage}::boolean = true
@@ -78,7 +98,16 @@ export async function POST(request) {
     if (!Number.isFinite(parsed)) return fail("VALIDATION_ERROR", "expiresAt must be a valid date", 400);
     expiresAt = new Date(parsed).toISOString();
   }
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = {
+    id: user.id,
+    tenantId: tenant?.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null,
+    isPlatformAdmin: !!profile.isPlatformAdmin
+  };
 
   let departmentId = null;
   let vertical = null;
@@ -94,16 +123,17 @@ export async function POST(request) {
     const verdict = can(me, "post_announcement", { departmentId: body.departmentId, vertical: dept.vertical });
     if (!verdict.ok) return fail("FORBIDDEN", "Only the department's Head, Co-Head, or above can post here", 403);
     // own_feed note: a dept_lead may only speak to feeds they lead.
-    if (verdict.note === "own_feed" && me.memberships.find((m) => m.department_id === body.departmentId)?.level !== "dept_lead") {
+    if (verdict.note === "own_feed" && !me.memberships.some((membership) =>
+      membership.department_id === body.departmentId &&
+      membership.level === "dept_lead" &&
+      !termExpired(membership.term_end)
+    )) {
       return fail("FORBIDDEN", "You can only post to departments you lead", 403);
     }
     departmentId = body.departmentId;
   } else if (body.scope === "vertical") {
     vertical = body.vertical || me.vertical;
     if (!vertical) return fail("VALIDATION_ERROR", "vertical is required for vertical announcements", 400);
-    if (!isAdmin(me) && me.vertical !== vertical) {
-      return fail("FORBIDDEN", "You can only post to your own vertical", 403);
-    }
     const verdict = can(me, "post_announcement", { vertical });
     if (!verdict.ok) return fail("FORBIDDEN", "Insufficient permission for vertical announcements", 403);
   } else {

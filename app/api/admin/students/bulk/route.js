@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
 import { homeForRole } from "@/lib/auth";
+import { syncLeadershipScopedGrant } from "@/lib/scoped-grants";
 import { roleRank } from "@/lib/permissions";
 import { assertAdminFloor, isLastAdminError } from "@/lib/last-admin";
 
@@ -213,6 +214,20 @@ export async function POST(request) {
           )
         `;
       }
+    }
+    for (const uid of ids) {
+      await syncLeadershipScopedGrant(tx, {
+        tenantId: tenant?.id,
+        userId: uid,
+        actorId: user.id,
+        role: body.role,
+        vertical: body.role === "vertical_lead" ? body.vertical : null,
+        departmentId,
+        startsAt: termStart,
+        expiresAt: termEnd,
+        revokeAllLeadership: true,
+        reason: "bulk_role_changed"
+      });
     }
 
     // Q1/Q2 defaults: demoted dept_leads downgrade to core; single vertical per batch.

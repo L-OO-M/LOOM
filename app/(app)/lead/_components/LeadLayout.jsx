@@ -4,6 +4,7 @@ import { getSql } from "@/lib/db";
 import { getLeadOverview } from "@/lib/lead";
 import { AppShell } from "@/components/AppShell";
 import { LeadConsole } from "./LeadConsole";
+import { can } from "@/lib/permissions";
 
 /**
  * One server component renders every lead section.
@@ -49,7 +50,17 @@ export async function LeadSection({ section = "overview" }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect(`/login?redirect=${encodeURIComponent(`/lead/${section}`)}`);
   const { user, profile, tenant } = ctx;
-  if (!["dept_lead", "vertical_lead", "admin"].includes(profile.role)) redirect("/student");
+  const subject = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical || null,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null,
+    isPlatformAdmin: !!profile.isPlatformAdmin
+  };
+  if (!can(subject, "manage_handover").ok) redirect("/student");
 
   const sql = getSql();
   const data = await getLeadOverview(sql, { userId: user.id, profile, tenant });

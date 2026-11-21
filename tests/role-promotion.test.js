@@ -5,24 +5,39 @@ import { hasRole, homeForRole } from "@/lib/auth";
 const D1 = "dept-1";
 const D2 = "dept-2";
 
+const makeVLead = (vertical = "technical") => ({
+  id: "u",
+  role: "vertical_lead",
+  vertical,
+  memberships: [],
+  scopedGrants: [{
+    role_name: "vertical_lead",
+    scope_type: "vertical",
+    scope_id: vertical,
+    is_active: true,
+    starts_at: null,
+    expires_at: null
+  }]
+});
+
 // Validates the invariants hardened in 021 + route txn work:
 // role/vertical/membership single-source sync and upward-only grants.
 describe("role promotion invariants (021 hardening)", () => {
   it("vertical is scoped — clearing on demotion closes stale scope", () => {
-    const vlead = { id: "u", role: "vertical_lead", vertical: "technical", memberships: [] };
+    const vlead = makeVLead("technical");
     // Vertical leads govern operations in their domain, never accounts.
     expect(can(vlead, "manage_users", { vertical: "technical" }).ok).toBe(false);
     expect(can(vlead, "post_workshop_dept", { vertical: "technical" }).ok).toBe(true);
     expect(can(vlead, "post_workshop_dept", { vertical: "non_technical" }).ok).toBe(false);
     // After demotion vertical must be null — simulated by stripping.
-    const demoted = { ...vlead, role: "core", vertical: null };
+    const demoted = { ...vlead, role: "core", vertical: null, scopedGrants: [] };
     expect(can(demoted, "post_workshop_dept", { vertical: "technical" }).ok).toBe(false);
     expect(demoted.vertical).toBeNull();
   });
 
   it("an expired term suspends authority but keeps history", () => {
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const expired = { id: "u", role: "vertical_lead", vertical: "technical", roleTermEnd: yesterday, memberships: [] };
+    const expired = { ...makeVLead("technical"), roleTermEnd: yesterday };
     expect(can(expired, "post_event_society").ok).toBe(false);
     expect(can({ ...expired, roleTermEnd: null }, "post_event_society").ok).toBe(true);
     // Founders are exempt: the platform flag survives an old date.
@@ -58,7 +73,7 @@ describe("role promotion invariants (021 hardening)", () => {
   });
 
   it("vertical_lead spans its vertical, not just owned departments", () => {
-    const v = { id: "u", role: "vertical_lead", vertical: "technical", memberships: [] };
+    const v = makeVLead("technical");
     expect(can(v, "view_finance", { vertical: "technical" }).ok).toBe(true);
     expect(can(v, "view_finance", { vertical: "non_technical" }).ok).toBe(false);
     expect(can(v, "export_reports").ok).toBe(true);

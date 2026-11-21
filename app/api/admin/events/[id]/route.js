@@ -3,22 +3,19 @@ import { ok, fail, validationError } from "@/lib/api";
 import { notify, writeAudit } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { normalizeDomainKey } from "@/lib/domains";
+import { decideEventTransition } from "@/lib/event-transitions";
+import {
+  can,
+  hasActiveScopedGrant,
+  hasAnyActiveScopedGrant,
+  hasVerticalLeadGrant,
+  isAdmin
+} from "@/lib/permissions";
 
-// The values the `events_status_check` constraint actually accepts. The editor
-// used to offer "completed", which is NOT one of them: choosing it sent
-// `{status:"completed"}` to this route, Postgres rejected the CHECK, and the
-// admin got a 500 (and the event vanished from every student query, which only
-// look for upcoming/live/past). "past" is the completed state; the UI labels it.
-const STATUSES = ["upcoming", "live", "past", "cancelled", "proposed"];
-
-// Legacy clients and older cached bundles still send "completed". Normalise it
-// instead of failing a legitimate request on a vocabulary mismatch.
-const STATUS_ALIASES = { completed: "past" };
-
-const statusField = z.preprocess(
-  (value) => (typeof value === "string" && STATUS_ALIASES[value] ? STATUS_ALIASES[value] : value),
-  z.enum(STATUSES).optional()
-);
+// The FSM in lib/event-transitions.js is authoritative for status changes.
+// Legacy status values submitted by older UI bundles are aliased here so
+// they map into the FSM vocabulary before the transition is evaluated.
+const STATUS_ALIASES = { past: "completed", upcoming: "published", proposed: "submitted" };
 
 const schema = z.object({
   title: z.string().min(3).max(160).optional(),
@@ -33,16 +30,22 @@ const schema = z.object({
   speakerBio: z.string().max(1000).nullable().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   isOnline: z.boolean().optional(),
-  status: statusField
+  // FSM target status — validated by decideEventTransition, not zod enum.
+  status: z.string().optional(),
+  // Optimistic concurrency: caller passes the lock_version they last read.
+  lockVersion: z.number().int().nonnegative().optional(),
+  // Required when targeting 'cancelled'.
+  cancellationReason: z.string().max(500).nullable().optional(),
+  reason: z.string().max(500).nullable().optional()
 }).refine((v) => Object.keys(v).length > 0, "Nothing to update");
 
-// Admin/lead event workspace edits. Approving a proposed event stays on
-// /api/events/:id/approve so the queue has one implementation; this route is
-// for details and lifecycle changes after an event exists.
+// Admin/lead event workspace edits. Status transitions are enforced through
+// the event FSM (lib/event-transitions.js). Every status change is recorded in
+// event_status_history so there is a full audit trail.
 export async function PATCH(request, { params }) {
   let ctx;
   try {
-    ctx = await requireCan("manage_event_ops");
+    ctx = await requireCan("view_lead_tools");
   } catch (e) {
     const guard = toGuardResponse(e);
     if (!guard) throw e;
@@ -58,11 +61,59 @@ export async function PATCH(request, { params }) {
   }
 
   const [event] = await sql`
-    SELECT * FROM events
-    WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid
+    SELECT e.*,
+      d.vertical AS department_vertical,
+      COALESCE(
+        d.vertical,
+        (SELECT d2.vertical
+         FROM department_memberships dm2
+         JOIN departments d2 ON d2.id = dm2.department_id
+         WHERE dm2.user_id = e.created_by AND dm2.tenant_id = e.tenant_id
+           AND (dm2.level <> 'dept_lead' OR dm2.term_end IS NULL OR dm2.term_end >= CURRENT_DATE)
+         ORDER BY CASE WHEN dm2.level = 'dept_lead' THEN 0 ELSE 1 END
+         LIMIT 1)
+      ) AS authority_vertical
+    FROM events e
+    LEFT JOIN departments d ON d.id = e.department_id AND d.tenant_id = e.tenant_id
+    WHERE e.id = ${id} AND e.tenant_id = ${tenant?.id ?? null}::uuid
     LIMIT 1
   `;
   if (!event) return fail("NOT_FOUND", "Event not found", 404);
+
+  const permissionUser = {
+    id: user.id,
+    tenantId: tenant?.id ?? null,
+    role: ctx.profile?.role,
+    vertical: ctx.profile?.vertical ?? null,
+    memberships: ctx.profile?.memberships || [],
+    scopedGrants: ctx.profile?.scopedGrants || []
+  };
+  const eventScope = {
+    eventId: event.id,
+    departmentId: event.department_id,
+    vertical: event.authority_vertical
+  };
+  const hasBroadEventOps = isAdmin(permissionUser) || (permissionUser.memberships || []).some(
+    (membership) => membership.level === "dept_lead" && can(
+      permissionUser,
+      "manage_event_ops",
+      { departmentId: membership.department_id }
+    ).ok
+  );
+  const hasScopedEventAuthority = can(permissionUser, "post_workshop_dept", eventScope).ok;
+  const hasEventLeadGrant = hasActiveScopedGrant(
+    permissionUser,
+    "event_lead",
+    "event",
+    event.id
+  );
+  if (!hasBroadEventOps && !hasScopedEventAuthority && !hasEventLeadGrant) {
+    return fail("FORBIDDEN", "You cannot manage this event", 403);
+  }
+
+  // Normalize legacy status from database to FSM vocabulary.
+  const normalizeStatus = (s) => STATUS_ALIASES[s] ?? s;
+  const currentFsmStatus = normalizeStatus(event.status);
 
   // Domain is shown on the public event page and used to group the calendar, so
   // it is stored as a canonical key. "general" is the only non-track value.
@@ -90,12 +141,85 @@ export async function PATCH(request, { params }) {
         LIMIT 1
       `;
       if (!department) return fail("NOT_FOUND", "Department not found", 404);
-      const isChapterAdmin = ["admin", "platform_admin"].includes(ctx.profile?.role);
-      if (!isChapterAdmin && ctx.profile?.vertical && department.vertical !== ctx.profile.vertical) {
+      const targetPermission = can(permissionUser, "post_workshop_dept", {
+        eventId: event.id,
+        departmentId: department.id,
+        vertical: department.vertical
+      });
+      if (!hasBroadEventOps && !targetPermission.ok) {
         return fail("FORBIDDEN", "You can only file events under departments in your vertical", 403);
       }
       departmentId = department.id;
     }
+  }
+
+  // Resolve status change through the FSM.
+  // Alias legacy vocabulary before passing to FSM.
+  let targetStatus = body.status !== undefined
+    ? (STATUS_ALIASES[body.status] ?? body.status)
+    : null;
+
+  let fsmPatch = {};
+  if (targetStatus && targetStatus !== currentFsmStatus) {
+    // Determine authorization context for the FSM.
+    const actorRole = ctx.profile?.role;
+    const actorIsAdmin = isAdmin(permissionUser);
+
+    // Check whether actor leads the department that owns this event.
+    let isOwningDeptLead = false;
+    let eventVertical = event.authority_vertical ?? null;
+    if (event.department_id) {
+      const [deptMembership] = await sql`
+        SELECT dm.id, d.vertical
+        FROM department_memberships dm
+        JOIN departments d ON d.id = dm.department_id
+        WHERE dm.user_id = ${user.id}
+          AND dm.department_id = ${event.department_id}
+          AND dm.level = 'dept_lead'
+          AND (dm.term_end IS NULL OR dm.term_end >= CURRENT_DATE)
+          AND dm.tenant_id = ${tenant?.id ?? null}::uuid
+        LIMIT 1
+      `;
+      isOwningDeptLead = !!deptMembership;
+      if (deptMembership?.vertical) {
+        eventVertical = deptMembership.vertical;
+      } else {
+        const [department] = await sql`
+          SELECT vertical FROM departments
+          WHERE id = ${event.department_id}
+            AND tenant_id = ${tenant?.id ?? null}::uuid
+          LIMIT 1
+        `;
+        eventVertical = department?.vertical ?? null;
+      }
+    }
+    const isVerticalLead = actorRole === "vertical_lead" && (
+      eventVertical
+        ? hasVerticalLeadGrant(permissionUser, eventVertical)
+        : hasAnyActiveScopedGrant(permissionUser, "vertical_lead", "vertical")
+    );
+
+    const decision = decideEventTransition({
+      event: { ...event, status: currentFsmStatus },
+      targetStatus,
+      actorId: user.id,
+      actorRole,
+      isOwningDeptLead,
+      isVerticalLead,
+      isAdmin: actorIsAdmin,
+      cancellationReason: body.cancellationReason ?? body.reason ?? null,
+      expectedVersion: body.lockVersion ?? null
+    });
+
+    if (!decision.ok) {
+      const httpStatus = decision.reason === "CONCURRENCY_CONFLICT" ? 409
+        : decision.reason === "FORBIDDEN" ? 403
+        : decision.reason === "INVALID_TRANSITION" ? 422
+        : 400;
+      return fail(decision.reason, decision.message, httpStatus);
+    }
+
+    fsmPatch = decision.patch;
   }
 
   const next = {
@@ -111,7 +235,12 @@ export async function PATCH(request, { params }) {
     speakerBio: body.speakerBio === undefined ? event.speaker_bio : body.speakerBio,
     departmentId,
     isOnline: body.isOnline === undefined ? event.is_online : body.isOnline,
-    status: body.status ?? event.status
+    // fsmPatch.status may differ from targetStatus after aliasing; fall through
+    // to existing status when no transition was requested.
+    status: fsmPatch.status ?? event.status,
+    cancellationReason: fsmPatch.cancellation_reason ?? event.cancellation_reason ?? null,
+    completedAt: fsmPatch.completed_at ?? event.completed_at ?? null,
+    completedBy: fsmPatch.completed_by ?? event.completed_by ?? null
   };
 
   // An end before the start is not a typo worth guessing at; it would render an
@@ -120,24 +249,59 @@ export async function PATCH(request, { params }) {
     return fail("VALIDATION_ERROR", "The end time must be after the start time.", 400, { field: "endsAt" });
   }
 
-  const [updated] = await sql`
-    UPDATE events
-    SET title = ${next.title},
-        description = ${next.description},
-        event_type = ${next.eventType},
-        domain = ${next.domain},
-        starts_at = ${next.startsAt},
-        ends_at = ${next.endsAt},
-        location = ${next.location},
-        capacity = ${next.capacity},
-        speaker_name = ${next.speakerName},
-        speaker_bio = ${next.speakerBio},
-        department_id = ${next.departmentId},
-        is_online = ${next.isOnline},
-        status = ${next.status}
-    WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid
-    RETURNING *
-  `;
+  // Execute update + FSM history write in a single transaction.
+  const statusChanged = next.status !== event.status;
+  const transitionResult = await sql.begin(async (tx) => {
+    const [row] = await tx`
+      UPDATE events
+      SET title = ${next.title},
+          description = ${next.description},
+          event_type = ${next.eventType},
+          domain = ${next.domain},
+          starts_at = ${next.startsAt},
+          ends_at = ${next.endsAt},
+          location = ${next.location},
+          capacity = ${next.capacity},
+          speaker_name = ${next.speakerName},
+          speaker_bio = ${next.speakerBio},
+          department_id = ${next.departmentId},
+          is_online = ${next.isOnline},
+          status = ${next.status},
+          cancellation_reason = ${next.cancellationReason},
+          completed_at = ${next.completedAt},
+          completed_by = ${next.completedBy},
+          lock_version = lock_version + 1
+      WHERE id = ${id}
+        AND tenant_id = ${tenant?.id ?? null}::uuid
+        AND lock_version = ${event.lock_version ?? 1}
+      RETURNING *
+    `;
+
+    if (!row) return { conflict: true, updated: null };
+
+    if (statusChanged) {
+      // Record every status move for a full, tamper-evident audit trail.
+      await tx`
+        INSERT INTO event_status_history (
+          event_id, tenant_id, previous_status, new_status, performed_by, reason
+        )
+        VALUES (
+          ${id},
+          ${tenant?.id ?? null}::uuid,
+          ${event.status},
+          ${next.status},
+          ${user.id},
+          ${body.reason ?? body.cancellationReason ?? null}
+        )
+      `;
+    }
+
+    return { conflict: false, updated: row };
+  });
+  if (transitionResult.conflict) {
+    return fail("CONCURRENCY_CONFLICT", "Event was changed by another user. Refresh and try again.", 409);
+  }
+  const updated = transitionResult.updated;
 
   await writeAudit({
     sql,

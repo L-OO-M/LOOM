@@ -4,7 +4,15 @@ import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Check, X, Plus, BadgeCheck } from "lucide-react";
-import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { getRequestContext, writeAudit, writeAuditStrict } from "@/lib/auth-server";
+import {
+  approvalRequirement,
+  createApprovalRequest,
+  decideApproval,
+  finalizeApprovalResource
+} from "@/lib/approvals";
+import { expenseExpenditureGroupKey } from "@/lib/finance-controls";
+import { hasAnyActiveScopedGrant, hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
 import { validateUpload, buildStoragePath } from "@/lib/media";
 import { uploadObject } from "@/lib/storage";
 import { AppShell } from "@/components/AppShell";
@@ -15,30 +23,47 @@ import "../_components/admin-ledger.css";
 async function decideExpense(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || ctx.profile.role !== "admin") return;
-  const { sql, user, tenant } = ctx;
+  if (ctx.error || !isAdmin({ role: ctx.profile.role })) return;
+  const { sql, user, tenant, profile } = ctx;
   const id = String(formData.get("id") || "");
   const decision = String(formData.get("decision") || "");
   if (!id || !["approved", "rejected"].includes(decision)) return;
-  await sql`
-    UPDATE expenses SET status = ${decision}, decided_by = ${user.id}
-    WHERE id = ${id} AND status = 'proposed'
+  const [pending] = await sql`
+    SELECT * FROM expenses
+    WHERE id = ${id}::uuid AND status = 'proposed'
       AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
+    LIMIT 1
   `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: `expense_${decision}`, resource: "expense", resourceId: id });
+  if (!pending?.approval_request_id) return;
+  const result = await decideApproval({
+    sql,
+    tenantId: tenant.id,
+    requestId: pending.approval_request_id,
+    actorId: user.id,
+    actorRole: profile.role,
+    decision,
+    authorizationContext: { source: "admin_finance_action", expenseVersion: pending.request_version },
+    onFinal: (tx, { request: approval, status }) => finalizeApprovalResource(tx, {
+      request: approval,
+      status,
+      actorId: user.id
+    })
+  });
+  if (!result.ok) return;
   revalidatePath("/admin/finance");
 }
 
 async function markExpensePaid(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || ctx.profile.role !== "admin") return;
+  if (ctx.error || !isAdmin({ role: ctx.profile.role })) return;
   const { sql, user, tenant } = ctx;
   const id = String(formData.get("id") || "");
   if (!id) return;
   const [row] = await sql`
     UPDATE expenses SET status = 'paid', paid_at = now(), paid_by = ${user.id}
     WHERE id = ${id} AND status = 'approved'
+      AND created_by <> ${user.id}
       AND tenant_id = ${scope(tenant?.id ?? null)}::uuid
     RETURNING id
   `;
@@ -53,7 +78,7 @@ async function markExpensePaid(formData) {
 async function updateSponsorship(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || ctx.profile.role !== "admin") return;
+  if (ctx.error || !isAdmin({ role: ctx.profile.role })) return;
   const { sql, user, tenant } = ctx;
   const id = String(formData.get("id") || "");
   const status = String(formData.get("status") || "");
@@ -75,7 +100,7 @@ async function updateSponsorship(formData) {
 async function proposeExpense(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || !["dept_lead", "vertical_lead", "admin"].includes(ctx.profile.role)) return;
+  if (ctx.error) return;
   const { sql, user, tenant, profile } = ctx;
   const amount = Number(formData.get("amount"));
   const note = String(formData.get("note") || "").slice(0, 1000);
@@ -90,14 +115,33 @@ async function proposeExpense(formData) {
   if (headId && !head) return;
   const targetDepartmentId = head?.department_id || departmentId;
   if (head?.department_id && departmentId && head.department_id !== departmentId) return;
-  if (profile.role !== "admin" && !targetDepartmentId) return;
-  if (profile.role === "vertical_lead") {
+  const admin = isAdmin({ role: profile.role });
+  const grantUser = {
+    id: user.id,
+    tenantId: tenant.id,
+    scopedGrants: profile.scopedGrants || []
+  };
+  const verticalLead = profile.role === "vertical_lead" && hasAnyActiveScopedGrant(
+    grantUser,
+    "vertical_lead",
+    "vertical"
+  );
+  const departmentLead = (profile.memberships || []).some((membership) =>
+    membership.level === "dept_lead" && !termExpired(membership.term_end)
+  );
+  if (!admin && !verticalLead && !departmentLead) return;
+  if (!admin && !targetDepartmentId) return;
+  if (verticalLead) {
     if (!targetDepartmentId) return;
     const [dept] = await sql`SELECT vertical FROM departments WHERE id = ${targetDepartmentId} AND tenant_id = ${scope(tenant?.id ?? null)}::uuid LIMIT 1`;
-    if (!dept || dept.vertical !== profile.vertical) return;
-  } else if (profile.role !== "admin") {
+    if (!dept || !hasVerticalLeadGrant(grantUser, dept.vertical)) return;
+    if (head?.vertical && !hasVerticalLeadGrant(grantUser, head.vertical)) return;
+  } else if (!admin) {
     const leads = (profile.memberships || []).some(
-      (m) => m.department_id === targetDepartmentId && m.level === "dept_lead"
+      (membership) =>
+        membership.department_id === targetDepartmentId &&
+        membership.level === "dept_lead" &&
+        !termExpired(membership.term_end)
     );
     if (!leads) return;
   }
@@ -123,23 +167,79 @@ async function proposeExpense(formData) {
     receiptMeta = { path, name: String(receipt.name).slice(0, 200), mime: check.mime, size: receipt.size };
   }
 
-  await sql`
-    INSERT INTO expenses
-      (id, tenant_id, head_id, department_id, amount, note, status, created_by,
-       receipt_path, receipt_name, receipt_mime, receipt_size, receipt_uploaded_by)
-    VALUES
-      (${id}::uuid, ${tenant?.id ?? null}, ${headId}, ${targetDepartmentId}, ${amount}, ${note}, 'proposed', ${user.id},
-       ${receiptMeta?.path ?? null}, ${receiptMeta?.name ?? null}, ${receiptMeta?.mime ?? null},
-       ${receiptMeta?.size ?? null}, ${receiptMeta ? user.id : null})
-  `;
-  await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "proposed_expense", resource: "expense", resourceId: id, after: { amount, note } });
+  const groupKey = expenseExpenditureGroupKey({
+    tenantId: tenant.id,
+    actorId: user.id,
+    departmentId: targetDepartmentId,
+    headId
+  });
+  await sql.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${groupKey}, 0))`;
+    const [recent = { recent_total: 0 }] = await tx`
+      SELECT COALESCE(SUM(amount), 0)::numeric AS recent_total
+      FROM expenses
+      WHERE tenant_id = ${tenant.id}::uuid
+        AND created_by = ${user.id}
+        AND expenditure_group_key = ${groupKey}
+        AND status IN ('proposed', 'approved', 'paid')
+        AND created_at >= now() - interval '24 hours'
+    `;
+    const aggregateAmount = Number(recent.recent_total || 0) + amount;
+    const requirement = approvalRequirement(tenant.settings, {
+      resourceType: "expense",
+      amount: aggregateAmount
+    });
+    await tx`
+      INSERT INTO expenses
+        (id, tenant_id, head_id, department_id, amount, note, status, created_by,
+         receipt_path, receipt_name, receipt_mime, receipt_size, receipt_uploaded_by,
+         request_version, expenditure_group_key)
+      VALUES
+        (${id}::uuid, ${tenant.id}::uuid, ${headId}, ${targetDepartmentId}, ${amount}, ${note}, 'proposed', ${user.id},
+         ${receiptMeta?.path ?? null}, ${receiptMeta?.name ?? null}, ${receiptMeta?.mime ?? null},
+         ${receiptMeta?.size ?? null}, ${receiptMeta ? user.id : null}, 1, ${groupKey})
+    `;
+    const approval = await createApprovalRequest({
+      sql: tx,
+      tenantId: tenant.id,
+      policyKey: requirement.policyKey,
+      resourceType: "expense",
+      resourceId: id,
+      resourceVersion: 1,
+      requestedBy: user.id,
+      requiredApprovals: requirement.requiredApprovals,
+      escalationHours: requirement.escalationHours,
+      snapshot: {
+        proposerId: user.id,
+        amount,
+        aggregateAmount,
+        departmentId: targetDepartmentId,
+        headId,
+        note,
+        groupKey
+      }
+    });
+    await tx`
+      UPDATE expenses SET approval_request_id = ${approval.id}
+      WHERE id = ${id}::uuid AND tenant_id = ${tenant.id}::uuid
+    `;
+    await writeAuditStrict({
+      sql: tx,
+      actorId: user.id,
+      tenantId: tenant.id,
+      action: "proposed_expense",
+      resource: "expense",
+      resourceId: id,
+      after: { amount, aggregateAmount, approvalRequestId: approval.id }
+    });
+  });
   revalidatePath("/admin/finance");
 }
 
 async function addBudgetHead(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || ctx.profile.role !== "admin") return;
+  if (ctx.error || !isAdmin({ role: ctx.profile.role })) return;
   const { sql, user, tenant } = ctx;
   const name = String(formData.get("name") || "").slice(0, 200);
   const allocated = Number(formData.get("allocated") || 0);
@@ -167,7 +267,7 @@ async function addBudgetHead(formData) {
 async function addSponsorship(formData) {
   "use server";
   const ctx = await getRequestContext();
-  if (ctx.error || ctx.profile.role !== "admin") return;
+  if (ctx.error || !isAdmin({ role: ctx.profile.role })) return;
   const { sql, user, tenant } = ctx;
   const name = String(formData.get("name") || "").slice(0, 200);
   const amount = Number(formData.get("amount") || 0);

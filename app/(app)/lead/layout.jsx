@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
+import { can } from "@/lib/permissions";
 import "../../../components/loom/workspace.css";
 import "./_components/lead-console.css";
 
@@ -15,6 +16,16 @@ export default async function LeadLayout({ children }) {
   if (ctx.error === "ACCOUNT_SUSPENDED") redirect("/account-status?state=suspended");
   if (ctx.error === "ACCOUNT_DEACTIVATED") redirect("/account-status?state=deactivated");
   if (ctx.error) redirect("/login?redirect=/lead");
-  if (!["dept_lead", "vertical_lead", "admin"].includes(ctx.profile.role)) redirect("/student");
+  const subject = {
+    id: ctx.user.id,
+    tenantId: ctx.tenant.id,
+    role: ctx.profile.role,
+    vertical: ctx.profile.vertical || null,
+    memberships: ctx.profile.memberships || [],
+    scopedGrants: ctx.profile.scopedGrants || [],
+    roleTermEnd: ctx.profile.roleTermEnd ?? ctx.profile.role_term_end ?? null,
+    isPlatformAdmin: !!ctx.profile.isPlatformAdmin
+  };
+  if (!can(subject, "manage_handover").ok) redirect("/student");
   return <>{children}</>;
 }

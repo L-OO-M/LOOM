@@ -4,7 +4,7 @@ import { getSql } from "@/lib/db";
 import { JsonLd, breadcrumbSchema } from "@/components/seo/JsonLd";
 import { absoluteUrl } from "@/lib/seo";
 import { BrandMark } from "@/components/BrandMark";
-import { verifyCertificateSignature } from "@/lib/certificates";
+import { verifyStoredCertificate } from "@/lib/credential-keyring";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }) {
       LEFT JOIN events e ON e.id = c.event_id
       WHERE c.verification_code = ${code} LIMIT 1`;
     if (!cert) return { title: "Certificate not found | LOOM", alternates };
-    const authentic = !cert.revoked_at && verifyCertificateSignature(cert);
+    const authentic = await verifyStoredCertificate(sql, cert);
     const holder = cert.holder_name || "a LOOM member";
     const what = cert.event_title || cert.title;
     return {
@@ -67,7 +67,7 @@ export default async function VerifyCertificatePage({ params }) {
   const cert = rows[0] || null;
   if (!cert) notFound();
   const revoked = !!cert.revoked_at;
-  const authentic = !revoked && verifyCertificateSignature(cert);
+  const authentic = await verifyStoredCertificate(sql, cert);
   const issued = new Date(cert.issued_at).toLocaleDateString();
   const heldOn = cert.starts_at ? new Date(cert.starts_at).toLocaleDateString("en-IN", { dateStyle: "long" }) : null;
 
@@ -90,8 +90,8 @@ export default async function VerifyCertificatePage({ params }) {
           <Row label="Issued">{issued}</Row>
           <Row label="Code"><span className="font-mono text-xs">{cert.verification_code}</span></Row>
         </dl>
-        <p className="mt-5 rounded-xl border px-3 py-2 text-center text-sm font-medium" style={{ borderColor: "var(--line)", color: "var(--accent)", background: "var(--bg-muted)" }}>
-          Verified — issued by LOOM
+        <p className="mt-5 rounded-xl border px-3 py-2 text-center text-sm font-medium" style={{ borderColor: "var(--line)", color: authentic ? "var(--accent)" : "var(--danger)", background: "var(--bg-muted)" }}>
+          {authentic ? "Verified — issued by LOOM" : revoked ? "Revoked certificate" : "Signature could not be verified"}
         </p>
       </div>
       <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>

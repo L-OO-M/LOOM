@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRequestContext } from "@/lib/auth-server";
-import { can, isAdmin } from "@/lib/permissions";
+import { activeScopedGrantIds, can, isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { AnnouncementComposer } from "@/components/lead/AnnouncementComposer";
@@ -15,14 +15,16 @@ export default async function Page() {
   const { user, profile, tenant, sql } = ctx;
   if (!LEAD_ROLES.includes(profile.role) && !isAdmin(profile)) redirect("/student");
 
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null
+  };
   const canChapter = can(me, "post_announcement", {}).ok && !can(me, "post_announcement", {}).note;
-  const myDeptIds = (profile.memberships || []).map((m) => m.department_id);
-  const myVerticals = [...new Set([
-    ...(profile.vertical ? [profile.vertical] : []),
-    ...(profile.memberships || []).map((m) => m.vertical).filter(Boolean)
-  ])];
-
   const departments = isAdmin(profile)
     ? await sql`SELECT id, name, vertical FROM departments WHERE tenant_id = ${tenant.id}::uuid ORDER BY name`
     : await sql`
@@ -32,6 +34,9 @@ export default async function Page() {
         WHERE d.tenant_id = ${tenant.id}::uuid AND m.user_id = ${user.id} AND m.level = 'dept_lead'
         ORDER BY d.name
       `;
+  const myDeptIds = departments.map((department) => department.id);
+  const myVerticals = activeScopedGrantIds(me, "vertical_lead", "vertical");
+  const canSeeSocietyDrafts = isAdmin(me) || myVerticals.length > 0;
   const announcements = await sql`
     SELECT a.*, d.name AS department_name, p.name AS author_name
     FROM announcements a
@@ -40,7 +45,7 @@ export default async function Page() {
     WHERE a.tenant_id = ${tenant.id}::uuid
       AND (
         ${isAdmin(profile)}::boolean = true
-        OR a.scope = 'society'
+        OR (a.scope = 'society' AND ${canSeeSocietyDrafts}::boolean = true)
         OR (a.scope = 'vertical' AND a.vertical = ANY(${myVerticals}))
         OR (a.scope = 'department' AND a.department_id = ANY(${myDeptIds}))
       )

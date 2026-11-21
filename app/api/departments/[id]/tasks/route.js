@@ -15,6 +15,7 @@ const createSchema = z.object({
   kind: z.enum(TASK_KINDS).default("task"),
   priority: z.enum(TASK_PRIORITIES).default("medium"),
   assigneeId: z.string().max(64).nullable().optional(),
+  contributors: z.array(z.string().min(1).max(100)).max(20).default([]),
   dueAt: z.string().datetime().nullable().optional()
 });
 
@@ -100,13 +101,25 @@ export async function POST(request, { params }) {
     `;
     if (!member) return fail("VALIDATION_ERROR", "Add that person to the department first", 400);
   }
+  const contributorIds = [...new Set(body.contributors.filter((id) => id !== body.assigneeId))];
+  if (contributorIds.length) {
+    const members = await sql`
+      SELECT user_id FROM department_memberships
+      WHERE tenant_id = ${tenant.id}::uuid
+        AND department_id = ${dept.id}::uuid
+        AND user_id = ANY(${contributorIds}::text[])
+    `;
+    if (members.length !== contributorIds.length) {
+      return fail("VALIDATION_ERROR", "Every contributor must belong to the department", 400);
+    }
+  }
 
   const [task] = await sql`
     INSERT INTO department_tasks
-      (tenant_id, department_id, title, detail, kind, priority, assignee_id, due_at, created_by)
+      (tenant_id, department_id, title, detail, kind, priority, assignee_id, contributors, due_at, created_by)
     VALUES
       (${tenant.id}::uuid, ${dept.id}::uuid, ${body.title}, ${body.detail},
-       ${body.kind}, ${body.priority}, ${body.assigneeId ?? null}, ${body.dueAt ?? null}::timestamptz,
+       ${body.kind}, ${body.priority}, ${body.assigneeId ?? null}, ${contributorIds}, ${body.dueAt ?? null}::timestamptz,
        ${user.id})
     RETURNING *
   `;

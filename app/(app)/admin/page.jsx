@@ -54,7 +54,7 @@ export default async function AdminPage() {
       (SELECT COUNT(*)::int FROM mentor_applications
         WHERE status = 'pending' AND tenant_id = ${scope(tid)}::uuid) AS applications,
       (SELECT COUNT(*)::int FROM events
-        WHERE status = 'proposed' AND tenant_id = ${scope(tid)}::uuid) AS proposed_events,
+        WHERE status IN ('submitted', 'under_review', 'proposed') AND tenant_id = ${scope(tid)}::uuid) AS proposed_events,
       (SELECT COUNT(*)::int FROM forum_flags f
         WHERE f.created_at >= NOW() - INTERVAL '7 days'
           AND (

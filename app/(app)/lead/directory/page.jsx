@@ -22,7 +22,15 @@ export default async function Page() {
     ORDER BY name
   `;
   const entries = await listDirectory(sql, { tenantId: tenant.id });
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = {
+    id: user.id,
+    tenantId: tenant.id,
+    role: profile.role,
+    vertical: profile.vertical,
+    memberships: profile.memberships || [],
+    scopedGrants: profile.scopedGrants || [],
+    roleTermEnd: profile.roleTermEnd ?? profile.role_term_end ?? null
+  };
   const canManage = can(me, "manage_handover").ok;
   const current = entries.filter((e) => e.is_current).length;
 

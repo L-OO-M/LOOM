@@ -493,7 +493,12 @@ creates a paid resource.
    `/api/health`.
 4. Record restore duration and any missing grants (the `loom_app` role and its
    default privileges are part of the schema; a partial restore can drop them).
-5. Delete the scratch project after the drill.
+
+5. Set `SCRATCH_RESTORE_DATABASE_URL` to the isolated restored project (never
+   production) and run `npm run db:verify:restore`. The read-only verifier checks
+   migration parity, critical tables, forced RLS, scoped-grant tenant integrity,
+   and minimum tenant/data counts. Keep its JSON output with the drill record.
+6. Delete the scratch project after the drill.
 
 **Legal decisions.** The public legal pages (`/privacy`, `/cookies`, `/terms`,
 `/disclaimer`) contain no bracketed placeholders; they read operator, address,
@@ -527,4 +532,3 @@ before going live.
 - Never run builds and dev on the same checkout simultaneously (see CSS row above).
 
 - Serve production only over HTTPS with forced SSL/HSTS at the host (Vercel/AWS/Netlify project setting) — the app builds absolute canonical/OG URLs from NEXT_PUBLIC_APP_URL.
-

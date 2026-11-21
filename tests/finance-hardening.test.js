@@ -14,6 +14,7 @@ function recorder(handler = () => []) {
   };
   sql.calls = calls;
   sql.begin = async (fn) => fn(sql);
+  sql.json = (value) => value;
   return sql;
 }
 
@@ -76,7 +77,13 @@ describe("finance expense scope", () => {
         return [{ id: HEAD, vertical: null, department_id: DEPT_A }];
       }
       if (text.startsWith("INSERT INTO expenses")) {
-        return [{ id: "expense-1", status: "proposed" }];
+        return [{ id: "expense-1", status: "proposed", request_version: 1 }];
+      }
+      if (text.includes("INSERT INTO approval_requests")) {
+        return [{ id: "approval-1", resource_version: 1, status: "pending" }];
+      }
+      if (text.startsWith("UPDATE expenses SET approval_request_id")) {
+        return [{ id: "expense-1", status: "proposed", approval_request_id: "approval-1" }];
       }
       return [];
     });
@@ -114,6 +121,25 @@ describe("finance expense scope", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).data.expense.status).toBe("paid");
     expect(audits[0]).toMatchObject({ action: "expense_paid", resource: "expense" });
+  });
+
+  it("does not let an expired department appointment propose an expense", async () => {
+    const sql = recorder();
+    const { POST } = await loadExpenses({
+      sql,
+      profile: {
+        role: "dept_lead",
+        memberships: [{ department_id: DEPT_A, level: "dept_lead", term_end: "2020-01-01" }]
+      }
+    });
+
+    const res = await POST(req("http://localhost/api/finance/expenses", "POST", {
+      headId: HEAD,
+      amount: 500,
+      note: "Venue deposit"
+    }));
+    expect(res.status).toBe(403);
+    expect(sql.calls).toHaveLength(0);
   });
 });
 

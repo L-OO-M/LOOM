@@ -125,7 +125,7 @@ export function WorkshopForm({ departments }) {
       setLocation("");
       setCapacity("");
       setIsOnline(false);
-      setMsg(data.data.event.status === "proposed" ? "Sent for approval ✓" : "Published ✓");
+      setMsg(data.data.event.status === "submitted" ? "Sent for approval ✓" : "Published ✓");
       router.refresh();
     } else {
       setMsg(data?.error?.message || "Failed");

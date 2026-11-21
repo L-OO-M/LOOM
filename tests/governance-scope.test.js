@@ -2,8 +2,22 @@ import { describe, expect, it } from "vitest";
 import { canAccessVertical, ownedVerticals, canManageSocietyWide } from "@/lib/scope";
 
 const admin = { id: "a", role: "admin", vertical: null, memberships: [] };
-const technicalLead = { id: "v", role: "vertical_lead", vertical: "technical", memberships: [] };
-const nonTechnicalLead = { id: "n", role: "vertical_lead", vertical: "non_technical", memberships: [] };
+const verticalLead = (id, vertical) => ({
+  id,
+  role: "vertical_lead",
+  vertical,
+  memberships: [],
+  scopedGrants: [{
+    role_name: "vertical_lead",
+    scope_type: "vertical",
+    scope_id: vertical,
+    is_active: true,
+    starts_at: null,
+    expires_at: null
+  }]
+});
+const technicalLead = verticalLead("v", "technical");
+const nonTechnicalLead = verticalLead("n", "non_technical");
 const head = {
   id: "h",
   role: "dept_lead",
@@ -35,6 +49,19 @@ describe("domain (vertical) scope for the lead section", () => {
     expect(canAccessVertical(head, "technical")).toBe(true);
     expect(canAccessVertical(head, "non_technical")).toBe(false);
     expect(canAccessVertical(head, null)).toBe(false);
+  });
+
+  it("does not turn unrelated or expired memberships into leadership scope", () => {
+    const mixed = {
+      ...head,
+      memberships: [
+        ...head.memberships,
+        { department_id: "d2", level: "general", vertical: "non_technical" },
+        { department_id: "d3", level: "dept_lead", vertical: "non_technical", term_end: "2020-01-01" }
+      ]
+    };
+    expect([...ownedVerticals(mixed)]).toEqual(["technical"]);
+    expect(canAccessVertical(mixed, "non_technical")).toBe(false);
   });
 
   it("core and students have no domain standing", () => {

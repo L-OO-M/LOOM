@@ -114,7 +114,20 @@ describe("requireCan valid contexts", () => {
   it("preserves the can() note on a denied action", async () => {
     mocks.getRequestContext.mockResolvedValue(
       makeContext({
-        profile: { user_id: "user-1", role: "vertical_lead", vertical: "technical", memberships: [] }
+        profile: {
+          user_id: "user-1",
+          role: "vertical_lead",
+          vertical: "technical",
+          memberships: [],
+          scopedGrants: [{
+            role_name: "vertical_lead",
+            scope_type: "vertical",
+            scope_id: "technical",
+            is_active: true,
+            starts_at: null,
+            expires_at: null
+          }]
+        }
       })
     );
 

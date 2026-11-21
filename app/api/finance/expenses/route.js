@@ -2,7 +2,14 @@ import { scope } from "@/lib/tenant-scope";
 import { z } from "zod";
 import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
-import { isAdmin } from "@/lib/permissions";
+import { hasAnyActiveScopedGrant, hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
+import {
+  approvalRequirement,
+  createApprovalRequest,
+  decideApproval,
+  finalizeApprovalResource
+} from "@/lib/approvals";
+import { expenseExpenditureGroupKey } from "@/lib/finance-controls";
 
 const proposeSchema = z.object({
   headId: z.string().uuid().nullable().optional(),
@@ -13,7 +20,8 @@ const proposeSchema = z.object({
 
 const decideSchema = z.object({
   id: z.string().uuid(),
-  decision: z.enum(["approved", "rejected", "paid"])
+  decision: z.enum(["approved", "rejected", "paid"]),
+  reason: z.string().min(3).max(1000).nullable().optional()
 });
 
 // Expenses: dept leads, vertical leads, and admins can propose; only admins
@@ -30,8 +38,15 @@ export async function POST(request) {
     return validationError(e);
   }
   const admin = isAdmin({ role: profile.role });
-  const isLead = (profile.memberships || []).some((m) => m.level === "dept_lead");
-  if (!admin && profile.role !== "vertical_lead" && !isLead) {
+  const isLead = (profile.memberships || []).some((membership) =>
+    membership.level === "dept_lead" && !termExpired(membership.term_end)
+  );
+  const scopedVerticalLead = profile.role === "vertical_lead" && hasAnyActiveScopedGrant({
+    id: user.id,
+    tenantId: tenant?.id,
+    scopedGrants: profile.scopedGrants || []
+  }, "vertical_lead", "vertical");
+  if (!admin && !scopedVerticalLead && !isLead) {
     return fail("FORBIDDEN", "Only department leads and above can propose expenses", 403);
   }
   const tid = tenant?.id ?? null;
@@ -64,7 +79,7 @@ export async function POST(request) {
     if (!targetDepartmentId) {
       return fail("FORBIDDEN", "Choose a budget head or department you lead", 403);
     }
-    if (profile.role === "vertical_lead") {
+    if (scopedVerticalLead) {
       const target = dept?.id === targetDepartmentId
         ? dept
         : (await sql`
@@ -72,15 +87,23 @@ export async function POST(request) {
             WHERE id = ${targetDepartmentId} AND tenant_id = ${scope(tid)}::uuid
             LIMIT 1
           `)[0];
-      if (!target || target.vertical !== profile.vertical) {
+      const grantUser = {
+        id: user.id,
+        tenantId: tid,
+        scopedGrants: profile.scopedGrants || []
+      };
+      if (!target || !hasVerticalLeadGrant(grantUser, target.vertical)) {
         return fail("FORBIDDEN", "You can only propose expenses for departments in your vertical", 403);
       }
-      if (head?.vertical && head.vertical !== profile.vertical) {
+      if (head?.vertical && !hasVerticalLeadGrant(grantUser, head.vertical)) {
         return fail("FORBIDDEN", "That budget head belongs to another vertical", 403);
       }
     } else {
       const leadsDept = (profile.memberships || []).some(
-        (m) => m.department_id === targetDepartmentId && m.level === "dept_lead"
+        (membership) =>
+          membership.department_id === targetDepartmentId &&
+          membership.level === "dept_lead" &&
+          !termExpired(membership.term_end)
       );
       if (!leadsDept) {
         return fail("FORBIDDEN", "You can only propose expenses against a budget you lead", 403);
@@ -99,16 +122,75 @@ export async function POST(request) {
       }
     }
   }
-  const [expense] = await sql`
-    INSERT INTO expenses (tenant_id, head_id, department_id, amount, note, status, created_by)
-    VALUES (${tid}, ${body.headId || null}, ${targetDepartmentId}, ${body.amount}, ${body.note}, 'proposed', ${user.id})
-    RETURNING *
-  `;
-  await writeAudit({
-    sql, actorId: user.id, tenantId: tenant?.id, action: "proposed_expense",
-    resource: "expense", resourceId: expense.id, after: { amount: body.amount, note: body.note }
+  const groupKey = expenseExpenditureGroupKey({
+    tenantId: tid,
+    actorId: user.id,
+    departmentId: targetDepartmentId,
+    headId: body.headId || null
   });
-  return ok({ expense }, { status: 201 });
+  const created = await sql.begin(async (tx) => {
+    // Serialize same-proposer/same-purpose submissions so splitting cannot race
+    // below the dual-approval threshold.
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${groupKey}, 0))`;
+    const [recent = { recent_total: 0 }] = await tx`
+      SELECT COALESCE(SUM(amount), 0)::numeric AS recent_total
+      FROM expenses
+      WHERE tenant_id = ${tid}::uuid
+        AND created_by = ${user.id}
+        AND expenditure_group_key = ${groupKey}
+        AND status IN ('proposed', 'approved', 'paid')
+        AND created_at >= now() - interval '24 hours'
+    `;
+    const aggregateAmount = Number(recent.recent_total || 0) + body.amount;
+    const requirement = approvalRequirement(tenant?.settings, {
+      resourceType: "expense",
+      amount: aggregateAmount
+    });
+    const [expense] = await tx`
+      INSERT INTO expenses (
+        tenant_id, head_id, department_id, amount, note, status, created_by,
+        request_version, expenditure_group_key
+      ) VALUES (
+        ${tid}, ${body.headId || null}, ${targetDepartmentId}, ${body.amount},
+        ${body.note}, 'proposed', ${user.id}, 1, ${groupKey}
+      )
+      RETURNING *
+    `;
+    const approval = await createApprovalRequest({
+      sql: tx,
+      tenantId: tid,
+      policyKey: requirement.policyKey,
+      resourceType: "expense",
+      resourceId: expense.id,
+      resourceVersion: expense.request_version,
+      requestedBy: user.id,
+      requiredApprovals: requirement.requiredApprovals,
+      escalationHours: requirement.escalationHours,
+      snapshot: {
+        proposerId: user.id,
+        amount: body.amount,
+        aggregateAmount,
+        departmentId: targetDepartmentId,
+        note: body.note,
+        groupKey
+      }
+    });
+    const [linked] = await tx`
+      UPDATE expenses SET approval_request_id = ${approval.id}
+      WHERE id = ${expense.id} AND tenant_id = ${tid}::uuid
+      RETURNING *
+    `;
+    await tx`
+      INSERT INTO audit_logs (actor_id, tenant_id, action, resource, resource_id, after, metadata)
+      VALUES (
+        ${user.id}, ${tid}::uuid, 'proposed_expense', 'expense', ${expense.id}::text,
+        ${tx.json({ amount: body.amount, aggregateAmount, approvalRequestId: approval.id })},
+        ${tx.json({ tenant_id: tid })}
+      )
+    `;
+    return { expense: linked, approval };
+  });
+  return ok(created, { status: 201 });
 }
 
 export async function PATCH(request) {
@@ -126,30 +208,49 @@ export async function PATCH(request) {
     return validationError(e);
   }
   const tid = tenant?.id ?? null;
-  const [expense] = body.decision === "paid"
-    ? await sql`
+  if (body.decision === "paid") {
+    const [expense] = await sql`
         UPDATE expenses
         SET status = 'paid', paid_at = now(), paid_by = ${user.id}
         WHERE id = ${body.id} AND status = 'approved'
-          AND tenant_id = ${scope(tid)}::uuid
-        RETURNING *
-      `
-    : await sql`
-        UPDATE expenses SET status = ${body.decision}, decided_by = ${user.id}
-        WHERE id = ${body.id} AND status = 'proposed'
+          AND created_by <> ${user.id}
           AND tenant_id = ${scope(tid)}::uuid
         RETURNING *
       `;
-  if (!expense) {
-    return fail(
-      "NOT_FOUND",
-      body.decision === "paid" ? "No approved expense with that id" : "No proposed expense with that id",
-      404
-    );
+    if (!expense) return fail("NOT_FOUND", "No payable approved expense with that id", 404);
+    await writeAudit({
+      sql, actorId: user.id, tenantId: tenant?.id, action: "expense_paid",
+      resource: "expense", resourceId: body.id, after: { decision: "paid" }
+    });
+    return ok({ expense });
   }
-  await writeAudit({
-    sql, actorId: user.id, tenantId: tenant?.id, action: `expense_${body.decision}`,
-    resource: "expense", resourceId: body.id, after: { decision: body.decision }
+
+  const [pending] = await sql`
+    SELECT * FROM expenses
+    WHERE id = ${body.id} AND tenant_id = ${scope(tid)}::uuid AND status = 'proposed'
+    LIMIT 1
+  `;
+  if (!pending?.approval_request_id) {
+    return fail("APPROVAL_REQUIRED", "This expense has no versioned approval request", 409);
+  }
+  const result = await decideApproval({
+    sql,
+    tenantId: tid,
+    requestId: pending.approval_request_id,
+    actorId: user.id,
+    actorRole: profile.role,
+    decision: body.decision,
+    reason: body.reason || null,
+    authorizationContext: { source: "finance_expense_api", expenseVersion: pending.request_version },
+    onFinal: (tx, { request: approval, status }) => finalizeApprovalResource(tx, {
+      request: approval,
+      status,
+      actorId: user.id
+    })
   });
-  return ok({ expense });
+  if (!result.ok) {
+    const status = result.reason === "SELF_APPROVAL_BLOCKED" ? 403 : 409;
+    return fail(result.reason, result.reason.replaceAll("_", " ").toLowerCase(), status);
+  }
+  return ok({ expense: result.resource, approval: result.request });
 }

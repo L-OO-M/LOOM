@@ -1,6 +1,6 @@
 import { fail } from "@/lib/api";
 import { getRequestContext } from "@/lib/auth-server";
-import { can, isAdmin } from "@/lib/permissions";
+import { activeScopedGrantIds, can, isAdmin } from "@/lib/permissions";
 import { loadReportExport, reportCsv, reportPdf } from "@/lib/report-export";
 
 const FORMATS = new Set(["json", "csv", "pdf"]);
@@ -14,10 +14,13 @@ export async function GET(request) {
   if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
   if (ctx.error) return fail(ctx.error, "Profile not found", 404);
   const { user, profile, tenant, sql } = ctx;
-  const me = { id: user.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [] };
+  const me = { id: user.id, tenantId: tenant?.id, role: profile.role, vertical: profile.vertical, memberships: profile.memberships || [], scopedGrants: profile.scopedGrants || [] };
   if (!isAdmin(me) && !can(me, "export_reports", {}).ok) {
     return fail("FORBIDDEN", "Only vertical leads and admins can export reports", 403);
   }
+  const verticals = isAdmin(me)
+    ? null
+    : activeScopedGrantIds(me, "vertical_lead", "vertical");
   const { searchParams } = new URL(request.url);
   const period = searchParams.get("scope") === "annual" ? "annual" : "semester";
   const format = FORMATS.has(searchParams.get("format")) ? searchParams.get("format") : "json";
@@ -26,7 +29,7 @@ export async function GET(request) {
     sql,
     tenantId: tenant?.id ?? null,
     scopeParam: period,
-    viewer: { role: profile.role, vertical: profile.vertical }
+    viewer: { role: profile.role, verticals }
   });
 
   if (format === "csv") {

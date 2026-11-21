@@ -24,7 +24,7 @@ export default async function Image({ params }) {
         FROM events
         WHERE id = ${id}::uuid
           AND tenant_id = ${tenant.id}::uuid
-          AND status IN ('upcoming', 'live', 'past')
+          AND status IN ('published', 'registration_closed', 'live', 'completed', 'upcoming', 'past')
         LIMIT 1
       `;
       event = row || null;

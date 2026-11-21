@@ -22,6 +22,7 @@
     "db:seed": "node load/seed-control-plane.js && node load/seed-content.js",
     "db:seed:roadmaps": "node load/seed-roadmaps.js && node load/seed-node-resources.js",
     "db:verify": "node load/verify-roadmap-shelf.js",
+    "db:verify:restore": "node load/verify-restored-backup.mjs",
     "db:seed:dev": "node load/seed-dev.js",
     "seed:e2e": "node load/seed-e2e-student.js",
     "db:clean:launch": "node load/clean-launch-data.js",

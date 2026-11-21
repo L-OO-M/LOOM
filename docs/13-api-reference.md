@@ -75,12 +75,16 @@ Practice reads are server-rendered: `/student/practice` and `/student/practice/l
 | POST | `/api/credentials` | user | issue signed link for own achievement (`expiresInDays` 0–730) |
 | GET/POST | `/api/admin/badges` | admin | badge definitions (tier 1–3) |
 | POST | `/api/admin/achievements` | admin | issue to a chapter student + notify |
+| GET/POST | `/api/admin/credential-keys` | admin | list public key metadata / `{action:"rotate"}` creates a new encrypted-at-rest Ed25519 signer and keeps old public keys for verification; `{action:"revoke", keyId, reason}` revokes one key with audit history |
+| POST | `/api/admin/certificates/[id]/revoke` | admin | revoke an active tenant certificate with a mandatory reason; public verification changes to **Revoked** |
 | GET | `/api/insights` | user | latest snapshot, 14-trend, peer avgs, rank, heuristic recommendation |
 
 Certificates are rendered as pages rather than JSON. `GET /verify/certificate/[code]`
-is public and shows **Verified** only when the stored HMAC signature matches the
-immutable certificate fields; tampered, unsigned, or `revoked_at` rows show
-**Unverified**/`Revoked` and are `noindex`. `GET /student/certificates/[code]`
+is public and shows **Verified** only when the stored signature and immutable
+payload validate. New certificates use a tenant Ed25519 key when one is active;
+legacy version-1 HMAC certificates remain verifiable during migration. A
+tampered, expired, unsigned, certificate-revoked, or signing-key-revoked row
+shows **Unverified**/**Revoked** and is `noindex`. `GET /student/certificates/[code]`
 is restricted to the holder or an admin of the issuing chapter and returns
 `notFound()` for anyone else.
 
@@ -102,13 +106,15 @@ is restricted to the holder or an admin of the issuing chapter and returns
 
 | Method | Route | Notes |
 |--------|-------|-------|
-| GET/POST | `/api/events` | upcoming/past / admin create (capacity enforced). POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and **rejects any event whose start falls inside the 20 Nov – 20 Dec 2026 relaxation window** (`RELAXATION_WINDOW`, 409). |
-| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount) / feedback. Registration is closed more than two hours after `starts_at` → `EVENT_CONCLUDED` 409, so a stale `status` cannot sell a seat for a finished event |
+| GET/POST | `/api/events` | visible upcoming/past events / scoped lead creation. POST accepts planner metadata (`plannerWeek`, `plannerKind`, `plannerRef`) and enforces the **server-owned tenant relaxation policy** (`RELAXATION_WINDOW`, 409); clients cannot claim an exemption. Department-lead society events start `submitted`; authorized VL/admin events and owned department workshops may start `published`. |
+| GET/POST/PATCH | `/api/events/[id]` | detail+materials / register-cancel (event-row lock + in-transaction seat recount, explicit registration open/close timestamps, status and capacity) / attended-member feedback |
+| PATCH | `/api/admin/events/[id]` | authorized event operator | edit event fields or request an FSM transition with optional `lockVersion`; legacy inputs `proposed`, `upcoming`, `past` map to `submitted`, `published`, `completed`. Invalid transitions fail and every successful status change appends `event_status_history` |
+| POST | `/api/events/[id]/approve` | independent scoped VL/admin | approve+publish or reject a `submitted`/`under_review` event; self-approval blocked and `lockVersion` conflicts return 409 |
 | POST | `/api/events/[id]/materials` | admin: attach link material |
 | GET/POST | `/api/planner` | user-readable planner. GET returns the 28 weeks, sessions and planner-linked events (`?track=dsa\|ai_ml\|…\|all`, `?week=1..28`); POST schedules a society event (admin/`vertical_lead` only) at `{week, title, startsAt, eventType, kind, …}`, enforces the relaxation window, audits and returns 23505 as `DUPLICATE`. **Currently disabled:** `PLANNER_ENABLED = false` (`lib/feature-flags.js`) makes every planner API return 404 and hides its nav entry; the three HTML planner routes render a "not switched on" page inside `AppShell` rather than the generic 404. |
 | GET | `/api/planner/ics` | user: download the selected track's dated sessions + society events as an RFC 5545 calendar (`.ics`, `Asia/Kolkata`); deferred and in-window sessions are omitted. **Currently 404** while `PLANNER_ENABLED` is false. |
 | PATCH | `/api/planner` | admin/`vertical_lead`: `{action:"reassign", fromUserId\|null, toUserId}` moves every session owned by `fromUserId` (or the unassigned bucket when null) to `toUserId` in the caller's chapter, audits, notifies the successor, and returns `{reassigned, toUserId}` |
-| POST | `/api/admin/events/[id]/attendance` | dept_lead+ (`manage_event_ops`): check in by door code → attended + certificate (once) + notify |
+| POST | `/api/events/[id]/attendance` | exact event door grant, owning department operator, scoped VL, or admin | canonical check-in route by QR/door code or student ID; duplicate-safe attendance + evidence + ranking outbox + certificate issuance in one transaction. `/api/admin/events/[id]/attendance` remains a compatibility alias |
 | GET | `/api/admin/events/[id]/attendees/export` | dept_lead+ (`manage_event_ops`): attendee ledger as a UTF-8 CSV download (name, email, domain, status, door code, registered-at, feedback) |
 | GET/POST | `/api/volunteers` | authenticated: slots (optionally `?eventId=`) with live counts / open a slot (event dept lead, VL, or admin); capacity enforced on signup |
 | POST/DELETE | `/api/volunteers/[id]/signup` | authenticated: take or release one volunteer seat (idempotent; `EVENT_FULL` 409) |
@@ -144,7 +150,7 @@ The rules shown on `/student/challenges` are `SOCIETY_RULES` in `lib/society.js`
 
 ## Errors & limits
 
-Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `REPORT_LOCKED` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
+Common codes: `VALIDATION_ERROR` 400, `UNAUTHORIZED` 401, `FORBIDDEN` 403, `SELF_APPROVAL_BLOCKED` 403, `NOT_FOUND` 404, `REPO_NOT_TRACKED` 404, `REPOSITORY_NOT_FOUND` 404, `REPO_NAME_TAKEN` 422, `TYPE_MISMATCH` 400, `EVENT_FULL` 409, `REGISTRATION_CLOSED` 409, `INVALID_TRANSITION` 409/422, `CONCURRENCY_CONFLICT` 409, `CONFLICT` 409, `LEADERSHIP_APPOINTMENT_REQUIRED` 409, `REPORT_LOCKED` 409, `USERNAME_TAKEN` 409, `DUPLICATE` 409, `RATE_LIMITED` 429, `GITHUB_SIGNATURE_INVALID` 401, `GITHUB_NOT_LINKED` 409, `GITHUB_RELINK_REQUIRED` 409, `GITHUB_SCOPE_MISSING` 403, `GITHUB_OAUTH_NOT_CONFIGURED` 503, `RELAXATION_WINDOW` 409.
 Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-create 10/min, webhook 120/min per tenant).
 
 ## Org, leads & operations (added after the initial reference)
@@ -154,8 +160,8 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET | `/api/departments` | user | active tenant departments + member counts + my level |
 | POST | `/api/departments/[id]/join` | user | instant approval-free join as `general` (idempotent) |
 | POST | `/api/departments/[id]/request-core` | user | one-click core request (creates `general` + `core_requested` if needed) |
-| PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | `{level: core|general}` by dept Head/Co-Head or admin (upward role sync; demotion to `general` lowers `profiles.role` to `student` only when no Core/Head seat remains elsewhere); `{level: dept_lead}` admin-only; a Head's seat cannot be edited by another head + audit |
-| DELETE | `/api/departments/[id]/members/[userId]` | lead/admin | remove a member from this department (never a `dept_lead`); deletes the seat only, so assigned work and contributions stay attributed; same role-downgrade rule + audit + notification |
+| PATCH | `/api/departments/[id]/members/[userId]` | lead/admin | roster-only `{level: core\|general}` (upward role sync; demotion to `general` lowers `profiles.role` to `student` only when no Core seat remains elsewhere). A `dept_lead` membership returns `LEADERSHIP_APPOINTMENT_REQUIRED`; Head appointment/demotion is only `/api/admin/students`, where term, membership, slot, scoped grant, history, audit, and notification share one transaction |
+| DELETE | `/api/departments/[id]/members/[userId]` | lead/admin | remove a General/Core member; Head seats return `LEADERSHIP_APPOINTMENT_REQUIRED`. Work and contributions stay attributed; same role-downgrade rule + audit + notification |
 | POST | `/api/departments/[id]/members` | lead/admin | `{userId, level?: general|core}` add an existing chapter member to this department; refuses to touch an existing Head; audit + notification |
 | GET | `/api/departments/[id]/tasks` | dept member, assignee, VL own vertical, admin | the department's work board (`?mine=1` narrows to the caller's assignments); each row carries assignee, due date, evidence, completion note and reviewer |
 | POST | `/api/departments/[id]/tasks` | dept Head/Co-Head (`manage_department_tasks`), VL own vertical, admin | assign work (`title`, `detail`, `kind`, `priority`, `assigneeId`, `dueAt`); the assignee must already be on the roster; notifies them |
@@ -164,6 +170,9 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | GET/POST | `/api/announcements` | user | scoped feed (published + unexpired; society + my verticals + my departments) / post (`status=draft|published`, optional `expiresAt`; `post_announcement`: VL own vertical or society-wide, dept_lead own department feed) + fan-out only when published. `?manage=1` returns drafts to leads/admins |
 | PATCH | `/api/announcements/[id]` | author/admin | publish a draft (`{status:"published"}`), stamp `published_at`, audit the transition, fan out once |
 | GET/POST | `/api/contributions` | user | contribution ledger: self-log, or lead-log for own department (`log_contribution`) |
+| GET/POST | `/api/workflows` | authenticated scoped lead/admin | list only workflows visible through ownership, membership, receiving department, or active vertical grant / create the implemented `society_workshop` pipeline. Initiator and linked event/project/owner are tenant-validated; unsupported reserved workflow types fail validation |
+| PATCH | `/api/workflows/[id]/handoffs/[handoffId]` | receiving-team lead or assigned owner | explicit `start\|submit\|approve\|return\|block` FSM; validates department deliverables and dependencies, blocks self-review, advances the next step, completes the workflow, and returns 409 on a stale status write |
+| GET/POST | `/api/approvals/[id]` | requester/admin read; independent admin decide | read an approval and its decisions / add `approved\|rejected\|exception_approved`. Duplicate/self decisions fail; exception approval requires an overdue request and reason; final decision and audit are transactional |
 | GET | `/api/lead/overview` | dept_lead+ | lead console dataset (shared query with `/lead` page; `?vertical=` override) |
 | PATCH | `/api/lead/succession` | dept_lead/admin | flag/unflag a core member `succession_ready` (Head/Co-Head of that dept, or admin) |
 | GET/POST | `/api/lead/handover` | dept_lead+ (`manage_handover`) | own handovers + eligible successors / nominate a successor and file the brief (`?all=1` = admin review queue) |
@@ -197,8 +206,11 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | PATCH | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | edit / change status (stamps `done_at`/`done_by` on completion); cannot move across domains |
 | DELETE | `/api/lead/event-ops/[id]` | dept_lead+ (`manage_event_ops`) | remove (soft delete); own or own-domain only |
 | GET | `/api/admin/overview` | admin | command deck: per-department cards + pending approval counts |
-| PATCH | `/api/admin/students` | admin | change a role with scope + `termEnd` (YYYY-MM-DD; defaults to one year for dept_lead / vertical_lead / admin). Refuses founder seats, self-changes, and removing the last admin; closes/opens `leadership_terms`, syncs membership terms, audits |
-| POST | `/api/admin/students/bulk` | admin | assign role + term to at most **500** users per request (larger or empty arrays are rejected with `VALIDATION_ERROR` before any write; same guards as single; each user gets a `leadership_terms` row and membership term dates; the whole batch is one transaction). `mode:"department"` instead adds general/core memberships without touching `profiles.role`; role grants above the actor's rank are refused |
+| PATCH | `/api/admin/students` | admin | authoritative role/leadership change with scope + `termEnd` (YYYY-MM-DD; defaults to one year for dept_lead / vertical_lead / admin). Refuses founder seats, self-changes, and removing the last admin; atomically closes/opens `leadership_terms`, syncs membership/slot and scoped grants, audits |
+| POST | `/api/admin/students/bulk` | admin | assign role + term to at most **500** users per request (larger or empty arrays are rejected with `VALIDATION_ERROR` before any write; same guards as single; terms/memberships/scoped grants are one transaction). `mode:"department"` instead adds General/Core memberships without touching `profiles.role`; role grants above the actor's rank are refused |
+| GET/PATCH | `/api/admin/tenant-settings` | admin | read normalized chapter policy / patch validated `relaxation_window`, `dual_head_approval`, or `public_passport_defaults`; rejects unknown or malformed settings and audits changes |
+| GET/POST | `/api/admin/outbox` | admin | tenant queue health + latest dead letters / retry one tenant-owned dead row from attempt zero; retry is audited |
+| GET | `/api/admin/governance/analytics` | admin | pending/approved/rejected/overdue approval metrics, workflow/handoff status counts, and outbox health |
 | PATCH | `/api/admin/students/[id]/status` | admin | `{status:"suspended"\|"deactivated"\|"active", reason, confirm}`. Suspension/deactivation bites on the next request; closing requires every offboarding item; reactivation requires `confirm:true`; founder/self/last-active-admin guards; audited |
 | PATCH | `/api/admin/students/[id]/checklist` | admin | toggle one per-role onboarding/offboarding item (`{kind, itemKey, done}`), upsert completion, audit |
 | GET | `/api/admin/students` | admin | roster with `role_term_end` for the term column; paged with `?page` and `?pageSize` (default 50, max 100) and returns `pagination` metadata |
@@ -213,7 +225,7 @@ Rate limits are in-memory per instance (vote 60/min, claims 20/min, thread-creat
 | PATCH | `/api/handover/[id]` | admin | toggle `done` / edit `detail` / reassign `ownerId` (`null` clears) |
 | GET | `/api/admin/succession` | admin | unified succession read model: checklist, handover briefs, transfer flags and leadership terms, outstanding first (`lib/succession.js`; same function feeds `/admin/handover`) |
 | GET | `/api/finance` | VL/admin | snapshot: budget heads + approved/paid spend + pending expenses + sponsorship pipeline (VL scoped to own vertical + society-wide) |
-| POST/PATCH | `/api/finance/expenses` | lead+/admin | propose (proposer must lead the charged budget head's department, or its vertical) / approve-or-reject `{approved\|rejected}` then pay `{paid}` (admin only; VL `recommend_only`) |
+| POST/PATCH | `/api/finance/expenses` | scoped lead/admin | propose against an owned budget head with receipt evidence / decide through the shared approval request (including configured independent dual approval at the aggregate threshold) / mark an approved expense paid through the independent finance boundary. A proposer cannot approve their own spend |
 | POST/PUT | `/api/finance/sponsorships` | admin / vertical lead | create / update sponsor pipeline rows; a VL is restricted to their own `vertical` |
 | GET | `/api/public/departments` | public | active departments + head/co-head names and `head_avatar`/`co_head_avatar` (directory photo, else account avatar) + member counts (tenant from host) |
 | GET | `/api/public/events` | public | upcoming/live events (tenant from host) |

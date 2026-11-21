@@ -22,6 +22,7 @@ function makeSql(responder) {
     return Promise.resolve(responder(text, values, calls) ?? []);
   };
   sql.json = (value) => value;
+  sql.begin = async (fn) => fn(sql);
   return { sql, calls };
 }
 
@@ -35,6 +36,7 @@ const row = (overrides = {}) => ({
   attempts: 1,
   available_at: "2026-11-03T00:00:00.000Z",
   locked_at: "2026-11-03T00:00:00.000Z",
+  lease_token: "33333333-3333-4333-8333-333333333333",
   last_error: null,
   ...overrides
 });
@@ -65,7 +67,7 @@ describe("enqueue", () => {
     await expect(
       enqueue(first.sql, { tenantId: TENANT, topic: "notification", payload: {}, dedupeKey: "k" })
     ).resolves.toBe(7);
-    expect(first.calls[0].text).toContain("ON CONFLICT (topic, dedupe_key)");
+    expect(first.calls[0].text).toContain("ON CONFLICT (tenant_id, topic, dedupe_key)");
 
     const dupe = makeSql(() => []);
     await expect(
@@ -94,6 +96,7 @@ describe("claiming work", () => {
     const { sql, calls } = makeSql(() => []);
     await claimBatch(sql);
     expect(calls[0].text).toContain("attempts = attempts + 1");
+    expect(calls[0].text).toContain("lease_token = gen_random_uuid()");
     expect(calls[0].values).toContain(DEFAULT_BATCH);
   });
 
@@ -111,6 +114,11 @@ describe("drainOutbox", () => {
     return (text) => {
       if (/^UPDATE outbox SET status = 'processing'/.test(text)) return claimed;
       if (/^INSERT INTO notifications/.test(text)) return overrides.notification ? overrides.notification() : [];
+      if (/^UPDATE outbox SET status = '(done|pending|dead)'/.test(text)
+          && /lease_token = NULL/.test(text)
+          && /lease_token = \?::uuid/.test(text)) {
+        return [{ id: claimed[0]?.id || 1 }];
+      }
       return [];
     };
   }
@@ -173,6 +181,19 @@ describe("drainOutbox", () => {
     const { sql } = makeSql(() => []);
     await expect(drainOutbox(sql)).resolves.toMatchObject({ claimed: 0, done: 0 });
   });
+
+  it("does not finalize work after its lease was reclaimed", async () => {
+    const { sql } = makeSql((text) => {
+      if (/^UPDATE outbox SET status = 'processing'/.test(text)) return [row()];
+      if (/^UPDATE outbox SET status = 'done'/.test(text)) return [];
+      return [];
+    });
+    await expect(drainOutbox(sql)).resolves.toMatchObject({
+      claimed: 1,
+      done: 0,
+      lostLease: 1
+    });
+  });
 });
 
 describe("notification handler", () => {
@@ -181,6 +202,39 @@ describe("notification handler", () => {
     await expect(
       OUTBOX_HANDLERS.notification(sql, row({ payload: { userId: "u1" } }))
     ).rejects.toThrow(/requires userId, type and title/);
+  });
+});
+
+describe("ranking recompute handler", () => {
+  it("validates the payload and tenant membership before recomputing", async () => {
+    const { sql, calls } = makeSql(() => []);
+    await expect(
+      OUTBOX_HANDLERS["ranking.recompute"](sql, row({ topic: "ranking.recompute", payload: {} }))
+    ).rejects.toThrow(/requires userId/);
+
+    await expect(
+      OUTBOX_HANDLERS["ranking.recompute"](
+        sql,
+        row({ topic: "ranking.recompute", payload: { userId: "missing-user" } })
+      )
+    ).resolves.toBeUndefined();
+    expect(calls.some((call) => call.text.includes("tenant_id = ?::uuid"))).toBe(true);
+  });
+
+  it("retries when another worker holds the per-user advisory lock", async () => {
+    const { sql, calls } = makeSql((text) => {
+      if (text.startsWith("SELECT user_id FROM profiles")) return [{ user_id: "u1" }];
+      if (text.includes("pg_try_advisory_xact_lock")) return [{ acquired: false }];
+      return [];
+    });
+
+    await expect(
+      OUTBOX_HANDLERS["ranking.recompute"](
+        sql,
+        row({ topic: "ranking.recompute", payload: { userId: "u1" } })
+      )
+    ).rejects.toThrow(/concurrent job/);
+    expect(calls.some((call) => call.text.includes("hashtextextended"))).toBe(true);
   });
 });
 
