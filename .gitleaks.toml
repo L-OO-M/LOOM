@@ -22,4 +22,15 @@ regexes = [
   # what the surrounding comments forbid (they must never be live credentials).
   '''^0123456789abcdefTESTfixture$''',
   '''^0{40}$''',
+  # Google Search Console ownership token. This value is public by construction:
+  # it is both the meta-tag content and the name of the file Google fetches
+  # (/googleqSi...html). Gitleaks flags it as a generic API key because of its
+  # entropy, not because it grants any access. Kept as an exact value so a real
+  # Google credential committed anywhere is still reported.
+  '''^qSiVffVox-zKvotGZAva73O1SMfVMxaf_qiCl24FIZc$''',
+  # Fake ownership-code fixture asserted on in tests/identity.test.js. The
+  # production format is `loom-verify-<12 hex>`; it is intentionally published
+  # in the member's page so a reviewer can confirm control, which is why only
+  # this exact fixture value is allowlisted rather than the whole format.
+  '''^loom-verify-abc123456789$''',
 ]
