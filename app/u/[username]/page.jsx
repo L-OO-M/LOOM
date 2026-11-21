@@ -76,7 +76,9 @@ function AtAGlance({ items }) {
 }
 
 function GitHubActivity({ github, summary, rows, reposVerified }) {
-  const total = summary.commits + summary.pullRequests + summary.reviews;
+  // `contributions` is the per-day max of webhook and calendar; `commits` alone
+  // is invisible for a member whose work GitHub sees but no webhook recorded.
+  const total = summary.contributions;
   const username = normalizeGithubHandle(github?.github_username);
   if (!username && total === 0) return null;
   return (
@@ -92,8 +94,8 @@ function GitHubActivity({ github, summary, rows, reposVerified }) {
       <Heatmap rows={rows} weeks={16} />
       <div className="folio-activity-rows">
         <div className="folio-activity-row">
-          <span className="folio-activity-value">{summary.commits}</span>
-          <span className="folio-activity-label">Commits</span>
+          <span className="folio-activity-value">{summary.contributions}</span>
+          <span className="folio-activity-label">Contributions</span>
         </div>
         <div className="folio-activity-row">
           <span className="folio-activity-value">{summary.pullRequests}</span>
@@ -123,6 +125,9 @@ function LeetCodeActivity({ stats, username }) {
     { label: "Medium", solved: stats.medium, total: stats.totalMedium },
     { label: "Hard", solved: stats.hard, total: stats.totalHard }
   ].filter((b) => b.solved > 0 || b.total > 0);
+  const calendarRows = Object.entries(stats.calendar || {})
+    .map(([day, count]) => ({ day, count: Number(count) || 0 }))
+    .filter((row) => row.count > 0);
   return (
     <div className="folio-activity-block">
       <div className="folio-activity-head">
@@ -168,6 +173,11 @@ function LeetCodeActivity({ stats, username }) {
           })}
         </div>
       ) : null}
+      {calendarRows.length > 0 ? (
+        <div style={{ marginTop: "0.9rem" }}>
+          <Heatmap rows={calendarRows} weeks={18} valueField="count" unit="submission" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -175,7 +185,7 @@ function LeetCodeActivity({ stats, username }) {
 function ActivityBlock({ github, summary, rows, reposVerified, leetcode, leetcodeUsername }) {
   const leetcodeBlock = <LeetCodeActivity stats={leetcode} username={leetcodeUsername} />;
   const githubBlock = <GitHubActivity github={github} summary={summary} rows={rows} reposVerified={reposVerified} />;
-  const hasAny = Boolean(leetcode) || (summary.commits + summary.pullRequests + summary.reviews > 0) || Boolean(github?.github_username);
+  const hasAny = Boolean(leetcode) || summary.contributions > 0 || Boolean(github?.github_username);
   return (
     <div className="folio-activity">
       {githubBlock}
@@ -425,7 +435,7 @@ export default async function PublicProfilePage({ params }) {
   let activityRows = [];
   try {
     activityRows = await sql`
-      SELECT day, commits, pull_requests, reviews FROM student_daily_activity
+      SELECT day, commits, pull_requests, reviews, github_contributions FROM student_daily_activity
       WHERE student_id = ${card.user_id}
         AND day >= CURRENT_DATE - INTERVAL '120 days'
       ORDER BY day`;
