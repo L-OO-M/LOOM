@@ -11,6 +11,7 @@ import {
   problemSlug,
   rankMembers,
   retryDelay,
+  titleFromSlug,
   validateQuestions,
   weekStart
 } from "@/lib/practice-domain";
@@ -187,6 +188,34 @@ describe("practice question links", () => {
     expect(() => validateQuestions(questions.slice(1), true)).toThrow();
     expect(() => validateQuestions([...questions.slice(1), questions[1]], true)).toThrow();
     expect(validateQuestions([], false)).toHaveLength(0);
+  });
+
+  it("derives a blank title from the problem URL instead of accepting a placeholder", () => {
+    const parsed = validateQuestions([
+      {
+        title: "   ",
+        url: "https://leetcode.com/problems/minimum-add-to-make-parentheses-valid/",
+        difficulty: "Medium"
+      }
+    ]);
+    expect(parsed[0]).toMatchObject({
+      title: "Minimum Add to Make Parentheses Valid",
+      slug: "minimum-add-to-make-parentheses-valid",
+      position: 1
+    });
+  });
+
+  it("still rejects a URL that is not a LeetCode problem", () => {
+    expect(() => validateQuestions([{ title: "", url: "https://example.com/x", difficulty: "Easy" }]))
+      .toThrow(/leetcode\.com\/problems/);
+  });
+
+  it("titles a slug without inventing words", () => {
+    expect(titleFromSlug("gas-station")).toBe("Gas Station");
+    expect(titleFromSlug("jump-game-ii")).toBe("Jump Game II");
+    expect(titleFromSlug("minimum-number-of-refueling-stops")).toBe("Minimum Number of Refueling Stops");
+    expect(titleFromSlug("")).toBe("");
+    expect(titleFromSlug(null)).toBe("");
   });
 });
 

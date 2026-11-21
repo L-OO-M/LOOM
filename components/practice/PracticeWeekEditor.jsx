@@ -6,6 +6,7 @@ import { CalendarDays, LockKeyhole, Pencil, Plus, Save } from "lucide-react";
 import { ActionFeedback, postJSON } from "@/components/loom/useAction";
 import { Field, inputStyle } from "@/components/ui";
 import { StatusPill } from "@/components/loom/primitives";
+import { titleFromSlug } from "@/lib/practice-domain";
 
 const EMPTY = { title: "", url: "", difficulty: "Easy", topic: "" };
 
@@ -57,7 +58,20 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
   }
 
   function update(index, key, value) {
-    setItems((current) => current.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
+    setItems((current) =>
+      current.map((item, i) => {
+        if (i !== index) return item;
+        const next = { ...item, [key]: value };
+        // Pasting the URL is the common path. Filling the title from its slug
+        // keeps a keyboard-mash placeholder from becoming the visible name of a
+        // scheduled problem; a title the admin typed is never overwritten.
+        if (key === "url" && !String(item.title || "").trim()) {
+          const match = String(value || "").match(/\/problems\/([a-z0-9-]+)/i);
+          if (match) next.title = titleFromSlug(match[1]);
+        }
+        return next;
+      })
+    );
   }
 
   async function save(status) {
@@ -124,7 +138,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
               <legend className="mono-tag px-1">Question {String(index + 1).padStart(2, "0")}</legend>
               <div className="grid gap-3 lg:grid-cols-[1.1fr_1.5fr_120px_1fr]">
                 <Field label="Title">
-                  <input value={item.title} maxLength={160} onChange={(event) => update(index, "title", event.target.value)} style={inputStyle} />
+                  <input value={item.title} maxLength={160} placeholder="Filled from the URL when blank" onChange={(event) => update(index, "title", event.target.value)} style={inputStyle} />
                 </Field>
                 <Field label="LeetCode problem URL">
                   <input type="url" value={item.url} onChange={(event) => update(index, "url", event.target.value)} placeholder="https://leetcode.com/problems/..." style={inputStyle} />
