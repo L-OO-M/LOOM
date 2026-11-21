@@ -123,7 +123,7 @@ tests/ (80 files) · e2e/ (10 spec files, including the public/SEO specs)
 11. **Observability.** No Sentry/error tracker (SDK removed as unused); errors surface via logs + `app/error.jsx`. Add a tracker or a log pipeline before launch, and keep the boundary.
 12. **Load testing beyond smoke.** `load/k6-smoke.js` is one 30s ramp to 100 VUs. Extend scenarios before claiming capacity; dashboards intentionally stay sequential for pooler safety — re-verify under load.
 13. **Search Console + analytics.** Set the verification env var, submit the sitemap, confirm canonicals resolve to the public origin.
-14. **Multi-college onboarding (when needed).** New chapter = `tenants` row + `tenant_domains` + `feature_flags` + seeds (`db:seed`, departments, FAQ) + first-admin claim at `/setup`. Consider scripting this into one command — today it is manual.
+14. **Multi-college onboarding (partially automated).** New chapter = `tenants` row (set `institution` + `city`) + at least one `tenant_institutions` alias + `tenant_domains` + `feature_flags` + seeds (`db:seed`, departments, FAQ) + first-admin claim at `/setup`. Claim a college without hand-written SQL: `node load/add-chapter-institution.js <chapter-slug> "College Name" [--city City] [--institution "Primary Name"]`; `--list` shows who claims what. Signup itself now places a member: onboarding captures the college and, while onboarding is unfinished, moves the account to the chapter that serves it (carrying department picks by slug). Adding more spellings is another claim command; after onboarding, moving a member is an admin decision. Consider scripting chapter creation into one command — today it is manual.
 
 ### 🔵 D. Steady-state hygiene (ongoing)
 

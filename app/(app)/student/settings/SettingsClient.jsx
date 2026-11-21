@@ -14,6 +14,8 @@ export default function SettingsClient({ profile, domains = [] }) {
     enrollmentNumber: profile?.enrollment_number || "",
     department: profile?.department || "",
     year: profile?.year || "",
+    institution: profile?.institution || "",
+    location: profile?.location || "",
     primaryDomain:
       normalizeDomainKey(profile?.primary_domain) || domains[0]?.key || ""
   });
@@ -113,6 +115,8 @@ export default function SettingsClient({ profile, domains = [] }) {
         enrollmentNumber: form.enrollmentNumber.trim() || null,
         department: form.department.trim() || null,
         year: form.year === "" || form.year === null ? null : Number(form.year),
+        institution: form.institution.trim() || null,
+        location: form.location.trim() || null,
         primaryDomain: form.primaryDomain || null,
         onboardingCompleted: true
       })
@@ -151,6 +155,19 @@ export default function SettingsClient({ profile, domains = [] }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label style={label}>Year<input value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} type="number" min={1} max={6} style={{ ...input, marginTop: 6 }} /></label>
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label style={label}>
+          College or institution
+          <input value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })} placeholder="Your college" maxLength={120} style={{ ...input, marginTop: 6 }} />
+        </label>
+        <label style={label}>
+          City
+          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Where it is" maxLength={80} style={{ ...input, marginTop: 6 }} />
+        </label>
+      </div>
+      <p className="meta" style={{ marginTop: -4 }}>
+        Changing your college here does not move you between chapters — after onboarding, that is an admin decision.
+      </p>
 
       <div>
         <p style={label}>Primary track</p>

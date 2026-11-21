@@ -1,7 +1,9 @@
 import { ZodError, z } from "zod";
 import { ok, fail } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { getSql } from "@/lib/db";
 import { PRIMARY_DOMAINS, normalizeDomainKey } from "@/lib/domains";
+import { matchChapterForInstitution } from "@/lib/chapters";
 
 // The onboarding form and the settings form both write here, and both are
 // filled by people, not by a machine: a trailing space, a year typed as "3",
@@ -88,6 +90,8 @@ const patchSchema = z.object({
   department: optionalText(80, "Branch"),
   rollNumber: optionalText(40, "Roll number"),
   branch: optionalText(80, "Branch"),
+  institution: optionalText(120, "Institution"),
+  location: optionalText(80, "Location"),
   year: yearField,
   primaryDomain: domainField,
   onboardingCompleted: booleanField
@@ -159,11 +163,114 @@ export async function PATCH(request) {
       branch = COALESCE(${body.branch ?? null}, branch),
       year = COALESCE(${body.year ?? null}, year),
       primary_domain = COALESCE(${body.primaryDomain ?? null}, primary_domain),
+      institution = COALESCE(${body.institution ?? null}, institution),
+      location = COALESCE(${body.location ?? null}, location),
       onboarding_completed = COALESCE(${body.onboardingCompleted ?? null}, onboarding_completed),
       updated_at = NOW()
     WHERE user_id = ${user.id}
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "updated_profile", resource: "profile", resourceId: user.id, before: { name: before?.name }, after: { name: updated?.name } });
-  return ok({ profile: updated });
+
+  // A profile whose chapter is empty has nothing to move; nothing to report.
+  const chapter = await placeInChapter({
+    userId: user.id,
+    before,
+    institution: body.institution ?? null
+  });
+
+  return ok({ profile: chapter.moved ? { ...updated, tenant_id: chapter.chapter.id } : updated, chapter });
+}
+
+/**
+ * Read the institution the member named and, when it belongs to a different
+ * chapter, move the account there.
+ *
+ * This is the only writer that changes profiles.tenant_id from a user action,
+ * so the guards are the feature:
+ *
+ *   - only while onboarding is unfinished. After that a chapter change is a
+ *     governance decision (members, reports and history live in the old one),
+ *     so the request is reported back and left alone;
+ *   - never for someone holding a position. A core/dept_lead membership or a
+ *     platform_admin seat is authority inside one chapter; silently re-homing
+ *     it would either drop the seat or carry it somewhere it was never granted;
+ *   - never when the chapter cannot be resolved, because guessing would move a
+ *     real account on a typo.
+ *
+ * The move itself runs on the owner connection: crossing tenants is exactly
+ * what a tenant-scoped connection must refuse, so using it here is deliberate
+ * rather than an accident of the flag being off.
+ */
+async function placeInChapter({ userId, before, institution }) {
+  const name = institution;
+  if (!name) return { moved: false, reason: "no_institution" };
+  if (!before) return { moved: false, reason: "no_profile" };
+
+  const owner = getSql();
+  const target = await matchChapterForInstitution(owner, name);
+  if (!target) return { moved: false, reason: "chapter_unknown", institution: name };
+  if (target.id === before.tenant_id) return { moved: false, reason: "already_there", chapter: target };
+
+  if (before.onboarding_completed !== false) {
+    return { moved: false, reason: "onboarding_complete", chapter: target, institution: name };
+  }
+  if (!before.tenant_id) return { moved: false, reason: "chapter_unknown", chapter: target };
+
+  const [state] = await owner`
+    SELECT
+      (SELECT COUNT(*)::int
+         FROM department_memberships m
+         JOIN departments d ON d.id = m.department_id
+        WHERE m.user_id = ${userId}
+          AND d.tenant_id = ${before.tenant_id}::uuid
+          AND m.level <> 'general') AS elevated,
+      (SELECT COUNT(*)::int FROM platform_admins WHERE user_id = ${userId}) AS platform_admin
+  `;
+  if ((state?.elevated ?? 0) > 0 || (state?.platform_admin ?? 0) > 0) {
+    return { moved: false, reason: "holds_position", chapter: target, institution: name };
+  }
+
+  await owner.begin(async (tx) => {
+    await tx`
+      UPDATE profiles SET tenant_id = ${target.id}::uuid, updated_at = NOW()
+      WHERE user_id = ${userId}
+    `;
+    // Carry the member's department choices across by slug. Chapters share the
+    // catalogue, so "Web Development" means the same thing in both; a slug the
+    // new chapter has archived is simply not carried.
+    await tx`
+      INSERT INTO department_memberships (user_id, department_id, level, tenant_id)
+      SELECT ${userId}, nd.id, m.level, nd.tenant_id
+        FROM department_memberships m
+        JOIN departments od ON od.id = m.department_id
+        JOIN departments nd
+          ON nd.tenant_id = ${target.id}::uuid
+         AND nd.slug = od.slug
+         AND nd.is_active
+       WHERE m.user_id = ${userId}
+         AND od.tenant_id = ${before.tenant_id}::uuid
+      ON CONFLICT (user_id, department_id) DO NOTHING
+    `;
+    await tx`
+      DELETE FROM department_memberships
+       WHERE user_id = ${userId}
+         AND department_id IN (
+           SELECT id FROM departments WHERE tenant_id = ${before.tenant_id}::uuid
+         )
+    `;
+  });
+
+  await writeAudit({
+    sql: owner,
+    actorId: userId,
+    tenantId: target.id,
+    action: "changed_chapter",
+    resource: "profile",
+    resourceId: userId,
+    before: { tenant_id: before.tenant_id, institution: before.institution },
+    after: { tenant_id: target.id, institution: name }
+  });
+
+  return { moved: true, reason: "moved", chapter: target, institution: name, from: before.tenant_id };
 }

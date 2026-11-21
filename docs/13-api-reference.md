@@ -11,7 +11,7 @@ Public (no session): `GET /api/health`, `GET /api/chapters`, `POST /api/github/w
 
 | Method | Route | Auth | Notes |
 |--------|-------|------|-------|
-| GET/PUT | `/api/profile` | user | own profile |
+| GET/PATCH | `/api/profile` | user | own profile. PATCH takes `name`, `enrollmentNumber`, `department`, `rollNumber`, `branch`, `institution`, `location`, `year`, `primaryDomain`, `onboardingCompleted`. `institution` is matched against the chapters (`lib/chapters.js`): while onboarding is unfinished it may move the account to the chapter that serves that college, carrying department memberships by slug; after that, or for anyone holding a position or a platform-admin seat, it records the institution and refuses the move with a reason in `data.chapter` |
 | GET | `/api/roadmap` | user | nodes + my progress |
 | POST | `/api/roadmap/progress` | user | mark node (body: nodeId, status, evidenceUrl?, evidenceNote?). **Prerequisites are checked** against `roadmap_edges`; unmet ones return `409 PREREQUISITES_UNMET` with the outstanding node titles. A completion is stored `provisional` and **scores nothing** until a lead confirms it. Re-claiming or reopening a previously verified node revokes `roadmap_done` and recomputes the score. Rate limited. |
 | GET | `/api/resources` | user | curated library |

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Github, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
 import { normalizeDomainKey } from "@/lib/domains";
+import { normalizeInstitution } from "@/lib/chapters";
 import { handleFromProfileUrl } from "@/lib/profileFolio";
 import DomainPicker from "../../_components/DomainPicker";
 
@@ -39,16 +40,19 @@ function Section({ index, title, note, children, id }) {
   );
 }
 
-export default function OnboardingForm({ profile, domains, requireUsername = false, finishHref = null }) {
+export default function OnboardingForm({ profile, domains, institutions = [], chapter = null, requireUsername = false, finishHref = null }) {
   const router = useRouter();
   const nameRef = useRef(null);
   const handleRef = useRef(null);
+  const institutionRef = useRef(null);
 
   const [form, setForm] = useState({
     name: profile?.name || "",
     department: profile?.department || "",
     year: profile?.year ?? null,
     enrollmentNumber: profile?.enrollment_number || "",
+    institution: profile?.institution || "",
+    location: profile?.location || "",
     primaryDomain: normalizeDomainKey(profile?.primary_domain) || domains[0]?.key || ""
   });
   const [card, setCard] = useState(null);
@@ -182,6 +186,8 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
         name: form.name.trim(),
         enrollmentNumber: form.enrollmentNumber.trim() || null,
         department: form.department.trim() || null,
+        institution: form.institution.trim() || null,
+        location: form.location.trim() || null,
         year: form.year ?? null,
         primaryDomain: form.primaryDomain || null,
         onboardingCompleted: true
@@ -212,6 +218,21 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
   const passwordUnavailable = security?.auth0 && !security?.managementConfigured;
   const handlePreview = username.trim().toLowerCase() || "your-handle";
 
+  // Which chapter claimed the college the member typed. List-driven, so the
+  // hint is the same answer the server will reach on save.
+  const institutionKey = normalizeInstitution(form.institution);
+  const claimed = institutionKey
+    ? institutions.find((entry) => normalizeInstitution(entry.name) === institutionKey)?.chapter ?? null
+    : null;
+  const joinsNewChapter = !!claimed && !!chapter && claimed.slug !== chapter.slug;
+  const chapterNote = !chapter
+    ? null
+    : joinsNewChapter
+      ? `This college belongs to ${claimed.name}. Saving moves your account there and brings your department picks with you.`
+      : claimed
+        ? `You are in ${chapter.name}, which serves this college.`
+        : `No chapter has claimed this college yet, so you stay in ${chapter.name}. Ask an admin to add it.`;
+
   return (
     <form
       onSubmit={submit}
@@ -225,7 +246,48 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
         </p>
       )}
 
-      <Section id="ob-track" index="01" title="Pick your track" note={domains.length > 0 ? `${domains.length} tracks have published roadmaps. This is the one that opens first — you can switch later.` : "Your chapter has not published a roadmap yet."}>
+      <Section id="ob-college" index="01" title="Where you study" note="Your college decides your chapter. Only the name is stored — it is not shown on your public profile.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="sm:col-span-2" style={labelStyle}>
+            College or institution
+            <input
+              ref={institutionRef}
+              value={form.institution}
+              onChange={(event) => setForm({ ...form, institution: event.target.value })}
+              list="ob-institutions"
+              placeholder="Start typing your college…"
+              autoComplete="organization"
+              maxLength={120}
+              className="mt-1.5"
+              style={inputStyle}
+            />
+            <datalist id="ob-institutions">
+              {institutions.map((entry) => (
+                <option key={`${entry.chapter.slug}-${entry.name}`} value={entry.name} />
+              ))}
+            </datalist>
+          </label>
+          <label style={labelStyle}>
+            City <span className="font-normal">(optional)</span>
+            <input
+              value={form.location}
+              onChange={(event) => setForm({ ...form, location: event.target.value })}
+              placeholder="Where the college is"
+              autoComplete="address-level2"
+              maxLength={80}
+              className="mt-1.5"
+              style={inputStyle}
+            />
+          </label>
+        </div>
+        {chapterNote && (
+          <p className="mt-3 text-xs leading-5" style={{ color: joinsNewChapter ? "var(--accent)" : "var(--text-muted)" }}>
+            {chapterNote}
+          </p>
+        )}
+      </Section>
+
+      <Section id="ob-track" index="02" title="Pick your track" note={domains.length > 0 ? `${domains.length} tracks have published roadmaps. This is the one that opens first — you can switch later.` : "Your chapter has not published a roadmap yet."}>
         {domains.length > 0 ? (
           <DomainPicker
             domains={domains}
@@ -240,7 +302,7 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
         )}
       </Section>
 
-      <Section id="ob-about" index="02" title="About you" note="Used on your profile, certificates and chapter roster.">
+      <Section id="ob-about" index="03" title="About you" note="Used on your profile, certificates and chapter roster.">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2" style={labelStyle}>
             Full name
@@ -308,7 +370,7 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
         </div>
       </Section>
 
-      <Section id="ob-handle" index="03" title="Your public handle" note="One name for your profile, builder card and certificates.">
+      <Section id="ob-handle" index="04" title="Your public handle" note="One name for your profile, builder card and certificates.">
         <label style={labelStyle} htmlFor="ob-username">
           Handle
         </label>
@@ -341,7 +403,7 @@ export default function OnboardingForm({ profile, domains, requireUsername = fal
         </p>
       </Section>
 
-      <Section id="ob-signin" index="04" title="How you sign in" note="Your account already works. These are optional upgrades.">
+      <Section id="ob-signin" index="05" title="How you sign in" note="Your account already works. These are optional upgrades.">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border p-3.5" style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}>
             <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}>
