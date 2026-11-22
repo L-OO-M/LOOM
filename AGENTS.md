@@ -67,16 +67,24 @@ git status --porcelain
 # 1. Lint — must show 0 errors (2 pre-existing warnings are the ceiling; add none).
 npm run lint
 
-# 2. Unit - all must pass (currently 1099 across 129 files).
+# 2. Unit - all must pass (currently 1886 across 203 files).
 npm test
 
 # 3. Build — must compile clean (catches bad imports, bad metadata, bad JSX).
 npm run build
 
 # 4. E2E - FULL suite. Counts drift; trust the runner output, not this comment.
-#    Current local run: 417 passed, 6 skipped (chromium + mobile).
-#    Free port 3000 first; first run pays ~2 min cold compile — wait, don't assume failure.
+#    Current local run: 473 passed, 37 skipped (chromium + mobile).
+#    Run against the PRODUCTION build, not `next dev`. The dev server compiles
+#    each route on first request, so a spec that visits two cold routes spends
+#    its timeout in the compiler and reports a dead link that is not dead
+#    ("Expected /login, Received /"). `playwright.config.js` defaults to
+#    `next dev`; E2E_PROD=1 switches its webServer to `npm run start` — that is
+#    the gate. Build first (step 3). Free port 3000 first.
 Stop-Process -Name node -Force -ErrorAction SilentlyContinue
+$env:E2E_PROD='1'
+$env:GITHUB_WEBHOOK_SECRET='local-e2e-webhook-secret-2026-strong'
+$env:CREDENTIAL_SECRET='local-e2e-credential-secret-2026-strong'
 npx playwright test
 ```
 
