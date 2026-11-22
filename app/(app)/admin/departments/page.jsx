@@ -2,12 +2,232 @@ import { scope } from "@/lib/tenant-scope";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Archive, Plus } from "lucide-react";
-import { getRequestContext, writeAudit } from "@/lib/auth-server";
+import { getRequestContext, writeAudit, notify } from "@/lib/auth-server";
+import { roleRank } from "@/lib/permissions";
+import { syncLeadershipScopedGrant } from "@/lib/scoped-grants";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { DepartmentCard } from "./_components/DepartmentCard";
 import { DeptSizeBars, VerticalSplitDonut } from "@/components/admin/RemainingCharts";
 import "../_components/admin-ledger.css";
+
+function oneYearFromNow() {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Release a person's department seat only if they no longer hold either slot.
+ * Downgrades that membership, revokes the department grant, ends the term and
+ * demotes the global label only when no other department seat remains — so a
+ * Head of two departments is never demoted for losing one.
+ */
+async function releaseDepartmentSeat(tx, { tenantId, actorId, userId, departmentId }) {
+  const [dept] = await tx`
+    SELECT head_user_id, co_head_user_id FROM departments
+    WHERE id = ${departmentId} AND tenant_id = ${tenantId}::uuid
+  `;
+  if (!dept) return false;
+  if (dept.head_user_id === userId || dept.co_head_user_id === userId) return false;
+
+  await tx`
+    UPDATE department_memberships
+    SET level = 'core', term_end = COALESCE(term_end, CURRENT_DATE)
+    WHERE user_id = ${userId} AND department_id = ${departmentId}
+  `;
+  await tx`
+    UPDATE scoped_role_grants
+    SET is_active = false, revoked_at = COALESCE(revoked_at, now()),
+        revoked_by = COALESCE(revoked_by, ${actorId}),
+        revocation_reason = COALESCE(revocation_reason, 'head_vacated')
+    WHERE tenant_id = ${tenantId}::uuid AND user_id = ${userId}
+      AND role_name = 'dept_lead' AND scope_type = 'department'
+      AND scope_id = ${String(departmentId)} AND is_active = true AND revoked_at IS NULL
+  `;
+  await tx`
+    UPDATE leadership_terms SET status = 'ended', ended_reason = 'head_vacated'
+    WHERE user_id = ${userId} AND status = 'active'
+      AND role = 'dept_lead' AND department_id = ${departmentId}
+  `;
+  const [other] = await tx`
+    SELECT 1 AS present FROM department_memberships
+    WHERE user_id = ${userId} AND department_id <> ${departmentId}
+      AND level = 'dept_lead' AND (term_end IS NULL OR term_end >= CURRENT_DATE)
+    LIMIT 1
+  `;
+  if (!other) {
+    await tx`
+      UPDATE profiles SET role = 'core', role_term_end = NULL, updated_at = NOW()
+      WHERE user_id = ${userId} AND tenant_id = ${tenantId}::uuid AND role = 'dept_lead'
+    `;
+  }
+  return true;
+}
+
+/**
+ * Appoint a member as Head or Co-Head of exactly one department.
+ *
+ * The department slot, the membership level, the profile role label, the
+ * leadership term and the scoped grant move together so a half-appointed Head
+ * can never exist. Role promotion is upward-only: a Vertical Lead or Super
+ * Admin keeps their global role and only gains this department seat.
+ */
+async function appointHead(formData) {
+  "use server";
+  const ctx = await getRequestContext({ adminOnly: true });
+  if (ctx.error) return;
+  const { sql, user, tenant } = ctx;
+  const deptId = String(formData.get("departmentId") || "");
+  const userId = String(formData.get("userId") || "");
+  const slot = String(formData.get("slot") || "head");
+  if (!userId || !["head", "co_head"].includes(slot) || userId === user.id) return;
+
+  const tid = scope(tenant?.id ?? null);
+  const [dept] = await sql`
+    SELECT id, name, slug, head_user_id, co_head_user_id FROM departments
+    WHERE id = ${deptId} AND tenant_id = ${tid}::uuid LIMIT 1
+  `;
+  if (!dept) return;
+  if (slot === "co_head" && userId === dept.head_user_id) return;
+
+  const [target] = await sql`
+    SELECT user_id, role FROM profiles
+    WHERE user_id = ${userId} AND tenant_id = ${tid}::uuid LIMIT 1
+  `;
+  if (!target) return;
+  const [founder] = await sql`SELECT 1 AS present FROM platform_admins WHERE user_id = ${userId} LIMIT 1`;
+  const promote = !founder && roleRank(target.role) < roleRank("dept_lead");
+  const startsOn = new Date().toISOString().slice(0, 10);
+  const endsOn = oneYearFromNow();
+  const label = slot === "head" ? "Head" : "Co-Head";
+
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE departments
+      SET head_user_id = CASE WHEN ${slot} = 'head' THEN ${userId} ELSE head_user_id END,
+          co_head_user_id = CASE WHEN ${slot} = 'co_head' THEN ${userId}
+                                 WHEN ${slot} = 'head' AND co_head_user_id = ${userId} THEN NULL
+                                 ELSE co_head_user_id END
+      WHERE id = ${dept.id} AND tenant_id = ${tid}::uuid
+    `;
+    await tx`
+      INSERT INTO department_memberships
+        (user_id, department_id, level, core_requested, term_start, term_end, tenant_id)
+      VALUES (${userId}, ${dept.id}, 'dept_lead', false, ${startsOn}, ${endsOn},
+              (SELECT tenant_id FROM departments WHERE id = ${dept.id}))
+      ON CONFLICT (user_id, department_id) DO UPDATE
+        SET level = 'dept_lead', core_requested = false,
+            term_start = EXCLUDED.term_start, term_end = EXCLUDED.term_end
+    `;
+    if (promote) {
+      await tx`
+        UPDATE profiles SET role = 'dept_lead', vertical = NULL,
+          role_term_start = ${startsOn}, role_term_end = ${endsOn}, updated_at = NOW()
+        WHERE user_id = ${userId} AND tenant_id = ${tid}::uuid
+      `;
+      await tx`
+        UPDATE leadership_terms SET status = 'ended', ended_reason = 'role_changed'
+        WHERE user_id = ${userId} AND status = 'active'
+      `;
+      await tx`
+        INSERT INTO leadership_terms
+          (tenant_id, user_id, role, department_id, starts_on, ends_on, appointed_by)
+        VALUES (${tenant?.id ?? null}, ${userId}, 'dept_lead', ${dept.id},
+                ${startsOn}, ${endsOn}, ${user.id})
+      `;
+    }
+    if (tenant?.id) {
+      await syncLeadershipScopedGrant(tx, {
+        tenantId: tenant.id,
+        userId,
+        actorId: user.id,
+        role: "dept_lead",
+        departmentId: dept.id,
+        startsAt: startsOn,
+        expiresAt: endsOn,
+        // A promotion replaces the old label; an existing leader only gains this seat.
+        revokeAllLeadership: promote,
+        reason: "head_appointed"
+      });
+    }
+    // Replacing a seat releases the previous occupant — but only if they no
+    // longer hold the other slot, so promoting a Co-Head keeps their seat.
+    const previous = slot === "head" ? dept.head_user_id : dept.co_head_user_id;
+    if (previous && previous !== userId) {
+      await releaseDepartmentSeat(tx, {
+        tenantId: tenant?.id,
+        actorId: user.id,
+        userId: previous,
+        departmentId: dept.id
+      });
+    }
+    await writeAudit({
+      sql: tx, actorId: user.id, tenantId: tenant?.id,
+      action: "appointed_department_head", resource: "department", resourceId: dept.id,
+      before: { headUserId: dept.head_user_id, coHeadUserId: dept.co_head_user_id },
+      after: { slot, userId, slug: dept.slug, promoted: promote }
+    });
+    try {
+      await notify({
+        sql: tx, tenantId: tenant?.id, userId, type: "role_granted",
+        title: `You are now ${label} of ${dept.name}`,
+        body: "Open the Lead console to run this department's roster, tasks and calendar.",
+        link: "/lead"
+      });
+    } catch {}
+  });
+  revalidatePath("/admin/departments");
+}
+
+/** Vacate one leadership seat without touching the person's other departments. */
+async function vacateHead(formData) {
+  "use server";
+  const ctx = await getRequestContext({ adminOnly: true });
+  if (ctx.error) return;
+  const { sql, user, tenant } = ctx;
+  const deptId = String(formData.get("departmentId") || "");
+  const slot = String(formData.get("slot") || "");
+  if (!["head", "co_head"].includes(slot)) return;
+
+  const tid = scope(tenant?.id ?? null);
+  const [dept] = await sql`
+    SELECT id, name, slug, head_user_id, co_head_user_id FROM departments
+    WHERE id = ${deptId} AND tenant_id = ${tid}::uuid LIMIT 1
+  `;
+  if (!dept) return;
+  const userId = slot === "head" ? dept.head_user_id : dept.co_head_user_id;
+  if (!userId) return;
+
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE departments
+      SET head_user_id = CASE WHEN ${slot} = 'head' THEN NULL ELSE head_user_id END,
+          co_head_user_id = CASE WHEN ${slot} = 'co_head' THEN NULL ELSE co_head_user_id END
+      WHERE id = ${dept.id} AND tenant_id = ${tid}::uuid
+    `;
+    await releaseDepartmentSeat(tx, {
+      tenantId: tenant?.id,
+      actorId: user.id,
+      userId,
+      departmentId: dept.id
+    });
+    await writeAudit({
+      sql: tx, actorId: user.id, tenantId: tenant?.id,
+      action: "vacated_department_head", resource: "department", resourceId: dept.id,
+      before: { slot, userId }, after: { slug: dept.slug }
+    });
+    try {
+      await notify({
+        sql: tx, tenantId: tenant?.id, userId, type: "role_changed",
+        title: `Your ${slot === "head" ? "Head" : "Co-Head"} seat in ${dept.name} was vacated`,
+        body: "Your work history stays on record.",
+        link: "/student"
+      });
+    } catch {}
+  });
+  revalidatePath("/admin/departments");
+}
 
 async function saveDepartment(formData) {
   "use server";
@@ -53,6 +273,7 @@ export default async function AdminDepartmentsPage() {
 
   const departments = await sql`
     SELECT d.id, d.name, d.slug, d.vertical, d.description, d.is_active,
+      d.head_user_id, d.co_head_user_id,
       hp.name AS head_name, cp.name AS co_head_name,
       COALESCE(m.members, 0)::int AS members,
       c.last_activity AS last_activity
@@ -71,6 +292,20 @@ export default async function AdminDepartmentsPage() {
     ORDER BY d.is_active DESC, d.vertical, d.name
   `;
 
+  // Roster per department, used by the Head / Co-Head pickers. Only people who
+  // can take the seat without losing a wider role are offered in the UI.
+  const roster = await sql`
+    SELECT m.department_id, m.user_id, m.level, p.name, p.role
+    FROM department_memberships m
+    JOIN profiles p ON p.user_id = m.user_id
+    WHERE m.tenant_id = ${scope(tid)}::uuid
+    ORDER BY p.name
+  `;
+  const membersByDept = roster.reduce((acc, row) => {
+    (acc[row.department_id] ||= []).push(row);
+    return acc;
+  }, {});
+
   const totalMembers = departments.reduce((s, d) => s + (d.members || 0), 0);
   const active = departments.filter((d) => d.is_active);
   const archived = departments.filter((d) => !d.is_active);
@@ -81,7 +316,7 @@ export default async function AdminDepartmentsPage() {
         <WorkspaceMasthead
           kicker={`Organization / ${departments.length} total / ${active.length} active`}
           title="Departments"
-          lede="Create, rename, and archive departments. Heads are assigned from the roster — a role grant creates the membership."
+          lede="Create, rename, and archive departments. Each department has its own Head and Co-Head — open Edit on a department to appoint them from its members."
           meta={`${active.length} active / ${archived.length} archived / ${totalMembers} members across the chapter`}
           tone="field"
           art="/domains-art/domain-infra.png"
@@ -106,7 +341,7 @@ export default async function AdminDepartmentsPage() {
           </div>
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Active departments" note={`${active.length} active / ${archived.length} archived / technical first, then non-technical`}>
+        <WorkspaceSection index="02" title="Active departments" note={`${active.length} active / ${archived.length} archived / technical first, then non-technical. Head and Co-Head are appointed per department.`}>
           {active.length === 0 && archived.length === 0 ? (
             <WorkspaceEmpty
               title="No departments yet"
@@ -114,7 +349,16 @@ export default async function AdminDepartmentsPage() {
             />
           ) : (
             <ul className="aled-dept-grid">
-              {active.map((d) => <DepartmentCard key={d.id} dept={d} action={saveDepartment} />)}
+              {active.map((d) => (
+                <DepartmentCard
+                  key={d.id}
+                  dept={d}
+                  members={membersByDept[d.id] || []}
+                  action={saveDepartment}
+                  appointAction={appointHead}
+                  vacateAction={vacateHead}
+                />
+              ))}
             </ul>
           )}
           {archived.length > 0 && (
@@ -124,7 +368,16 @@ export default async function AdminDepartmentsPage() {
                 <span className="aled-meta ml-auto">click to expand</span>
               </summary>
               <ul className="aled-dept-grid" style={{ borderTop: "1px solid var(--line)" }}>
-                {archived.map((d) => <DepartmentCard key={d.id} dept={d} action={saveDepartment} />)}
+                {archived.map((d) => (
+                  <DepartmentCard
+                    key={d.id}
+                    dept={d}
+                    members={membersByDept[d.id] || []}
+                    action={saveDepartment}
+                    appointAction={appointHead}
+                    vacateAction={vacateHead}
+                  />
+                ))}
               </ul>
             </details>
           )}

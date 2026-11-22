@@ -12,11 +12,11 @@ function oneYearFromNow() {
 
 const LEADERSHIP = new Set(["dept_lead", "vertical_lead", "admin"]);
 
-export default function RoleForm({ userId, currentRole, termEnd: currentTermEnd = "" }) {
+export default function RoleForm({ userId, currentRole, currentDepartmentId = "", termEnd: currentTermEnd = "" }) {
   const router = useRouter();
   const [role, setRole] = useState(currentRole);
   const [departments, setDepartments] = useState([]);
-  const [departmentId, setDepartmentId] = useState("");
+  const [departmentId, setDepartmentId] = useState(currentDepartmentId || "");
   const [vertical, setVertical] = useState("technical");
   const [termEnd, setTermEnd] = useState(
     currentTermEnd ? String(currentTermEnd).slice(0, 10) : oneYearFromNow()
@@ -73,7 +73,7 @@ export default function RoleForm({ userId, currentRole, termEnd: currentTermEnd 
         <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role" className={select} style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}>
           <option value="student">Student · General</option>
           <option value="core">Core · Core Member</option>
-          <option value="dept_lead">Head / Co-Head · dept_lead</option>
+          <option value="dept_lead">Head / Co-Head · one department</option>
           <option value="vertical_lead">Vertical Lead</option>
           <option value="admin">Super Admin</option>
         </select>

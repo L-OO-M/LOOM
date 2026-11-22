@@ -44,12 +44,13 @@ export default async function AdminStudentDetailPage({ params }) {
       (SELECT COUNT(*)::int FROM student_daily_activity WHERE student_id = ${id} AND day >= CURRENT_DATE - 14) AS active_days
   `;
   const memberships = await sql`
-    SELECT m.level, m.core_requested, m.succession_ready, m.joined_at,
+    SELECT m.department_id, m.level, m.core_requested, m.succession_ready, m.joined_at,
            d.name AS dept_name, d.slug AS dept_slug, d.vertical AS dept_vertical
     FROM department_memberships m JOIN departments d ON d.id = m.department_id
     WHERE m.user_id = ${id}
     ORDER BY d.name
   `;
+  const ledDepartment = memberships.find((m) => m.level === "dept_lead");
   const projects = await sql`SELECT id, title, status, repo_url, roadmap_node_id, created_at FROM projects WHERE owner_id = ${id} ORDER BY created_at DESC LIMIT 10`;
   const activity = await sql`SELECT day, commits, pull_requests, reviews, score FROM student_daily_activity WHERE student_id = ${id} ORDER BY day DESC LIMIT 14`;
   const achievements = await sql`SELECT id, source_type, source_ref, level, earned_at FROM student_achievements WHERE student_id = ${id} ORDER BY earned_at DESC LIMIT 6`;
@@ -154,7 +155,7 @@ export default async function AdminStudentDetailPage({ params }) {
             <section className="rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
               <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--text)" }}><Shield size={14} /> Role management</h2>
               <p className="narrative mt-1">Grant is scoped — Heads require a department, Vertical Leads require a vertical. Every change is audited.</p>
-              <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} termEnd={s.role_term_end} /></div>
+              <div className="mt-4"><RoleForm userId={s.user_id} currentRole={s.role} currentDepartmentId={ledDepartment?.department_id || ""} termEnd={s.role_term_end} /></div>
             </section>
 
             <PeopleChecklist userId={s.user_id} role={s.role} onboarding={onboarding} offboarding={offboarding} />

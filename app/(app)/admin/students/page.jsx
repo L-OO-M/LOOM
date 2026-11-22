@@ -232,7 +232,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                   <option value="">All roles</option>
                   <option value="student">Student</option>
                   <option value="core">Core</option>
-                  <option value="dept_lead">Head</option>
+                  <option value="dept_lead">Head / Co-Head</option>
                   <option value="vertical_lead">Vertical Lead</option>
                   <option value="admin">Admin</option>
                 </select>
@@ -307,6 +307,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                   {rows.map((r, i) => {
                     const tone = roleTone(r.role);
                     const mems = Array.isArray(r.departments) ? r.departments : [];
+                    const ledDepts = mems.filter((m) => m.level === "dept_lead").map((m) => m.name || m.slug);
                     const tier = tierMap.get(r.user_id);
                     const expired = r.role_term_end && new Date(r.role_term_end) < new Date();
                     return (
@@ -324,6 +325,7 @@ export default async function AdminStudentsPage({ searchParams }) {
                         <td>
                           <span className="adst-role" style={{ background: tone.bg, color: tone.color, borderColor: tone.border ?? "var(--line)" }}>
                             {tone.label}
+                            {r.role === "dept_lead" && ledDepts.length > 0 ? ` · ${ledDepts.join(", ")}` : ""}
                           </span>
                           {r.account_status && r.account_status !== "active" && (
                             <span className="adst-term-note" style={{ color: "var(--danger)" }}> {r.account_status}</span>
