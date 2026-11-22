@@ -65,6 +65,7 @@ const protectedPages = [
   "/lead/announcements",
   "/lead/directory",
   "/lead/event-ops",
+  "/lead/members/probe-not-a-real-id",
   "/admin/assets",
   "/admin/mous",
   "/admin/announcements",

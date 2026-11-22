@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { UserPlus, ArrowUp, ArrowDown, UserMinus, ShieldAlert } from "lucide-react";
 
 const input = {
@@ -150,14 +151,30 @@ export function DepartmentRoster({
         <ul className="divide-y rounded-2xl border" style={{ borderColor: "var(--line)" }}>
           {members.map((m) => {
             const isHead = m.level === "dept_lead";
+            const p = m.progress;
             return (
               <li key={m.user_id} className="flex flex-wrap items-center gap-3 p-3.5">
                 <span className="min-w-0 flex-1 text-sm" style={{ color: "var(--text)" }}>
-                  <span className="font-medium">{m.name || "Unnamed member"}</span>
-                  {m.user_id === meId && <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>(you)</span>}
-                  <span className="ml-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                    {LEVEL_LABEL[m.level] || m.level}
-                    {m.core_requested && m.level === "general" ? " · requested Core" : ""}
+                  <span className="flex flex-wrap items-baseline gap-2">
+                    <Link
+                      href={`/lead/members/${m.user_id}`}
+                      prefetch={false}
+                      className="font-medium hover:underline"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {m.name || "Unnamed member"}
+                    </Link>
+                    {m.user_id === meId && <span className="text-xs" style={{ color: "var(--text-muted)" }}>(you)</span>}
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      {LEVEL_LABEL[m.level] || m.level}
+                      {m.core_requested && m.level === "general" ? " · requested Core" : ""}
+                    </span>
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span>{p ? `${p.tier} · ${p.roadmapPct}% roadmap` : "no progress recorded"}</span>
+                    <span>{p?.standing ? `#${p.standing.rank} of ${p.standing.total}` : "unranked"}</span>
+                    <span>{p ? `${p.proofTotal} verified` : "0 verified"}</span>
+                    <span>{p?.activity || "no activity recorded"}</span>
                   </span>
                 </span>
                 {isHead ? (

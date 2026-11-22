@@ -227,9 +227,16 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                   {visible.map((m) => (
                     <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[var(--wash)] transition" style={{ background: "var(--bg)" }}>
                       <span className="min-w-0 text-sm" style={{ color: "var(--text)" }}>
-                        <span className="font-medium">{m.name}</span>{" "}
+                        <Link href={`/lead/members/${m.user_id}`} prefetch={false} className="font-medium hover:underline" style={{ color: "var(--text)" }}>
+                          {m.name}
+                        </Link>{" "}
                         <span className="mono-tag">
                           {m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""} · yr {m.year || "—"} · @{m.github_username || "—"}
+                        </span>
+                        <span className="mono-tag mt-1 block">
+                          {m.progress
+                            ? `${m.progress.tier} · ${m.progress.roadmapPct}% roadmap · ${m.progress.standing ? `#${m.progress.standing.rank} of ${m.progress.standing.total}` : "unranked"} · ${m.progress.proofTotal} verified · ${m.progress.activity}`
+                            : "no progress recorded"}
                         </span>
                       </span>
                       <span className="flex gap-2">

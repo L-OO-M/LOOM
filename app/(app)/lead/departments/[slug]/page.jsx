@@ -203,7 +203,7 @@ export default async function DepartmentWorkspacePage({ params }) {
           )}
 
           {showRoster && (
-            <WorkspaceSection index="03" title="Members" note={`Everyone in ${department.name}. A head may add, promote, demote and remove within this department; a Head's seat stays an admin appointment.`}>
+            <WorkspaceSection index="03" title="Members" note={`Everyone in ${department.name}, with their rank, chapter position, verified work and last recorded activity. A head may add, promote, demote and remove within this department; a Head's seat stays an admin appointment.`}>
               <DepartmentRoster
                 departmentId={department.id}
                 departmentName={department.name}
