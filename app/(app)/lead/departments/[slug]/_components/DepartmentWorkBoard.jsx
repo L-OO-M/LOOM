@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { TaskList } from "@/components/department/TaskList";
-import { TASK_KINDS, TASK_PRIORITIES } from "@/lib/department-tasks";
+import { TASK_KINDS, TASK_PRIORITIES, taskWorkload } from "@/lib/department-tasks";
 
 const input = {
   width: "100%", borderRadius: 10, border: "1px solid var(--line)",
@@ -41,6 +41,21 @@ export function DepartmentWorkBoard({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // Who is already carrying what. Computed from the rows this board is showing,
+  // so the number next to a name cannot disagree with the cards underneath it.
+  // Display only: it never disables an option or blocks an assignment.
+  const workload = useMemo(() => taskWorkload(rows), [rows]);
+
+  function workloadLabel(member) {
+    const w = workload.get(member.user_id);
+    if (!w) return " — free";
+    const parts = [`${w.open} open`];
+    if (w.overdue) parts.push(`${w.overdue} overdue`);
+    if (w.dueSoon) parts.push(`${w.dueSoon} due soon`);
+    if (w.blocked) parts.push(`${w.blocked} blocked`);
+    return ` — ${parts.join(", ")}`;
+  }
 
   async function create(e) {
     e.preventDefault();
@@ -118,9 +133,14 @@ export function DepartmentWorkBoard({
               <select name="assigneeId" style={{ ...input, marginTop: 6 }} defaultValue="">
                 <option value="">Unassigned</option>
                 {members.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>{m.name || m.user_id}</option>
+                  <option key={m.user_id} value={m.user_id}>
+                    {(m.name || m.user_id) + workloadLabel(m)}
+                  </option>
                 ))}
               </select>
+              <span className="mt-1 block text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>
+                Counts show who is already loaded. Nothing here blocks an assignment.
+              </span>
             </label>
             <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Due
@@ -153,6 +173,10 @@ export function DepartmentWorkBoard({
         canVerify={canVerify}
         members={members}
         showAssignee
+        onTaskChange={(task) =>
+          setRows((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)))
+        }
+        onTaskRemove={(id) => setRows((prev) => prev.filter((t) => t.id !== id))}
       />
     </div>
   );

@@ -40,7 +40,11 @@ export function TaskList({
   canManage = false,
   canVerify = false,
   members = [],
-  showAssignee = true
+  showAssignee = true,
+  // Optional: lets the parent (the head's board) keep its own copy in step, so
+  // workload figures do not drift from the cards after a transition.
+  onTaskChange = null,
+  onTaskRemove = null
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [busy, setBusy] = useState("");
@@ -66,8 +70,10 @@ export function TaskList({
       if (d.ok) {
         if (payload.action === "cancel") {
           setTasks((prev) => prev.filter((t) => t.id !== task.id));
+          onTaskRemove?.(task.id);
         } else {
           replace(d.data.task);
+          onTaskChange?.(d.data.task);
         }
         setSubmitFor(null);
         setReturnFor(null);
