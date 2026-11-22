@@ -58,26 +58,41 @@ export async function POST(request, { params }) {
   }
 
   const statement = `Asked for Core in ${dept.name} from the department page.`;
-  const [created] = await sql`
-    INSERT INTO role_requests (
-      tenant_id, user_id, target_role, department_id, statement,
-      score_at_request, tier_at_request, proof_at_request
-    )
-    VALUES (
-      ${dept.tenant_id}::uuid, ${user.id}, 'core', ${dept.id}::uuid,
-      ${statement}, ${verdict.proof.total}, ${inputs.tier},
-      ${sql.json(verdict.proof)}
-    )
-    ON CONFLICT DO NOTHING
-    RETURNING id, target_role, department_id, status, created_at
-  `;
+  let created = null;
+  let membership = null;
+  try {
+    [created] = await sql`
+      INSERT INTO role_requests (
+        tenant_id, user_id, target_role, department_id, statement,
+        score_at_request, tier_at_request, proof_at_request
+      )
+      VALUES (
+        ${dept.tenant_id}::uuid, ${user.id}, 'core', ${dept.id}::uuid,
+        ${statement}, ${verdict.proof.total}, ${inputs.tier},
+        ${sql.json(verdict.proof)}
+      )
+      ON CONFLICT DO NOTHING
+      RETURNING id, target_role, department_id, status, created_at
+    `;
 
-  const [membership] = await sql`
-    INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
-    VALUES (${user.id}, ${dept.id}, 'general', true, ${dept.tenant_id})
-    ON CONFLICT (user_id, department_id) DO UPDATE SET core_requested = true
-    RETURNING *
-  `;
+    [membership] = await sql`
+      INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
+      VALUES (${user.id}, ${dept.id}, 'general', true, ${dept.tenant_id})
+      ON CONFLICT (user_id, department_id) DO UPDATE SET core_requested = true
+      RETURNING *
+    `;
+  } catch (error) {
+    // Migration 099 repeats the proof check in the database. If it fires, the
+    // two counts disagree -- refuse rather than write a request with no
+    // evidence behind it.
+    if (String(error?.code) === "23514" && String(error?.message).includes("BELOW_BAR")) {
+      return fail("NOT_ENOUGH_PROOF", "Core needs 3 verified pieces of work. Yours does not clear the bar yet.", 403, {
+        proof: verdict.proof
+      });
+    }
+    throw error;
+  }
+
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: "requested_core", resource: "department", resourceId: dept.id, after: { slug: dept.slug, tier: inputs.tier, proof: verdict.proof } });
   return ok({ membership, request: created || null, proof: verdict.proof }, { status: 201 });
 }

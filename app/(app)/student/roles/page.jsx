@@ -9,6 +9,7 @@ import {
 } from "@/lib/role-requests";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
+import { fetchRankPositions } from "@/lib/standings";
 import { RoleRequestForm } from "./RoleRequestForm";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,11 @@ export default async function StudentRolesPage() {
   `;
 
   const total = proofTotal(context.proof);
+  const positions = await fetchRankPositions(sql, { tenantId: tenant.id, userIds: [user.id] });
+  const position = positions.get(String(user.id)) || null;
+  const standing = position?.rank
+    ? `#${position.rank} of ${position.total}`
+    : "Unranked";
 
   return (
     <AppShell>
@@ -75,6 +81,7 @@ export default async function StudentRolesPage() {
         stats={[
           { label: "Rank", value: context.tier },
           { label: "Verified proof", value: String(total) },
+          { label: "Chapter position", value: standing },
           { label: "Departments", value: String(context.departments.length) }
         ]}
       />
@@ -82,7 +89,7 @@ export default async function StudentRolesPage() {
       <WorkspaceSection
         index="01"
         title="What you have"
-        note="Counted from verified evidence only. Unverified claims score nothing here."
+        note="Counted from verified evidence only. Unverified claims score nothing here — and nothing here is a guess: this is the same board the Standings page reads."
       >
         <ul className="grid gap-2 sm:grid-cols-2">
           {Object.entries(PROOF_LABEL).map(([key, label]) => (

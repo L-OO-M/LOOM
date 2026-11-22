@@ -3,6 +3,8 @@ import { getRequestContext } from "@/lib/auth-server";
 import { REQUIREMENTS } from "@/lib/role-requests";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
+import { fetchRankPositions } from "@/lib/standings";
+import { PersonCard } from "@/components/loom/PersonCard";
 import { DecisionButtons } from "./_components/DecisionButtons";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +43,14 @@ export default async function AdminRequestsPage() {
     LIMIT 100
   `;
 
+  // Where each applicant actually stands, in one query. A promotion decided
+  // without looking at the chapter's own board is a guess, so the position is
+  // shown next to the snapshot the request carried.
+  const positions = await fetchRankPositions(sql, {
+    tenantId: tenant.id,
+    userIds: open.map((r) => r.applicant_id)
+  });
+
   const decided = await sql`
     SELECT r.id, r.target_role, r.status, r.decision_reason, r.created_at, r.decided_at,
            p.name AS applicant_name, d.name AS department_name
@@ -74,6 +84,7 @@ export default async function AdminRequestsPage() {
           <ul className="space-y-3">
             {open.map((row) => {
               const proof = row.proof_at_request || {};
+              const position = positions.get(String(row.applicant_id));
               return (
                 <li
                   key={row.id}
@@ -82,7 +93,9 @@ export default async function AdminRequestsPage() {
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-display text-lg" style={{ color: "var(--text)" }}>
-                      {row.applicant_name || "A member"}
+                      <PersonCard id={row.applicant_id} name={row.applicant_name}>
+                        <span>{row.applicant_name || "A member"}</span>
+                      </PersonCard>
                     </span>
                     <span className="text-xs uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                       {REQUIREMENTS[row.target_role]?.label || row.target_role}
@@ -112,6 +125,14 @@ export default async function AdminRequestsPage() {
                       <dt className="inline">Asked: </dt>
                       <dd className="inline">
                         {new Date(row.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="inline">Chapter position now: </dt>
+                      <dd className="inline font-medium" style={{ color: "var(--text)" }}>
+                        {position?.rank
+                          ? `#${position.rank} of ${position.total} (score ${position.score})`
+                          : "unranked — no verified score yet"}
                       </dd>
                     </div>
                   </dl>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Search, X, Mail, Linkedin, Archive, Users } from "lucide-react";
+import { PersonCard } from "@/components/loom/PersonCard";
 
 const input = {
   width: "100%", borderRadius: 10, border: "1px solid var(--line)",
@@ -261,7 +262,15 @@ export function LeadDirectory({ initialEntries = [], departments = [], canManage
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>{entry.name}</p>
+                  <p className="truncate text-sm font-medium" style={{ color: "var(--text)" }}>
+                    {entry.user_id ? (
+                      <PersonCard id={entry.user_id} name={entry.name}>
+                        <span>{entry.name}</span>
+                      </PersonCard>
+                    ) : (
+                      entry.name
+                    )}
+                  </p>
                   <p className="truncate text-xs" style={{ color: "var(--text-muted)" }}>{entry.title}</p>
                   <p className="mt-0.5 truncate text-xs" style={{ color: "var(--text-muted)" }}>
                     {[entry.department_name, entry.vertical === "non_technical" ? "Non-technical" : entry.vertical === "technical" ? "Technical" : null].filter(Boolean).join(" · ") || "Chapter-wide"}

@@ -127,6 +127,7 @@ test.describe("api authorization", () => {
     "/api/credentials",
     "/api/departments",
     "/api/role-requests",
+    "/api/people/probe-not-a-real-id",
     "/api/network",
     "/api/announcements",
     "/api/contributions",

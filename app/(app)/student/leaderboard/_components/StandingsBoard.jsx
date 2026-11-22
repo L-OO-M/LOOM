@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/loom/primitives";
+import { PersonCard } from "@/components/loom/PersonCard";
 
 const PAGE_STEP = 10;
 const INITIAL_ROWS = 20;
@@ -120,7 +121,15 @@ export default function StandingsBoard({ rows, scopeLabel }) {
                                   style={{ background: "var(--accent)" }}
                                 />
                               )}
-                              {r.profile_href ? (
+                              {r.user_id ? (
+                                <PersonCard
+                                  id={r.user_id}
+                                  name={r.name}
+                                  className="truncate text-[0.95rem] font-semibold"
+                                >
+                                  <span className="truncate">{r.name}</span>
+                                </PersonCard>
+                              ) : r.profile_href ? (
                                 <Link
                                   href={r.profile_href}
                                   prefetch={false}

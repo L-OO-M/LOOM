@@ -23,7 +23,8 @@ export const BUILD_TABS = [
 export const PROVE_TABS = [
   { href: "/student/credentials", label: "Proof" },
   { href: "/student/contests", label: "Contests" },
-  { href: "/student/leaderboard", label: "Standings" }
+  { href: "/student/leaderboard", label: "Standings" },
+  { href: "/student/roles", label: "Seats" }
 ];
 
 export const COMMUNITY_TABS = [

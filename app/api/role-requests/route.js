@@ -128,6 +128,13 @@ export async function POST(request) {
     if (String(error?.code) === "23505") {
       return fail("OPEN_REQUEST_EXISTS", "You already have a request waiting for a decision.", 409);
     }
+    // The database repeats the proof check (migration 099) so a bug in this
+    // route cannot create a request with no evidence behind it. If it fires,
+    // the API's own count and the database's disagree -- fail closed and say so
+    // in the same shape the API would have.
+    if (String(error?.code) === "23514" && String(error?.message).includes("BELOW_BAR")) {
+      return fail("NOT_ENOUGH_PROOF", "Your verified record does not clear the bar for that seat yet.", 403);
+    }
     throw error;
   }
 
