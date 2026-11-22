@@ -51,7 +51,13 @@ export function MentorsBrowser({ mentors }) {
     } else if (sort === "sessions") {
       sorted.sort((a, b) => Number(b.session_count) - Number(a.session_count));
     } else {
-      sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      sorted.sort((a, b) => {
+        // A head of the viewer's own department comes first: that is the person
+        // the chapter put in charge of their field.
+        const own = Number(Boolean(b.shares_department)) - Number(Boolean(a.shares_department));
+        if (own) return own;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
     }
     return sorted;
   }, [mentors, query, filter, sort]);
@@ -134,6 +140,11 @@ export function MentorsBrowser({ mentors }) {
                       )}
                       <span className="meta shrink-0">{rated ? `★ ${Number(m.avg_rating).toFixed(1)} · ${reviews} review${reviews === 1 ? "" : "s"}` : "New guide"}</span>
                     </div>
+                {m.shares_department && (
+                  <span className="mt-1 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-widest" style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>
+                    YOUR DEPARTMENT
+                  </span>
+                )}
                 <p className="meta mt-2" style={{ color: "var(--accent)" }}>{m.expertise || "General guidance"}</p>
                 {metaBits.length > 0 && (
                   <p className="meta mt-1.5">{metaBits.join(" · ")}</p>

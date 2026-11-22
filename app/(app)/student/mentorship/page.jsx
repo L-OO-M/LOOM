@@ -50,12 +50,19 @@ export default async function MentorshipPage() {
       up.username as profile_username, up.is_public as profile_public, up.tenant_id as profile_tenant,
       (SELECT COUNT(*)::int FROM mentor_sessions s WHERE s.mentor_id = m.user_id) AS session_count,
       (SELECT COUNT(*)::int FROM mentor_reviews r WHERE r.mentor_id = m.user_id) AS review_count,
-      (SELECT COALESCE(AVG(rating),0)::numeric FROM mentor_reviews r WHERE r.mentor_id = m.user_id) AS avg_rating
+      (SELECT COALESCE(AVG(rating),0)::numeric FROM mentor_reviews r WHERE r.mentor_id = m.user_id) AS avg_rating,
+      -- A head mentors their own field first. This is the department the
+      -- chapter put them in charge of, not the domain they picked at signup.
+      EXISTS (
+        SELECT 1 FROM department_memberships mm
+        JOIN department_memberships me ON me.department_id = mm.department_id
+        WHERE mm.user_id = m.user_id AND me.user_id = ${user.id}
+      ) AS shares_department
     FROM mentors m
     LEFT JOIN profiles p ON p.user_id = m.user_id
     LEFT JOIN user_profiles up ON up.user_id = m.user_id
     WHERE m.tenant_id = ${tid}::uuid AND m.available = true
-    ORDER BY m.created_at DESC LIMIT 50
+    ORDER BY shares_department DESC, m.created_at DESC LIMIT 50
   `;
   // Both sides of the loop see the same history: a student their requests, a
   // mentor the sessions they accepted. The tenant predicate keeps a moved
@@ -99,6 +106,7 @@ export default async function MentorshipPage() {
       id: String(m.id),
       user_id: String(m.user_id),
       expertise: m.expertise || "",
+      shares_department: Boolean(m.shares_department),
       bio: m.bio || "",
       created_at: m.created_at instanceof Date ? m.created_at.toISOString() : String(m.created_at ?? ""),
       mentor_name: m.mentor_name || "Mentor",
