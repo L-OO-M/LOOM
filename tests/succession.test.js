@@ -3,7 +3,7 @@ import { loadSuccessionOverview } from "@/lib/succession";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 
-function makeSql({ checklist = [], handovers = [], terms = [] } = {}) {
+function makeSql({ checklist = [], handovers = [], terms = [], work = [] } = {}) {
   const seen = [];
   const sql = (strings) => {
     const text = strings.join("?").replace(/\s+/g, " ").trim();
@@ -11,6 +11,7 @@ function makeSql({ checklist = [], handovers = [], terms = [] } = {}) {
     if (/FROM handover_checklists/.test(text)) return Promise.resolve(checklist);
     if (/FROM lead_handovers/.test(text)) return Promise.resolve(handovers);
     if (/FROM profiles p/.test(text)) return Promise.resolve(terms);
+    if (/FROM department_tasks/.test(text)) return Promise.resolve(work);
     throw new Error(`unexpected query: ${text}`);
   };
   return { sql, seen };
@@ -56,7 +57,7 @@ describe("loadSuccessionOverview", () => {
       "Brief: what is in flight",
       "Not submitted for admin approval"
     ]);
-    expect(overview.items[1].flags).toEqual({ planner: false, eventOps: true, headSlot: false });
+    expect(overview.items[1].flags).toEqual({ planner: false, eventOps: true, headSlot: false, tasks: false });
     expect(overview.items[2].owner).toEqual({ id: "u2", name: "Ravi" });
     expect(overview.items.map((item) => item.id)).not.toContain("checklist:c2");
     expect(overview.summary).toMatchObject({
@@ -76,5 +77,44 @@ describe("loadSuccessionOverview", () => {
     const overview = await loadSuccessionOverview({ sql, tenantId: TENANT });
     expect(overview.items).toHaveLength(1);
     expect(overview.items[0].owner).toEqual({ id: null, name: "Unassigned" });
+  });
+
+  it("names unowned department work, which a handover cannot reassign", async () => {
+    const { sql } = makeSql({
+      handovers: [
+        {
+          id: "h2", from_user_id: "u1", from_name: "Asha", to_user_id: "u9", to_name: "Dev",
+          role: "dept_lead", department_id: "d1", department_name: "Events", status: "submitted",
+          brief: { summary: "Owns the events calendar and the venue relationships.", responsibilities: "Two hackathons in flight." },
+          transfer_planner: true, transfer_event_ops: true, transfer_head_slot: true, transfer_tasks: true,
+          from_term_end: null, updated_at: "2026-01-02"
+        }
+      ],
+      work: [
+        { department_id: "d1", assignee_id: "u1", open: 4 },
+        { department_id: "d1", assignee_id: null, open: 2 }
+      ]
+    });
+    const overview = await loadSuccessionOverview({ sql, tenantId: TENANT });
+    expect(overview.items[0].work).toEqual({ ownOpen: 4, unassigned: 2 });
+    expect(overview.items[0].outstanding).toContain("2 open tasks have no owner");
+  });
+
+  it("does not flag a handover whose work is all owned", async () => {
+    const { sql } = makeSql({
+      handovers: [
+        {
+          id: "h3", from_user_id: "u1", from_name: "Asha", to_user_id: "u9", to_name: "Dev",
+          role: "dept_lead", department_id: "d1", department_name: "Events", status: "submitted",
+          brief: { summary: "Owns the events calendar and the venue relationships.", responsibilities: "Two hackathons in flight." },
+          transfer_planner: true, transfer_event_ops: true, transfer_head_slot: true, transfer_tasks: true,
+          from_term_end: null, updated_at: "2026-01-02"
+        }
+      ],
+      work: [{ department_id: "d1", assignee_id: "u1", open: 4 }]
+    });
+    const overview = await loadSuccessionOverview({ sql, tenantId: TENANT });
+    expect(overview.items[0].work).toEqual({ ownOpen: 4, unassigned: 0 });
+    expect(overview.items[0].outstanding.join(" ")).not.toContain("no owner");
   });
 });

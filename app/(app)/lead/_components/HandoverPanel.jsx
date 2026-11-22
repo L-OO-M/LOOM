@@ -14,7 +14,8 @@ const EMPTY_FORM = {
   contacts: "",
   transferPlanner: true,
   transferEventOps: true,
-  transferHeadSlot: true
+  transferHeadSlot: true,
+  transferTasks: true
 };
 
 const STATUS = {
@@ -35,7 +36,8 @@ function formFrom(handover) {
     contacts: handover.brief?.contacts || "",
     transferPlanner: handover.transfer_planner !== false,
     transferEventOps: handover.transfer_event_ops !== false,
-    transferHeadSlot: handover.transfer_head_slot !== false
+    transferHeadSlot: handover.transfer_head_slot !== false,
+    transferTasks: handover.transfer_tasks !== false
   };
 }
 
@@ -87,7 +89,8 @@ export function HandoverPanel() {
       },
       transferPlanner: form.transferPlanner,
       transferEventOps: form.transferEventOps,
-      transferHeadSlot: form.transferHeadSlot
+      transferHeadSlot: form.transferHeadSlot,
+      transferTasks: form.transferTasks
     };
     const url = active ? `/api/lead/handover/${active.id}` : "/api/lead/handover";
     const method = active ? "PATCH" : "POST";
@@ -247,7 +250,18 @@ export function HandoverPanel() {
                 Head / Co-Head slot
               </label>
             )}
+            {data.role === "dept_lead" && (
+              <label className="inline-flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                <input type="checkbox" checked={form.transferTasks} onChange={(e) => update("transferTasks", e.target.checked)} />
+                My open department tasks
+              </label>
+            )}
           </fieldset>
+          {data.role === "dept_lead" && (
+            <p className="meta">
+              Only the tasks assigned to you move. Work your members are carrying stays with them.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => save("save")} disabled={!!busy || !form.toUserId} className="btn-ghost !py-2 !text-xs disabled:opacity-50">
               {busy === "save" ? "Saving…" : "Save draft"}

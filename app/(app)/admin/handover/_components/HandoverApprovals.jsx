@@ -105,7 +105,27 @@ export function HandoverApprovals() {
                   {h.brief?.activeWork && <p><strong style={{ color: "var(--text)" }}>Active work:</strong> {h.brief.activeWork}</p>}
                   {h.brief?.risks && <p><strong style={{ color: "var(--text)" }}>Risks:</strong> {h.brief.risks}</p>}
                   {h.brief?.contacts && <p><strong style={{ color: "var(--text)" }}>Contacts:</strong> {h.brief.contacts}</p>}
-                  <p className="meta">Moves: {[h.transfer_planner && "planner", h.transfer_event_ops && "event ops", h.transfer_head_slot && "head slot"].filter(Boolean).join(", ") || "seat only"}</p>
+                  <p className="meta">
+                    Moves:{" "}
+                    {[
+                      h.transfer_planner && "planner",
+                      h.transfer_event_ops && "event ops",
+                      h.transfer_head_slot && "head slot",
+                      h.transfer_tasks && "their open department work"
+                    ].filter(Boolean).join(", ") || "seat only"}
+                  </p>
+                  {h.work?.ownOpen > 0 && (
+                    <p className="meta">
+                      {h.work.ownOpen} open {h.work.ownOpen === 1 ? "task" : "tasks"} assigned to{" "}
+                      {h.from_name || "the outgoing lead"} will move with the seat. Member assignments stay put.
+                    </p>
+                  )}
+                  {h.work?.unassigned > 0 && (
+                    <p className="text-xs" style={{ color: "var(--warn)" }}>
+                      {h.work.unassigned} open {h.work.unassigned === 1 ? "task has" : "tasks have"} no owner. A
+                      transfer cannot fix that — assign them before or after approving.
+                    </p>
+                  )}
                 </div>
               </details>
               <div className="mt-3 flex flex-wrap items-end gap-2">

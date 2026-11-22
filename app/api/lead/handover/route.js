@@ -7,7 +7,8 @@ import {
   UUID_PATTERN,
   handoverScope,
   listCandidates,
-  findCandidate
+  findCandidate,
+  handoverWorkPreview
 } from "@/lib/handover";
 
 const briefSchema = z.object({
@@ -24,6 +25,10 @@ const createSchema = z.object({
   transferPlanner: z.boolean().default(true),
   transferEventOps: z.boolean().default(true),
   transferHeadSlot: z.boolean().default(true),
+  // Only ever the outgoing head's own open work in the department being handed
+  // over. Default true so an approval keeps the intent of drafts written before
+  // this flag existed.
+  transferTasks: z.boolean().default(true),
   submit: z.boolean().default(false)
 });
 
@@ -66,8 +71,14 @@ export async function GET(request) {
     LIMIT 50
   `;
 
+  // An approver should see the size of the move before approving it, not after.
+  const work = await handoverWorkPreview(sql, { tenantId: tenant.id, handovers });
+
   return ok({
-    handovers,
+    handovers: handovers.map((h) => ({
+      ...h,
+      work: work.get(h.id) || { ownOpen: 0, unassigned: 0 }
+    })),
     candidates,
     canDraft: !scope.error && !all,
     reason: scope.error || null,
@@ -120,12 +131,13 @@ export async function POST(request) {
   const [handover] = await sql`
     INSERT INTO lead_handovers
       (tenant_id, from_user_id, to_user_id, role, department_id, vertical, brief,
-       transfer_planner, transfer_event_ops, transfer_head_slot, status,
+       transfer_planner, transfer_event_ops, transfer_head_slot, transfer_tasks, status,
        submitted_at, created_by)
     VALUES
       (${tenant.id}::uuid, ${user.id}, ${body.toUserId}, ${scope.role},
        ${scope.departmentId ?? null}, ${scope.vertical ?? null}, ${sql.json(body.brief)},
        ${body.transferPlanner}, ${body.transferEventOps}, ${body.transferHeadSlot},
+       ${body.transferTasks},
        ${body.submit ? "submitted" : "draft"},
        ${body.submit ? sql`NOW()` : null}, ${user.id})
     RETURNING *

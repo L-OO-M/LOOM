@@ -18,7 +18,8 @@ const patchSchema = z.object({
   brief: briefPatchSchema.optional(),
   transferPlanner: z.boolean().optional(),
   transferEventOps: z.boolean().optional(),
-  transferHeadSlot: z.boolean().optional()
+  transferHeadSlot: z.boolean().optional(),
+  transferTasks: z.boolean().optional()
 });
 
 function gap(brief) {
@@ -99,6 +100,7 @@ export async function PATCH(request, { params }) {
         transfer_planner = ${body.transferPlanner ?? existing.transfer_planner},
         transfer_event_ops = ${body.transferEventOps ?? existing.transfer_event_ops},
         transfer_head_slot = ${body.transferHeadSlot ?? existing.transfer_head_slot},
+        transfer_tasks = ${body.transferTasks ?? existing.transfer_tasks},
         status = ${nextStatus},
         submitted_at = ${body.action === "submit" ? sql`NOW()` : existing.submitted_at},
         review_note = CASE WHEN ${body.action === "submit"} THEN '' ELSE review_note END,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handoverScope, applyHandoverTransfer, UUID_PATTERN, ROLE_LABELS } from "@/lib/handover";
+import { handoverScope, applyHandoverTransfer, handoverWorkPreview, UUID_PATTERN, ROLE_LABELS } from "@/lib/handover";
 
 const member = (role, extra = {}) => ({
   role,
@@ -137,5 +137,127 @@ describe("applyHandoverTransfer", () => {
     expect(planner.values).toContain(fromUserId);
     expect(planner.values).toContain(toUserId);
     expect(result.planner).toBe(0);
+  });
+
+  it("moves only the outgoing head's own open work in that department", async () => {
+    const fromUserId = "auth0|outgoing";
+    const toUserId = "auth0|incoming";
+    const departmentId = "33333333-3333-4333-8333-333333333333";
+    const { tx, statements } = recordingTx(toUserId);
+
+    const result = await applyHandoverTransfer(tx, {
+      tenantId: TENANT,
+      actorId: "auth0|admin",
+      handover: {
+        from_user_id: fromUserId,
+        to_user_id: toUserId,
+        role: "dept_lead",
+        department_id: departmentId,
+        transfer_tasks: true
+      }
+    });
+
+    const moved = statements.find((s) => /^UPDATE department_tasks/.test(s.text));
+    expect(moved).toBeTruthy();
+    // Only the outgoing head's rows, only this department, only unfinished work.
+    expect(moved.text).toContain("assignee_id = ?");
+    expect(moved.values).toContain(fromUserId);
+    expect(moved.values).toContain(departmentId);
+    expect(moved.text).toContain("is_active");
+    expect(moved.text).toMatch(/status IN \('assigned', 'in_progress', 'blocked'\)/);
+    // A handover changes who leads, never who does what.
+    expect(moved.text).not.toMatch(/assignee_id IS NOT NULL/);
+    expect(moved.values).toContain(toUserId);
+    expect(result.tasks).toBe(0);
+  });
+
+  it("leaves department work alone when the flag is off or the seat is not a department", async () => {
+    const off = recordingTx("auth0|incoming");
+    await applyHandoverTransfer(off.tx, {
+      tenantId: TENANT,
+      actorId: "auth0|admin",
+      handover: {
+        from_user_id: "auth0|outgoing",
+        to_user_id: "auth0|incoming",
+        role: "dept_lead",
+        department_id: "33333333-3333-4333-8333-333333333333",
+        transfer_tasks: false
+      }
+    });
+    expect(off.statements.some((s) => /^UPDATE department_tasks/.test(s.text))).toBe(false);
+
+    const vertical = recordingTx("auth0|incoming");
+    await applyHandoverTransfer(vertical.tx, {
+      tenantId: TENANT,
+      actorId: "auth0|admin",
+      handover: {
+        from_user_id: "auth0|outgoing",
+        to_user_id: "auth0|incoming",
+        role: "vertical_lead",
+        vertical: "technical",
+        transfer_tasks: true
+      }
+    });
+    expect(vertical.statements.some((s) => /^UPDATE department_tasks/.test(s.text))).toBe(false);
+  });
+});
+
+describe("handoverWorkPreview", () => {
+  const TENANT = "22222222-2222-4222-8222-222222222222";
+
+  function fakeSql(rows) {
+    const sql = async () => rows;
+    return sql;
+  }
+
+  it("separates the head's own work from work nobody owns", async () => {
+    const rows = [
+      { department_id: "d1", assignee_id: "auth0|head", open: 3 },
+      { department_id: "d1", assignee_id: null, open: 2 },
+      { department_id: "d1", assignee_id: "auth0|member", open: 5 }
+    ];
+    const preview = await handoverWorkPreview(fakeSql(rows), {
+      tenantId: TENANT,
+      handovers: [{ id: "h1", department_id: "d1", from_user_id: "auth0|head" }]
+    });
+    expect(preview.get("h1")).toEqual({ ownOpen: 3, unassigned: 2 });
+  });
+
+  it("never counts a member's load as part of the transfer", async () => {
+    const rows = [{ department_id: "d1", assignee_id: "auth0|member", open: 9 }];
+    const preview = await handoverWorkPreview(fakeSql(rows), {
+      tenantId: TENANT,
+      handovers: [{ id: "h1", department_id: "d1", from_user_id: "auth0|head" }]
+    });
+    expect(preview.get("h1")).toEqual({ ownOpen: 0, unassigned: 0 });
+  });
+
+  it("answers for every handover in one pass and skips non-department seats", async () => {
+    const rows = [{ department_id: "d1", assignee_id: "auth0|head", open: 1 }];
+    const preview = await handoverWorkPreview(fakeSql(rows), {
+      tenantId: TENANT,
+      handovers: [
+        { id: "h1", department_id: "d1", from_user_id: "auth0|head" },
+        { id: "h2", department_id: "d2", from_user_id: "auth0|other" },
+        { id: "h3", department_id: null, from_user_id: "auth0|vertical" }
+      ]
+    });
+    expect(preview.size).toBe(3);
+    expect(preview.get("h2")).toEqual({ ownOpen: 0, unassigned: 0 });
+    expect(preview.get("h3")).toEqual({ ownOpen: 0, unassigned: 0 });
+  });
+
+  it("does not query at all when no handover is tied to a department", async () => {
+    let called = false;
+    const sql = async () => {
+      called = true;
+      return [];
+    };
+    const preview = await handoverWorkPreview(sql, {
+      tenantId: TENANT,
+      handovers: [{ id: "h1", department_id: null, from_user_id: "auth0|vertical" }]
+    });
+    expect(called).toBe(false);
+    expect(preview.get("h1")).toEqual({ ownOpen: 0, unassigned: 0 });
   });
 });
