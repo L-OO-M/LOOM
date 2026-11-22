@@ -26,6 +26,7 @@ Learning, Opportunity, Open source, Mentorship — one student journey per chapt
 | [**UX overhaul plan**](28-ux-overhaul-plan.md) | Product, design, developers | Three-pass discover→improve→challenge plan: route-inventory contract (no orphans), journey tests A–F, IA/navigation rules, the replacement loading model, implementation slices, gates, defect-ledger format, open decisions |
 | [**UX & accessibility audit: findings**](29-ux-audit-findings.md) | Product, design, developers, QA | 39 evidence-backed defects (P0–P3) from driving the production build in a real browser: 108 routes, 3 viewports/roles, axe-core on 28 pages, measured timings. Every entry has route, role, steps, expected vs actual, file:line root cause, and an approval sheet mapped to slices S1–S10 |
 | [**Security audit**](30-security-audit.md) | Operators, developers, security reviewers | Evidence-backed review of the running production build: route/authZ sweeps, header and body-size probes, the five fixed findings (rate-limit bypass, unbounded bodies, unthrottled public reads, framework fingerprint, signup oracle), DDoS posture and what only the platform can stop, operator checklist, dependency-audit position |
+| [**Known issues**](31-known-issues.md) | Everyone | Things deliberately switched off or currently broken, with the exact switch: GitHub sign-in hidden (`NEXT_PUBLIC_GITHUB_SIGNIN`), in-app-only notifications, zero verified evidence, locked-out accounts, the duplicate profile |
 
 ## Read this before deploying
 

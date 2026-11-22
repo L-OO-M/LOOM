@@ -12,8 +12,9 @@ test("homepage sign in and join buttons reach the existing auth pages", async ({
   }
   await page.getByRole("link", { name: "Sign in", exact: true }).first().click();
   await expect(page).toHaveURL("/login");
-  // Auth0 is the only front door: two real paths, no credential form locally.
-  await expect(page.getByRole("link", { name: /Continue with GitHub/i })).toBeVisible();
+  // Auth0 is the only front door: one real path, no credential form locally.
+  // GitHub is hidden for now (docs/31-known-issues.md).
+  await expect(page.getByRole("link", { name: /Continue with GitHub/i })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Continue with email & password/i })).toBeVisible();
   await expect(page.locator("#email")).toHaveCount(0);
   await expect(page.locator("#password")).toHaveCount(0);
@@ -21,7 +22,7 @@ test("homepage sign in and join buttons reach the existing auth pages", async ({
   await page.getByRole("link", { name: "Start Your Journey", exact: true }).click();
   await expect(page).toHaveURL("/register");
   await expect(page.locator("h1")).toContainText("Create account");
-  await expect(page.getByRole("link", { name: /Sign up with GitHub/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Sign up with GitHub/i })).toHaveCount(0);
 });
 
 test("homepage feature and legal links retain real routes", async ({ page }) => {

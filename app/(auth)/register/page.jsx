@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { GITHUB_SIGNIN_ENABLED } from "@/lib/auth-providers";
 import { AuthShell } from "@/app/(auth)/_components/AuthShell";
 import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 
@@ -15,6 +16,10 @@ import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 // Two real paths, same as /login: GitHub, or email/username + password. Both
 // open Auth0's Universal Login with `screen_hint=signup`, so the form is
 // Auth0's, with Auth0's password policy and email verification.
+//
+// GitHub is currently hidden behind GITHUB_SIGNIN_ENABLED (see
+// docs/31-known-issues.md). The route and the Auth0 connection stay intact, so
+// re-enabling is a flag, not a rewrite.
 //
 // The page stays because /register is linked from the marketing site and old
 // emails, and a 404 there looks like the product is broken.
@@ -33,10 +38,12 @@ export default function RegisterPage() {
       </p>
 
       <div className="mt-6 space-y-3">
-        <a href={SIGNUP_GITHUB} className="btn-ink w-full justify-center">
-          Sign up with GitHub
-        </a>
-        <a href={SIGNUP} className="btn-ghost w-full justify-center">
+        {GITHUB_SIGNIN_ENABLED && (
+          <a href={SIGNUP_GITHUB} className="btn-ink w-full justify-center">
+            Sign up with GitHub
+          </a>
+        )}
+        <a href={SIGNUP} className={GITHUB_SIGNIN_ENABLED ? "btn-ghost w-full justify-center" : "btn-ink w-full justify-center"}>
           Sign up with email or username
         </a>
         <AuthHandoffNote className="text-center" />

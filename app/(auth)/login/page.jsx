@@ -4,14 +4,18 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { authCallbackMessage, safeRedirectPath } from "@/lib/auth";
+import { GITHUB_SIGNIN_ENABLED } from "@/lib/auth-providers";
 import { AuthShell } from "@/app/(auth)/_components/AuthShell";
 import AuthHandoffNote from "@/app/(auth)/_components/AuthHandoffNote";
 
 // Auth0 owns the front door, but "one Auth0 button" is not a sign-in page.
-// This page offers the two real paths a member expects:
+// This page offers the real paths a member expects:
 //
 //   1. Email/username + password -> Auth0's database connection form.
 //   2. GitHub       -> Auth0's GitHub social connection, straight to GitHub.
+//                     Currently hidden behind GITHUB_SIGNIN_ENABLED while the
+//                     connection is sorted out; see docs/31-known-issues.md.
+//                     The href and the Auth0 connection are unchanged.
 //
 // Both go through /auth/login, which the SDK turns into an /authorize request.
 // Credentials are entered on Auth0's page, never on this origin: that keeps
@@ -58,13 +62,15 @@ function AuthOptions() {
       >
         Continue with email &amp; password
       </a>
-      <a
-        href={`/auth/login?connection=github&${returnTo}`}
-        className="btn-ghost w-full justify-center"
-      >
-        Continue with GitHub
-      </a>
-      {!callbackError && (
+      {GITHUB_SIGNIN_ENABLED && (
+        <a
+          href={`/auth/login?connection=github&${returnTo}`}
+          className="btn-ghost w-full justify-center"
+        >
+          Continue with GitHub
+        </a>
+      )}
+      {GITHUB_SIGNIN_ENABLED && !callbackError && (
         <p className="text-center text-xs leading-5" style={{ color: "var(--text-muted)" }}>
           GitHub not opening? Use your email and password — both sign in to the same account.
         </p>
@@ -78,9 +84,11 @@ const fallbackLinks = (
     <a href="/auth/login?screen_hint=login&returnTo=%2Fauth%2Fcontinue" className="btn-ink w-full justify-center">
       Continue with email &amp; password
     </a>
-    <a href="/auth/login?connection=github&returnTo=%2Fauth%2Fcontinue" className="btn-ghost w-full justify-center">
-      Continue with GitHub
-    </a>
+    {GITHUB_SIGNIN_ENABLED && (
+      <a href="/auth/login?connection=github&returnTo=%2Fauth%2Fcontinue" className="btn-ghost w-full justify-center">
+        Continue with GitHub
+      </a>
+    )}
   </>
 );
 
@@ -91,7 +99,9 @@ export default function LoginPage() {
         Sign in
       </h1>
       <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>
-        Use the email and password you set up, or the provider you signed up with.
+        {GITHUB_SIGNIN_ENABLED
+          ? "Use the email and password you set up, or the provider you signed up with."
+          : "Use the email and password you set up."}
       </p>
 
       <div className="mt-6 space-y-3">
