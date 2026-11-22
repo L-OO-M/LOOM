@@ -5,6 +5,7 @@ import { can } from "@/lib/permissions";
 import { scope } from "@/lib/tenant-scope";
 import { isOptionalHttpUrl, HTTP_URL_MESSAGE } from "@/lib/content-safety";
 import {
+  BLOCKED_CATEGORIES,
   TASK_KINDS,
   TASK_PRIORITIES,
   decideTaskAction,
@@ -29,7 +30,11 @@ const patchSchema = z.object({
   dueAt: z.string().datetime().nullable().optional(),
   evidenceUrl: z.string().max(500).nullable().optional().refine(isOptionalHttpUrl, HTTP_URL_MESSAGE),
   completionNote: z.string().max(2000).nullable().optional(),
-  reviewNote: z.string().max(2000).nullable().optional()
+  reviewNote: z.string().max(2000).nullable().optional(),
+  // Why the work stopped and what kind of stop it is. "Blocked" alone tells the
+  // head nothing; the category is what makes the queue groupable.
+  blockedReason: z.string().max(500).nullable().optional(),
+  blockedCategory: z.enum(BLOCKED_CATEGORIES).nullable().optional()
 });
 
 // One task: read it, or move it through exactly one legal transition. Every
@@ -156,6 +161,29 @@ export async function PATCH(request, { params }) {
   const isReopen = body.action === "reopen";
   const isCancel = body.action === "cancel";
 
+  // The database refuses a blocked row without a reason (migration 100), so the
+  // API refuses it first with a sentence a person can act on.
+  if (nextStatus === "blocked") {
+    const reason = String(body.blockedReason ?? existing.blocked_reason ?? "").trim();
+    if (!reason) {
+      return fail("VALIDATION_ERROR", "Say what is blocking this work before marking it blocked", 400);
+    }
+  }
+
+  // Moving the deadline re-arms both reminders. Without this a task reminded at
+  // T-2 and then extended would never be reminded again, because the stamp is
+  // already set.
+  const dueChanged =
+    editing &&
+    body.dueAt !== undefined &&
+    (body.dueAt === null
+      ? existing.due_at !== null
+      : !existing.due_at || new Date(body.dueAt).getTime() !== new Date(existing.due_at).getTime());
+
+  // The status the caller saw is part of the WHERE clause. Two reviewers who
+  // both loaded the same submission cannot both approve it: the second UPDATE
+  // matches zero rows and gets a 409 instead of silently overwriting the first
+  // decision. The same guard stops a double-submit and a cancel/approve race.
   const [task] = await sql`
     UPDATE department_tasks SET
       title = ${editing && body.title !== undefined ? body.title : existing.title},
@@ -173,11 +201,28 @@ export async function PATCH(request, { params }) {
       reviewed_at = CASE WHEN ${isReopen} OR ${isSubmit} THEN NULL WHEN ${isReview} THEN NOW() ELSE reviewed_at END,
       reviewed_by = CASE WHEN ${isReopen} OR ${isSubmit} THEN NULL WHEN ${isReview} THEN ${user.id} ELSE reviewed_by END,
       review_note = CASE WHEN ${isReopen} OR ${isSubmit} THEN NULL WHEN ${isReview} THEN ${body.reviewNote ?? null} ELSE review_note END,
+      -- Blocked context lives and dies with the blocked state: moving on clears
+      -- it, so a resolved task never carries a stale reason into the queue.
+      blocked_reason = CASE WHEN ${nextStatus} = 'blocked'
+        THEN ${body.blockedReason ?? existing.blocked_reason ?? null} ELSE NULL END,
+      blocked_category = CASE WHEN ${nextStatus} = 'blocked'
+        THEN ${body.blockedCategory ?? existing.blocked_category ?? null} ELSE NULL END,
+      due_soon_reminded_at = CASE WHEN ${dueChanged} THEN NULL ELSE due_soon_reminded_at END,
+      overdue_notified_at = CASE WHEN ${dueChanged} THEN NULL ELSE overdue_notified_at END,
       is_active = CASE WHEN ${isCancel} THEN false ELSE is_active END,
       updated_at = NOW()
     WHERE id = ${taskId}::uuid AND tenant_id = ${tenant.id}::uuid
+      AND status = ${existing.status} AND is_active = ${existing.is_active}
     RETURNING *
   `;
+
+  if (!task) {
+    return fail(
+      "CONFLICT",
+      "This task moved while you were looking at it. Reload and check its current state.",
+      409
+    );
+  }
 
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant.id,
@@ -185,11 +230,13 @@ export async function PATCH(request, { params }) {
     resource: "department_tasks", resourceId: task.id,
     before: {
       status: existing.status, assigneeId: existing.assignee_id,
-      submittedBy: existing.submitted_by, reviewedBy: existing.reviewed_by
+      submittedBy: existing.submitted_by, reviewedBy: existing.reviewed_by,
+      blockedCategory: existing.blocked_category
     },
     after: {
       status: task.status, assigneeId: task.assignee_id,
       submittedBy: task.submitted_by, reviewedBy: task.reviewed_by,
+      blockedCategory: task.blocked_category,
       department: dept.slug
     }
   });

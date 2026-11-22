@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, ExternalLink, Play, Ban, RotateCcw, Send, Undo2, X, UserCog } from "lucide-react";
-import { TASK_STATUS_LABEL } from "@/lib/department-tasks";
+import { TASK_STATUS_LABEL, BLOCKED_CATEGORIES, BLOCKED_CATEGORY_LABEL } from "@/lib/department-tasks";
 
 const input = {
   width: "100%", borderRadius: 10, border: "1px solid var(--line)",
@@ -47,6 +47,7 @@ export function TaskList({
   const [msg, setMsg] = useState("");
   const [submitFor, setSubmitFor] = useState(null);
   const [returnFor, setReturnFor] = useState(null);
+  const [blockFor, setBlockFor] = useState(null);
 
   function replace(task) {
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)));
@@ -70,6 +71,7 @@ export function TaskList({
         }
         setSubmitFor(null);
         setReturnFor(null);
+        setBlockFor(null);
         setMsg("Saved ✓");
       } else {
         setMsg(d.error?.message || "That change was refused");
@@ -168,6 +170,15 @@ export function TaskList({
               </p>
             )}
 
+            {task.status === "blocked" && task.blocked_reason && (
+              <p className="mt-2 text-xs" style={{ color: "var(--danger)" }}>
+                Blocked: {task.blocked_reason}
+                {task.blocked_category
+                  ? ` · ${BLOCKED_CATEGORY_LABEL[task.blocked_category] || task.blocked_category}`
+                  : ""}
+              </p>
+            )}
+
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {mine && ["assigned", "blocked"].includes(task.status) && (
                 <button type="button" style={btn} disabled={busy === task.id} onClick={() => act(task, { action: "start" })}>
@@ -175,7 +186,8 @@ export function TaskList({
                 </button>
               )}
               {mine && ["assigned", "in_progress"].includes(task.status) && (
-                <button type="button" style={btn} disabled={busy === task.id} onClick={() => act(task, { action: "block" })}>
+                <button type="button" style={btn} disabled={busy === task.id}
+                  onClick={() => setBlockFor(blockFor === task.id ? null : task.id)}>
                   <Ban size={13} /> Blocked
                 </button>
               )}
@@ -255,6 +267,44 @@ export function TaskList({
                     <Send size={13} /> Send for review
                   </button>
                   <button type="button" style={btn} onClick={() => setSubmitFor(null)}>Cancel</button>
+                </div>
+              </form>
+            )}
+
+            {blockFor === task.id && (
+              <form
+                className="mt-3 space-y-2 rounded-xl border p-3"
+                style={{ borderColor: "var(--line)", background: "var(--bg-muted)" }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  act(task, {
+                    action: "block",
+                    blockedReason: String(fd.get("blockedReason") || "").trim(),
+                    blockedCategory: String(fd.get("blockedCategory") || "") || null
+                  });
+                }}
+              >
+                <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  What is stopping this? (required)
+                  <textarea name="blockedReason" rows={2} required maxLength={500}
+                    placeholder="Waiting on repo access from the maintainer"
+                    style={{ ...input, marginTop: 6 }} />
+                </label>
+                <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  Kind of blocker
+                  <select name="blockedCategory" defaultValue="" style={{ ...input, marginTop: 6 }}>
+                    <option value="">Not sure</option>
+                    {BLOCKED_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{BLOCKED_CATEGORY_LABEL[c]}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex gap-2">
+                  <button type="submit" style={{ ...btn, color: "var(--danger)" }} disabled={busy === task.id}>
+                    <Ban size={13} /> Mark blocked
+                  </button>
+                  <button type="button" style={btn} onClick={() => setBlockFor(null)}>Cancel</button>
                 </div>
               </form>
             )}

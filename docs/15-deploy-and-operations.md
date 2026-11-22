@@ -232,6 +232,17 @@ Job names live in `lib/scheduler.js`: `deadline-reminders`,
 `analytics-rollup`, `federation-rollup`, `retention-prune`, `term-expiry`,
 `outbox-drain`.
 
+`deadline-reminders` sends four kinds of notice, each stamped so a retry cannot
+repeat it: MoU expiry (one stamp), event-ops tasks (one stamp), and department
+work in two stages -- `due_soon_reminded_at` at T-48h to the assignee, and
+`overdue_notified_at` after the deadline to the assignee **and** the
+department's heads. The overdue stage claims the row with
+`UPDATE ... WHERE overdue_notified_at IS NULL RETURNING id` before inserting the
+notification, so two overlapping runs cannot both send. Moving a task's deadline
+clears both stamps, which is the only way to re-arm them. Pass `?apply=0` (or
+`{ apply: false }`) for a dry run: every sweep still runs its SELECT and reports
+counts, and nothing is written.
+
 With `CRON_SECRET` unset the endpoint returns 503; a wrong/missing secret
 returns 401. There is still **no committed `vercel.json`**, so wire the calls
 to your platform's scheduler (Vercel Cron, GitHub Actions, or an external
