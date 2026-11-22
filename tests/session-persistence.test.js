@@ -25,7 +25,9 @@ describe("Auth0 is the only session source", () => {
 
   it("lets an Auth0 session through instead of redirecting to /login", () => {
     // The allow branch must return a next() response; a redirect there is the bug.
-    expect(middleware).toMatch(/auth0Session\?\.user[\s\S]{0,600}NextResponse\.next\(/);
+    // The only redirect allowed between the two is the unverified-email gate.
+    expect(middleware).toMatch(/auth0Session\?\.user[\s\S]{0,1600}NextResponse\.next\(/);
+    expect(middleware).toMatch(/needsEmailVerification\(auth0Session\.user\)[\s\S]{0,900}verify-email\?status=pending/);
   });
 
   it("keeps /auth/signout reachable without a session", () => {

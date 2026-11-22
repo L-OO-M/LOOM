@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth0";
+import { needsEmailVerification } from "@/lib/auth";
 import { checkSameOrigin, UNSAFE_METHODS } from "@/lib/csrf";
 import { checkBodySize } from "@/lib/request-limits";
 import { buildCsp, createNonce } from "@/lib/csp";
@@ -232,6 +233,30 @@ export async function middleware(request) {
   }
 
   if (auth0Session?.user) {
+    // An unverified email/password identity is signed in but not proven. Auth0
+    // will not stop it (no connection flag exists for that), so this is the one
+    // place the whole app agrees: pages go to /verify-email, APIs answer 403.
+    // Without this gate the first unverified login mints a canonical profile,
+    // and an address that already belongs to a Google/GitHub account ends up
+    // with two -- permanently, because the sub is linked from then on.
+    if (needsEmailVerification(auth0Session.user)) {
+      if (pathname.startsWith("/api/")) {
+        return withCsp(
+          NextResponse.json(
+            {
+              ok: false,
+              error: {
+                code: "EMAIL_UNVERIFIED",
+                message: "Confirm your email address before using LOOM"
+              }
+            },
+            { status: 403 }
+          )
+        );
+      }
+      return withCsp(NextResponse.redirect(new URL("/verify-email?status=pending", request.url)));
+    }
+
     const res = NextResponse.next({ request: { headers: requestHeaders } });
     try {
       const rolled = await auth0.middleware(request);

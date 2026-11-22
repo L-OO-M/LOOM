@@ -4,6 +4,7 @@ import {
   canLinkByEmail,
   hasRole,
   homeForRole,
+  needsEmailVerification,
   providerCallbackErrorCode,
   requireRole,
   safeAuthErrorCode,
@@ -130,5 +131,32 @@ describe("canLinkByEmail", () => {
     expect(canLinkByEmail({ email: "   ", email_verified: true })).toBe(false);
     expect(canLinkByEmail({ email_verified: true })).toBe(false);
     expect(canLinkByEmail(null)).toBe(false);
+  });
+});
+
+describe("needsEmailVerification", () => {
+  it("blocks an unverified email/password identity", () => {
+    expect(needsEmailVerification({ sub: "auth0|6b02", email_verified: false })).toBe(true);
+    // Auth0 omits the claim entirely for some flows; absent is not proof.
+    expect(needsEmailVerification({ sub: "auth0|6b02" })).toBe(true);
+  });
+
+  it("lets a verified email/password identity through", () => {
+    expect(needsEmailVerification({ sub: "auth0|6b02", email_verified: true })).toBe(false);
+  });
+
+  it("never blocks a social identity, whatever the provider said", () => {
+    // A social `false` is the provider's answer; the member cannot clear it by
+    // clicking a link, so blocking would lock them out for good.
+    expect(needsEmailVerification({ sub: "google-oauth2|1062", email_verified: false })).toBe(false);
+    expect(needsEmailVerification({ sub: "github|184841851", email_verified: false })).toBe(false);
+    expect(needsEmailVerification({ sub: "github|184841851" })).toBe(false);
+  });
+
+  it("does not block a subject it cannot classify", () => {
+    expect(needsEmailVerification(null)).toBe(false);
+    expect(needsEmailVerification({})).toBe(false);
+    expect(needsEmailVerification({ sub: "no-pipe", email_verified: false })).toBe(false);
+    expect(needsEmailVerification({ sub: 42, email_verified: false })).toBe(false);
   });
 });
