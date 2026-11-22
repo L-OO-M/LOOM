@@ -123,6 +123,40 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
           </div>
 
           <aside className="leadx-rail" aria-label="Decisions">
+            <section className="leadx-note leadx-orders">
+              <div className="leadx-note-head">
+                <div>
+                  <p className="leadx-note-kicker">Operations</p>
+                  <h2 className="leadx-note-title">Queue</h2>
+                </div>
+                <span className={`leadx-count ${(data.queue?.total ?? 0) === 0 ? "is-clear" : ""}`}>
+                  {data.queue?.total ?? 0}
+                </span>
+              </div>
+              {(data.queue?.items?.length ?? 0) === 0 ? (
+                <p className="leadx-empty">Nothing is waiting on you.</p>
+              ) : (
+                <ul className="leadx-order-list">
+                  {data.queue.items.map((item) => (
+                    <li key={item.key} className="leadx-order">
+                      <Link href={item.href} prefetch={false} className="leadx-order-copy">
+                        <strong>{item.label}</strong>
+                        <small>
+                          {item.group === "action"
+                            ? "You decide"
+                            : item.group === "attention"
+                              ? "Needs attention"
+                              : "Due soon"}
+                          {item.waitingDays > 0 ? ` / oldest ${item.waitingDays}d` : ""}
+                        </small>
+                      </Link>
+                      <span className="leadx-count">{item.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
             {Capability}
 
             <section className="leadx-note leadx-orders">

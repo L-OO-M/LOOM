@@ -270,3 +270,31 @@ Relational tables grouped by product area. One line each: what each domain store
   pooler host, constraint names, and RLS denial wording.
 - Helper enrollment requires explicit opt-in. `lib/auth-server.js` no longer
   lists every authenticated member as an available helper on every request.
+
+## 10. Operational queue (`lib/queue.js`)
+
+One read-only aggregation that answers "what is waiting on me today", shared by
+`/admin` and the lead console. It owns no workflow, writes nothing, and has no
+table of its own -- every counter is a `COUNT(*)` over a table another module
+already owns, and every `href` points at the screen that already has the
+buttons. `tests/queue.test.js` fails if `lib/queue.js` ever gains an
+`INSERT`/`UPDATE`/`DELETE`.
+
+Three groups, kept apart on purpose:
+
+| Group | Meaning | Example |
+|---|---|---|
+| `action` | The viewer is the decider. A number here is a personal debt. | A submission awaiting their review; a seat request an admin can approve |
+| `attention` | Deteriorating, or someone waits on a decision the viewer cannot make | Overdue work, blocked work, work with no owner, a seat request seen by a department head |
+| `visibility` | Not a problem yet, shown so it can be planned for | Work due in the next 3 days |
+
+Scope is resolved once from the viewer's own profile (`admin` -> every active
+department, `vertical_lead` -> their vertical, `dept_lead` -> the departments
+they actually lead) and applied to every query, so a page cannot widen its own
+reach. Ageing (`waitingDays`) is computed server-side from the oldest row in
+each bucket -- `submitted_at` for reviews (how long the member waited), `due_at`
+for overdue work, `created_at` for unowned work -- so the client never has to
+guess and hydration cannot disagree.
+
+`/api/lead/overview` returns the same `queue` object the page renders, so the
+console's 15s poll keeps it live without a second endpoint.

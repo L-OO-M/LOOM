@@ -16,9 +16,18 @@ function deptTone(value = "") {
    ruled entries, and the operational queues stay in the lower half. */
 
 export function AdminDashboard({ tenantName, todayLabel = "", totalStudents = 0, outcomes, attention, departments = [], upcoming, auditEntries, charts = null }) {
-  const waiting = attention.reduce((s, a) => s + a.count, 0);
+  // Visibility is not a debt. A task due next Thursday belongs on the page so it
+  // can be planned for, but counting it in "things need a human" would inflate
+  // the masthead with work that is currently on schedule.
+  const waiting = attention
+    .filter((a) => a.group !== "visibility")
+    .reduce((s, a) => s + a.count, 0);
   const o = outcomes;
-  const sortedAttention = [...attention].sort((a, b) => b.count - a.count);
+  // lib/queue.js already sorts by age then size; re-sorting by count alone would
+  // bury a 12-day-old decision under a fresh pile of six.
+  const sortedAttention = [...attention].sort(
+    (a, b) => (b.waitingDays ?? -1) - (a.waitingDays ?? -1) || b.count - a.count
+  );
 
   const pillars = [
     {
@@ -72,12 +81,12 @@ export function AdminDashboard({ tenantName, todayLabel = "", totalStudents = 0,
     }
   ];
 
-  const attentionCount = (needle) => attention.find((a) => a.label.toLowerCase().includes(needle))?.count ?? 0;
+  const attentionCount = (key) => attention.find((a) => a.key === key)?.count ?? 0;
   const glance = [
     { value: departments.length, label: "Departments" },
-    { value: attentionCount("core request"), label: "Core requests" },
-    { value: attentionCount("proposed"), label: "Proposed events" },
-    { value: attentionCount("flag"), label: "Flagged this week" }
+    { value: attentionCount("seat_requests"), label: "Seat requests" },
+    { value: attentionCount("proposed_events"), label: "Proposed events" },
+    { value: attentionCount("content_flags"), label: "Flagged this week" }
   ];
 
   return (
@@ -238,14 +247,33 @@ export function AdminDashboard({ tenantName, todayLabel = "", totalStudents = 0,
             <span className={`adminx-count ${waiting === 0 ? "is-clear" : ""}`}>{waiting}</span>
           </div>
           <p className="adminx-dispatch-note">
-            {waiting > 0 ? "Sorted by urgency. Every action is audited." : "All queues clear."}
+            {waiting > 0
+              ? "Your decisions first, then anything deteriorating, then work due soon. Oldest first."
+              : "Nothing needs a decision. Work due soon is listed below."}
           </p>
           <ul className="adminx-queue">
+            {sortedAttention.length === 0 && (
+              <li>
+                <p className="adminx-dispatch-note" style={{ padding: "0.9rem 0.45rem" }}>
+                  Nothing is waiting on a decision, and no work is overdue, blocked, or unowned.
+                </p>
+              </li>
+            )}
             {sortedAttention.map((a) => (
-              <li key={`${a.href}-${a.label}`}>
-                <Link href={a.href} prefetch={false} className={`adminx-queue-row ${a.count > 0 ? "is-live" : ""}`}>
+              <li key={a.key}>
+                <Link
+                  href={a.href}
+                  prefetch={false}
+                  data-group={a.group}
+                  className={`adminx-queue-row ${a.count > 0 ? "is-live" : ""}`}
+                >
                   <span className="adminx-queue-dot" aria-hidden="true" />
-                  <span className="adminx-queue-label">{a.label}</span>
+                  <span className="adminx-queue-label">
+                    {a.label}
+                    {a.waitingDays > 0 && (
+                      <span className="adminx-queue-age"> · oldest {a.waitingDays}d</span>
+                    )}
+                  </span>
                   <span className="adminx-queue-count">{a.count}</span>
                   <ArrowUpRight size={13} className="adminx-queue-arrow" />
                 </Link>

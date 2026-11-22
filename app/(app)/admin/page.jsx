@@ -2,6 +2,7 @@ import { scope } from "@/lib/tenant-scope";
 import { getRequestContext } from "@/lib/auth-server";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
+import { loadQueue } from "@/lib/queue";
 import { AppShell } from "@/components/AppShell";
 import { AdminDashboard } from "@/app/(app)/admin/_components/AdminDashboard";
 import { relShort, stamp, todayLong } from "@/lib/dates";
@@ -35,37 +36,18 @@ export default async function AdminPage() {
         WHERE tenant_id = ${tid} AND snapshot_date = CURRENT_DATE) AS completion_avg,
       (SELECT COUNT(*)::int FROM student_oss_contributions
         WHERE status = 'verified' AND tenant_id = ${scope(tid)}::uuid) AS merges,
-      (SELECT COUNT(*)::int FROM student_oss_contributions
-        WHERE status = 'claimed' AND tenant_id = ${scope(tid)}::uuid) AS claims,
       (SELECT COUNT(*)::int FROM projects pr
         JOIN profiles p ON p.user_id = pr.owner_id
         WHERE p.tenant_id = ${scope(tid)}::uuid) AS projects,
       (SELECT COUNT(*)::int FROM contest_submissions s
         JOIN contests c ON c.id = s.contest_id
         WHERE c.tenant_id = ${scope(tid)}::uuid) AS submissions,
-      (SELECT COUNT(*)::int FROM contests
-        WHERE status = 'draft' AND tenant_id = ${scope(tid)}::uuid) AS drafts,
       (SELECT COUNT(*)::int FROM mentors
         WHERE available = true AND tenant_id = ${scope(tid)}::uuid) AS mentors,
       (SELECT COUNT(*)::int FROM events
         WHERE tenant_id = ${tid} AND starts_at < NOW() AND status <> 'cancelled') AS events_held,
       (SELECT COUNT(*)::int FROM chapter_partnerships
-        WHERE (tenant_a_id = ${tid} OR tenant_b_id = ${tid}) AND status = 'active') AS partnerships,
-      (SELECT COUNT(*)::int FROM mentor_applications
-        WHERE status = 'pending' AND tenant_id = ${scope(tid)}::uuid) AS applications,
-      (SELECT COUNT(*)::int FROM events
-        WHERE status IN ('submitted', 'under_review', 'proposed') AND tenant_id = ${scope(tid)}::uuid) AS proposed_events,
-      (SELECT COUNT(*)::int FROM forum_flags f
-        WHERE f.created_at >= NOW() - INTERVAL '7 days'
-          AND (
-            (f.target_type = 'thread' AND EXISTS (
-              SELECT 1 FROM forum_threads t WHERE t.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
-            ))
-            OR (f.target_type = 'reply' AND EXISTS (
-              SELECT 1 FROM forum_replies r JOIN forum_threads t ON t.id = r.thread_id
-              WHERE r.id = f.target_id AND t.tenant_id = ${scope(tid)}::uuid
-            ))
-          )) AS flagged
+        WHERE (tenant_a_id = ${tid} OR tenant_b_id = ${tid}) AND status = 'active') AS partnerships
   `;
 
   // Departments with membership aggregates as derived joins — one query no
@@ -97,7 +79,10 @@ export default async function AdminPage() {
     WHERE d.tenant_id = ${scope(tid)}::uuid
     ORDER BY d.vertical, d.name
   `;
-  const coreRequests = departments.reduce((s, d) => s + (d.core_requests || 0), 0);
+  // The attention queue is one definition, in lib/queue.js, shared with the
+  // lead console. The six hand-written rows that used to live here missed
+  // department submissions, proof review and contest judging entirely.
+  const queue = await loadQueue(sql, { tenantId: tid, profile: ctx.profile });
   const upcoming = await sql`
     SELECT id, title, event_type, starts_at FROM events
     WHERE tenant_id = ${tid} AND starts_at >= NOW()
@@ -180,14 +165,7 @@ export default async function AdminPage() {
             partnerships: counts?.partnerships ?? 0
           }
         }}
-        attention={[
-          { label: "Mentor applications awaiting review", count: counts?.applications ?? 0, href: "/admin/mentors" },
-          { label: "Core requests awaiting a Head", count: coreRequests, href: "/lead" },
-          { label: "Proposed society events", count: counts?.proposed_events ?? 0, href: "/lead" },
-          { label: "Content flags this week", count: counts?.flagged ?? 0, href: "/admin/community" },
-          { label: "OSS claims awaiting review", count: counts?.claims ?? 0, href: "/admin/opensource" },
-          { label: "Draft contests", count: counts?.drafts ?? 0, href: "/admin/contests" }
-        ]}
+        attention={queue.items}
         departments={departmentsView}
         upcoming={upcomingView}
         auditEntries={auditView}

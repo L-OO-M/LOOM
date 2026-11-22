@@ -571,6 +571,24 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+/* Group is carried by colour, not another column. Action stays accent (the
+   viewer owes it), attention is warning (it is deteriorating), visibility is
+   neutral (nothing is wrong yet). Placed after .is-live so it wins. */
+.adminx-queue-row[data-group="attention"] .adminx-queue-dot {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent);
+}
+
+.adminx-queue-row[data-group="visibility"] .adminx-queue-dot {
+  background: var(--line);
+  box-shadow: none;
+}
+
+.adminx-queue-age {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .adminx-queue-label {
   overflow: hidden;
   font-size: 0.75rem;
