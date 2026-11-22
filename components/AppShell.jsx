@@ -44,7 +44,10 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
   const mobileItems = mobileNavForArea(area);
   const [openMenu, setOpenMenu] = useState(null);
   const [inboxOpen, setInboxOpen] = useState(false);
-  const inbox = useInbox(area === "student");
+  // Every authenticated area has an inbox. /api/notifications is already
+  // scoped to the caller's own user_id, so there is nothing to gate on here --
+  // and leads/admins were receiving notifications they had no way to read.
+  const inbox = useInbox(true);
   useRoleSync(true);
   const menuRef = useRef(null);
 
@@ -167,7 +170,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
             </div>
             <span className="mx-1 h-5 w-px shrink-0" style={{ background: "var(--line)" }} aria-hidden="true" />
             <div className="flex shrink-0 items-center">
-              {area === "student" && <InboxBell unread={inbox.unread} onOpen={() => setInboxOpen(true)} />}
+              <InboxBell unread={inbox.unread} onOpen={() => setInboxOpen(true)} />
               <button
                 onClick={toggle}
                 className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
@@ -237,7 +240,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
           </div>
         </nav>
 
-        {area === "student" && <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} inbox={inbox} />}
+        <InboxDrawer open={inboxOpen} onClose={() => setInboxOpen(false)} inbox={inbox} />
         {area === "student" && <FeatureRequestFab />}
       </div>
     </TabContext.Provider>

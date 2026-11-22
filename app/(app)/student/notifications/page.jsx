@@ -12,9 +12,18 @@ export const dynamic = "force-dynamic";
 export default async function NotificationsPage({ searchParams }) {
   const ctx = await getRequestContext();
   if (ctx.error) redirect("/login?redirect=/student/notifications");
-  const { user, tenant, sql } = ctx;
+  const { user, profile, tenant, sql } = ctx;
   const { state } = await searchParams;
   const onlyUnread = state === "unread";
+  // The inbox is reachable from every area, so the page renders inside the
+  // viewer's own shell. A department head opening "Full history" from the lead
+  // console should not be dropped into student navigation.
+  const area =
+    profile?.role === "admin" || profile?.role === "platform_admin"
+      ? "admin"
+      : profile?.role === "dept_lead" || profile?.role === "vertical_lead"
+        ? "lead"
+        : "student";
 
   const [{ unread = 0 } = {}] = await sql`
     SELECT COUNT(*)::int AS unread FROM notifications
@@ -24,7 +33,7 @@ export default async function NotificationsPage({ searchParams }) {
     : await sql`SELECT * FROM notifications WHERE user_id = ${user.id} ORDER BY created_at DESC LIMIT 30`;
 
   return (
-    <AppShell area="student" tenant={tenant} user={user}>
+    <AppShell area={area} tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
         <WorkspaceMasthead
           kicker="Notifications / history"
