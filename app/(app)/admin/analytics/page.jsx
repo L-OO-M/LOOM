@@ -3,6 +3,9 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { DomainBars, ActivityLine, BottleneckBars } from "@/components/admin/AnalyticsCharts";
+import { InsightCards } from "@/components/loom/InsightCards";
+import { adminInsights } from "@/lib/insights";
+import { loadQueue } from "@/lib/queue";
 import "../_components/admin-ledger.css";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +61,12 @@ export default async function AdminAnalyticsPage() {
 
   const snapshot = health ? new Date(health.cohort_date).toLocaleDateString("en-IN") : "no snapshot yet";
 
+  // The chapter reading. The same queue the admin dashboard shows, plus the
+  // rollup this page already loaded — so the cards can never tell a different
+  // story from the charts below them.
+  const queue = await loadQueue(sql, { tenantId: tenant?.id, profile: ctx.profile });
+  const insights = adminInsights({ queue, analytics: { health, history, bottlenecks, mentors, contests } });
+
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
@@ -77,18 +86,29 @@ export default async function AdminAnalyticsPage() {
           ]}
         />
 
-        <WorkspaceSection index="01" title="Distribution & activity" note="Domain membership and the last 30 days of engagement, straight from cohort snapshots.">
+        <WorkspaceSection index="01" title="The chapter read" note="Ranked by what needs a person first. Every card points at the queue or chart it came from.">
+          {insights.length > 0 ? (
+            <InsightCards insights={insights} />
+          ) : (
+            <WorkspaceEmpty
+              title="No readings yet"
+              body="Insights need a nightly rollup and at least one queue. Both appear once the chapter has members and the rollup has run."
+            />
+          )}
+        </WorkspaceSection>
+
+        <WorkspaceSection index="02" title="Distribution & activity" note="Domain membership and the last 30 days of engagement, straight from cohort snapshots.">
           <div className="adminx-chart-grid">
             <div className="adminx-chart"><DomainBars data={domainData} /></div>
             <div className="adminx-chart"><ActivityLine data={activityData} /></div>
           </div>
         </WorkspaceSection>
 
-        <WorkspaceSection index="02" title="Funnel bottlenecks" note="Nodes ranked by drop-off — hue marks the danger threshold above 50%.">
+        <WorkspaceSection index="03" title="Funnel bottlenecks" note="Nodes ranked by drop-off — hue marks the danger threshold above 50%.">
           <div className="adminx-chart"><BottleneckBars data={bottleneckData} /></div>
         </WorkspaceSection>
 
-        <WorkspaceSection index="03" title="Detail ledger" note="The rows behind the charts: funnel loss, mentor load, and contest conversion.">
+        <WorkspaceSection index="04" title="Detail ledger" note="The rows behind the charts: funnel loss, mentor load, and contest conversion.">
           <div className="aled-cols-3">
             <div>
               <h3 className="aled-panel-title">Bottleneck details</h3>

@@ -592,6 +592,7 @@ export function StudentDashboard({
                         <DeskStat value={snapshot.total_commits??0} label="commits" />
                       </div>
                       <p className="desk-rail-sub">{peers?.n>0 ? `Avg consistency ${Number(peers.ac||0)}% across ${peers.n} peers` : "Peer comparison appears once the chapter has snapshots."}</p>
+                      <Link href="/student/insights" prefetch={false} className="desk-inline-link mt-3 inline-block text-xs">Read the full insights &rarr;</Link>
                     </>
                   ) : (
                     <div className="mt-3">

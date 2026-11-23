@@ -57,10 +57,14 @@ describe("five-verb navigation", () => {
   });
 
   it("folds demoted routes into their owning verb", () => {
-    expect(pathToTab("/student/insights", "student")).toBe("dashboard");
     expect(pathToTab("/student/onboarding", "student")).toBe("dashboard");
     expect(pathToTab("/student/privacy", "student")).toBe("settings");
     expect(pathToTab("/student/certificates/ABC123", "student")).toBe("proof");
+  });
+
+  it("gives insights its own leaf instead of folding it into Home", () => {
+    expect(pathToTab("/student/insights", "student")).toBe("insights");
+    expect(groupForTab(studentNav, "insights")?.id).toBe("prove");
   });
 
   it("treats bare usernames as people", () => {

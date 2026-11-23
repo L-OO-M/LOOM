@@ -7,6 +7,8 @@ import { Meta } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
 import { GrantCoreButton, DeclineCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
 import { HandoverPanel } from "./HandoverPanel";
+import { InsightCards } from "@/components/loom/InsightCards";
+import { leadInsights } from "@/lib/insights";
 import {
   RosterLevelBars, ContributionMix, WorkshopFill, TurnoutBars, GrowthLine, DeptHealthBars
 } from "@/components/lead/LeadCharts";
@@ -45,6 +47,10 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
   }, [fetchLive]);
 
   const charts = data.charts || {};
+  // Reading of the scope, derived from the same payload the console renders and
+  // the same queue the aside lists — recomputed on every poll, never cached
+  // separately. It stays client-side so the 15s refresh cannot leave stale copy.
+  const insights = leadInsights({ queue: data.queue, overview: data });
   const pendingRequests = data.roster.filter((r) => r.core_requested && r.level === "general");
   const byDept = data.departments.map((d) => ({
     ...d,
@@ -113,6 +119,18 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                 </div>
               ))}
             </section>
+
+            {insights.length > 0 && (
+              <section className="mt-5" aria-label="Reading of your scope">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>What your numbers say</h2>
+                  <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                    Ranked by what needs a person first
+                  </span>
+                </div>
+                <InsightCards insights={insights.slice(0, 4)} className="mt-3" />
+              </section>
+            )}
 
             <div className="leadx-instruments" aria-label="Operational signals">
               <div className="leadx-instrument is-wide"><RosterLevelBars data={charts.rosterLevels} /></div>
