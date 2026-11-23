@@ -220,7 +220,7 @@ through `<Display size="md">`, and `components/loom/primitives.jsx` `Display` de
 immunises the other 18 call sites.
 
 ### UX-11 · `/student` is titled "HTML5" to a screen reader
-- **Route:** `/student` (and `/student/insights`, which redirects here)
+- **Route:** `/student`
 - **Actual:** the only `<h1>` is the *next roadmap node's* title — currently "HTML5". The page's own
   greeting, "Keep building, bansalyash161.", is an `<h2>`.
 - **Root cause:** `app/(app)/student/_components/StudentDashboard.jsx:110`
@@ -404,7 +404,7 @@ useful information, not clutter.
 | **UX-35** | FAQ marquee has no *discoverable* pause | It does pause on hover and on focus-within (`faq.css:52`) and stops entirely under `prefers-reduced-motion` (`faq.css:65`) — so this is **not** the WCAG 2.2.2 failure my first pass suspected. What is missing is any *visible* affordance: 2 tracks, 60 s / 55 s infinite, cards 384 px wide that are cut off mid-sentence by the mask. Fix: a small pause/play button per row; consider slowing to ≥ 80 s. |
 | **UX-36** | Homepage headline words sit at 16 % opacity | `.ycs-word` inactive words measure `opacity: 0.16` (contrast **1.31:1**). It is a scroll-driven reveal, so each word becomes legible in turn — but the sentence is unreadable as text at any single moment. Verify this is intentional; if the reveal ever fails (reduced motion, JS error) the headline is effectively invisible. |
 | **UX-37** | Three feature-flagged planner routes 404 with no explanation | `/student/planner`, `/lead/planner`, `/admin/planner` all return the 404 page because `PLANNER_ENABLED` is off. `lib/nav.js` correctly hides the links, so nothing dead-ends — but a bookmark or a shared URL lands on "This page was never woven." Consider a 404 with "this feature isn't switched on yet". |
-| **UX-38** | Two alias URLs that only redirect | `/student/insights` → `/student#growth`; `/student/privacy` → `/student/settings#privacy`. Neither is linked from anywhere (orphans). Harmless, but they inflate the route count and show up as "non-200" in every automated sweep. Either delete them or keep them deliberately with a comment. |
+| **UX-38** | One alias URL that only redirects | `/student/privacy` -> `/student/settings#privacy`. It is not linked from anywhere, so it only inflates the route count and shows up as "non-200" in every automated sweep. Either delete it or keep it deliberately with a comment. (`/student/insights` was the other alias; it is now a real page under Prove.) |
 | **UX-39** | `/admin/students` reload cost | 2.8–3.6 s for 4 queries — the delta vs the 49 ms RTT floor is one expensive roster query (tier filter + dept counts in JS). Worth an `EXPLAIN` while UX-04 is being measured; likely the same fix. |
 
 ---
@@ -512,7 +512,7 @@ away.
 | UX-35 | fixed | each marquee row has a Pause/Play button (`aria-pressed`), 60s/55s retained; hover/focus pause and reduced-motion stop unchanged. |
 | UX-36 | intentional, no code change | `.ycs-word` default opacity is 1; only the scroll reveal sets 0.16, and reduced motion forces 1. A failed reveal leaves readable text. |
 | UX-37 | fixed | planner HTML routes render `FeatureOff` inside `AppShell` ("built, not switched on") instead of `notFound()`; planner APIs still 404. |
-| UX-38 | kept, documented | `/student/insights` and `/student/privacy` are deliberate redirect aliases with comments saying so. |
+| UX-38 | partly fixed | `/student/insights` is now a real page (`lib/insights.js` + `/student/insights`) linked from Prove and the dashboard growth rail; `/student/privacy` remains a documented redirect alias. |
 | UX-39 | fixed with UX-04 | the roster page reads its counts in the same pass; the dashboard collapse removes the fan-out that dominated the measured delta. |
 
 ### Verification
