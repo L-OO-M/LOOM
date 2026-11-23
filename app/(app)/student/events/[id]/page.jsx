@@ -9,6 +9,8 @@ import { appBaseUrl } from "@/lib/app-url";
 import { RegisterButton, FeedbackForm, MaterialForm } from "../EventsBits";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
 import { EventVolunteerSignup } from "@/components/events/EventVolunteerSignup";
+import { EventSections } from "@/components/events/EventSections";
+import { sectionsFromRow } from "@/lib/event-page";
 import { displayState, isFull, nextStepFor, TYPE_LABEL, HISTORY_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +67,7 @@ export default async function EventDetailPage({ params }) {
   `;
 
   const registered = !!mine && mine.status !== "cancelled";
+  const sections = sectionsFromRow(event.page_sections);
   const state = displayState(event, mine);
   const full = isFull(event, mine);
   const past = state.key === "past";
@@ -85,6 +88,7 @@ export default async function EventDetailPage({ params }) {
           </span>
         </div>
         <Display size="lg" className="mt-3">{event.title}</Display>
+        {event.tagline ? <p className="mt-2 text-base leading-7" style={{ color: "var(--text-muted)" }}>{event.tagline}</p> : null}
         <p className="lede mt-4 whitespace-pre-wrap">{event.description || "Details coming soon."}</p>
         {event.speaker_name && <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>with <span style={{ color: "var(--text)" }} className="font-medium">{event.speaker_name}</span>{event.speaker_bio ? ` — ${event.speaker_bio}` : ""}</p>}
         {(event.domain && event.domain !== "general") && (
@@ -108,6 +112,8 @@ export default async function EventDetailPage({ params }) {
             {event.capacity && <span className="meta ml-auto">{seatsTaken}/{event.capacity} seats</span>}
           </div>
         )}
+
+        <EventSections sections={sections} className="mt-10" />
 
         {registered && (
           <section className="mt-8" aria-label="Your registration">

@@ -4,10 +4,13 @@ import { ok, fail, validationError } from "@/lib/api";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { hasAnyActiveScopedGrant, hasVerticalLeadGrant, isAdmin, termExpired } from "@/lib/permissions";
 import { PLANNER_YEAR, isoDate, isRelaxationDate } from "@/lib/planner";
+import { sanitizeEventPage } from "@/lib/event-page";
 
 const createSchema = z.object({
   title: z.string().min(3).max(160),
   description: z.string().max(4000).default(""),
+  tagline: z.string().max(160).nullable().optional(),
+  coverImageUrl: z.string().max(500).nullable().optional(),
   eventType: z.enum(["workshop", "hackathon", "talk", "mentoring", "contest"]).default("workshop"),
   domain: z.string().min(1).max(40).default("general"),
   speakerName: z.string().max(120).nullable().optional(),
@@ -138,9 +141,10 @@ export async function POST(request) {
     return fail("FORBIDDEN", "Only leads and admins can post events", 403);
   }
 
+  const page = sanitizeEventPage({ tagline: body.tagline, coverImageUrl: body.coverImageUrl });
   const [event] = await sql`
-    INSERT INTO events (tenant_id, department_id, event_type, title, description, domain, speaker_name, speaker_bio, starts_at, ends_at, location, capacity, is_online, status, created_by, planner_year, planner_week, planner_kind, planner_ref)
-    VALUES (${tenant?.id ?? null}, ${departmentId}, ${body.eventType}, ${body.title}, ${body.description}, ${body.domain}, ${body.speakerName || null}, ${body.speakerBio || null}, ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, ${body.capacity ?? null}, ${body.isOnline}, ${status}, ${user.id}, ${body.plannerWeek != null ? PLANNER_YEAR : null}, ${body.plannerWeek ?? null}, ${body.plannerKind || null}, ${body.plannerRef || null})
+    INSERT INTO events (tenant_id, department_id, event_type, title, description, tagline, cover_image_url, domain, speaker_name, speaker_bio, starts_at, ends_at, location, capacity, is_online, status, created_by, planner_year, planner_week, planner_kind, planner_ref)
+    VALUES (${tenant?.id ?? null}, ${departmentId}, ${body.eventType}, ${body.title}, ${body.description}, ${page.tagline}, ${page.coverImageUrl}, ${body.domain}, ${body.speakerName || null}, ${body.speakerBio || null}, ${body.startsAt}, ${body.endsAt || null}, ${body.location || null}, ${body.capacity ?? null}, ${body.isOnline}, ${status}, ${user.id}, ${body.plannerWeek != null ? PLANNER_YEAR : null}, ${body.plannerWeek ?? null}, ${body.plannerKind || null}, ${body.plannerRef || null})
     RETURNING *
   `;
   await writeAudit({ sql, actorId: user.id, tenantId: tenant?.id, action: status === "submitted" ? "submitted_event" : "created_event", resource: "event", resourceId: event.id, after: { title: body.title, status } });

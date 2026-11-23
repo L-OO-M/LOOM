@@ -4,6 +4,7 @@ import { notify, writeAudit } from "@/lib/auth-server";
 import { requireCan, toGuardResponse } from "@/lib/requirePermission";
 import { normalizeDomainKey } from "@/lib/domains";
 import { decideEventTransition } from "@/lib/event-transitions";
+import { sanitizeEventPage } from "@/lib/event-page";
 import {
   can,
   hasActiveScopedGrant,
@@ -30,6 +31,11 @@ const schema = z.object({
   speakerBio: z.string().max(1000).nullable().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   isOnline: z.boolean().optional(),
+  // Long-form page. `sections` is validated by lib/event-page.js, not zod, so
+  // the same rules apply to the UI and the API.
+  tagline: z.string().max(160).nullable().optional(),
+  coverImageUrl: z.string().max(500).nullable().optional(),
+  sections: z.array(z.any()).max(12).optional(),
   // FSM target status — validated by decideEventTransition, not zod enum.
   status: z.string().optional(),
   // Optimistic concurrency: caller passes the lock_version they last read.
@@ -222,6 +228,12 @@ export async function PATCH(request, { params }) {
     fsmPatch = decision.patch;
   }
 
+  const page = sanitizeEventPage({
+    tagline: body.tagline === undefined ? event.tagline : body.tagline,
+    coverImageUrl: body.coverImageUrl === undefined ? event.cover_image_url : body.coverImageUrl,
+    sections: body.sections === undefined ? event.page_sections : body.sections
+  });
+
   const next = {
     title: body.title ?? event.title,
     description: body.description ?? event.description,
@@ -235,6 +247,9 @@ export async function PATCH(request, { params }) {
     speakerBio: body.speakerBio === undefined ? event.speaker_bio : body.speakerBio,
     departmentId,
     isOnline: body.isOnline === undefined ? event.is_online : body.isOnline,
+    tagline: page.tagline,
+    coverImageUrl: page.coverImageUrl,
+    sections: page.sections,
     // fsmPatch.status may differ from targetStatus after aliasing; fall through
     // to existing status when no transition was requested.
     status: fsmPatch.status ?? event.status,
@@ -266,6 +281,9 @@ export async function PATCH(request, { params }) {
           speaker_bio = ${next.speakerBio},
           department_id = ${next.departmentId},
           is_online = ${next.isOnline},
+          tagline = ${next.tagline},
+          cover_image_url = ${next.coverImageUrl},
+          page_sections = ${JSON.stringify(next.sections)}::jsonb,
           status = ${next.status},
           cancellation_reason = ${next.cancellationReason},
           completed_at = ${next.completedAt},

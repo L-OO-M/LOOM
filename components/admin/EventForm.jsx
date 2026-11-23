@@ -24,6 +24,8 @@ export function EventForm({
   const router = useRouter();
   const [title, setTitle] = useState(initialValues.title || "");
   const [description, setDescription] = useState(initialValues.description || "");
+  const [tagline, setTagline] = useState(initialValues.tagline || "");
+  const [coverImageUrl, setCoverImageUrl] = useState(initialValues.coverImageUrl || "");
   const [eventType, setEventType] = useState(initialValues.eventType || "workshop");
   const [domain, setDomain] = useState(initialValues.domain || "general");
   const [departmentId, setDepartmentId] = useState(initialValues.departmentId || "");
@@ -47,6 +49,8 @@ export function EventForm({
       body: JSON.stringify({
         title,
         description,
+        tagline: tagline || null,
+        coverImageUrl: coverImageUrl || null,
         eventType,
         domain,
         speakerName: speakerName || null,
@@ -95,6 +99,17 @@ export function EventForm({
             style={inputStyle}
           />
         </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <Field label="Tagline (optional, shown under the title)">
+          <input value={tagline} onChange={(e) => setTagline(e.target.value)} maxLength={160} placeholder="36 hours. One dataset. Real problems." style={inputStyle} />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <Field label="Cover image (optional, https URL or /path)">
+          <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} maxLength={500} placeholder="Leave blank for generated artwork" style={inputStyle} />
+        </Field>
+        <p className="meta mt-1">Add the full overview, problem statements and schedule after creating the event — the detail page has a block builder.</p>
       </div>
       <Field label="Type">
         <select value={eventType} onChange={(e) => setEventType(e.target.value)} style={inputStyle}>

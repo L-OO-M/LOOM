@@ -1,10 +1,13 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getSql } from "@/lib/db";
 import { resolveRequestTenant } from "@/lib/tenant";
 import { canonicalFor, absoluteUrl } from "@/lib/seo";
 import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
+import { EventSections, EventSectionNav } from "@/components/events/EventSections";
+import { sectionsFromRow, safeImage } from "@/lib/event-page";
 import { formatEventWhen } from "@/lib/event-time";
 import { JoinSteps, TypePill, seatsLeft } from "../_components/EventBits";
 import { JsonLd, breadcrumbSchema, organizationSchema } from "@/components/seo/JsonLd";
@@ -30,7 +33,7 @@ export async function generateMetadata({ params }) {
     if (!tenant) return notFound;
     const sql = getSql();
     const [ev] = await sql`
-      SELECT title, description FROM events
+      SELECT title, description, tagline FROM events
       WHERE id = ${id}::uuid
         AND tenant_id = ${tenant.id}::uuid
         AND status IN ('published', 'registration_closed', 'live', 'completed', 'upcoming', 'past')
@@ -39,7 +42,8 @@ export async function generateMetadata({ params }) {
     if (!ev) return notFound;
     const image = absoluteUrl(`/events/${id}/opengraph-image`);
     const title = `${ev.title} | LOOM Events`;
-    const description = (ev.description || "Event details, seats, and registration.").slice(0, 160);
+    const blurb = ev.tagline || ev.description || "Event details, seats, and registration.";
+    const description = blurb.slice(0, 160);
     return {
       title,
       description,
@@ -73,7 +77,8 @@ export default async function EventDetailPage({ params }) {
   let materials = [];
   try {
     const rows = await sql`
-      SELECT e.id, e.event_type, e.title, e.description, e.domain,
+      SELECT e.id, e.event_type, e.title, e.description, e.tagline, e.cover_image_url,
+             e.page_sections, e.domain,
              e.speaker_name, e.speaker_bio, e.starts_at, e.ends_at, e.location,
              e.capacity, e.registered_count, e.is_online, e.status,
              d.name AS department_name
@@ -97,6 +102,9 @@ export default async function EventDetailPage({ params }) {
   }
 
   if (!event) notFound();
+
+  const sections = sectionsFromRow(event.page_sections);
+  const cover = safeImage(event.cover_image_url);
 
   const left = seatsLeft(event);
   const full = left === 0;
@@ -161,7 +169,25 @@ export default async function EventDetailPage({ params }) {
       />
 
       <section className="relative">
-        <EventBanner event={event} ratio="21 / 9" />
+        {cover ? (
+          <div className="relative w-full overflow-hidden" style={{ aspectRatio: "21 / 9", background: "#0a1628" }}>
+            {/* The cover is an author-provided https URL or an app path on a host
+                the chapter controls, so it is served unoptimized: no loader
+                allow-list to maintain, and no surprise bill for an outside host. */}
+            <Image
+              src={cover}
+              alt={`Cover image for ${event.title}`}
+              fill
+              unoptimized
+              sizes="100vw"
+              priority
+              className="object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,22,40,0.85), rgba(10,22,40,0.05))" }} aria-hidden="true" />
+          </div>
+        ) : (
+          <EventBanner event={event} ratio="21 / 9" />
+        )}
         <div className="mx-auto max-w-4xl px-5 py-10 sm:px-6 lg:px-8">
           <Link href="/events" prefetch={false} className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
             ← All events
@@ -178,6 +204,11 @@ export default async function EventDetailPage({ params }) {
           <h1 className="font-display mt-4 text-4xl font-medium leading-[1.05] sm:text-5xl" style={{ color: "var(--text)" }}>
             {event.title}
           </h1>
+          {event.tagline ? (
+            <p className="mt-3 max-w-2xl text-base leading-7 sm:text-lg" style={{ color: "var(--text-muted)" }}>
+              {event.tagline}
+            </p>
+          ) : null}
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {facts.map((f) => (
@@ -192,6 +223,11 @@ export default async function EventDetailPage({ params }) {
       </section>
 
       <section className="mx-auto max-w-4xl px-5 pb-16 sm:px-6 lg:px-8" aria-label="Event details">
+        {sections.length > 1 ? (
+          <div className="mb-8">
+            <EventSectionNav sections={sections} />
+          </div>
+        ) : null}
         <div className="grid gap-10 md:grid-cols-3">
           <div className="md:col-span-2">
             <h2 className="font-display text-2xl font-medium" style={{ color: "var(--text)" }}>About this event</h2>
@@ -211,6 +247,8 @@ export default async function EventDetailPage({ params }) {
                 {event.speaker_bio && <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-muted)" }}>{event.speaker_bio}</p>}
               </div>
             )}
+
+            <EventSections sections={sections} className="mt-10" />
 
             {materials.length > 0 && (
               <div className="mt-8">

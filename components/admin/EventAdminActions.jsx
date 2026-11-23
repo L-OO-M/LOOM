@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field, inputStyle } from "@/components/ui";
 import { allowedTargets } from "@/lib/event-transitions";
+import { EventPageBuilder } from "@/components/admin/EventPageBuilder";
 
 const STATUSES = [
   { value: "draft", label: "Draft" },
@@ -222,6 +223,8 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
           </div>
         </form>
       )}
+
+      {editing ? <EventPageBuilder event={event} /> : null}
     </div>
   );
 }
