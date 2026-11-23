@@ -19,6 +19,9 @@ function recorder(handler = () => []) {
     return Promise.resolve(handler(text, values) ?? []);
   };
   run.calls = calls;
+  // Routes that must write together open a transaction; the recorder runs the
+  // callback against itself so the same call log still proves what was written.
+  run.begin = async (fn) => fn(run);
   return run;
 }
 
@@ -239,5 +242,103 @@ describe("department task route", () => {
     const { res, json } = await patchTask(task, { action: "return" }, headProfile);
     expect(res.status).toBe(400);
     expect(json.error.message).toMatch(/needs to change/i);
+  });
+});
+
+function declineSql({ open = true, legacy = true } = {}) {
+  return recorder((text, values) => {
+    if (text.startsWith("SELECT * FROM departments")) {
+      return values[0] === DEPT ? [dept] : [];
+    }
+    if (text.startsWith("SELECT * FROM profiles WHERE user_id")) {
+      return [{ user_id: TARGET, name: "Member B", role: "student", tenant_id: TENANT }];
+    }
+    if (text.startsWith("SELECT * FROM department_memberships")) {
+      return legacy ? [{ user_id: TARGET, department_id: DEPT, level: "general", core_requested: true }] : [];
+    }
+    if (text.startsWith("SELECT id FROM role_requests")) {
+      return open ? [{ id: "55555555-5555-4555-8555-555555555555" }] : [];
+    }
+    return [];
+  });
+}
+
+describe("declining a Core request", () => {
+  it("lets a head decline with a reason the member will read", async () => {
+    const sql = declineSql();
+    const { mod, audit, notes } = await load("@/app/api/departments/[id]/members/[userId]/route", {
+      profile: headProfile, sql
+    });
+    const res = await mod.PATCH(
+      request({ declineCore: true, reason: "Needs one more shipped project first." }),
+      { params: Promise.resolve({ id: DEPT, userId: TARGET }) }
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).data.declined).toBe(true);
+
+    expect(sql.calls.some((c) => c.text.includes("SET core_requested = false"))).toBe(true);
+    const rejected = sql.calls.find((c) => c.text.includes("SET status = 'rejected'"));
+    expect(rejected.values).toContain("Needs one more shipped project first.");
+    expect(audit[0].action).toBe("core_request.declined");
+    expect(notes).toHaveLength(1);
+    expect(notes[0].userId).toBe(TARGET);
+    expect(notes[0].body).toMatch(/shipped project/);
+  });
+
+  it("requires a reason so a decline is never silent", async () => {
+    const sql = declineSql();
+    const { mod } = await load("@/app/api/departments/[id]/members/[userId]/route", {
+      profile: headProfile, sql
+    });
+    const res = await mod.PATCH(
+      request({ declineCore: true, reason: "" }),
+      { params: Promise.resolve({ id: DEPT, userId: TARGET }) }
+    );
+    expect(res.status).toBe(400);
+    expect(sql.calls.some((c) => c.text.includes("status = 'rejected'"))).toBe(false);
+  });
+
+  it("answers 404 when there is no request to decline", async () => {
+    const sql = declineSql({ open: false, legacy: false });
+    const { mod } = await load("@/app/api/departments/[id]/members/[userId]/route", {
+      profile: headProfile, sql
+    });
+    const res = await mod.PATCH(
+      request({ declineCore: true, reason: "No request on file." }),
+      { params: Promise.resolve({ id: DEPT, userId: TARGET }) }
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses a member who does not head this department", async () => {
+    const general = {
+      id: "member-c",
+      role: "student",
+      memberships: [{ department_id: DEPT, level: "general", slug: "web" }]
+    };
+    const sql = declineSql();
+    const { mod } = await load("@/app/api/departments/[id]/members/[userId]/route", {
+      profile: general, sql
+    });
+    const res = await mod.PATCH(
+      request({ declineCore: true, reason: "I am not the head." }),
+      { params: Promise.resolve({ id: DEPT, userId: TARGET }) }
+    );
+    expect(res.status).toBe(403);
+    expect(sql.calls.some((c) => c.text.includes("SET core_requested = false"))).toBe(false);
+  });
+
+  it("clears the legacy flag even when no role_requests row exists", async () => {
+    const sql = declineSql({ open: false, legacy: true });
+    const { mod } = await load("@/app/api/departments/[id]/members/[userId]/route", {
+      profile: headProfile, sql
+    });
+    const res = await mod.PATCH(
+      request({ declineCore: true, reason: "The old flag was the only record." }),
+      { params: Promise.resolve({ id: DEPT, userId: TARGET }) }
+    );
+    expect(res.status).toBe(200);
+    expect(sql.calls.some((c) => c.text.includes("SET core_requested = false"))).toBe(true);
+    expect(sql.calls.some((c) => c.text.includes("SET status = 'rejected'"))).toBe(false);
   });
 });

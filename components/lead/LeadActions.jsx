@@ -45,6 +45,85 @@ export function GrantCoreButton({ departmentId, userId, name }) {
   );
 }
 
+/**
+ * Decline a Core request with a reason the member will read.
+ *
+ * Heads already had "Grant Core"; without a decline the only options were to
+ * ignore the request or promote anyway. The reason is required by the API, not
+ * just this form, so a decline is never silent.
+ */
+export function DeclineCoreButton({ departmentId, userId, name }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function decline() {
+    if (reason.trim().length < 3) {
+      setMsg("Give a reason — the member sees it.");
+      return;
+    }
+    setBusy(true);
+    setMsg("");
+    try {
+      const data = await postJSON(
+        `/api/departments/${departmentId}/members/${userId}`,
+        "PATCH",
+        { declineCore: true, reason: reason.trim() }
+      );
+      if (data?.ok) {
+        setMsg("Declined ✓");
+        setOpen(false);
+        setReason("");
+        router.refresh();
+      } else {
+        setMsg(data?.error?.message || "Could not decline that request");
+      }
+    } catch {
+      setMsg("Network error — try again");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      {open ? (
+        <>
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why not? The member sees this."
+            aria-label={`Reason for declining ${name}'s Core request`}
+            maxLength={500}
+            className="min-w-[180px] rounded-lg border px-2 py-1 text-xs"
+            style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--text)" }}
+          />
+          <button onClick={decline} disabled={busy} className="btn-ghost !py-1 !text-xs disabled:opacity-50">
+            {busy ? "Declining…" : "Confirm decline"}
+          </button>
+          <button
+            onClick={() => { setOpen(false); setMsg(""); }}
+            className="btn-ghost !py-1 !text-xs"
+            disabled={busy}
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button onClick={() => setOpen(true)} className="btn-ghost !py-1 !text-xs">
+          Decline Core
+        </button>
+      )}
+      {msg && (
+        <span className="text-xs" style={{ color: msg.includes("✓") ? "var(--accent)" : "var(--danger)" }}>
+          {msg}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function SuccessionToggle({ departmentId, userId, name, ready }) {
   const { busy, msg, run } = useAction(() =>
     postJSON("/api/lead/succession", "PATCH", { userId, departmentId, ready: !ready }));

@@ -71,6 +71,19 @@ export async function POST(request, { params }) {
     await sql`UPDATE profiles SET role = 'core', updated_at = NOW() WHERE user_id = ${body.userId}`;
   }
 
+  // A direct grant answers a request that was already waiting. Leaving it open
+  // would put a member who is already Core back in the decision queue.
+  if (body.level === "core") {
+    await sql`
+      UPDATE role_requests
+      SET status = 'approved', decided_by = ${user.id}, decided_at = NOW(),
+          decision_reason = 'Granted directly from the department roster.'
+      WHERE user_id = ${body.userId} AND department_id = ${dept.id}::uuid
+        AND target_role = 'core' AND status = 'open'
+        AND tenant_id = ${tenant.id}::uuid
+    `;
+  }
+
   await writeAudit({
     sql, actorId: user.id, tenantId: tenant.id,
     action: existing ? "department_member.level" : "department_member.added",

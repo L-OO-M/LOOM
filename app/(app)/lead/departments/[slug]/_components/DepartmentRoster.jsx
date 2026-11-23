@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { UserPlus, ArrowUp, ArrowDown, UserMinus, ShieldAlert } from "lucide-react";
+import { DeclineCoreButton } from "@/components/lead/LeadActions";
 
 const input = {
   width: "100%", borderRadius: 10, border: "1px solid var(--line)",
@@ -193,6 +194,9 @@ export function DepartmentRoster({
                         onClick={() => setMemberLevel(m, "general")}>
                         <ArrowDown size={13} /> Move to General
                       </button>
+                    )}
+                    {m.core_requested && m.level === "general" && (
+                      <DeclineCoreButton departmentId={departmentId} userId={m.user_id} name={m.name || "member"} />
                     )}
                     <button type="button" style={{ ...btn, color: "var(--danger)" }} disabled={busy === m.user_id}
                       onClick={() => remove(m)}>

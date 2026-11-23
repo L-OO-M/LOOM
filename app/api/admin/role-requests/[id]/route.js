@@ -52,6 +52,9 @@ export async function POST(request, { params }) {
   }
 
   if (body.decision === "rejected") {
+    if (!body.reason) {
+      return fail("REASON_REQUIRED", "A decline needs a reason the member will read", 400);
+    }
     const [updated] = await sql`
       UPDATE role_requests
       SET status = 'rejected', decided_by = ${user.id}, decided_at = NOW(),

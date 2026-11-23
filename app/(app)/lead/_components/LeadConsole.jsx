@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { Meta } from "@/components/loom/primitives";
 import { ActivityStream } from "@/components/loom/Evidence";
-import { GrantCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
+import { GrantCoreButton, DeclineCoreButton, SuccessionToggle, WorkshopForm, ApproveEventButton, ReportCard } from "@/components/lead/LeadActions";
 import { HandoverPanel } from "./HandoverPanel";
 import {
   RosterLevelBars, ContributionMix, WorkshopFill, TurnoutBars, GrowthLine, DeptHealthBars
@@ -179,7 +179,10 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                           <strong>{r.name}</strong>
                           <small>wants Core in {dept?.name || "your scope"}</small>
                         </span>
-                        <GrantCoreButton departmentId={r.department_id} userId={r.user_id} name={r.name || "member"} />
+                        <span className="flex flex-wrap items-center gap-2">
+                          <GrantCoreButton departmentId={r.department_id} userId={r.user_id} name={r.name || "member"} />
+                          <DeclineCoreButton departmentId={r.department_id} userId={r.user_id} name={r.name || "member"} />
+                        </span>
                       </li>
                     );
                   })}
@@ -224,9 +227,33 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
 
   function Roster() {
     const [q, setQ] = useState("");
+    const [level, setLevel] = useState("all");
+    const [sort, setSort] = useState("name");
     const needle = q.trim().toLowerCase();
-    const match = (m) => `${m.name} ${m.year || ""} ${m.github_username || ""}`.toLowerCase().includes(needle);
+    const levelMatch = (m) => level === "all" || m.level === level;
+    const match = (m) =>
+      levelMatch(m) && `${m.name} ${m.year || ""} ${m.github_username || ""}`.toLowerCase().includes(needle);
+    const sortMembers = (rows) => [...rows].sort((a, b) => {
+      if (sort === "year") {
+        const diff = (Number(a.year) || 99) - (Number(b.year) || 99);
+        if (diff) return diff;
+      }
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
     const totalMatches = byDept.reduce((s, d) => s + d.members.filter(match).length, 0);
+    const levelCounts = {
+      all: data.roster.length,
+      dept_lead: data.roster.filter((m) => m.level === "dept_lead").length,
+      core: data.roster.filter((m) => m.level === "core").length,
+      general: data.roster.filter((m) => m.level === "general").length
+    };
+    const LEVEL_FILTERS = [
+      { id: "all", label: "Everyone" },
+      { id: "dept_lead", label: "Heads" },
+      { id: "core", label: "Core" },
+      { id: "general", label: "General" }
+    ];
+    const levelLabel = (l) => ({ dept_lead: "Head / Co-head", core: "Core", general: "General" }[l] || l);
 
     return (
       <div className="space-y-4">
@@ -235,7 +262,41 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
             className="min-w-[220px] flex-1 rounded-[var(--radius-md)] border px-3 py-2 text-sm"
             style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }} aria-label="Search roster" />
           {q && <button onClick={() => setQ("")} className="btn-ghost !py-1.5 !text-xs">Clear</button>}
-          <span className="mono-tag">{q ? `${totalMatches} match${totalMatches === 1 ? "" : "es"}` : `${data.roster.length} total`}</span>
+          <span className="mono-tag">{q ? `${totalMatches} match${totalMatches === 1 ? "" : "es"}` : `${data.roster.length} present`}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Filter roster by level">
+            {LEVEL_FILTERS.map((f) => {
+              const active = level === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setLevel(f.id)}
+                  aria-pressed={active}
+                  className="rounded-full border px-3 py-1 text-xs font-semibold transition"
+                  style={active
+                    ? { borderColor: "var(--accent)", background: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)" }
+                    : { borderColor: "var(--line)", color: "var(--text-muted)", background: "transparent" }}
+                >
+                  {f.label} <span style={{ opacity: 0.7 }}>{levelCounts[f.id]}</span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="ml-auto flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            Sort
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="rounded-lg border px-2 py-1 text-xs"
+              style={{ borderColor: "var(--line)", background: "var(--bg-muted)", color: "var(--text)" }}
+            >
+              <option value="name">Name</option>
+              <option value="year">Year</option>
+            </select>
+          </label>
         </div>
         {data.roster.length >= 300 && !q && (
           <p className="mono-tag" style={{ color: "var(--warn)" }}>
@@ -244,7 +305,7 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
         )}
         <div className="grid gap-6 lg:grid-cols-2">
           {byDept.length === 0 ? <p className="narrative">No departments in your scope yet.</p> : byDept.map((d) => {
-            const visible = q ? d.members.filter(match) : d.members;
+            const visible = sortMembers(d.members.filter(match));
             return (
               <section key={d.id} className="rounded-2xl border p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
                 <div className="flex items-baseline justify-between">
@@ -257,7 +318,7 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                   </p>
                 )}
                 <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                  {visible.length === 0 && <li className="mono-tag">{q ? "No matches" : "No members yet."}</li>}
+                  {visible.length === 0 && <li className="mono-tag">{q || level !== "all" ? "No matches" : "No members yet."}</li>}
                   {visible.map((m) => (
                     <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-[var(--wash)] transition" style={{ background: "var(--bg)" }}>
                       <span className="min-w-0 text-sm" style={{ color: "var(--text)" }}>
@@ -265,7 +326,7 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                           {m.name}
                         </Link>{" "}
                         <span className="mono-tag">
-                          {m.level}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""} · yr {m.year || "—"} · @{m.github_username || "—"}
+                          {levelLabel(m.level)}{m.core_requested && m.level === "general" ? " · requested Core" : ""}{m.succession_ready ? " · succession-ready" : ""} · yr {m.year || "—"} · @{m.github_username || "—"}
                         </span>
                         <span className="mono-tag mt-1 block">
                           {m.progress
@@ -273,8 +334,9 @@ export function LeadConsole({ initialData, userId, isVertical, section, termEnd 
                             : "no progress recorded"}
                         </span>
                       </span>
-                      <span className="flex gap-2">
+                      <span className="flex flex-wrap gap-2">
                         {m.core_requested && m.level === "general" && <GrantCoreButton departmentId={d.id} userId={m.user_id} name={m.name || "member"} />}
+                        {m.core_requested && m.level === "general" && <DeclineCoreButton departmentId={d.id} userId={m.user_id} name={m.name || "member"} />}
                         {(m.level === "core" || m.level === "dept_lead") && m.user_id !== userId && (
                           <SuccessionToggle departmentId={d.id} userId={m.user_id} name={m.name || "member"} ready={m.succession_ready} />
                         )}

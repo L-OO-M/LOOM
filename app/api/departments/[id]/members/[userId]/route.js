@@ -6,6 +6,17 @@ import { can, isAdmin, roleRank } from "@/lib/permissions";
 
 const grantSchema = z.object({ level: z.enum(["core", "general"]) });
 
+// A head may also decline a Core request. It clears the legacy `core_requested`
+// flag and closes the matching role_requests row with the reason the member
+// will read. Approval stays where it was: granting the seat, admin, or the
+// normal seat-request decision.
+const declineSchema = z.object({
+  declineCore: z.literal(true),
+  reason: z.string().trim().min(3).max(500)
+});
+
+const bodySchema = z.union([grantSchema, declineSchema]);
+
 // Department roster control.
 //
 // A Head and a Co-Head have identical authority inside their own department:
@@ -22,7 +33,7 @@ export async function PATCH(request, { params }) {
   const { id, userId } = await params;
   let body;
   try {
-    body = grantSchema.parse(await request.json());
+    body = bodySchema.parse(await request.json());
   } catch (e) {
     return validationError(e);
   }
@@ -60,6 +71,10 @@ export async function PATCH(request, { params }) {
     );
   }
 
+  if (body.declineCore) {
+    return declineCoreRequest({ sql, user, tenant, dept, userId, reason: body.reason, existing });
+  }
+
   const [membership] = await sql`
     INSERT INTO department_memberships (user_id, department_id, level, core_requested, tenant_id)
     VALUES (${userId}, ${dept.id}, ${body.level}, false, ${dept.tenant_id})
@@ -77,6 +92,20 @@ export async function PATCH(request, { params }) {
     && !(await hasElevatedMembership(sql, { tenantId: tenant.id, userId, exceptDepartmentId: dept.id }));
   if (downgraded) {
     await sql`UPDATE profiles SET role = 'student', updated_at = NOW() WHERE user_id = ${userId}`;
+  }
+
+  // Granting the seat answers any request that was waiting for it. Without
+  // this, the admin queue keeps showing a request for someone who is already
+  // Core, and the member is told to wait for a decision that already happened.
+  if (body.level === "core") {
+    await sql`
+      UPDATE role_requests
+      SET status = 'approved', decided_by = ${user.id}, decided_at = NOW(),
+          decision_reason = 'Granted directly from the department roster.'
+      WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+        AND target_role = 'core' AND status = 'open'
+        AND tenant_id = ${tenant.id}::uuid
+    `;
   }
 
   await writeAudit({
@@ -181,4 +210,72 @@ async function hasElevatedMembership(sql, { tenantId, userId, exceptDepartmentId
     LIMIT 1
   `;
   return !!row;
+}
+
+/**
+ * Decline a Core request in this department.
+ *
+ * A request can exist in two shapes: the current `role_requests` row (with the
+ * applicant's verified record attached) and the older `core_requested` flag on
+ * the membership. Both are cleared together so the roster stops advertising a
+ * request the head has already answered. The member is told the reason — a
+ * decline with no explanation is what made the old flag easy to ignore.
+ */
+async function declineCoreRequest({ sql, user, tenant, dept, userId, reason, existing }) {
+  const [open] = await sql`
+    SELECT id FROM role_requests
+    WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+      AND target_role = 'core' AND status = 'open'
+      AND tenant_id = ${tenant.id}::uuid
+    ORDER BY created_at ASC
+    LIMIT 1
+  `;
+
+  if (!open && !existing?.core_requested) {
+    return fail("NOT_FOUND", "That member has no open Core request", 404);
+  }
+
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE department_memberships
+      SET core_requested = false
+      WHERE user_id = ${userId} AND department_id = ${dept.id}::uuid
+        AND tenant_id = ${tenant.id}::uuid
+    `;
+    if (open) {
+      await tx`
+        UPDATE role_requests
+        SET status = 'rejected', decided_by = ${user.id}, decided_at = NOW(),
+            decision_reason = ${reason}
+        WHERE id = ${open.id}::uuid AND status = 'open'
+          AND tenant_id = ${tenant.id}::uuid
+      `;
+    }
+  });
+
+  await writeAudit({
+    sql,
+    actorId: user.id,
+    tenantId: tenant.id,
+    action: "core_request.declined",
+    resource: "department",
+    resourceId: dept.id,
+    before: { core_requested: true },
+    after: { userId, reason, requestId: open?.id ?? null },
+    authorizationContext: { source: "department_roster" }
+  });
+
+  if (userId !== user.id) {
+    await notify({
+      sql,
+      tenantId: tenant.id,
+      userId,
+      type: "role_request",
+      title: `Core request declined in ${dept.name}`,
+      body: reason,
+      link: "/student/roles"
+    });
+  }
+
+  return ok({ declined: true });
 }
