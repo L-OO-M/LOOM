@@ -11,7 +11,7 @@ import {
   Award, BarChart3, BookOpen, Bug, Building2, CalendarDays, ChartNoAxesCombined, ChevronDown, Code2, Compass, Flag, GitBranch, GitPullRequest, Home, Library, LogOut, UserCircle,
   MessagesSquare, Moon, Settings, Stamp, Sun, TrendingUp, Users, FolderKanban, Trophy, Handshake, Bell, ScrollText, ShieldCheck, Network, Lightbulb, LifeBuoy
 } from "lucide-react";
-import { adminNav, groupForTab, leadNav, mobileNavForArea, pathToTab, settingsForArea, studentNav, studentSecondary, usesDropdowns, workspaceForPath } from "@/lib/nav";
+import { adminNav, groupForTab, leadNav, mobileNavForArea, navHasUnread, pathToTab, settingsForArea, studentNav, studentSecondary, unreadTabsFor, usesDropdowns, workspaceForPath } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
 
 const icons = {
@@ -48,6 +48,11 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
   // scoped to the caller's own user_id, so there is nothing to gate on here --
   // and leads/admins were receiving notifications they had no way to read.
   const inbox = useInbox(true);
+  // Dots on the tabs come from the same inbox fetch: a notification points at
+  // the page it is about, so the tab that owns that page is the honest place to
+  // say "there is something new here". No second poll, no fabricated counts.
+  const unreadTabs = useMemo(() => unreadTabsFor(inbox.items, area), [inbox.items, area]);
+  const groupHasUnread = useCallback((item) => navHasUnread(item, unreadTabs), [unreadTabs]);
   useRoleSync(true);
   const menuRef = useRef(null);
 
@@ -101,11 +106,11 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                       key={item.id}
                       href={item.href}
                       prefetch={false}
-                      aria-label={item.label}
+                      aria-label={`${item.label}${groupHasUnread(item) ? ", new activity" : ""}`}
                       className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
                     >
-                      <Icon size={16} strokeWidth={groupActive ? 2 : 1.5} />
+                      <NavGlyph Icon={Icon} active={groupActive} dot={groupHasUnread(item)} />
                       <span className="hidden lg:inline">{item.label}</span>
                     </Link>
                   );
@@ -120,11 +125,11 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                       onClick={() => setOpenMenu(open ? null : item.id)}
                       aria-haspopup="menu"
                       aria-expanded={open}
-                      aria-label={item.label}
+                      aria-label={`${item.label}${groupHasUnread(item) ? ", new activity" : ""}`}
                       className={`nav-ink flex items-center gap-1 rounded-full px-2.5 py-2 text-sm font-medium transition ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
                     >
-                      <Icon size={16} strokeWidth={groupActive ? 2 : 1.5} />
+                      <NavGlyph Icon={Icon} active={groupActive} dot={groupHasUnread(item)} />
                       <span className="hidden lg:inline">{item.label}</span>
                       <ChevronDown size={13} strokeWidth={2} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s var(--ease-out)" }} />
                     </button>
@@ -152,7 +157,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                                 style={{ background: childActive ? "color-mix(in srgb, var(--accent) 7%, transparent)" : "transparent" }}
                               >
                                 <span className="mt-0.5 shrink-0" style={{ color: childActive ? "var(--accent)" : "var(--text-muted)" }}>
-                                  <ChildIcon size={16} strokeWidth={1.5} />
+                                  <NavGlyph Icon={ChildIcon} dot={unreadTabs.has(child.id)} />
                                 </span>
                                 <span className="min-w-0">
                                   <span className="block text-sm font-medium" style={{ color: "var(--text)" }}>{child.label}</span>
@@ -224,15 +229,22 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
               const Icon = icons[item.icon] || Home;
               const current = pathname || "";
               const isActive = item.group ? activeGroup?.id === item.group : current === item.href;
+              // A lead/admin slot represents a whole group, so any unread child
+              // counts. A student slot with no group is a single leaf.
+              const groupItem = item.group ? tabs.find((n) => n.id === item.group) : null;
+              const hasDot = groupItem
+                ? groupHasUnread(groupItem)
+                : unreadTabs.has(pathToTab(item.href, area));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   prefetch={false}
+                  aria-label={`${item.label}${hasDot ? ", new activity" : ""}`}
                   className={`flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${area === "student" ? "" : "min-w-[44px] shrink-0 px-1.5"}`}
                   style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}
                 >
-                  <Icon size={19} strokeWidth={isActive ? 2 : 1.5} />
+                  <NavGlyph Icon={Icon} size={19} active={isActive} dot={hasDot} />
                   {item.label}
                 </Link>
               );
@@ -414,6 +426,10 @@ function MyProfileLink({ user: propUser, area = "student", seed }) {
                 slot could exist; they live here so nothing is unreachable. */}
             {area === "student" && (
               <>
+                <Link href="/student/insights" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
+                  <ChartNoAxesCombined size={14} style={{ color: "var(--text-muted)" }} />
+                  <span className="text-sm" style={{ color: "var(--text)" }}>Your insights</span>
+                </Link>
                 <Link href="/student/credentials" prefetch={false} role="menuitem" onClick={() => setOpen(false)} className="row-link flex items-center gap-3 px-3 py-2.5">
                   <Award size={14} style={{ color: "var(--text-muted)" }} />
                   <span className="text-sm" style={{ color: "var(--text)" }}>Proof &amp; credentials</span>
@@ -464,6 +480,23 @@ function MobileProfileSlot({ user, area = "student", seed }) {
     <div className="flex flex-col items-center gap-1">
       <MyProfileLink user={user} area={area} seed={seed} />
     </div>
+  );
+}
+
+/* Icon plus a small unread dot. The dot is decorative: the link's aria-label
+   carries "new activity" for screen readers, so nothing is announced twice. */
+function NavGlyph({ Icon, size = 16, active = false, dot = false }) {
+  return (
+    <span className="relative inline-flex shrink-0">
+      <Icon size={size} strokeWidth={active ? 2 : 1.5} />
+      {dot && (
+        <span
+          aria-hidden="true"
+          className="absolute -right-1 -top-0.5 size-1.5 rounded-full"
+          style={{ background: "var(--accent)", boxShadow: "0 0 0 2px var(--bg-elevated)" }}
+        />
+      )}
+    </span>
   );
 }
 

@@ -6,11 +6,13 @@ import {
   leadNav,
   mobileNav,
   mobileNavForArea,
+  navHasUnread,
   pathToTab,
   settingsForArea,
   studentAliases,
   studentNav,
   studentSecondary,
+  unreadTabsFor,
   workspaceForPath
 } from "@/lib/nav";
 
@@ -134,5 +136,55 @@ describe("area-aware shell chrome", () => {
     // hardcoded Student row.
     expect(shell).not.toContain("active: true");
     expect(shell).toContain('active: area === "admin"');
+  });
+});
+
+describe("per-tab unread dots", () => {
+  const note = (link, read_at = null) => ({ id: `n-${link}-${read_at}`, link, read_at });
+
+  it("maps unread notification links to the leaf tab that owns the page", () => {
+    expect(unreadTabsFor([note("/student/work")], "student").has("work")).toBe(true);
+    expect(unreadTabsFor([note("/student/roles")], "student").has("seats")).toBe(true);
+    expect(unreadTabsFor([note("/student/notifications")], "student").has("notifications")).toBe(true);
+  });
+
+  it("ignores read notifications, external links, and empty rows", () => {
+    const tabs = unreadTabsFor([
+      note("/student/work", "2026-01-01T00:00:00Z"),
+      note("https://example.com/student/work"),
+      { id: "no-link", read_at: null },
+      null
+    ], "student");
+    expect(tabs.size).toBe(0);
+  });
+
+  it("strips query strings and hashes before matching", () => {
+    expect(unreadTabsFor([note("/student/roadmap?node=1#top")], "student").has("roadmap")).toBe(true);
+  });
+
+  it("resolves lead and admin links inside their own nav pools", () => {
+    expect(unreadTabsFor([note("/lead/workshops")], "lead").has("workshops")).toBe(true);
+    expect(unreadTabsFor([note("/admin/requests")], "admin").has("seats")).toBe(true);
+  });
+
+  it("does not light up a console tab for a link that workspace cannot open", () => {
+    // Department-task notifications link /student/work. A lead sees the board
+    // elsewhere, and the admin console has no student tab; a dot on Console or
+    // Overview would point at a page that does not contain the thing.
+    expect(unreadTabsFor([note("/student/work")], "lead").size).toBe(0);
+    expect(unreadTabsFor([note("/student/work")], "admin").size).toBe(0);
+    expect(unreadTabsFor([note("/lead/roster")], "admin").size).toBe(0);
+  });
+
+  it("marks a group when any of its children is unread", () => {
+    const unread = unreadTabsFor([note("/student/work")], "student");
+    const build = studentNav.find((n) => n.id === "build");
+    expect(navHasUnread(build, unread)).toBe(true);
+    expect(navHasUnread(studentNav.find((n) => n.id === "learn"), unread)).toBe(false);
+  });
+
+  it("marks a top-level leaf with no children", () => {
+    const unread = unreadTabsFor([note("/lead/roster")], "lead");
+    expect(navHasUnread(leadNav.find((n) => n.id === "roster"), unread)).toBe(true);
   });
 });
