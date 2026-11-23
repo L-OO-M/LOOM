@@ -11,6 +11,7 @@ import { WorkspaceEmpty, WorkspaceSection } from "@/components/loom/WorkspaceMas
 import { Field, inputStyle } from "@/components/ui";
 import { postJSON } from "@/components/loom/useAction";
 import { STARTER_PROBLEMS } from "@/lib/practice-starters";
+import { isVerifiedSource, sourceLabel, trackFor } from "@/lib/practice-catalog";
 import { PracticeOverview } from "./PracticeOverview";
 import { PracticeAnalytics } from "./PracticeAnalytics";
 import { PracticeScorecard } from "./PracticeScorecard";
@@ -73,6 +74,13 @@ function QuestionRow({
   const canLog = sessionActive && Boolean(onAttempt) && Boolean(question.id);
   const statusLabel = solved ? "Solved" : attempted ? "Attempted" : "Not started";
   const accent = solved ? "var(--accent)" : attempted ? "var(--warn)" : "var(--line)";
+  // The link travels with the question now: a Kaggle competition or a
+  // Frontend Mentor challenge opens on its own host instead of a made-up
+  // LeetCode slug.
+  const href = question.url || `https://leetcode.com/problems/${question.slug}/`;
+  const source = question.source || "leetcode";
+  const provider = sourceLabel(source);
+  const autoVerified = isVerifiedSource(source);
   return (
     <li
       className="rounded-xl border transition hover:shadow-sm"
@@ -91,7 +99,7 @@ function QuestionRow({
         </span>
         <div className="min-w-0 flex-1">
           <a
-            href={`https://leetcode.com/problems/${question.slug}/`}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             className="block text-sm font-medium hover:underline"
@@ -100,10 +108,11 @@ function QuestionRow({
             {question.title}
           </a>
           <span className="meta mt-1 block">
-            {question.topic || "DSA practice"}
+            {question.topic || provider}
             <span className="dot-sep">{question.difficulty}</span>
+            <span className="dot-sep">{provider}</span>
             {credit ? <span className="dot-sep">accepted {date(credit.acceptedAt)}</span> : null}
-            {solvedAt ? <span className="dot-sep">solved on LeetCode {date(solvedAt)}</span> : null}
+            {solvedAt ? <span className="dot-sep">solved {date(solvedAt)}</span> : null}
             {attemptInfo?.attempts ? (
               <span className="dot-sep">
                 {attemptInfo.attempts} logged attempt{attemptInfo.attempts === 1 ? "" : "s"}
@@ -118,10 +127,10 @@ function QuestionRow({
         <div className="flex shrink-0 items-center gap-2">
           <StatusPill>{statusLabel}</StatusPill>
           <a
-            href={`https://leetcode.com/problems/${question.slug}/`}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`Open ${question.title} on LeetCode`}
+            aria-label={`Open ${question.title} on ${provider}`}
             style={{ color: "var(--text-muted)" }}
           >
             <ExternalLink size={14} />
@@ -136,7 +145,11 @@ function QuestionRow({
           <button type="button" className="btn-ghost !py-1.5 text-xs" onClick={() => onSolved(question)} disabled={busy}>
             Mark solved here
           </button>
-          <span className="meta">self-reported, verified only after LeetCode sync</span>
+          <span className="meta">
+            {autoVerified
+              ? "self-reported, verified only after LeetCode sync"
+              : `${provider} work is self-reported; a lead confirms it`}
+          </span>
         </div>
       ) : null}
     </li>
@@ -434,10 +447,11 @@ export function PracticeClient({ snapshot, userId, progress }) {
       <WorkspaceSection
         index="01"
         title="This week's practice"
-        note="Seven assigned questions. One accepted submission inside the week is one point."
+        note="Seven assigned items from your department's track. One verified submission inside the week is one point."
         action={
           <span className="meta inline-flex items-center gap-1.5">
             <Clock3 size={13} /> {snapshot.current ? range(snapshot.current.startAt, snapshot.current.endAt) : "Awaiting release"}
+            {snapshot.current ? ` / ${trackFor(snapshot.current.track)?.label || snapshot.current.track}` : ""}
           </span>
         }
       >

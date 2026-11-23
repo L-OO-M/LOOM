@@ -205,9 +205,41 @@ describe("practice question links", () => {
     });
   });
 
-  it("still rejects a URL that is not a LeetCode problem", () => {
-    expect(() => validateQuestions([{ title: "", url: "https://example.com/x", difficulty: "Easy" }]))
-      .toThrow(/leetcode\.com\/problems/);
+  it("accepts a hosted challenge from another provider and records its source", () => {
+    const parsed = validateQuestions([
+      {
+        title: "Titanic - Machine Learning from Disaster",
+        url: "https://www.kaggle.com/competitions/titanic",
+        difficulty: "Easy",
+        topic: "Classification"
+      }
+    ]);
+    expect(parsed[0]).toMatchObject({
+      source: "kaggle",
+      slug: "titanic-machine-learning-from-disaster",
+      url: "https://www.kaggle.com/competitions/titanic",
+      position: 1
+    });
+  });
+
+  it("rejects a link that is not a public https resource", () => {
+    for (const url of [
+      "http://example.com/x",
+      "https://user:pass@example.com/x",
+      "https://localhost/x",
+      "https://example.com:8443/x",
+      "not-a-url"
+    ]) {
+      expect(() => validateQuestions([{ title: "Anything", url, difficulty: "Easy" }])).toThrow();
+    }
+  });
+
+  it("keeps two identical hosted links distinct only when their titles differ", () => {
+    const first = { title: "Two Sum", url: "https://leetcode.com/problems/two-sum/", difficulty: "Easy" };
+    expect(() => validateQuestions([first, { ...first }])).toThrow(/distinct/);
+    const other = { title: "Titanic", url: "https://www.kaggle.com/competitions/titanic", difficulty: "Easy" };
+    const third = { title: "Spaceship Titanic", url: "https://www.kaggle.com/competitions/spaceship-titanic", difficulty: "Easy" };
+    expect(validateQuestions([other, third])).toHaveLength(2);
   });
 
   it("titles a slug without inventing words", () => {

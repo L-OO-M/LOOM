@@ -5,7 +5,11 @@ import { Meta, StatusPill } from "@/components/loom/primitives";
 import { WorkspaceEmpty, WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { PracticeWeekEditor } from "@/components/practice/PracticeWeekEditor";
 import { weekStart } from "@/lib/practice-domain";
-import { canAuthorPractice, findPracticeDepartment, loadPracticeAdminSnapshot } from "@/lib/practice";
+import {
+  authorablePracticeDepartments,
+  loadPracticeAdminSnapshot
+} from "@/lib/practice";
+import { trackOptionsForDepartments } from "@/lib/practice-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +34,9 @@ export default async function LeadPracticePage() {
   const { user, profile, tenant, sql } = ctx;
   if (!tenant?.id) redirect("/student");
 
-  const department = await findPracticeDepartment(sql, tenant.id);
-  if (!canAuthorPractice(profile, department).ok) redirect("/lead/overview");
+  const departments = await authorablePracticeDepartments(sql, tenant.id, profile);
+  if (departments.length === 0) redirect("/lead/overview");
+  const tracks = trackOptionsForDepartments(departments);
 
   const snapshot = await loadPracticeAdminSnapshot(sql, { tenantId: tenant.id });
   const scheduled = snapshot.weeks.filter((week) => week.status === "scheduled").length;
@@ -43,9 +48,9 @@ export default async function LeadPracticePage() {
     <AppShell area="lead" tenant={tenant} user={user}>
       <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
         <WorkspaceMasthead
-          kicker="Programs / DSA practice"
+          kicker="Programs / practice"
           title="Practice room"
-          lede="Author the weekly seven for the DSA department and watch the LeetCode sync. Released weeks are locked; admin records corrections."
+          lede="Author your department's weekly seven — LeetCode for DSA, Kaggle for AI/ML, Frontend Mentor for Web — and watch the LeetCode sync. Released weeks are locked; admin records corrections."
           meta={`${scheduled} scheduled / ${snapshot.connections.length} linked members / ${snapshot.members.length} members`}
           stats={[
             { value: snapshot.weeks.length, label: "weeks authored" },
@@ -58,13 +63,15 @@ export default async function LeadPracticePage() {
         <WorkspaceSection
           index="01"
           title="Weekly assignments"
-          note="Seven questions per scheduled week. Future sets stay private until their Monday."
+          note="Seven items per scheduled week, tagged with your department's track. Future sets stay private until their Monday."
         >
           <PracticeWeekEditor
             weeks={snapshot.weeks}
             questions={snapshot.questions}
             now={snapshot.now}
             currentWeekStart={weekStart(snapshot.now)}
+            tracks={tracks}
+            defaultTrack={tracks[0]?.slug || "dsa"}
           />
         </WorkspaceSection>
 

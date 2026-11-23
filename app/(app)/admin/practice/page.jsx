@@ -5,7 +5,8 @@ import { Meta, StatusPill } from "@/components/loom/primitives";
 import { WorkspaceEmpty, WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import { PracticeWeekEditor } from "@/components/practice/PracticeWeekEditor";
 import { weekStart } from "@/lib/practice-domain";
-import { loadPracticeAdminSnapshot } from "@/lib/practice";
+import { loadPracticeAdminSnapshot, listPracticeDepartments } from "@/lib/practice";
+import { trackOptionsForDepartments, trackOptions } from "@/lib/practice-catalog";
 import { PracticeCorrectionForm } from "./_components/PracticeCorrectionForm";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export default async function AdminPracticePage() {
   if (!tenant?.id) redirect("/login?redirect=/admin/practice");
 
   const snapshot = await loadPracticeAdminSnapshot(sql, { tenantId: tenant.id });
+  const departments = await listPracticeDepartments(sql, tenant.id);
+  const tracks = departments.length ? trackOptionsForDepartments(departments) : trackOptions();
   const scheduled = snapshot.weeks.filter((week) => week.status === "scheduled").length;
   const failing = snapshot.connections.filter((connection) => connection.syncState === "error").length;
   const stale = snapshot.connections.filter(
@@ -46,7 +49,7 @@ export default async function AdminPracticePage() {
         <WorkspaceMasthead
           kicker={`Programs / practice / ${snapshot.weeks.length} weeks`}
           title="Practice room"
-          lede="Author the weekly seven, correct a missed solve, and keep the LeetCode sync healthy. Released weeks are locked."
+          lede="Author each department's weekly set — LeetCode for DSA, Kaggle for AI/ML, Frontend Mentor for Web — correct a missed solve, and keep the LeetCode sync healthy. Released weeks are locked."
           meta={`${scheduled} scheduled / ${snapshot.connections.length} linked members / ${failing} sync errors`}
           stats={[
             { value: snapshot.weeks.length, label: "weeks authored" },
@@ -57,22 +60,24 @@ export default async function AdminPracticePage() {
         />
 
         {snapshot.weeks.length === 0 && (
-          <WorkspaceSection index="01" title="No weekly sets yet" note="Create your first seven-question DSA set.">
+          <WorkspaceSection index="01" title="No weekly set yet" note="Create the first seven-item set for any department.">
             <p className="mt-3 text-sm" style={{ color: "var(--text)" }}>
-              Students can’t see a practice room until a week is scheduled. Use the form below to author a new week — pick a title, a Monday start date (IST), and seven LeetCode problems. Leave it as a draft, or schedule it to go live.
+              Students can’t see a practice room until a week is scheduled. Pick a track, a Monday start date (IST), and seven hosted challenges — a suggested set is one click away for DSA, AI/ML, Web, Security, Blockchain and Embedded. Leave it as a draft, or schedule it to go live.
             </p>
           </WorkspaceSection>
         )}
         <WorkspaceSection
           index={snapshot.weeks.length === 0 ? 2 : 1}
           title="Weekly assignments"
-          note="Seven questions per scheduled week. Future sets stay private until their Monday."
+          note="Seven items per scheduled week, each tagged with its department track. Future sets stay private until their Monday."
         >
           <PracticeWeekEditor
             weeks={snapshot.weeks}
             questions={snapshot.questions}
             now={snapshot.now}
             currentWeekStart={weekStart(snapshot.now)}
+            tracks={tracks}
+            defaultTrack={tracks[0]?.slug || "dsa"}
           />
         </WorkspaceSection>
 

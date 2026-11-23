@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, LockKeyhole, Pencil, Plus, Save } from "lucide-react";
+import { CalendarDays, LockKeyhole, Pencil, Plus, Save, Wand2 } from "lucide-react";
 import { ActionFeedback, postJSON } from "@/components/loom/useAction";
 import { Field, inputStyle } from "@/components/ui";
 import { StatusPill } from "@/components/loom/primitives";
 import { titleFromSlug } from "@/lib/practice-domain";
+import { sourceForUrl, sourceLabel, suggestionsFor } from "@/lib/practice-catalog";
 
 const EMPTY = { title: "", url: "", difficulty: "Easy", topic: "" };
 
@@ -22,7 +23,14 @@ function newQuestions() {
   return Array.from({ length: 7 }, () => ({ ...EMPTY }));
 }
 
-export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) {
+export function PracticeWeekEditor({
+  weeks,
+  questions,
+  now,
+  currentWeekStart,
+  tracks = [],
+  defaultTrack = "dsa"
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
@@ -31,14 +39,16 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const trackLabel = (slug) => tracks.find((track) => track.slug === slug)?.label || slug;
+
   function open(week = null) {
     setMessage("");
     setError("");
     setEditing(true);
     setDraft(
       week
-        ? { id: week.id, title: week.title, date: localDate(week.startAt) }
-        : { id: null, title: "", date: localDate(currentWeekStart) }
+        ? { id: week.id, title: week.title, date: localDate(week.startAt), track: week.track || defaultTrack }
+        : { id: null, title: "", date: localDate(currentWeekStart), track: defaultTrack }
     );
     setItems(
       week
@@ -47,7 +57,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
             return question
               ? {
                   title: question.title,
-                  url: `https://leetcode.com/problems/${question.slug}/`,
+                  url: question.url || `https://leetcode.com/problems/${question.slug}/`,
                   difficulty: question.difficulty,
                   topic: question.topic
                 }
@@ -55,6 +65,28 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
           })
         : newQuestions()
     );
+  }
+
+  function fillSuggested() {
+    const suggestions = suggestionsFor(draft.track);
+    if (suggestions.length === 0) {
+      setMessage("No suggested set ships for this track yet — paste your own links below.");
+      return;
+    }
+    setItems(
+      Array.from({ length: 7 }, (_, index) => {
+        const suggestion = suggestions[index];
+        return suggestion
+          ? {
+              title: suggestion.title,
+              url: suggestion.url,
+              difficulty: suggestion.difficulty,
+              topic: suggestion.topic
+            }
+          : { ...EMPTY };
+      })
+    );
+    setMessage(`Loaded seven ${trackLabel(draft.track)} suggestions. Edit any of them before saving.`);
   }
 
   function update(index, key, value) {
@@ -81,7 +113,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
       ? items.filter((item) => item.title.trim() || item.url.trim() || item.topic.trim())
       : items;
     if (status === "scheduled" && questionsPayload.some((item) => !item.title.trim() || !item.url.trim())) {
-      setError("A scheduled week needs seven complete questions.");
+      setError("A scheduled week needs seven complete items.");
       return;
     }
     setBusy(true);
@@ -89,6 +121,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
       id: draft.id || undefined,
       title: draft.title,
       date: draft.date,
+      track: draft.track,
       status,
       questions: questionsPayload
     });
@@ -112,7 +145,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
           </div>
           <button type="button" className="btn-ghost" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <Field label="Week title">
             <input
               value={draft.title}
@@ -121,6 +154,19 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
               placeholder="e.g. Arrays and two pointers"
               style={inputStyle}
             />
+          </Field>
+          <Field label="Track">
+            <select
+              value={draft.track}
+              onChange={(event) => setDraft({ ...draft, track: event.target.value })}
+              style={inputStyle}
+            >
+              {tracks.map((track) => (
+                <option key={track.slug} value={track.slug}>
+                  {track.label}{track.provider ? ` / ${track.provider}` : ""}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Week starting (Monday, IST)">
             <input
@@ -132,16 +178,28 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
             />
           </Field>
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={fillSuggested} disabled={busy}>
+            <Wand2 size={14} /> Fill with seven {trackLabel(draft.track)} items
+          </button>
+          <p className="meta">
+            {tracks.find((track) => track.slug === draft.track)?.note ||
+              "Paste any public https challenge link. Self-reported work needs a lead's correction."}
+          </p>
+        </div>
         <div className="mt-5 grid gap-3">
           {items.map((item, index) => (
             <fieldset key={index} className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-              <legend className="mono-tag px-1">Question {String(index + 1).padStart(2, "0")}</legend>
+              <legend className="mono-tag px-1">
+                Item {String(index + 1).padStart(2, "0")}
+                {item.url ? <span className="ml-2 font-normal" style={{ color: "var(--text-muted)" }}>{sourceLabel(sourceForUrl(item.url))}</span> : null}
+              </legend>
               <div className="grid gap-3 lg:grid-cols-[1.1fr_1.5fr_120px_1fr]">
                 <Field label="Title">
-                  <input value={item.title} maxLength={160} placeholder="Filled from the URL when blank" onChange={(event) => update(index, "title", event.target.value)} style={inputStyle} />
+                  <input value={item.title} maxLength={160} placeholder="Name the challenge" onChange={(event) => update(index, "title", event.target.value)} style={inputStyle} />
                 </Field>
-                <Field label="LeetCode problem URL">
-                  <input type="url" value={item.url} onChange={(event) => update(index, "url", event.target.value)} placeholder="https://leetcode.com/problems/..." style={inputStyle} />
+                <Field label="Challenge link (https)">
+                  <input type="url" value={item.url} onChange={(event) => update(index, "url", event.target.value)} placeholder="https://www.kaggle.com/competitions/..." style={inputStyle} />
                 </Field>
                 <Field label="Difficulty">
                   <select value={item.difficulty} onChange={(event) => update(index, "difficulty", event.target.value)} style={inputStyle}>
@@ -197,7 +255,7 @@ export function PracticeWeekEditor({ weeks, questions, now, currentWeekStart }) 
                     <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{week.title}</span>
                     <StatusPill>{locked ? "released" : week.status}</StatusPill>
                   </span>
-                  <span className="meta mt-1 block">{localRange(week.startAt, week.endAt)} / {count} of 7 questions</span>
+                  <span className="meta mt-1 block">{localRange(week.startAt, week.endAt)} / {trackLabel(week.track)} / {count} of 7 items</span>
                 </span>
                 {locked ? (
                   <span className="meta inline-flex items-center gap-1"><LockKeyhole size={12} /> locked after release</span>

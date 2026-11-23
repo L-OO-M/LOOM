@@ -51,9 +51,9 @@ export default async function StudentPracticePage() {
           &larr; All challenges
         </Link>
         <WorkspaceMasthead
-          kicker={`Learn / challenges / weekly core set / ${snapshot.members.length} members`}
+          kicker={`Learn / challenges / weekly set / ${snapshot.members.length} members`}
           title="Consistency is a team sport."
-          lede="Seven assigned questions each week. Solve on LeetCode inside the week and the accepted submission counts once. The board is a practice habit, not chapter standing."
+          lede="Seven assigned items each week from your department's track — LeetCode, Kaggle, Frontend Mentor and more. A LeetCode solve inside the week verifies automatically; other work is self-reported and confirmed by a lead. The board is a practice habit, not chapter standing."
           meta={snapshot.current ? `${snapshot.current.title} / ${solved} of ${currentQuestions.length || 7} recorded` : "Awaiting this week's set"}
           stats={[
             { value: solved, label: "recorded this week" },

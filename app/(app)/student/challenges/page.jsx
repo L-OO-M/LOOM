@@ -60,13 +60,13 @@ export default async function StudentChallengesPage({ searchParams }) {
           title="Challenges for this track."
           lede="Fork something real, fix it, submit the fork. A domain lead grades the work and the approval lands on your chapter standing."
           meta={practice
-            ? `${practice.title} / ${practice.solved} of ${practice.total || 7} recorded`
+            ? `${practice.title} (${practice.track}) / ${practice.solved} of ${practice.total || 7} recorded`
             : "No weekly set is open right now"}
           stats={[
             { value: approved, label: "society fixes approved" },
             { value: submissions.length, label: "your submissions" },
             { value: repos.length, label: "curated repos" },
-            { value: practice?.solved || 0, label: "weekly core recorded" }
+            { value: practice?.solved || 0, label: "weekly set recorded" }
           ]}
         />
 

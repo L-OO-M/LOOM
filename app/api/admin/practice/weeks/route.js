@@ -8,7 +8,12 @@ import {
   validateQuestions,
   weekStart
 } from "@/lib/practice-domain";
-import { canAuthorPractice, findPracticeDepartment, normalizeWeek, practiceWeekDateToMs } from "@/lib/practice";
+import {
+  authorablePracticeDepartments,
+  normalizeWeek,
+  practiceWeekDateToMs
+} from "@/lib/practice";
+import { trackFor, trackOptions } from "@/lib/practice-catalog";
 
 const questionSchema = z.object({
   title: z.string().max(160).default(""),
@@ -21,6 +26,10 @@ const schema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().min(1).max(120),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // A department slug. Validated against the departments the caller may author
+  // for, not against a hardcoded list, so a chapter that adds a department can
+  // run a practice track for it without a code change.
+  track: z.string().regex(/^[a-z0-9_]+$/).max(40).default("dsa"),
   status: z.enum(["draft", "scheduled"]),
   questions: z.array(questionSchema).max(7)
 });
@@ -32,11 +41,19 @@ export async function POST(request) {
   const { user, profile, tenant, sql } = ctx;
   if (!tenant?.id) return fail("FORBIDDEN", "No chapter context", 403);
 
-  if (!isAdmin(profile)) {
-    const department = await findPracticeDepartment(sql, tenant.id);
-    if (!canAuthorPractice(profile, department).ok) {
-      return fail("FORBIDDEN", "Only the DSA domain lead or an admin can author practice weeks.", 403);
-    }
+  const authorable = await authorablePracticeDepartments(sql, tenant.id, profile);
+  const allowedTracks = new Set(authorable.map((department) => department.slug));
+  // A chapter that has not seeded its departments yet would otherwise have no
+  // way to author practice at all. An admin keeps the shipped tracks.
+  if (isAdmin(profile) && allowedTracks.size === 0) {
+    for (const option of trackOptions()) allowedTracks.add(option.slug);
+  }
+  if (allowedTracks.size === 0) {
+    return fail(
+      "FORBIDDEN",
+      "Practice authoring belongs to a department lead or an admin.",
+      403
+    );
   }
 
   let body;
@@ -45,6 +62,20 @@ export async function POST(request) {
   } catch (error) {
     return validationError(error);
   }
+
+  if (!allowedTracks.has(body.track)) {
+    return fail(
+      "FORBIDDEN",
+      "You can only author practice for a department you lead.",
+      403,
+      { field: "track" }
+    );
+  }
+  const track = trackFor(body.track);
+  // A track outside the shipped catalogue still works — a chapter's own
+  // department can publish a custom set — so the catalogue is used only to
+  // name the provider in the audit summary.
+  const providerLabel = track?.provider || "custom";
 
   const now = Date.now();
   const startAt = practiceWeekDateToMs(body.date);
@@ -92,11 +123,12 @@ export async function POST(request) {
 
       const [week] = await tx`
         INSERT INTO practice_weeks
-          (id, tenant_id, title, start_at, end_at, status, created_by, updated_at)
+          (id, tenant_id, title, track, start_at, end_at, status, created_by, updated_at)
         VALUES (
           COALESCE(${body.id ?? null}::uuid, gen_random_uuid()),
           ${tenant.id}::uuid,
           ${body.title.trim()},
+          ${body.track},
           ${new Date(startAt)},
           ${new Date(startAt + 7 * DAY_MS)},
           ${body.status},
@@ -105,6 +137,7 @@ export async function POST(request) {
         )
         ON CONFLICT (id) DO UPDATE SET
           title = EXCLUDED.title,
+          track = EXCLUDED.track,
           start_at = EXCLUDED.start_at,
           end_at = EXCLUDED.end_at,
           status = EXCLUDED.status,
@@ -119,13 +152,16 @@ export async function POST(request) {
       for (const question of questions) {
         await tx`
           INSERT INTO practice_questions
-            (tenant_id, week_id, position, title, slug, difficulty, topic)
+            (tenant_id, week_id, position, title, slug, url, source, domain, difficulty, topic)
           VALUES (
             ${tenant.id}::uuid,
             ${week.id}::uuid,
             ${question.position},
             ${question.title},
             ${question.slug},
+            ${question.url},
+            ${question.source},
+            ${body.track},
             ${question.difficulty},
             ${question.topic}
           )
@@ -140,9 +176,9 @@ export async function POST(request) {
         resource: "practice_week",
         resourceId: week.id,
         before: existing
-          ? { title: existing.title, startAt: existing.start_at, status: existing.status }
+          ? { title: existing.title, track: existing.track, startAt: existing.start_at, status: existing.status }
           : null,
-        after: { title: week.title, startAt: week.start_at, status: week.status, questions: questions.length }
+        after: { title: week.title, track: week.track, provider: providerLabel, startAt: week.start_at, status: week.status, questions: questions.length }
       });
 
       return { week };
@@ -154,6 +190,7 @@ export async function POST(request) {
     return ok({
       id: result.week.id,
       title: result.week.title,
+      track: result.week.track,
       status: result.week.status,
       startAt: new Date(result.week.start_at).getTime(),
       endAt: new Date(result.week.end_at).getTime(),

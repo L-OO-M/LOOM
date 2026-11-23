@@ -19,12 +19,12 @@ function request(body) {
   });
 }
 
-async function load(route, sql) {
+async function load(route, sql, profile = { role: "admin" }) {
   vi.resetModules();
   vi.doMock("@/lib/auth-server", () => ({
     getRequestContext: async () => ({
       user: { id: "admin-1" },
-      profile: { role: "admin" },
+      profile,
       tenant: { id: TENANT },
       sql
     }),
@@ -85,6 +85,11 @@ describe("practice week locking", () => {
           status: "scheduled"
         }];
       }
+      // Authoring eligibility reads the department list first; that is a read,
+      // not a write, and must not be counted against the locked-week assertion.
+      if (text.includes("FROM departments")) {
+        return [{ id: "55555555-5555-4555-8555-555555555555", slug: "dsa", name: "DSA", vertical: "tech" }];
+      }
       writes += 1;
       return [];
     });
@@ -101,6 +106,45 @@ describe("practice week locking", () => {
     expect(response.status).toBe(409);
     expect((await response.json()).error.code).toBe("WEEK_LOCKED");
     expect(writes).toBe(0);
+  });
+});
+
+describe("practice authoring scope", () => {
+  beforeEach(() => vi.resetModules());
+
+  it("lets a department lead author their own track and refuses another department's", async () => {
+    const DSA = "55555555-5555-4555-8555-555555555551";
+    const WEB = "55555555-5555-4555-8555-555555555552";
+    let inserts = 0;
+    const sql = sqlClient(async (text) => {
+      if (text.includes("FROM departments")) {
+        return [
+          { id: DSA, slug: "dsa", name: "DSA", vertical: "tech" },
+          { id: WEB, slug: "web", name: "Web", vertical: "tech" }
+        ];
+      }
+      if (text.includes("INSERT INTO practice_weeks")) {
+        inserts += 1;
+        return [{ id: "66666666-6666-4666-8666-666666666666", title: "Web week", track: "web", status: "draft", start_at: new Date(), end_at: new Date() }];
+      }
+      return [];
+    });
+    const profile = {
+      role: "student",
+      vertical: null,
+      memberships: [{ department_id: WEB, level: "dept_lead", term_end: null }],
+      scopedGrants: []
+    };
+    const { POST } = await load("@/app/api/admin/practice/weeks/route", sql, profile);
+    const date = new Date(weekStart(Date.now()) + 330 * 60_000).toISOString().slice(0, 10);
+
+    const refused = await POST(request({ title: "DSA week", date, track: "dsa", status: "draft", questions: [] }));
+    expect(refused.status).toBe(403);
+    expect(inserts).toBe(0);
+
+    const allowed = await POST(request({ title: "Web week", date, track: "web", status: "draft", questions: [] }));
+    expect(allowed.status).toBe(200);
+    expect(inserts).toBe(1);
   });
 });
 
