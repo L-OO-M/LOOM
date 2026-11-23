@@ -7,6 +7,7 @@ import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/Workspace
 import SettingsClient from "./SettingsClient";
 import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
 import { AppearancePanel } from "./AppearancePanel";
+import CloseAccountPanel from "./CloseAccountPanel";
 import { maskEmail } from "@/lib/email-verification";
 import { socialLinksForDisplay, LINK_LABELS } from "@/lib/profileFolio";
 import { loadDomainCatalogue } from "@/lib/roadmap";
@@ -142,7 +143,7 @@ export default async function SettingsPage() {
               </div>
             ))}
           </dl>
-          <p className="narrative mt-3">Only public usernames are stored — never tokens. Audit logs record ids, never bodies. Full deletion is manual and audited — ask your admin.</p>
+          <p className="narrative mt-3">Only public usernames are stored — never tokens. Audit logs record ids, never bodies. Closing your account is self-service, below, and every closure is audited.</p>
           </WorkspaceSection>
         </div>
 
@@ -159,6 +160,18 @@ export default async function SettingsPage() {
           </div>
           <p className="narrative mt-5">Sessions are signed by Auth0. Signing out ends the session on this device.</p>
         </WorkspaceSection>
+
+        <div id="close-account" className="scroll-mt-20">
+          <WorkspaceSection index="04" title="Close account" note="You can leave. The chapter's record of your work stays.">
+            <p className="narrative mt-3">
+              Closing removes your public card, GitHub link and department seats, and replaces your name on
+              past work with “Former member”. Your contributions and the audit trail stay because they are the
+              chapter&apos;s record, not a personal file. A chapter admin can restore access if you come back, but the
+              details above will need to be entered again.
+            </p>
+            <CloseAccountPanel />
+          </WorkspaceSection>
+        </div>
 
         <AppearancePanel />
       </main>
