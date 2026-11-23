@@ -66,7 +66,7 @@ export default async function MyWorkPage() {
                 body="When a department head gives you work, it appears here with its deadline."
               />
             ) : (
-              <TaskList initialTasks={department} meId={user.id} showAssignee={false} />
+              <TaskList initialTasks={department} meId={user.id} showAssignee={false} showFilters groupByStage />
             )}
           </WorkspaceSection>
 

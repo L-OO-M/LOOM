@@ -41,6 +41,16 @@ export function DepartmentWorkBoard({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [due, setDue] = useState("");
+
+  function presetDue(days) {
+    if (days === null) { setDue(""); return; }
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    setDue(`${d.getFullYear()}-${month}-${day}`);
+  }
 
   // Who is already carrying what. Computed from the rows this board is showing,
   // so the number next to a name cannot disagree with the cards underneath it.
@@ -83,6 +93,7 @@ export function DepartmentWorkBoard({
         setRows(fresh);
         setVersion((v) => v + 1);
         form.reset();
+        setDue("");
         setOpen(false);
         setMsg("Work assigned ✓");
       } else {
@@ -122,11 +133,11 @@ export function DepartmentWorkBoard({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-medium sm:col-span-2" style={{ color: "var(--text-muted)" }}>
               What needs doing?
-              <input name="title" required minLength={2} maxLength={160} style={{ ...input, marginTop: 6 }} />
+              <input name="title" required minLength={2} maxLength={160} placeholder="e.g. Draft the sponsor deck for the March workshop" style={{ ...input, marginTop: 6 }} />
             </label>
             <label className="block text-xs font-medium sm:col-span-2" style={{ color: "var(--text-muted)" }}>
               Detail
-              <textarea name="detail" rows={2} maxLength={2000} style={{ ...input, marginTop: 6 }} />
+              <textarea name="detail" rows={2} maxLength={2000} placeholder="What “done” looks like, and any link to start from" style={{ ...input, marginTop: 6 }} />
             </label>
             <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Assign to
@@ -142,10 +153,35 @@ export function DepartmentWorkBoard({
                 Counts show who is already loaded. Nothing here blocks an assignment.
               </span>
             </label>
-            <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Due
-              <input name="dueAt" type="date" style={{ ...input, marginTop: 6 }} />
-            </label>
+            <div className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              <label htmlFor="task-due">Due</label>
+              <input
+                id="task-due"
+                name="dueAt"
+                type="date"
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+                style={{ ...input, marginTop: 6 }}
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {[
+                  { label: "Today", days: 0 },
+                  { label: "+3 days", days: 3 },
+                  { label: "Next week", days: 7 },
+                  { label: "No date", days: null }
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => presetDue(preset.days)}
+                    className="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ borderColor: "var(--line)", color: "var(--text-muted)", background: "transparent" }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               Kind
               <select name="kind" style={{ ...input, marginTop: 6 }} defaultValue="task">
@@ -173,6 +209,8 @@ export function DepartmentWorkBoard({
         canVerify={canVerify}
         members={members}
         showAssignee
+        showFilters
+        groupByStage
         onTaskChange={(task) =>
           setRows((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...task } : t)))
         }

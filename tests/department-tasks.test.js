@@ -2,8 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   TASK_STATUSES,
   OPEN_TASK_STATUSES,
+  TASK_FILTERS,
+  TASK_STAGES,
   decideTaskAction,
-  denyMessage
+  denyMessage,
+  filterTasks,
+  groupTasksByStage,
+  isTaskOverdue,
+  matchesTaskFilter,
+  taskFilterCounts
 } from "@/lib/department-tasks";
 
 const HEAD = "head-a";
@@ -77,5 +84,58 @@ describe("department task transitions", () => {
   it("denies unknown actions instead of falling through", () => {
     expect(decide("teleport").reason).toBe("unknown_action");
     expect(decideTaskAction({ action: "start", task: null, actorId: MEMBER }).reason).toBe("not_found");
+  });
+});
+
+describe("task views", () => {
+  const now = Date.parse("2026-03-10T12:00:00Z");
+  const rows = [
+    { id: "a", status: "assigned", assignee_id: MEMBER, due_at: "2026-03-01T00:00:00Z" },
+    { id: "b", status: "in_progress", assignee_id: HEAD, due_at: "2026-03-20T00:00:00Z" },
+    { id: "c", status: "submitted", assignee_id: MEMBER, due_at: "2026-03-05T00:00:00Z" },
+    { id: "d", status: "done", assignee_id: MEMBER, due_at: null },
+    { id: "e", status: "blocked", assignee_id: HEAD, due_at: null }
+  ];
+
+  it("treats only unfinished, past-due work as overdue", () => {
+    expect(isTaskOverdue(rows[0], now)).toBe(true);
+    expect(isTaskOverdue(rows[1], now)).toBe(false);
+    // Submitted work is waiting on a reviewer, so the assignee is not late.
+    expect(isTaskOverdue(rows[2], now)).toBe(false);
+    expect(isTaskOverdue(rows[3], now)).toBe(false);
+    expect(isTaskOverdue({ status: "assigned", due_at: null }, now)).toBe(false);
+  });
+
+  it("counts every filter from the same rows", () => {
+    const counts = taskFilterCounts(rows, { meId: MEMBER, now });
+    expect(counts.all).toBe(5);
+    expect(counts.open).toBe(4);
+    expect(counts.review).toBe(1);
+    expect(counts.overdue).toBe(1);
+    expect(counts.mine).toBe(3);
+  });
+
+  it("filters without mutating the source", () => {
+    expect(filterTasks(rows, "all", { now })).toBe(rows);
+    expect(filterTasks(rows, "review", { now }).map((t) => t.id)).toEqual(["c"]);
+    expect(filterTasks(rows, "overdue", { now }).map((t) => t.id)).toEqual(["a"]);
+    expect(filterTasks(rows, "mine", { meId: HEAD, now }).map((t) => t.id)).toEqual(["b", "e"]);
+    expect(rows).toHaveLength(5);
+    expect(matchesTaskFilter(rows[0], "unknown", { now })).toBe(true);
+  });
+
+  it("groups by the stage that owns the next action and drops empty stages", () => {
+    const groups = groupTasksByStage(rows);
+    expect(groups.map((g) => g.id)).toEqual(["assigned", "in_progress", "blocked", "submitted", "done"]);
+    expect(groups.find((g) => g.id === "submitted").tasks.map((t) => t.id)).toEqual(["c"]);
+    expect(groupTasksByStage([{ id: "x", status: "done" }]).map((g) => g.id)).toEqual(["done"]);
+    expect(groupTasksByStage([])).toEqual([]);
+  });
+
+  it("keeps the filter and stage vocabularies in step with task statuses", () => {
+    for (const stage of TASK_STAGES) {
+      for (const status of stage.statuses) expect(TASK_STATUSES).toContain(status);
+    }
+    expect(TASK_FILTERS.map((f) => f.id)).toContain("overdue");
   });
 });
