@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { ArrowDown, ArrowUp, Plus, Save, Trash2, ExternalLink } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, ExternalLink, Layers, Plus, Save, Trash2 } from "lucide-react";
 import { Field, inputStyle } from "@/components/ui";
-import { EVENT_SECTION_TYPES, sanitizeEventPage } from "@/lib/event-page";
+import { CoverImageField } from "@/components/admin/CoverImageField";
+import { EVENT_PAGE_TEMPLATES, EVENT_SECTION_TYPES, sanitizeEventPage } from "@/lib/event-page";
 
 /**
  * Dynamic section builder for an event's public page.
  *
  * A hackathon brief is not a workshop description, so the author adds typed
  * blocks — overview, problem statements, prizes, schedule, rules, FAQ,
- * resources — reorders them, and saves once. The server re-validates every
- * block through the same pure module, so a crafted request cannot store a
- * `javascript:` link or an unknown block.
+ * resources — reorders them, and saves once. Starter blocks per event type mean
+ * a hackathon opens with problem statements and prizes, while a workshop opens
+ * with a schedule and resources. The server re-validates every block through the
+ * same pure module, so a crafted request cannot store a `javascript:` link or an
+ * unknown block.
  */
 export function EventPageBuilder({ event }) {
   const router = useRouter();
@@ -24,24 +26,50 @@ export function EventPageBuilder({ event }) {
     sanitizeEventPage({ sections: event?.page_sections }).sections
   );
   const [newType, setNewType] = useState("overview");
+  const [templateType, setTemplateType] = useState(
+    EVENT_PAGE_TEMPLATES[event?.event_type] ? event.event_type : "hackathon"
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  function makeSection(type) {
+    const meta = EVENT_SECTION_TYPES.find((entry) => entry.type === type);
+    return {
+      id: `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      heading: meta?.label || "Section",
+      body: "",
+      bullets: [],
+      links: []
+    };
+  }
+
   function addSection() {
-    const meta = EVENT_SECTION_TYPES.find((entry) => entry.type === newType);
-    setSections((current) => [
-      ...current,
-      {
-        id: `s${Date.now().toString(36)}${current.length}`,
-        type: newType,
-        heading: meta?.label || "Section",
-        body: "",
-        bullets: [],
-        links: []
-      }
-    ]);
+    setSections((current) => [...current, makeSection(newType)]);
     setMessage("");
+  }
+
+  /** Add the blocks a given event type usually needs, skipping types already present. */
+  function applyTemplate() {
+    const template = EVENT_PAGE_TEMPLATES[templateType];
+    if (!template) return;
+    setSections((current) => {
+      const present = new Set(current.map((section) => section.type));
+      const additions = template.types.filter((type) => !present.has(type)).map(makeSection);
+      return [...current, ...additions];
+    });
+    setMessage(`${template.label} starter blocks added. Fill them in and save.`);
+  }
+
+  function duplicate(index) {
+    setSections((current) => {
+      const copy = current[index];
+      if (!copy) return current;
+      const next = [...current];
+      next.splice(index + 1, 0, { ...copy, id: makeSection(copy.type).id });
+      return next;
+    });
   }
 
   function update(index, patch) {
@@ -96,8 +124,6 @@ export function EventPageBuilder({ event }) {
     }
   }
 
-  const preview = coverImageUrl && (coverImageUrl.startsWith("https://") || coverImageUrl.startsWith("/"));
-
   return (
     <div className="mt-4 rounded-2xl border p-4 sm:p-5" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -116,21 +142,37 @@ export function EventPageBuilder({ event }) {
         <Field label="Tagline (shown under the title)">
           <input value={tagline} maxLength={160} onChange={(e) => setTagline(e.target.value)} placeholder="36 hours. One dataset. Real problems." style={inputStyle} />
         </Field>
-        <Field label="Cover image (https URL or /path)">
-          <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://... or /events/my-cover.jpg" style={inputStyle} />
-        </Field>
+        <CoverImageField
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+          label="Cover image"
+          hint="Upload artwork or paste an https URL. Blank keeps the generated banner."
+        />
       </div>
-      {preview ? (
-        <div className="relative mt-3 h-32 w-full overflow-hidden rounded-xl" style={{ border: "1px solid var(--line)" }}>
-          <Image src={coverImageUrl} alt="Cover preview" fill unoptimized sizes="600px" className="object-cover" />
-        </div>
-      ) : (
-        <p className="meta mt-2">Leave blank to keep the generated banner artwork.</p>
-      )}
 
-      <div className="mt-6 flex flex-wrap items-end gap-2">
+      <div className="mt-6 rounded-xl border p-3.5" style={{ borderColor: "var(--line)" }}>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[220px] flex-1">
+            <Field label="Starter blocks for an event type">
+              <select value={templateType} onChange={(e) => setTemplateType(e.target.value)} style={inputStyle}>
+                {Object.entries(EVENT_PAGE_TEMPLATES).map(([key, template]) => (
+                  <option key={key} value={key}>{template.label}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={applyTemplate}>
+            <Layers size={14} /> Add starter blocks
+          </button>
+        </div>
+        <p className="meta mt-2">
+          {EVENT_PAGE_TEMPLATES[templateType]?.note} Existing block types are never duplicated.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end gap-2">
         <div className="min-w-[220px] flex-1">
-          <Field label="Add a section">
+          <Field label="Add one section">
             <select value={newType} onChange={(e) => setNewType(e.target.value)} style={inputStyle}>
               {EVENT_SECTION_TYPES.map((entry) => (
                 <option key={entry.type} value={entry.type}>{entry.label}</option>
@@ -164,17 +206,21 @@ export function EventPageBuilder({ event }) {
                   {EVENT_SECTION_TYPES.find((entry) => entry.type === section.type)?.label || section.type}
                 </p>
                 <div className="flex items-center gap-1">
-                  <button type="button" aria-label="Move block up" className="rounded p-1" style={{ color: "var(--text-muted)" }} onClick={() => move(index, -1)} disabled={index === 0}>
+                  <button type="button" aria-label="Move block up" title="Move up" className="rounded p-1" style={{ color: "var(--text-muted)" }} onClick={() => move(index, -1)} disabled={index === 0}>
                     <ArrowUp size={14} />
                   </button>
-                  <button type="button" aria-label="Move block down" className="rounded p-1" style={{ color: "var(--text-muted)" }} onClick={() => move(index, 1)} disabled={index === sections.length - 1}>
+                  <button type="button" aria-label="Move block down" title="Move down" className="rounded p-1" style={{ color: "var(--text-muted)" }} onClick={() => move(index, 1)} disabled={index === sections.length - 1}>
                     <ArrowDown size={14} />
                   </button>
-                  <button type="button" aria-label="Remove block" className="rounded p-1" style={{ color: "var(--danger)" }} onClick={() => remove(index)}>
+                  <button type="button" aria-label="Duplicate block" title="Duplicate" className="rounded p-1" style={{ color: "var(--text-muted)" }} onClick={() => duplicate(index)}>
+                    <Copy size={14} />
+                  </button>
+                  <button type="button" aria-label="Remove block" title="Remove" className="rounded p-1" style={{ color: "var(--danger)" }} onClick={() => remove(index)}>
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
+              <p className="meta mt-1">{EVENT_SECTION_TYPES.find((entry) => entry.type === section.type)?.hint}</p>
               <div className="mt-3 grid gap-3">
                 <Field label="Heading">
                   <input value={section.heading} maxLength={120} onChange={(e) => update(index, { heading: e.target.value })} style={inputStyle} />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { inputStyle, Field } from "@/components/ui";
+import { CoverImageField } from "@/components/admin/CoverImageField";
 
 /**
  * Full event creation form — every field the events table stores.
@@ -106,10 +107,12 @@ export function EventForm({
         </Field>
       </div>
       <div className="sm:col-span-2">
-        <Field label="Cover image (optional, https URL or /path)">
-          <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} maxLength={500} placeholder="Leave blank for generated artwork" style={inputStyle} />
-        </Field>
-        <p className="meta mt-1">Add the full overview, problem statements and schedule after creating the event — the detail page has a block builder.</p>
+        <CoverImageField
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+          label="Cover image (optional)"
+          hint="Upload artwork now, or leave blank for the generated banner. Add the full overview, problem statements and schedule after creating the event — the detail page has a block builder."
+        />
       </div>
       <Field label="Type">
         <select value={eventType} onChange={(e) => setEventType(e.target.value)} style={inputStyle}>

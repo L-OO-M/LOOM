@@ -8,6 +8,7 @@ import { PublicFooter } from "@/components/landing/PublicFooter";
 import { EventBanner } from "../_components/EventBanner";
 import { EventSections, EventSectionNav } from "@/components/events/EventSections";
 import { sectionsFromRow, safeImage } from "@/lib/event-page";
+import { optimizedImageUrl } from "@/lib/media-url";
 import { formatEventWhen } from "@/lib/event-time";
 import { JoinSteps, TypePill, seatsLeft } from "../_components/EventBits";
 import { JsonLd, breadcrumbSchema, organizationSchema } from "@/components/seo/JsonLd";
@@ -175,7 +176,7 @@ export default async function EventDetailPage({ params }) {
                 the chapter controls, so it is served unoptimized: no loader
                 allow-list to maintain, and no surprise bill for an outside host. */}
             <Image
-              src={cover}
+              src={optimizedImageUrl(cover, 1800)}
               alt={`Cover image for ${event.title}`}
               fill
               unoptimized

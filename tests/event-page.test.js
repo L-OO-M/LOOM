@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  EVENT_PAGE_TEMPLATES,
   EVENT_SECTION_TYPES,
   safeImage,
   safeLink,
@@ -77,10 +78,34 @@ describe("event page sections", () => {
     const page = sanitizeEventPage({
       tagline: "  36 hours. One dataset.  ",
       coverImageUrl: "javascript:alert(1)",
-      sections: [{ type: "overview", heading: "Why" }]
+      sections: [{ type: "overview", heading: "Why", body: "Because the chapter needs it." }]
     });
     expect(page).toMatchObject({ tagline: "36 hours. One dataset.", coverImageUrl: null });
     expect(page.sections).toHaveLength(1);
     expect(sanitizeEventPage({}).tagline).toBeNull();
+  });
+
+  it("does not publish a heading whose block was never filled in", () => {
+    const page = sanitizeEventPage({ sections: [{ type: "schedule", heading: "Schedule" }] });
+    expect(page.sections).toEqual([]);
+  });
+
+  it("ships starter block sets per event type, in reading order", () => {
+    expect(EVENT_PAGE_TEMPLATES.hackathon.types).toEqual([
+      "overview",
+      "problem",
+      "prizes",
+      "schedule",
+      "rules",
+      "faq",
+      "resources"
+    ]);
+    for (const [type, template] of Object.entries(EVENT_PAGE_TEMPLATES)) {
+      expect(template.types.length, type).toBeGreaterThan(1);
+      expect(new Set(template.types).size, type).toBe(template.types.length);
+      for (const block of template.types) {
+        expect(EVENT_SECTION_TYPES.some((entry) => entry.type === block), block).toBe(true);
+      }
+    }
   });
 });

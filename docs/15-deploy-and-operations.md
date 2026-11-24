@@ -18,6 +18,7 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 | `DATABASE_APP_URL` | yes in production | Request handling as `loom_app` (NOBYPASSRLS, not the table owner). `lib/env.js` falls back to `DATABASE_URL` for local work, but **production startup validation refuses to run without an explicit value** — otherwise the owner connection would silently bypass Row Level Security. `npm run rls:verify` also fails loudly. See `rls-rollout-runbook.md` |
 | `SUPABASE_SERVICE_ROLE_KEY` | for admin APIs + storage | Currently empty in dev — admin user management limited until set. Also required server-side by `lib/storage.js` (lead-tool file uploads) |
 | `SUPABASE_STORAGE_BUCKET` | no (default `loom-files`) | Private bucket for lead-tool documents/assets. Create it and seed categories with `node load/setup-storage.js` |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | no | Optional, server-only. When all three are present, `/api/uploads/images` sends public page imagery (event covers) to Cloudinary's free tier and stores its CDN URL; otherwise images go to the Supabase bucket. Private documents never use Cloudinary. |
 | `NEXT_PUBLIC_APP_URL` | yes | metadataBase, share/verify links, calendar links, and the GitHub OAuth `redirect_uri`. Unset in production publishes every absolute URL as `localhost`; set to the **retired** host it publishes the retired host. Changing it requires a redeploy — `NEXT_PUBLIC_*` is inlined at build time |
 | `DEFAULT_TENANT_SLUG` | no (defaults to `DEV_TENANT_SLUG`) | Chapter that owns a server-to-server delivery (webhook) that carries no chapter identity in its `Host` header |
 | `DEV_TENANT_SLUG` | local yes | Local/fallback chapter slug; no hardcoded default. Production onboarding resolves the chapter from the request host or `DEFAULT_TENANT_SLUG` |
@@ -313,8 +314,11 @@ schema first, then promote the build.
 
 1. Set env, run `db:migrate`, then `db:seed`, then `db:seed:roadmaps`. Set
    `SUPABASE_SERVICE_ROLE_KEY` and run `node load/setup-storage.js` (lead-tool
-   file uploads need the private bucket); optionally `node load/seed-community.js`
-   for curated OSS repos.
+   file uploads and public event imagery need the private bucket; page images are
+   stored under `public/` and streamed by `/api/media/...`); optionally
+   `node load/seed-community.js` for curated OSS repos. Setting the three
+   `CLOUDINARY_*` values is optional and moves public image uploads to the
+   Cloudinary free tier instead.
 2. **Verify before deploying** (read-only, safe against production):
    `DATABASE_URL=... node load/verify-roadmap-shelf.js` — exits non-zero with
    the exact remedy if the table, the migration record, the mappings, or the

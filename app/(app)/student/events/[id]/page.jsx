@@ -10,7 +10,9 @@ import { RegisterButton, FeedbackForm, MaterialForm } from "../EventsBits";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
 import { EventVolunteerSignup } from "@/components/events/EventVolunteerSignup";
 import { EventSections } from "@/components/events/EventSections";
-import { sectionsFromRow } from "@/lib/event-page";
+import { safeImage, sectionsFromRow } from "@/lib/event-page";
+import { optimizedImageUrl } from "@/lib/media-url";
+import Image from "next/image";
 import { displayState, isFull, nextStepFor, TYPE_LABEL, HISTORY_STATUSES } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +70,7 @@ export default async function EventDetailPage({ params }) {
 
   const registered = !!mine && mine.status !== "cancelled";
   const sections = sectionsFromRow(event.page_sections);
+  const cover = safeImage(event.cover_image_url);
   const state = displayState(event, mine);
   const full = isFull(event, mine);
   const past = state.key === "past";
@@ -78,6 +81,18 @@ export default async function EventDetailPage({ params }) {
     <AppShell area="student" tenant={tenant} user={user}>
       <main className="mx-auto max-w-3xl px-4 sm:px-6">
         <Link href="/student/events" prefetch={false} className="meta hover:underline" style={{ color: "var(--accent)" }}>← Events</Link>
+        {cover ? (
+          <div className="relative mt-4 w-full overflow-hidden rounded-2xl" style={{ aspectRatio: "21 / 9", background: "var(--bg-elevated)" }}>
+            <Image
+              src={optimizedImageUrl(cover, 1400)}
+              alt={`Cover image for ${event.title}`}
+              fill
+              unoptimized
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-cover"
+            />
+          </div>
+        ) : null}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StatusPill tone={state.tone}>
             {TYPE_LABEL[event.event_type] || event.event_type} · {state.label}
