@@ -251,7 +251,7 @@ export default async function CredentialsPage() {
                   <span className="proof-row-actions">
                     {c.pr_url && (
                       <a href={c.pr_url} target="_blank" rel="noreferrer">
-                        Pull request <span aria-hidden="true">&nearr;</span>
+                        Pull request <span aria-hidden="true">↗</span>
                       </a>
                     )}
                     <Link href="/student/opensource" prefetch={false}>Open source portal</Link>

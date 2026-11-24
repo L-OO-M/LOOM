@@ -127,7 +127,7 @@ export default async function StudentChallengesPage({ searchParams }) {
                   rel="noopener noreferrer"
                   className="btn-ghost !py-2"
                 >
-                  Open {society.hasFolder ? "your domain folder" : "the repository"} &nearr;
+                  Open {society.hasFolder ? "your domain folder" : "the repository"} ↗
                 </a>
                 <a
                   href={society.url}
@@ -136,7 +136,7 @@ export default async function StudentChallengesPage({ searchParams }) {
                   className="inline-flex items-center px-1 py-2 hover:underline"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Fork on GitHub &nearr;
+                  Fork on GitHub ↗
                 </a>
               </div>
               <p className="meta mt-4">
@@ -203,7 +203,7 @@ export default async function StudentChallengesPage({ searchParams }) {
                         className="hover:underline"
                         style={{ color: "var(--accent)" }}
                       >
-                        Open repository &nearr;
+                        Open repository ↗
                       </a>
                       <Link
                         href={repo.href}

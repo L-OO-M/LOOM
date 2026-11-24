@@ -23,7 +23,7 @@ function EvidenceLink({ url }) {
   }
   return (
     <a href={url} target="_blank" rel="noreferrer" className="proof-record-link">
-      View evidence <span aria-hidden="true">&nearr;</span>
+      View evidence <span aria-hidden="true">↗</span>
     </a>
   );
 }

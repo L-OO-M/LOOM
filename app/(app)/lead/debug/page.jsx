@@ -107,7 +107,7 @@ export default async function LeadDebugPage() {
                     className="mt-1 inline-block text-xs font-semibold hover:underline"
                     style={{ color: "var(--accent)" }}
                   >
-                    Open the fork &nearr;
+                    Open the fork ↗
                   </a>
                   <div className="mt-3">
                     <OssReviewActions id={item.id} verificationStatus={item.verificationStatus} />

@@ -181,7 +181,7 @@ export function DomainChallengePanel({ domain, overview, nudge, society }) {
             className="hover:underline"
             style={{ color: "var(--accent)" }}
           >
-            Open folder &nearr;
+            Open folder ↗
           </a>
           <a
             href={society?.url}
@@ -190,7 +190,7 @@ export function DomainChallengePanel({ domain, overview, nudge, society }) {
             className="hover:underline"
             style={{ color: "var(--text-muted)" }}
           >
-            Repository &nearr;
+            Repository ↗
           </a>
           <Link href={`${hub}#society`} prefetch={false} className="hover:underline" style={{ color: "var(--text-muted)" }}>
             Submit a fork
