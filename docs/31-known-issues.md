@@ -97,3 +97,35 @@ sign in once the verification link is used.
 `iamyashgupta55@gmail.com` has two canonical profiles: `ba21e70e`
 (google-oauth2) and `5acc42e0` (auth0, unverified). Merging or deleting one is a
 destructive data operation and has not been done.
+
+---
+
+## 6. The product tour and signed-in telemetry have no live E2E coverage yet
+
+**Status:** known coverage gap, not a product switch
+**Since:** 24 November 2026
+**Affects:** `components/tour/*`, `components/telemetry/Tracker.jsx`,
+`POST /api/telemetry`, the Settings usage panel
+
+The Playwright suite runs against the production build with a programmatic
+Supabase session, and the tour needs a real signed-in profile whose
+`profiles.tour_state` is empty. Locally Auth0 is not configured and the stored
+E2E session cookies have expired, so the browser specs cannot reach `/student`
+with a live account. What is covered today:
+
+- `tests/telemetry.test.js` - path normalization, allowlist, metadata bounds,
+  bot/cross-site rejection, daily key rotation, tour-state patch.
+- `tests/telemetry-route.test.js` - tenant from session, anonymous public
+  views, opt-out writes nothing, tour completion merges `profiles.tour_state`.
+- `tests/tour.test.js` - every step targets a real `data-tour` slot, copy and
+  placement are valid, version gating and storage keys.
+- `npm run build` compiles the client components; the public E2E suite proves
+  the tracker did not break any page or the SEO contract.
+
+Before claiming the tour works for members, do one manual pass after a real
+login: first visit opens at Home (~900 ms), Next/Back/Skip behave, Escape
+skips, focus stays inside the card, completion survives a hard refresh and a
+second device, and Settings -> "Replay the product tour" reopens it. Check both
+themes and 390 px width. If a step's target is renamed in `AppShell.jsx`, the
+step silently falls back to a centered card - `tests/tour.test.js` is what
+catches the mismatch, so keep that test's `known` set in sync.

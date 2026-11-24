@@ -6,7 +6,7 @@
 -- of interactions a page view cannot express (tour start/step/finish/skip).
 --
 -- Aggregates are what the admin surfaces read. Raw rows are pruned after 180
--- days by load/rollup-usage.js, so this is not an unbounded log.
+-- days by load/prune-retention.js, so this is not an unbounded log.
 --
 -- No new PII: paths are normalized (query strings and ids removed), there is no
 -- free text, and anonymous visitors are identified only by a daily-rotating

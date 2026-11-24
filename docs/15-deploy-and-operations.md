@@ -210,9 +210,10 @@ All `load/*.js` scripts read `DATABASE_URL` from the environment with a `.env.lo
 
 `github_events` (full raw webhook payloads), `audit_logs` and read `notifications`
 previously grew without bound — nothing deleted them. `npm run prune:retention`
-now handles all three with per-table windows: 90 days for raw payloads, 2 years
-for the audit trail, 180 days for read notifications. **Unread notifications are
-never pruned.**
+now handles those plus the first-party usage rows with per-table windows: 90 days
+for raw payloads, 2 years for the audit trail, 180 days for read notifications,
+and 180 days for raw `page_views` / `ui_events` (the usage dashboard reads
+aggregates, so the detail can age out). **Unread notifications are never pruned.**
 
 It is a dry run unless `--apply` is passed. Schedule it daily alongside the
 rollups:
