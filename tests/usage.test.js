@@ -6,6 +6,7 @@ import {
   formatCount,
   hardToReach,
   summarizeRoutes,
+  summarizeTotals,
   tourReport,
   usageInsights
 } from "@/lib/usage";
@@ -46,6 +47,31 @@ describe("daily series", () => {
       { day: "2026-11-20", student: 40, total: 40 },
       { day: "2026-11-21", student: 70, admin: 5, total: 75 }
     ]);
+  });
+});
+
+describe("chapter-wide totals", () => {
+  it("averages daily uniques instead of adding days together", () => {
+    const totals = summarizeTotals([
+      { day: "2026-11-20", views: 40, visitors: 12, sessions: 14, signed_in: 30 },
+      { day: "2026-11-21", views: 60, visitors: 20, sessions: 18, signed_in: 45 }
+    ]);
+    expect(totals).toMatchObject({
+      days: 2,
+      views: 100,
+      visitorDays: 32,
+      averageVisitors: 16,
+      sessions: 32,
+      signedInShare: 75
+    });
+    // Not 32: that would be visitor-days described as people.
+    expect(totals.averageVisitors).not.toBe(32);
+    expect(totals.peak).toEqual({ day: "2026-11-21", visitors: 20 });
+  });
+
+  it("rounds the average up and survives an empty chapter", () => {
+    expect(summarizeTotals([{ day: "2026-11-20", views: 1, visitors: 1 }, { day: "2026-11-21", views: 1, visitors: 2 }]).averageVisitors).toBe(2);
+    expect(summarizeTotals([])).toMatchObject({ days: 0, visitorDays: 0, averageVisitors: 0, peak: null });
   });
 });
 

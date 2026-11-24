@@ -36,7 +36,7 @@ const STRICT_TABLES = [
   "student_daily_activity", "student_oss_contributions", "student_roadmap_progress",
   "user_profiles", "verifiable_credentials", "volunteer_slots", "wiki_pages",
   // Added with migration 108/109: telemetry, its nightly aggregates.
-  "ui_events", "usage_daily", "tour_daily"
+  "ui_events", "usage_daily", "usage_daily_totals", "tour_daily"
 ];
 
 // Tables with no tenant_id column, and the one table where NULL is the intended

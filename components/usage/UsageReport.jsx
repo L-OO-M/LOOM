@@ -60,7 +60,7 @@ export function UsageReport({ report, index = "05" }) {
     );
   }
 
-  const { routes, tours, unreachable, windowDays } = report;
+  const { routes, tours, unreachable, totals: chapter, windowDays } = report;
   const totals = routes.totals;
   const tour = tours[0] || null;
 
@@ -69,13 +69,13 @@ export function UsageReport({ report, index = "05" }) {
       <WorkspaceSection
         index={index}
         title="Journey"
-        note={`Routes people actually open, last ${windowDays} days. Views and signed-in shares aggregate; visitors are counted per route, never summed.`}
+        note={`Routes people actually open, last ${windowDays} days. Views and signed-in shares aggregate; the audience figure is the chapter-wide daily unique, averaged over days with traffic.`}
       >
         <StatRow
           stats={[
             { value: formatCount(totals.views), label: "page views" },
+            { value: formatCount(chapter.averageVisitors), label: "visitors / active day" },
             { value: `${totals.signedInShare}%`, label: "signed in" },
-            { value: formatCount(totals.sessions), label: "sessions" },
             { value: formatCount(totals.routes), label: "routes seen" }
           ]}
         />
@@ -89,7 +89,7 @@ export function UsageReport({ report, index = "05" }) {
           </div>
         </div>
         <p className="meta mt-3">
-          Visitors stay per route on purpose: summing them would count one person once per screen. Raw rows age out after 180 days; these numbers come from the nightly rollup.
+          Visitors on a route stay per route on purpose: summing them would count one person once per screen. The audience figure is different - it is counted once per day from the raw rows, then averaged, so a member active on three days is three visitor-days, not three people. Raw rows age out after 180 days; every number here comes from the nightly rollup.
         </p>
       </WorkspaceSection>
 

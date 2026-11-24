@@ -38,13 +38,18 @@ describe("usage rollup", () => {
     const deletes = calls.filter((call) => call.text.startsWith("DELETE FROM"));
     expect(deletes.map((call) => call.text)).toEqual([
       "DELETE FROM usage_daily WHERE day = ?::date",
-      "DELETE FROM tour_daily WHERE day = ?::date"
+      "DELETE FROM tour_daily WHERE day = ?::date",
+      "DELETE FROM usage_daily_totals WHERE day = ?::date"
     ]);
     expect(deletes[0].values[0]).toBe("2026-11-23");
 
-    const usageInsert = calls.find((call) => call.text.startsWith("INSERT INTO usage_daily"));
+    const usageInsert = calls.find((call) => call.text.startsWith("INSERT INTO usage_daily "));
     expect(usageInsert.text).toContain("COUNT(DISTINCT visitor_key)");
     expect(usageInsert.values[0]).toBe("2026-11-23");
+
+    const totalsInsert = calls.find((call) => call.text.startsWith("INSERT INTO usage_daily_totals"));
+    expect(totalsInsert.text).toContain("COUNT(DISTINCT session_key)");
+    expect(totalsInsert.values[0]).toBe("2026-11-23");
 
     const tourInsert = calls.find((call) => call.text.startsWith("INSERT INTO tour_daily"));
     expect(tourInsert.values).toContain(TENANT);
