@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { adminNav, groupForTab, leadNav, mobileNavForArea, navHasUnread, pathToTab, settingsForArea, studentNav, studentSecondary, unreadTabsFor, usesDropdowns, workspaceForPath } from "@/lib/nav";
 import { FeatureRequestFab } from "./FeatureRequestFab";
+import { Onboarding } from "./tour/Onboarding";
 
 const icons = {
   home: Home, book: BookOpen, library: Library, trending: TrendingUp, kanban: FolderKanban,
@@ -212,7 +213,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
           </nav>
         </header>
 
-        <div id="main" tabIndex={-1} className="pt-20 pb-24 md:pb-10"><div className="shell">{children}</div></div>
+        <div id="main" tabIndex={-1} className="pt-20 pb-24 md:pb-10"><div className="shell"><Onboarding area={area} user={user} />{children}</div></div>
 
         <nav
           className={`fixed inset-x-3 bottom-3 z-50 ${area === "student" ? "md:hidden" : "sm:hidden"}`}

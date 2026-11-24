@@ -1,32 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { studentNav } from "@/lib/nav";
-import { STUDENT_TOUR, TOURS, TOUR_VERSION, tourSeen, tourStorageKey } from "@/lib/tour";
+import { adminNav, leadNav, studentNav } from "@/lib/nav";
+import { ADMIN_TOUR, LEAD_TOUR, SHELL_TOURS, STUDENT_TOUR, TOURS, TOUR_VERSION, tourForArea, tourSeen, tourStorageKey } from "@/lib/tour";
 
 const PLACEMENTS = new Set(["top", "bottom", "left", "right"]);
 
+function assertTour(tour, nav, extra = []) {
+  const ids = tour.steps.map((step) => step.id);
+  const targets = tour.steps.map((step) => step.target);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(new Set(targets).size).toBe(targets.length);
+
+  const known = new Set([...extra, ...nav.map((item) => `nav-${item.id}`)]);
+  for (const step of tour.steps) {
+    const match = step.target.match(/^\[data-tour='([a-z0-9-]+)'\]$/);
+    expect(match, step.target).toBeTruthy();
+    expect(known.has(match[1]), step.id).toBe(true);
+  }
+  for (const step of tour.steps) {
+    expect(step.title.length).toBeGreaterThan(4);
+    expect(step.body.length).toBeGreaterThan(20);
+    expect(PLACEMENTS.has(step.placement), step.id).toBe(true);
+  }
+}
+
 describe("student tour vocabulary", () => {
   it("targets real shell destinations, once each", () => {
-    const ids = STUDENT_TOUR.steps.map((step) => step.id);
-    const targets = STUDENT_TOUR.steps.map((step) => step.target);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(new Set(targets).size).toBe(targets.length);
-
-    const known = new Set(["nav-dashboard", "nav-settings", ...studentNav.map((item) => `nav-${item.id}`)]);
-    for (const step of STUDENT_TOUR.steps) {
-      const match = step.target.match(/^\[data-tour='([a-z0-9-]+)'\]$/);
-      expect(match, step.target).toBeTruthy();
-      expect(known.has(match[1]), step.id).toBe(true);
-    }
+    assertTour(STUDENT_TOUR, studentNav, ["nav-dashboard", "nav-settings"]);
   });
 
   it("has readable copy, a valid placement and a stable version", () => {
     expect(STUDENT_TOUR.version).toBe(TOUR_VERSION);
     expect(TOURS.student).toBe(STUDENT_TOUR);
-    for (const step of STUDENT_TOUR.steps) {
-      expect(step.title.length).toBeGreaterThan(4);
-      expect(step.body.length).toBeGreaterThan(20);
-      expect(PLACEMENTS.has(step.placement), step.id).toBe(true);
-    }
+  });
+});
+
+describe("workspace tours", () => {
+  it("covers every nav group a lead or admin actually sees", () => {
+    assertTour(LEAD_TOUR, leadNav);
+    assertTour(ADMIN_TOUR, adminNav);
+    expect(SHELL_TOURS).toEqual({ student: STUDENT_TOUR, lead: LEAD_TOUR, admin: ADMIN_TOUR });
+    expect(tourForArea("lead")).toBe(LEAD_TOUR);
+    expect(tourForArea("admin")).toBe(ADMIN_TOUR);
+    expect(tourForArea("public")).toBeNull();
+  });
+
+  it("keeps the lead tour shorter than the menu it explains", () => {
+    expect(LEAD_TOUR.steps.length).toBeLessThan(leadNav.length);
+    expect(ADMIN_TOUR.steps.length).toBe(adminNav.length);
   });
 });
 

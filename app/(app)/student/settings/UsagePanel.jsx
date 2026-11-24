@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { setAnalyticsOptOut } from "@/lib/track-client";
 
 /**
@@ -79,7 +78,16 @@ export function UsagePanel({ profile }) {
       {message ? <p role="status" className="meta mt-2" style={{ color: "var(--accent)" }}>{message}</p> : null}
       {error ? <p role="alert" className="meta mt-2" style={{ color: "var(--danger)" }}>{error}</p> : null}
       <p className="meta mt-3">
-        New here? <Link prefetch={false} href="/student?tour=1" className="font-semibold hover:underline" style={{ color: "var(--accent)" }}>Replay the product tour</Link>
+        New here?{" "}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("loom:start-tour", { detail: { area: "student" } }))}
+          className="font-semibold hover:underline"
+          style={{ color: "var(--accent)" }}
+        >
+          Replay the workspace walkthrough
+        </button>
+        . Each page also explains itself once on first visit.
       </p>
     </div>
   );

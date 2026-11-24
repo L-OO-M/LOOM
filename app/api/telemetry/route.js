@@ -28,6 +28,19 @@ export const dynamic = "force-dynamic";
 
 const MAX_BODY_EVENTS = 10;
 
+/**
+ * Read back the caller's own tour state.
+ *
+ * The workspace shell is a client component and cannot read `profiles` itself,
+ * so the onboarding banner asks for this once per tab. Only the caller's own
+ * json is returned; there is no tenant or member view here.
+ */
+export async function GET() {
+  const ctx = await getRequestContext();
+  if (!ctx?.user) return ok({ tourState: {} });
+  return ok({ tourState: ctx.profile?.tour_state || {} });
+}
+
 export async function POST(request) {
   const userAgent = request.headers.get("user-agent") || "";
   if (!isTrustedRequest(request) || isBotUserAgent(userAgent)) {

@@ -13,7 +13,6 @@ import { toIsoDay } from "@/lib/github-activity";
 import { relDay, relShort } from "@/lib/dates";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { StudentTour } from "@/components/tour/StudentTour";
 import { StudentDashboard } from "@/app/(app)/student/_components/StudentDashboard";
 
 export default async function StudentPage() {
@@ -426,7 +425,6 @@ export default async function StudentPage() {
 
   return (
     <AppShell area="student" tenant={tenant} user={user}>
-      <StudentTour userId={user?.id} tourState={profile?.tour_state} />
       {promoted && (
         <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: "color-mix(in srgb, var(--accent) 18%, var(--line))", background: "color-mix(in srgb, var(--accent) 7%, var(--bg-elevated))" }}>
