@@ -371,3 +371,103 @@ export async function PATCH(request, { params }) {
 
   return ok({ event: updated });
 }
+
+// Delete an event. This is admin-only on purpose: it is the one event action
+// that removes rows rather than moving a status. Two safeguards stay in place:
+//
+// - An event with approval history is refused. `event_status_history` is the
+//   governance record and migration 097 deliberately made it RESTRICT, so the
+//   honest answer is "archive it instead", not a cascade that erases the trail.
+// - An event with live registrations needs `{ force: true }` in the body. The
+//   first call returns 409 HAS_REGISTRATIONS with the count, the UI asks again,
+//   and the confirmed delete notifies every registered student before removing
+//   the row. Registrations, materials, volunteer slots and social rows cascade.
+export async function DELETE(request, { params }) {
+  const ctx = await getRequestContext({ adminOnly: true });
+  if (ctx.error === "UNAUTHORIZED") return fail("UNAUTHORIZED", "Authentication required", 401);
+  if (ctx.error === "FORBIDDEN") return fail("FORBIDDEN", "Admin access required", 403);
+  if (ctx.error) return fail(ctx.error, "Profile not found", 404);
+  const { user, tenant, sql } = ctx;
+  const { id } = await params;
+
+  let body = {};
+  try {
+    body = (await request.json()) || {};
+  } catch {
+    body = {};
+  }
+  const force = body?.force === true;
+
+  const [event] = await sql`
+    SELECT id, title, status FROM events
+    WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid
+    LIMIT 1
+  `;
+  if (!event) return fail("NOT_FOUND", "Event not found", 404);
+
+  const [history] = await sql`
+    SELECT 1 AS present FROM event_status_history
+    WHERE event_id = ${id} LIMIT 1
+  `;
+  if (history) {
+    return fail(
+      "HAS_HISTORY",
+      "This event has approval history, so it cannot be deleted. Archive it instead.",
+      409
+    );
+  }
+
+  const [counts] = await sql`
+    SELECT COUNT(*)::int AS registrations
+    FROM event_registrations
+    WHERE event_id = ${id} AND status <> 'cancelled'
+  `;
+  const registrations = Number(counts?.registrations || 0);
+  if (registrations > 0 && !force) {
+    return fail(
+      "HAS_REGISTRATIONS",
+      `${registrations} ${registrations === 1 ? "student is" : "students are"} registered. Confirm to delete and notify them.`,
+      409,
+      { registrations }
+    );
+  }
+
+  const recipients = registrations > 0
+    ? await sql`
+        SELECT student_id FROM event_registrations
+        WHERE event_id = ${id} AND status <> 'cancelled'
+        LIMIT 1000
+      `
+    : [];
+
+  const [deleted] = await sql`
+    DELETE FROM events
+    WHERE id = ${id} AND tenant_id = ${tenant?.id ?? null}::uuid
+    RETURNING id
+  `;
+  if (!deleted) return fail("NOT_FOUND", "Event not found", 404);
+
+  await writeAudit({
+    sql,
+    actorId: user.id,
+    tenantId: tenant?.id,
+    action: "deleted_event",
+    resource: "event",
+    resourceId: id,
+    before: { title: event.title, status: event.status, registrations }
+  });
+
+  for (const r of recipients) {
+    await notify({
+      sql,
+      tenantId: tenant?.id,
+      userId: r.student_id,
+      type: "event_update",
+      title: `Event removed: ${event.title}`,
+      body: "This gathering was removed from the calendar. Any seat you held is no longer active.",
+      link: "/student/events"
+    });
+  }
+
+  return ok({ deleted: true, registrations, notified: recipients.length });
+}

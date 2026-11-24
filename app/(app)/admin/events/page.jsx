@@ -5,6 +5,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { EventForm } from "@/components/admin/EventForm";
+import { EventDangerZone } from "./EventDangerZone";
 import { DOMAIN_LABEL, DOMAIN_ORDER } from "@/lib/domains";
 import "../_components/admin-ledger.css";
 
@@ -81,7 +82,26 @@ export default async function AdminEventsPage({ searchParams }) {
     LIMIT 100
   `;
 
-  const seatsTotal = events.reduce((n, e) => n + (e.seats_taken || 0), 0);
+  // What each event page actually pulled, from the same first-party page_views
+  // the usage rollup reads. Public `/events/:id` and signed-in
+  // `/student/events/:id` are counted together; subpaths are excluded so a
+  // share preview is not counted as a visit. Last 30 days, one grouped query.
+  const viewRows = await sql`
+    SELECT substring(path from '/(?:student/)?events/([0-9a-f-]{36})') AS event_id,
+           COUNT(*)::int AS views
+    FROM page_views
+    WHERE tenant_id = ${tenant?.id ?? null}::uuid
+      AND created_at >= NOW() - INTERVAL '30 days'
+      AND path ~ '^/(student/)?events/[0-9a-f-]{36}$'
+    GROUP BY 1
+  `;
+  const viewsByEvent = new Map(viewRows.map((row) => [row.event_id, Number(row.views || 0)]));
+  const viewsTotal = viewRows.reduce((n, row) => n + Number(row.views || 0), 0);
+  const topEvents = [...events]
+    .map((e) => ({ id: e.id, title: e.title, views: viewsByEvent.get(e.id) || 0 }))
+    .filter((e) => e.views > 0)
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 5);
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -98,7 +118,7 @@ export default async function AdminEventsPage({ searchParams }) {
             { value: stats?.total ?? 0, label: "events all time" },
             { value: stats?.upcoming ?? 0, label: "upcoming" },
             { value: stats?.completed ?? 0, label: "completed" },
-            { value: seatsTotal, label: "seats taken in view" }
+            { value: viewsTotal, label: "page views / 30d" }
           ]}
         />
 
@@ -153,6 +173,7 @@ export default async function AdminEventsPage({ searchParams }) {
                           {e.speaker_name && <span>{e.speaker_name}</span>}
                           <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Users size={11} aria-hidden="true" /> {e.seats_taken}{e.capacity ? ` / ${e.capacity}` : ""}{e.attended ? ` / ${e.attended} attended` : ""}</span>
                           {Number(e.avg_feedback) > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><Star size={11} aria-hidden="true" /> {Number(e.avg_feedback).toFixed(1)}</span>}
+                          <span>{viewsByEvent.get(e.id) || 0} page views / 30d</span>
                         </p>
                         {e.capacity ? (
                           <span style={{ display: "flex", alignItems: "center", gap: "0.45rem", marginTop: "0.35rem" }}>
@@ -189,6 +210,37 @@ export default async function AdminEventsPage({ searchParams }) {
                 <li>Use proposed → upcoming → live → Completed (stored as past).</li>
               </ul>
             </div>
+
+            <WorkspaceSection
+              title="Event reach"
+              note="Page views per event page, last 30 days. Public and signed-in views are counted together."
+              className="mt-0"
+            >
+              <div className="aled-panel">
+                {topEvents.length === 0 ? (
+                  <p className="aled-meta">
+                    No event page views in the last 30 days yet. The first-party tracker records them once an event page is opened.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    {topEvents.map((e) => (
+                      <li key={e.id} className="aled-row" style={{ "--aled-cols": "minmax(0, 1fr) auto" }}>
+                        <Link href={`/admin/events/${e.id}`} prefetch={false} className="aled-title">{e.title}</Link>
+                        <span className="aled-value">{e.views}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="aled-meta" style={{ marginTop: "0.5rem" }}>
+                  <Link href="/admin/analytics" prefetch={false} style={{ color: "var(--accent)" }}>
+                    Open Analytics - Journey
+                  </Link>{" "}
+                  for every route, the signed-in share, and the tour funnel.
+                </p>
+              </div>
+            </WorkspaceSection>
+
+            <EventDangerZone total={stats?.total ?? 0} />
           </div>
         </div>
       </main>

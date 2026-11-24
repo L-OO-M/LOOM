@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Users, Clock3, MapPin, ArrowLeft } from "lucide-react";
 import { getRequestContext } from "@/lib/auth-server";
-import { can } from "@/lib/permissions";
+import { can, isAdmin } from "@/lib/permissions";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { EventCheckIn } from "@/components/events/EventCheckIn";
@@ -125,7 +125,13 @@ export async function EventOpsPage({ id, area = "admin" }) {
           <span className="meta inline-flex items-center gap-1"><Users size={12} aria-hidden="true" /> {seats} registered</span>
         </div>
 
-        <EventAdminActions event={event} departments={departments} domains={domains} />
+        <EventAdminActions
+          event={event}
+          departments={departments}
+          domains={domains}
+          area={area}
+          canPublish={isAdmin(profile)}
+        />
 
         <WorkspaceSection
           index="01"

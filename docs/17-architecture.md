@@ -114,7 +114,7 @@ Relational tables grouped by product area. One line each: what each domain store
 
 | Table | Stores → read / written by |
 |-------|----------------------------|
-| `events` | Workshops/hackathons/talks with canonical FSM state, registration window, completion/cancellation metadata, and `lock_version` [094] → `/api/events`, scoped event workspace/approval, public/student pages; legacy proposed/upcoming/past values are read-only aliases |
+| `events` | Workshops/hackathons/talks with canonical FSM state, registration window, completion/cancellation metadata, and `lock_version` [094] → `/api/events`, scoped event workspace/approval, public/student pages; admins and vertical leads can publish a draft or unpublish a live page (`draft ⇄ published`), which is what the console's "Publish now" / "Hide from students" actions call. Deleting is admin-only and refuses rows with approval history (archive instead) or with live registrations unless confirmed; legacy proposed/upcoming/past values are read-only aliases |
 | `event_status_history` | Append-only accepted transitions (previous/new state, actor, reason) → written transactionally with status changes |
 | `event_registrations` | Signups, door-code check-in, feedback (unique event+student) → `/api/events/[id]`, attendance action |
 | `event_materials` | Attached link materials → `POST /api/events/[id]/materials`, event detail |

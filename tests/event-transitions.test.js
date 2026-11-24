@@ -19,7 +19,8 @@ describe("event transitions FSM", () => {
     expect(EVENT_STATUSES).toContain("submitted");
     expect(EVENT_STATUSES).toContain("published");
     expect(EVENT_STATUSES).toContain("completed");
-    expect(EVENT_TRANSITIONS.draft).toEqual(["submitted", "cancelled"]);
+    expect(EVENT_TRANSITIONS.draft).toEqual(["submitted", "published", "cancelled"]);
+    expect(EVENT_TRANSITIONS.published).toContain("draft");
   });
 
   it("permits valid linear progression by authorized roles", () => {
@@ -98,6 +99,50 @@ describe("event transitions FSM", () => {
     });
     expect(r2.ok).toBe(false);
     expect(r2.reason).toBe("INVALID_TRANSITION");
+  });
+
+  it("lets an admin publish a draft and hide a published event", () => {
+    const publish = decideEventTransition({
+      event: baseEvent,
+      targetStatus: "published",
+      actorId: "user-admin",
+      actorRole: "admin",
+      isAdmin: true
+    });
+    expect(publish.ok).toBe(true);
+    expect(publish.patch.status).toBe("published");
+
+    const hide = decideEventTransition({
+      event: { ...baseEvent, status: "published" },
+      targetStatus: "draft",
+      actorId: "user-admin",
+      actorRole: "admin",
+      isAdmin: true
+    });
+    expect(hide.ok).toBe(true);
+    expect(hide.patch.status).toBe("draft");
+  });
+
+  it("does not let a dept lead publish or hide on their own", () => {
+    const publish = decideEventTransition({
+      event: baseEvent,
+      targetStatus: "published",
+      actorId: "user-organizer",
+      actorRole: "dept_lead",
+      isOwningDeptLead: true
+    });
+    expect(publish.ok).toBe(false);
+    expect(publish.reason).toBe("FORBIDDEN");
+
+    const hide = decideEventTransition({
+      event: { ...baseEvent, status: "published" },
+      targetStatus: "draft",
+      actorId: "user-organizer",
+      actorRole: "dept_lead",
+      isOwningDeptLead: true
+    });
+    expect(hide.ok).toBe(false);
+    expect(hide.reason).toBe("FORBIDDEN");
   });
 
   it("blocks unauthorized transitions", () => {

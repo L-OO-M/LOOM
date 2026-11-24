@@ -47,7 +47,7 @@ function toLocalInput(value) {
 // Editing is available for proposals too: a queue item usually needs a date or
 // a venue fixed BEFORE it is approved, and the previous build hid the editor
 // until approval, forcing approve → edit → re-open the page.
-export function EventAdminActions({ event, departments = [], domains = [] }) {
+export function EventAdminActions({ event, departments = [], domains = [], area = "admin", canPublish = false }) {
   const router = useRouter();
   const storedStatus = STATUS_ALIASES[event.status] || event.status || "draft";
   const [status, setStatus] = useState(storedStatus);
@@ -110,6 +110,39 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
     await call(`/api/admin/events/${event.id}`, "PATCH", { status: next, lockVersion: event.lock_version });
   }
 
+  // Deleting is the one action that removes rows. The API refuses twice before
+  // it does: approval history is a hard stop, and live registrations need a
+  // second confirmation that names how many students will be notified.
+  async function removeEvent(force = false) {
+    if (!force && !window.confirm(`Delete "${event.title}"? This cannot be undone.`)) return;
+    setBusy("delete");
+    setMessage("");
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/events/${event.id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ force })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        if (data.error?.code === "HAS_REGISTRATIONS" && !force) {
+          const again = window.confirm(`${data.error.message} Delete anyway?`);
+          if (again) return removeEvent(true);
+          return;
+        }
+        setError(data.error?.message || "Could not delete the event.");
+        return;
+      }
+      router.push(area === "lead" ? "/lead/workshops" : "/admin/events");
+      router.refresh();
+    } catch {
+      setError("Network error - the event was not deleted.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function saveDetails(e) {
     e.preventDefault();
     const ok = await call(`/api/admin/events/${event.id}`, "PATCH", {
@@ -169,6 +202,36 @@ export function EventAdminActions({ event, departments = [], domains = [] }) {
           )}
           <button type="button" onClick={() => setEditing((v) => !v)} className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--line)", color: "var(--text)" }}>
             {editing ? "Close editor" : "Edit details"}
+          </button>
+          {canPublish && status === "published" && (
+            <button
+              type="button"
+              onClick={() => saveStatus("draft")}
+              disabled={!!busy}
+              className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+              style={{ borderColor: "var(--line)", color: "var(--text)" }}
+            >
+              Hide from students
+            </button>
+          )}
+          {canPublish && status === "draft" && (
+            <button
+              type="button"
+              onClick={() => saveStatus("published")}
+              disabled={!!busy}
+              className="btn-ink !py-2 text-xs disabled:opacity-50"
+            >
+              Publish now
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => removeEvent()}
+            disabled={!!busy}
+            className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+          >
+            Delete event
           </button>
         </div>
       </div>
