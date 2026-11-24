@@ -3,10 +3,18 @@ import { ok, fail, validationError } from "@/lib/api";
 import { auth0 } from "@/lib/auth0";
 import { getRequestContext, writeAudit } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { Auth0ManagementError, ensurePasswordIdentity } from "@/lib/auth0-management";
+import { createLogger } from "@/lib/log";
+import {
+  Auth0ManagementError,
+  PASSWORD_MIN_LENGTH,
+  ensurePasswordIdentity,
+  isPasswordPolicyError
+} from "@/lib/auth0-management";
+
+const log = createLogger("auth/password");
 
 const schema = z.object({
-  password: z.string().min(8).max(200)
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(200)
 });
 
 export const dynamic = "force-dynamic";
@@ -23,6 +31,14 @@ export async function POST(request) {
   try {
     body = schema.parse(await request.json());
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return fail(
+        "VALIDATION_ERROR",
+        `Use at least ${PASSWORD_MIN_LENGTH} characters.`,
+        400,
+        error.flatten()
+      );
+    }
     return validationError(error);
   }
 
@@ -36,12 +52,20 @@ export async function POST(request) {
     return fail("AUTH0_SESSION_REQUIRED", "Sign in through Auth0 before adding a password.", 409);
   }
 
+  // The public handle is the friendliest username to store on the identity; the
+  // management helper falls back to the GitHub handle and then the address.
+  const [card] = await ctx.sql`
+    SELECT username FROM user_profiles WHERE user_id = ${ctx.user.id} LIMIT 1
+  `;
+
   try {
     const result = await ensurePasswordIdentity({
       sub: session.user.sub,
       email: session.user.email,
       emailVerified: session.user.email_verified === true,
-      password: body.password
+      password: body.password,
+      username: card?.username || null,
+      userId: ctx.user.id
     });
     await writeAudit({
       sql: ctx.sql,
@@ -64,9 +88,19 @@ export async function POST(request) {
       if (error.code === "AUTH0_MANAGEMENT_NOT_CONFIGURED") {
         return fail("PASSWORD_SETUP_UNAVAILABLE", "Password setup is not configured for this deployment.", 503);
       }
-      if (error.status === 400) {
-        return fail("PASSWORD_REJECTED", "Use a stronger password and try again.", 400);
+      if (isPasswordPolicyError(error)) {
+        return fail(
+          "PASSWORD_REJECTED",
+          `Use at least ${PASSWORD_MIN_LENGTH} characters. A short phrase works — there is no symbol requirement.`,
+          400
+        );
       }
+      // Anything else is our request's fault, not the member's. Log the code and
+      // status (never the password or address) so a 400 can never again present
+      // itself as "use a stronger password" and stay invisible for days.
+      log.warn("provider rejected password setup", { code: error.code, status: error.status });
+    } else {
+      log.error("password setup failed", { err: error });
     }
     return fail("PASSWORD_SETUP_FAILED", "Could not update your password. Try again later.", 502);
   }

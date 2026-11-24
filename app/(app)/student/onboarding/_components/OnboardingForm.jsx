@@ -9,6 +9,11 @@ import { normalizeInstitution } from "@/lib/chapters";
 import { handleFromProfileUrl } from "@/lib/profileFolio";
 import DomainPicker from "../../_components/DomainPicker";
 
+// The tenant's Auth0 connection owns the password rule; /api/auth/security
+// reports it. This is only the fallback when that probe fails, and it must
+// match PASSWORD_MIN_LENGTH in lib/auth0-management.js.
+const DEFAULT_PASSWORD_MIN_LENGTH = 15;
+
 // The onboarding surface.
 //
 // This is deliberately not the settings form with a different title. Onboarding
@@ -135,8 +140,9 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
     }
 
     if (password) {
-      if (password.length < 8) {
-        fail("Use at least 8 characters for your password.", "password");
+      const minLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
+      if (password.length < minLength) {
+        fail(`Use at least ${minLength} characters for your password.`, "password");
         return false;
       }
       if (password !== confirmPassword) {
@@ -215,6 +221,7 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
   };
   const labelStyle = { display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-muted)" };
   const canSetPassword = security?.auth0 && security?.managementConfigured && security?.hasPassword !== true;
+  const passwordMinLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
   const passwordUnavailable = security?.auth0 && !security?.managementConfigured;
   const handlePreview = username.trim().toLowerCase() || "your-handle";
 
@@ -457,7 +464,7 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="Password"
-                      minLength={8}
+                      minLength={passwordMinLength}
                       autoComplete="new-password"
                       disabled={security?.emailVerified === false}
                       aria-label="Password"
@@ -468,12 +475,15 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       placeholder="Confirm password"
-                      minLength={8}
+                      minLength={passwordMinLength}
                       autoComplete="new-password"
                       disabled={security?.emailVerified === false}
                       aria-label="Confirm password"
                       style={inputStyle}
                     />
+                    <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+                      At least {passwordMinLength} characters — a short phrase works, no symbols required.
+                    </p>
                   </div>
                 )}
               </>

@@ -7,6 +7,11 @@ import { normalizeDomainKey } from "@/lib/domains";
 import { handleFromProfileUrl } from "@/lib/profileFolio";
 import DomainPicker from "../_components/DomainPicker";
 
+// The tenant's Auth0 connection owns the password rule; /api/auth/security
+// reports it. This is only the fallback when that probe fails, and it must
+// match PASSWORD_MIN_LENGTH in lib/auth0-management.js.
+const DEFAULT_PASSWORD_MIN_LENGTH = 15;
+
 export default function SettingsClient({ profile, domains = [] }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -80,7 +85,8 @@ export default function SettingsClient({ profile, domains = [] }) {
     }
 
     if (password) {
-      if (password.length < 8) return { ok: false, message: "Use at least 8 characters for your password." };
+      const minLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
+      if (password.length < minLength) return { ok: false, message: `Use at least ${minLength} characters for your password.` };
       if (password !== confirmPassword) return { ok: false, message: "The passwords do not match." };
       const res = await fetch("/api/auth/password", {
         method: "POST",
@@ -145,6 +151,7 @@ export default function SettingsClient({ profile, domains = [] }) {
   const label = { fontSize: 12, color: "var(--text-muted)" };
   const canSetPassword = security?.auth0 && security?.managementConfigured && security?.hasPassword !== true;
   const passwordUnavailable = security?.auth0 && !security?.managementConfigured;
+  const passwordMinLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
   return (
     <form onSubmit={save} className="grid gap-4 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <label style={label}>Full name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required minLength={2} style={{ ...input, marginTop: 6 }} /></label>
@@ -230,7 +237,7 @@ export default function SettingsClient({ profile, domains = [] }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
+                minLength={passwordMinLength}
                 autoComplete="new-password"
                 disabled={security?.emailVerified === false}
                 style={{ ...input, marginTop: 6 }}
@@ -242,13 +249,16 @@ export default function SettingsClient({ profile, domains = [] }) {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={8}
+                minLength={passwordMinLength}
                 autoComplete="new-password"
                 disabled={security?.emailVerified === false}
                 style={{ ...input, marginTop: 6 }}
               />
             </label>
-            <p className="meta">Optional: add a password so you can sign in without your social provider.</p>
+            <p className="meta">
+              Optional: add a password so you can sign in without your social provider.
+              At least {passwordMinLength} characters — a short phrase works, no symbols required.
+            </p>
           </div>
         )}
       </div>

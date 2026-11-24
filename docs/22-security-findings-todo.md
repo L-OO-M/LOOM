@@ -42,7 +42,7 @@ expired.
 - `lib/auth-server.js` holds the in-repo disposable-domain list and
   `isDisposableEmail()`; `POST /api/auth/register` rejects a known throwaway
   domain with `DISPOSABLE_EMAIL` before creating the account.
-- API and client both require an 8-character minimum password.
+- API and client both require a minimum password length, read from the Auth0 connection's own policy (`PASSWORD_MIN_LENGTH` = 15 today). The client no longer advertises a weaker rule than the provider enforces.
 - Covered by the registration/email-guard tests in the unit suite.
 
 **Still open (optional, product decision):** MX-record verification and/or a

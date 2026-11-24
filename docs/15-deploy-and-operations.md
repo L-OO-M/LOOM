@@ -46,9 +46,11 @@ Node 20+, a Supabase project (Postgres + Auth), `DATABASE_URL` pooler string.
 Password setup for social accounts is optional. To enable it:
 
 1. Auth0 Dashboard → Applications → **Create Application** → Machine-to-Machine.
-2. Authorize it for the **Auth0 Management API** with `read:users`, `create:users`, `update:users`, `delete:users`.
+2. Authorize it for the **Auth0 Management API** with `read:users`, `create:users`, `update:users`, `delete:users`. Add `read:connections` so `/api/auth/security` can report the connection's real password rule; without it the app falls back to `PASSWORD_MIN_LENGTH` (15) in `lib/auth0-management.js`.
 3. Add the app's client ID/secret as `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET` locally and in Vercel.
 4. Redeploy, sign in through Auth0, and open `/student/settings`. The password fields appear only when the signed-in user has a verified email and no database identity yet.
+
+> **The connection's own settings are part of the contract.** The app sends a `username` on the create call and enforces the length the connection reports, because Auth0 rejects a create with `invalid_body: Missing required property: username` (before it ever looks at the password) when Authentication → Database → `Username-Password-Authentication` → Attributes/Identifiers has username set to *required*. That rejection used to be reported to members as "use a stronger password", which is unfixable from the member's side. If you change the connection's password policy or its required attributes, `/api/auth/security` picks the change up within five minutes; no redeploy is needed. Keep the app's `PASSWORD_MIN_LENGTH` fallback in step with the connection for deployments without `read:connections`.
 
 The existing Auth0 application client is not authorized for the Management API; a separate M2M grant is required. If the variables are absent, `/api/auth/security` reports `managementConfigured: false` and the UI keeps social sign-in only.
 
