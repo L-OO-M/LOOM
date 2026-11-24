@@ -25,6 +25,15 @@ function makeSql() {
 async function load() {
   const { sql, calls } = makeSql();
   vi.resetModules();
+  // The chapter move needs an owner connection and the institution catalogue.
+  // Neither is under test here (chapter-placement.test.js owns that), so stub
+  // them to "no claimed chapter" and keep this file about field persistence.
+  vi.doMock("@/lib/db", () => ({ getSql: () => sql }));
+  vi.doMock("@/lib/chapters", () => ({
+    matchChapterForInstitution: async () => null,
+    listInstitutions: async () => [],
+    normalizeInstitution: (value) => String(value ?? "").toLowerCase().trim()
+  }));
   vi.doMock("@/lib/auth-server", () => ({
     getRequestContext: async () => ({
       user: { id: USER },
@@ -120,5 +129,44 @@ describe("PATCH /api/profile input tolerance", () => {
     expect(update).toBeTruthy();
     expect(update.text).toContain("analytics_opt_out = COALESCE(");
     expect(update.values).toContain(true);
+  });
+
+  // Onboarding and settings submit the same shape. If one column is missing from
+  // the UPDATE the member sees "Saved." while a field they typed is dropped, and
+  // that is indistinguishable from success. Pin every column and every value.
+  it("persists every onboarding field and marks onboarding complete", async () => {
+    const { PATCH, calls } = await load();
+
+    const response = await PATCH(
+      patchRequest({
+        name: "Ishaan Sharma",
+        enrollmentNumber: "E12345",
+        department: "Computer Science",
+        year: 2,
+        institution: "Some College",
+        location: "Pune",
+        primaryDomain: "web",
+        onboardingCompleted: true
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const update = calls.find((call) => call.text.startsWith("UPDATE profiles SET"));
+    expect(update).toBeTruthy();
+    for (const column of [
+      "name",
+      "enrollment_number",
+      "department",
+      "year",
+      "primary_domain",
+      "institution",
+      "location",
+      "onboarding_completed"
+    ]) {
+      expect(update.text).toContain(`${column} = COALESCE(`);
+    }
+    expect(update.values).toEqual(
+      expect.arrayContaining(["Ishaan Sharma", "E12345", "Computer Science", 2, "Some College", "Pune", "web", true])
+    );
   });
 });

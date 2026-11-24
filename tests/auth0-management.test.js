@@ -3,6 +3,7 @@ import {
   Auth0ManagementError,
   auth0Username,
   auth0ManagementDomain,
+  ensurePasswordIdentity,
   getPasswordPolicy,
   isAuth0ManagementConfigured,
   isPasswordPolicyError,
@@ -172,5 +173,111 @@ describe("getPasswordPolicy", () => {
     })));
 
     await expect(getPasswordPolicy()).resolves.toEqual({ minLength: 15, requiresUsername: true });
+  });
+});
+
+describe("ensurePasswordIdentity", () => {
+  function stubFetch(handler) {
+    const calls = [];
+    vi.stubGlobal("fetch", vi.fn(async (url, options = {}) => {
+      const call = { url: String(url), method: options.method || "GET", body: options.body };
+      calls.push(call);
+      const result = await handler(call.url, options);
+      return {
+        ok: result.status >= 200 && result.status < 300,
+        status: result.status,
+        json: async () => result.body
+      };
+    }));
+    return calls;
+  }
+
+  function configured() {
+    process.env.AUTH0_DOMAIN = "https://tenant.example.auth0.com/";
+    process.env.AUTH0_MANAGEMENT_CLIENT_ID = "client-id";
+    process.env.AUTH0_MANAGEMENT_CLIENT_SECRET = "client-secret";
+    process.env.AUTH0_DB_CONNECTION = "Username-Password-Authentication";
+  }
+
+  // The database identity's own user_id is the bare id ("6b05…"); the API only
+  // accepts the prefixed form ("auth0|6b05…"). Sending the bare id failed with
+  // invalid_uri, so an existing password could never be changed.
+  it("changes the password on the primary user, not the bare identity id", async () => {
+    configured();
+    const calls = stubFetch((url) => {
+      if (url.includes("/oauth/token")) return { status: 200, body: { access_token: "token", expires_in: 300 } };
+      if (url.endsWith("/identities")) return { status: 201, body: {} };
+      if (url.includes("/users/")) {
+        return {
+          status: 200,
+          body: {
+            user_id: "google-oauth2|123",
+            email: "ishaans@example.test",
+            email_verified: true,
+            identities: [
+              { provider: "google-oauth2", connection: "google-oauth2" },
+              {
+                provider: "auth0",
+                connection: "Username-Password-Authentication",
+                user_id: "6b0570d6395a936458d649c5"
+              }
+            ]
+          }
+        };
+      }
+      return { status: 404, body: {} };
+    });
+
+    await expect(ensurePasswordIdentity({
+      sub: "google-oauth2|123",
+      email: "ishaans@example.test",
+      emailVerified: true,
+      password: "a long enough passphrase",
+      userId: "3f9a1c2e-7b4d-4f0a-9e11-2c3d4e5f6a7b"
+    })).resolves.toEqual({ hasPassword: true, created: false });
+
+    const patch = calls.find((call) => call.method === "PATCH");
+    expect(patch).toBeTruthy();
+    expect(decodeURIComponent(patch.url)).toContain("/users/google-oauth2|123");
+    expect(decodeURIComponent(patch.url)).not.toContain("6b0570d6395a936458d649c5");
+  });
+
+  // The create call is the one that used to fail with `Missing required
+  // property: username` before Auth0 ever looked at the password.
+  it("creates the database identity with the derived username and links it", async () => {
+    configured();
+    const calls = stubFetch((url, options) => {
+      if (url.includes("/oauth/token")) return { status: 200, body: { access_token: "token", expires_in: 300 } };
+      if (url.endsWith("/api/v2/users") && options.method === "POST") {
+        return { status: 201, body: { user_id: "auth0|new" } };
+      }
+      if (url.endsWith("/identities")) return { status: 201, body: {} };
+      if (url.includes("/users/")) {
+        return {
+          status: 200,
+          body: {
+            user_id: "google-oauth2|123",
+            email: "ishaans@example.test",
+            email_verified: true,
+            identities: [{ provider: "google-oauth2", connection: "google-oauth2" }]
+          }
+        };
+      }
+      return { status: 404, body: {} };
+    });
+
+    await expect(ensurePasswordIdentity({
+      sub: "google-oauth2|123",
+      email: "ishaans@example.test",
+      emailVerified: true,
+      password: "a long enough passphrase",
+      username: "ishaans04",
+      userId: "3f9a1c2e-7b4d-4f0a-9e11-2c3d4e5f6a7b"
+    })).resolves.toEqual({ hasPassword: true, created: true });
+
+    const create = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/v2/users"));
+    expect(create).toBeTruthy();
+    expect(JSON.parse(create.body).username).toBe("ishaans04");
+    expect(calls.some((call) => call.url.endsWith("/identities"))).toBe(true);
   });
 });

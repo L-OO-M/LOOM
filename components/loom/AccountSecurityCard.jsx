@@ -22,7 +22,7 @@ import { postJSON } from "@/components/loom/useAction";
  *  - Requires a verified email, because setting a password on an unverified
  *    address would let someone claim an identity they have not proven.
  */
-export default function AccountSecurityCard() {
+export default function AccountSecurityCard({ email = null }) {
   const router = useRouter();
   const [state, setState] = useState({ loading: true, data: null, error: "" });
   const [password, setPassword] = useState("");
@@ -53,9 +53,13 @@ export default function AccountSecurityCard() {
   async function submit(event) {
     event.preventDefault();
     setMessage("");
-    if (password.length < 8) {
+    // The tenant's connection owns the rule; /api/auth/security reports it. This
+    // used to hardcode 8 while Auth0 required 15, so a member was told their
+    // password was fine and then rejected by the provider.
+    const minLength = state.data?.passwordMinLength || 15;
+    if (password.length < minLength) {
       setTone("err");
-      setMessage("Use at least 8 characters.");
+      setMessage(`Use at least ${minLength} characters.`);
       return;
     }
     if (password !== confirm) {
@@ -93,7 +97,8 @@ export default function AccountSecurityCard() {
     return null;
   }
 
-  const { hasPassword, emailVerified } = state.data;
+  const { hasPassword, emailVerified, passwordMinLength } = state.data;
+  const minLength = passwordMinLength || 15;
 
   return (
     <section aria-label="Sign-in methods" className="mt-10">
@@ -102,6 +107,11 @@ export default function AccountSecurityCard() {
         Signing in with Google or GitHub never creates a password. Add one if you want the
         option to sign in with your email as well — the account stays the same either way.
       </p>
+      {email ? (
+        <p className="meta mt-1 normal-case tracking-normal">
+          You sign in as <span className="font-mono">{email}</span>.
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span
@@ -150,6 +160,7 @@ export default function AccountSecurityCard() {
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              minLength={minLength}
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               style={{ borderColor: "var(--line)", color: "var(--text)", background: "var(--bg)" }}
             />
@@ -164,10 +175,14 @@ export default function AccountSecurityCard() {
               autoComplete="new-password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
+              minLength={minLength}
               className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               style={{ borderColor: "var(--line)", color: "var(--text)", background: "var(--bg)" }}
             />
           </div>
+          <p className="text-xs leading-5" style={{ color: "var(--text-muted)" }}>
+            At least {minLength} characters — a short phrase works, no symbols required.
+          </p>
           <button type="submit" disabled={busy} className="btn-ghost !py-1.5 text-xs disabled:opacity-50">
             {busy ? "Adding…" : "Add password"}
           </button>

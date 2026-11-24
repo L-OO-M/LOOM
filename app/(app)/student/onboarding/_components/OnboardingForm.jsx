@@ -105,65 +105,39 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
     if (target === "username") handleRef.current?.focus();
   }
 
-  async function saveIdentity() {
+  // The handle is part of the public identity, so a rejection here stops the
+  // save and focuses the field. Everything else is handled separately.
+  async function claimHandle() {
     const handle = username.trim().toLowerCase();
     // The card API refuses an avatar for anyone below lead, so only resend one
     // when this account is allowed to hold it. Sending null is always accepted.
     const photoRole = ["dept_lead", "vertical_lead", "admin", "platform_admin"].includes(
       profile?.effectiveRole || profile?.role
     );
-    if (requireUsername && !handle) {
-      fail("Claim a public handle before finishing onboarding.", "username");
+    if (!handle || handle === card?.username) return true;
+    const res = await fetch("/api/social/profile", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: handle,
+        bio: card?.bio || "",
+        // The card editor owns this field once set; seed it from the city the
+        // member typed here when the card has none, so the public card is not
+        // blank while the profile carries a location.
+        location: card?.location || form.location.trim() || null,
+        avatarUrl: photoRole ? (card?.avatar_url || null) : null,
+        github: handleFromProfileUrl("github", card?.social_links?.github),
+        linkedin: card?.social_links?.linkedin || null,
+        isPublic: card?.is_public ?? true,
+        endorsementsVisible: card?.endorsements_visible
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      fail(data.error?.message || "Could not claim that handle. Try another.", "username");
       return false;
     }
-    if (handle && handle !== card?.username) {
-      const res = await fetch("/api/social/profile", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          username: handle,
-          bio: card?.bio || "",
-          location: card?.location || null,
-          avatarUrl: photoRole ? (card?.avatar_url || null) : null,
-          github: handleFromProfileUrl("github", card?.social_links?.github),
-          linkedin: card?.social_links?.linkedin || null,
-          isPublic: card?.is_public ?? true,
-          endorsementsVisible: card?.endorsements_visible
-        })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        fail(data.error?.message || "Could not claim that handle. Try another.", "username");
-        return false;
-      }
-      setCard(data.data.card);
-    }
-
-    if (password) {
-      const minLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
-      if (password.length < minLength) {
-        fail(`Use at least ${minLength} characters for your password.`, "password");
-        return false;
-      }
-      if (password !== confirmPassword) {
-        fail("The passwords do not match.", "password");
-        return false;
-      }
-      const res = await fetch("/api/auth/password", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        fail(data.error?.message || "Could not set your password.", "password");
-        return false;
-      }
-      setSecurity((current) => ({ ...(current || {}), hasPassword: true }));
-      setPassword("");
-      setConfirmPassword("");
-    }
-
+    setCard(data.data.card);
     return true;
   }
 
@@ -173,41 +147,89 @@ export default function OnboardingForm({ profile, domains, institutions = [], ch
     setError("");
     setField(null);
 
-    if (!form.name.trim() || form.name.trim().length < 2) {
-      fail("Tell us your name so your profile and certificates are right.", "name");
+    try {
+      const handle = username.trim().toLowerCase();
+      if (requireUsername && !handle) {
+        fail("Claim a public handle before finishing onboarding.", "username");
+        return;
+      }
+      if (!form.name.trim() || form.name.trim().length < 2) {
+        fail("Tell us your name so your profile and certificates are right.", "name");
+        return;
+      }
+      // The password is optional: check it locally here, then set it only after
+      // the profile is stored. Before 2026-11-24 a rejected password aborted the
+      // whole save, so onboarding never completed and every answer was lost.
+      const minLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
+      if (password && password.length < minLength) {
+        fail(`Use at least ${minLength} characters for your password.`, "password");
+        return;
+      }
+      if (password && password !== confirmPassword) {
+        fail("The passwords do not match.", "password");
+        return;
+      }
+
+      if (!(await claimHandle())) return;
+
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          enrollmentNumber: form.enrollmentNumber.trim() || null,
+          department: form.department.trim() || null,
+          institution: form.institution.trim() || null,
+          location: form.location.trim() || null,
+          year: form.year ?? null,
+          primaryDomain: form.primaryDomain || null,
+          onboardingCompleted: true
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        fail(data.error?.message || "Could not save your profile.", data.error?.details?.field || null);
+        return;
+      }
+
+      // Onboarding is now complete. A provider-side password rejection must not
+      // undo that or hide behind a redirect, so it is reported in place.
+      let passwordError = null;
+      if (password) {
+        try {
+          const passwordRes = await fetch("/api/auth/password", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ password })
+          });
+          const passwordData = await passwordRes.json();
+          if (!passwordData.ok) {
+            passwordError = passwordData.error?.message || "Could not set your password.";
+          } else {
+            setSecurity((current) => ({ ...(current || {}), hasPassword: true }));
+            setPassword("");
+            setConfirmPassword("");
+          }
+        } catch {
+          passwordError = "Could not reach the sign-in service.";
+        }
+      }
+
+      if (passwordError) {
+        setError(
+          `Your profile and onboarding are saved, but the password was not set — ${passwordError} You can add one later in Settings.`
+        );
+        return;
+      }
+
+      if (finishHref) router.replace(finishHref);
+      else router.refresh();
+    } catch {
+      // A dropped connection must not leave the button disabled forever.
+      fail("Could not save your profile. Check your connection and try again.", null);
+    } finally {
       setBusy(false);
-      return;
     }
-
-    const identityOk = await saveIdentity();
-    if (!identityOk) {
-      setBusy(false);
-      return;
-    }
-
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        enrollmentNumber: form.enrollmentNumber.trim() || null,
-        department: form.department.trim() || null,
-        institution: form.institution.trim() || null,
-        location: form.location.trim() || null,
-        year: form.year ?? null,
-        primaryDomain: form.primaryDomain || null,
-        onboardingCompleted: true
-      })
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!data.ok) {
-      fail(data.error?.message || "Could not save your profile.", data.error?.details?.field || null);
-      return;
-    }
-
-    if (finishHref) router.replace(finishHref);
-    else router.refresh();
   }
 
   const inputStyle = {

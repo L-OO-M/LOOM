@@ -49,11 +49,11 @@ export async function GET() {
   try {
     // The password rule belongs to the tenant's connection, so report it to the
     // client instead of letting the UI advertise a weaker minimum than Auth0
-    // enforces. A null policy keeps the documented fallback.
-    const [security, policy] = await Promise.all([
-      getAuth0Security(session.user.sub),
-      getPasswordPolicy()
-    ]);
+    // enforces. A null policy keeps the documented fallback. Sequential, like
+    // every other provider read in this repo: a cold token cache would otherwise
+    // fetch two management tokens at once.
+    const security = await getAuth0Security(session.user.sub);
+    const policy = await getPasswordPolicy();
     return ok({
       auth0: true,
       managementConfigured: true,

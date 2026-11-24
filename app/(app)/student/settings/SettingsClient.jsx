@@ -7,11 +7,6 @@ import { normalizeDomainKey } from "@/lib/domains";
 import { handleFromProfileUrl } from "@/lib/profileFolio";
 import DomainPicker from "../_components/DomainPicker";
 
-// The tenant's Auth0 connection owns the password rule; /api/auth/security
-// reports it. This is only the fallback when that probe fails, and it must
-// match PASSWORD_MIN_LENGTH in lib/auth0-management.js.
-const DEFAULT_PASSWORD_MIN_LENGTH = 15;
-
 export default function SettingsClient({ profile, domains = [] }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -25,24 +20,13 @@ export default function SettingsClient({ profile, domains = [] }) {
       normalizeDomainKey(profile?.primary_domain) || domains[0]?.key || ""
   });
   const [card, setCard] = useState(null);
-  const [security, setSecurity] = useState(null);
-  const [identityLoaded, setIdentityLoaded] = useState(false);
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
     async function loadIdentity() {
-      try {
-        const securityRes = await fetch("/api/auth/security");
-        const securityData = await securityRes.json();
-        if (active && securityData.ok) setSecurity(securityData.data);
-      } catch {
-        if (active) setSecurity({ auth0: false, managementConfigured: false, hasPassword: true });
-      }
       try {
         const cardRes = await fetch("/api/social/profile");
         const cardData = await cardRes.json();
@@ -52,8 +36,6 @@ export default function SettingsClient({ profile, domains = [] }) {
         }
       } catch {
         if (active) setCard(null);
-      } finally {
-        if (active) setIdentityLoaded(true);
       }
     }
     loadIdentity();
@@ -62,96 +44,89 @@ export default function SettingsClient({ profile, domains = [] }) {
     };
   }, []);
 
-  async function saveIdentity() {
+  // The public handle is optional; a taken one reports itself without touching
+  // the profile below it.
+  async function saveCard() {
     const handle = username.trim().toLowerCase();
-    if (handle && handle !== card?.username) {
-      const res = await fetch("/api/social/profile", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          username: handle,
-          bio: card?.bio || "",
-          location: card?.location || null,
-          avatarUrl: card?.avatar_url || null,
-          github: handleFromProfileUrl("github", card?.social_links?.github),
-          linkedin: card?.social_links?.linkedin || null,
-          isPublic: card?.is_public ?? true,
-          endorsementsVisible: card?.endorsements_visible
-        })
-      });
-      const data = await res.json();
-      if (!data.ok) return { ok: false, message: data.error?.message || "Could not save your public handle." };
-      setCard(data.data.card);
+    if (!handle || handle === card?.username) return { ok: true };
+    const res = await fetch("/api/social/profile", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: handle,
+        bio: card?.bio || "",
+        // The card editor owns this field once set; seed it from the city the
+        // member just typed when the card has none, so onboarding does not leave
+        // the public card blank while the profile has a location.
+        location: card?.location || form.location.trim() || null,
+        avatarUrl: card?.avatar_url || null,
+        github: handleFromProfileUrl("github", card?.social_links?.github),
+        linkedin: card?.social_links?.linkedin || null,
+        isPublic: card?.is_public ?? true,
+        endorsementsVisible: card?.endorsements_visible
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      return { ok: false, message: `Your public handle was not saved — ${data.error?.message || "try another"}.` };
     }
-
-    if (password) {
-      const minLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
-      if (password.length < minLength) return { ok: false, message: `Use at least ${minLength} characters for your password.` };
-      if (password !== confirmPassword) return { ok: false, message: "The passwords do not match." };
-      const res = await fetch("/api/auth/password", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!data.ok) return { ok: false, message: data.error?.message || "Could not set your password." };
-      setSecurity((current) => ({ ...(current || {}), hasPassword: true }));
-      setPassword("");
-      setConfirmPassword("");
-    }
-
+    setCard(data.data.card);
     return { ok: true };
   }
 
+  // The profile is the member's actual work; a rejected handle reports itself
+  // without discarding it. Passwords are handled by AccountSecurityCard, which
+  // is the single password surface on this page — a second form here used to
+  // disagree with it about whether a password existed.
   async function save(e) {
     e.preventDefault();
     setBusy(true);
     setMsg("");
-    const identity = await saveIdentity();
-    if (!identity.ok) {
+
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          enrollmentNumber: form.enrollmentNumber.trim() || null,
+          department: form.department.trim() || null,
+          year: form.year === "" || form.year === null ? null : Number(form.year),
+          institution: form.institution.trim() || null,
+          location: form.location.trim() || null,
+          primaryDomain: form.primaryDomain || null,
+          onboardingCompleted: true
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        // The route now names the offending field; say which one instead of a
+        // bare "Failed".
+        const label = data.error?.details?.field;
+        const hint = {
+          name: "Check your name.",
+          year: "Check your year (1–6).",
+          primaryDomain: "Pick one of the available tracks.",
+          department: "Check your branch.",
+          enrollmentNumber: "Check your enrollment number."
+        }[label];
+        setMsg([data.error?.message, hint].filter(Boolean).join(" "));
+        return;
+      }
+
+      const cardResult = await saveCard();
+      setMsg(cardResult.ok ? "Saved." : `Profile saved. ${cardResult.message}`);
+      router.refresh();
+    } catch {
+      // A dropped connection must not leave the button disabled forever.
+      setMsg("Could not save your profile. Check your connection and try again.");
+    } finally {
       setBusy(false);
-      setMsg(identity.message);
-      return;
     }
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        enrollmentNumber: form.enrollmentNumber.trim() || null,
-        department: form.department.trim() || null,
-        year: form.year === "" || form.year === null ? null : Number(form.year),
-        institution: form.institution.trim() || null,
-        location: form.location.trim() || null,
-        primaryDomain: form.primaryDomain || null,
-        onboardingCompleted: true
-      })
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!data.ok) {
-      // The route now names the offending field; say which one instead of a
-      // bare "Failed".
-      const label = data.error?.details?.field;
-      const hint = {
-        name: "Check your name.",
-        year: "Check your year (1–6).",
-        primaryDomain: "Pick one of the available tracks.",
-        department: "Check your branch.",
-        enrollmentNumber: "Check your enrollment number."
-      }[label];
-      setMsg([data.error?.message, hint].filter(Boolean).join(" "));
-      return;
-    }
-    setMsg("Saved.");
-    router.refresh();
   }
 
   const input = { width: "100%", borderRadius: 10, border: "1px solid var(--line)", background: "var(--bg-muted)", color: "var(--text)", padding: "9px 12px", fontSize: 14 };
   const label = { fontSize: 12, color: "var(--text-muted)" };
-  const canSetPassword = security?.auth0 && security?.managementConfigured && security?.hasPassword !== true;
-  const passwordUnavailable = security?.auth0 && !security?.managementConfigured;
-  const passwordMinLength = security?.passwordMinLength || DEFAULT_PASSWORD_MIN_LENGTH;
   return (
     <form onSubmit={save} className="grid gap-4 rounded-2xl border p-6" style={{ borderColor: "var(--line)", background: "var(--bg-elevated)" }}>
       <label style={label}>Full name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required minLength={2} style={{ ...input, marginTop: 6 }} /></label>
@@ -208,59 +183,6 @@ export default function SettingsClient({ profile, domains = [] }) {
         <p className="meta" style={{ marginTop: 6 }}>
           Your public profile lives at /u/{username.trim().toLowerCase() || "your-handle"}. Letters, numbers, hyphens and underscores.
         </p>
-      </div>
-
-      <div className="border-t pt-4" style={{ borderColor: "var(--line)" }}>
-        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Sign-in and password</p>
-        {!identityLoaded && <p className="meta" style={{ marginTop: 6 }}>Checking your sign-in methods...</p>}
-        {identityLoaded && !security?.auth0 && (
-          <p className="meta" style={{ marginTop: 6 }}>Your password is managed by your current sign-in method.</p>
-        )}
-        {identityLoaded && passwordUnavailable && (
-          <p className="meta" style={{ marginTop: 6 }}>
-            Password setup is not available on this deployment yet. Keep using your current sign-in method.
-          </p>
-        )}
-        {identityLoaded && security?.auth0 && security?.hasPassword && (
-          <p className="meta" style={{ marginTop: 6 }}>
-            Password set. You can sign in with your email and password as well as your connected providers.
-          </p>
-        )}
-        {identityLoaded && canSetPassword && (
-          <div className="mt-3 grid gap-3">
-            {security?.emailVerified === false && (
-              <p className="text-xs" style={{ color: "var(--danger)" }}>Verify your email before adding a password.</p>
-            )}
-            <label style={label}>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={passwordMinLength}
-                autoComplete="new-password"
-                disabled={security?.emailVerified === false}
-                style={{ ...input, marginTop: 6 }}
-              />
-            </label>
-            <label style={label}>
-              Confirm password
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={passwordMinLength}
-                autoComplete="new-password"
-                disabled={security?.emailVerified === false}
-                style={{ ...input, marginTop: 6 }}
-              />
-            </label>
-            <p className="meta">
-              Optional: add a password so you can sign in without your social provider.
-              At least {passwordMinLength} characters — a short phrase works, no symbols required.
-            </p>
-          </div>
-        )}
       </div>
 
       <div style={label}>

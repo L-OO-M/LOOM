@@ -5,6 +5,7 @@ import { getRequestContext } from "@/lib/auth-server";
 import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/WorkspaceMasthead";
 import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
+import { maskEmail } from "@/lib/email-verification";
 import "../_components/admin-ledger.css";
 
 export default async function AdminSettingsPage() {
@@ -66,7 +67,7 @@ export default async function AdminSettingsPage() {
           </ul>
         </WorkspaceSection>
 
-        <AccountSecurityCard />
+        <AccountSecurityCard email={maskEmail(user.email)} />
       </main>
     </AppShell>
   );
