@@ -10,16 +10,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * one rounded box with a 9999px box-shadow -- no SVG mask, no coordinate
  * library -- and the tooltip is nudged to the first side that fits the viewport.
  *
+ * Two modes share it. The workspace walkthrough covers the nav, so it locks the
+ * page (`lockScroll`). The page walkthrough points at content that is often
+ * below the fold, so it must be allowed to scroll: it centres the target, then
+ * follows it while the page settles instead of measuring once and drifting.
+ *
  * Accessibility: it is a modal dialog with a focus trap, Escape skips, arrow
  * keys move, the step counter is announced, and reduced motion only removes the
- * smooth scroll. The page underneath is blocked, so a stray click cannot
- * navigate away mid-tour.
+ * smooth scroll.
  */
 
 const GAP = 14;
 const MARGIN = 12;
 const HOLE_PAD = 6;
 const CARD_WIDTH = 340;
+const MIN_HOLE = 32;
+/** How long to keep following a target while a smooth scroll and layout settle. */
+const TRACK_MS = 1400;
 
 function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -40,6 +47,16 @@ function visibleTarget(target) {
   }
   return null;
 }
+
+/** A small target still needs a usable hole; a huge one is clipped to the viewport. */
+function holeRect(rect) {
+  const width = Math.min(Math.max(rect.width, MIN_HOLE), window.innerWidth - MARGIN * 2);
+  const height = Math.min(Math.max(rect.height, MIN_HOLE), window.innerHeight - MARGIN * 2);
+  const left = clamp(rect.left + (rect.width - width) / 2, MARGIN, window.innerWidth - width - MARGIN);
+  const top = clamp(rect.top + (rect.height - height) / 2, MARGIN, window.innerHeight - height - MARGIN);
+  return { left, top, width, height, right: left + width, bottom: top + height };
+}
+
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), Math.max(min, max));
@@ -75,7 +92,7 @@ function positionFor(rect, cardWidth, cardHeight, placement) {
   };
 }
 
-export function ProductTour({ steps, onStep, onClose }) {
+export function ProductTour({ steps, onStep, onClose, lockScroll = true }) {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const [pos, setPos] = useState(null);
@@ -100,43 +117,69 @@ export function ProductTour({ steps, onStep, onClose }) {
     [steps.length]
   );
 
-  // Lock scrolling and remember where focus came from.
+  // Remember where focus came from, and only lock the page when the tour is
+  // covering the nav. The page walkthrough has to scroll to reach its targets.
   useEffect(() => {
     restoreRef.current = document.activeElement;
+    if (!lockScroll) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
-      if (restoreRef.current?.focus) restoreRef.current.focus();
     };
-  }, []);
+  }, [lockScroll]);
 
-  // Measure the target after scrolling it into view. Retries cover hydration and
-  // a menu that has not painted yet; listeners keep the hole glued on resize.
+  useEffect(
+    () => () => {
+      if (restoreRef.current?.focus) restoreRef.current.focus();
+    },
+    []
+  );
+
+  // Centre the target, then follow it while a smooth scroll and layout settle.
+  // A single measurement is what left the hole behind after the page moved.
   useEffect(() => {
     if (!step) return;
+    setRect(null);
     const reduced = prefersReducedMotion();
     const node = visibleTarget(step.target);
     node?.scrollIntoView({ block: "center", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
 
+    let frame = 0;
+    let last = "";
+    const deadline = performance.now() + (reduced ? 400 : TRACK_MS);
+
     function measure() {
       const current = visibleTarget(step.target);
-      setRect(current ? current.getBoundingClientRect() : null);
+      const raw = current ? current.getBoundingClientRect() : null;
+      const next = raw ? holeRect(raw) : null;
+      const key = next ? `${Math.round(next.left)},${Math.round(next.top)},${Math.round(next.width)},${Math.round(next.height)}` : "none";
+      if (key !== last) {
+        last = key;
+        setRect(next);
+      }
+      if (performance.now() < deadline) frame = requestAnimationFrame(measure);
     }
 
-    const timers = [80, 220, 420].map((delay) => setTimeout(measure, reduced ? 20 : delay));
+    frame = requestAnimationFrame(measure);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
     return () => {
-      timers.forEach(clearTimeout);
+      cancelAnimationFrame(frame);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
   }, [step]);
 
   // Card size is only known after render, so the final position is measured.
+  // While a step is being re-measured the card is hidden rather than left at the
+  // previous target's position.
   useEffect(() => {
     if (!cardRef.current) return;
+    if (!rect) {
+      setPos(null);
+      return;
+    }
     const box = cardRef.current.getBoundingClientRect();
     setPos(positionFor(rect, box.width, box.height, step?.placement));
     cardRef.current.focus({ preventScroll: true });
@@ -188,6 +231,7 @@ export function ProductTour({ steps, onStep, onClose }) {
   return (
     <div
       className="fixed inset-0 z-[130]"
+      data-tour-ui="true"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -203,6 +247,7 @@ export function ProductTour({ steps, onStep, onClose }) {
       {rect ? (
         <div
           aria-hidden="true"
+          data-tour-hole="true"
           className="pointer-events-none absolute rounded-2xl"
           style={{
             left: rect.left - HOLE_PAD,
@@ -220,6 +265,7 @@ export function ProductTour({ steps, onStep, onClose }) {
       <div
         ref={cardRef}
         tabIndex={-1}
+        data-tour-card="true"
         className="absolute rounded-2xl border p-4 shadow-2xl outline-none"
         style={{
           left: pos?.left ?? MARGIN,

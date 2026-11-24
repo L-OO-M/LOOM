@@ -31,8 +31,10 @@ function findByText(text) {
   if (!needle) return null;
   const root = mainRoot();
   let fallback = null;
+  const inTour = (node) => !!node.closest("[data-tour-ui]");
 
   for (const node of root.querySelectorAll("h1, h2, h3, h4, h5, summary, legend, dt, button, a, label, th, strong")) {
+    if (inTour(node)) continue;
     if (NORMALIZE(node.textContent) !== needle) continue;
     if (node.getBoundingClientRect().width > 0) return node;
     fallback = fallback || node;
@@ -41,6 +43,7 @@ function findByText(text) {
 
   // Last resort for a section title rendered as plain text in a small element.
   for (const node of root.querySelectorAll("p, span, div, li")) {
+    if (inTour(node)) continue;
     if (node.children.length > 2) continue;
     if (NORMALIZE(node.textContent) !== needle) continue;
     if (node.getBoundingClientRect().width > 0) return node;
@@ -50,14 +53,17 @@ function findByText(text) {
 
 /**
  * The block to spotlight. A heading usually sits inside the section it titles,
- * so the nearest section-ish ancestor is the right thing to outline; when that
- * ancestor is nearly the whole page, keep the heading itself.
+ * so that section is the right thing to outline - as long as it is not most of
+ * the screen, which would leave the spotlight covering the page instead of
+ * pointing at anything.
  */
 function sectionOf(node) {
   if (!node) return null;
-  const box = node.closest("section, article, li, form, table, header, details, aside") || node.parentElement || node;
+  const box = node.closest("section, article, li, form, table, details, aside");
+  if (!box) return node;
   const rect = box.getBoundingClientRect();
-  if (rect.width === 0 || rect.height > window.innerHeight * 0.9) return node;
+  if (rect.width === 0 || rect.height === 0) return node;
+  if (rect.height > window.innerHeight * 0.75) return node;
   return box;
 }
 
@@ -143,5 +149,5 @@ export function PageTour({ guide, enabled, onSeen, onStep }) {
   const tour = useMemo(() => (steps && steps.length >= 2 ? steps : null), [steps]);
 
   if (!running || !tour) return null;
-  return <ProductTour steps={tour} onStep={step} onClose={close} />;
+  return <ProductTour steps={tour} onStep={step} onClose={close} lockScroll={false} />;
 }
