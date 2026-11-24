@@ -118,6 +118,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 105 | `105_practice_domain_resources.sql` | **practice beyond LeetCode** - `practice_weeks.track` (department slug, default `dsa`) so a set belongs to a department, and `practice_questions.url` + `.source` so the link and provider travel with the item. Existing rows are backfilled to `https://leetcode.com/problems/<slug>/` because that is what they were. Catalogue of tracks/suggestions lives in `lib/practice-catalog.js` |
 | 106 | `106_event_pages.sql` | **long-form event pages** - `events.tagline`, `events.cover_image_url` and `events.page_sections jsonb` (ordered typed blocks: overview, problem, prizes, schedule, rules, faq, resources). Validation and normalization live in `lib/event-page.js`; the generated `EventBanner` remains the cover fallback |
 | 107 | `107_practice_track_domain.sql` | widens `practice_questions.domain` from the closed eight-value list to `^[a-z0-9_]+$`, so a week authored by a chapter's own department does not need a migration. Existing rows are already valid |
+| 108 | `108_usage_telemetry.sql` | **first-party usage analytics** - adds `session_key`, `area`, `role` to the long-unused `page_views` table plus a `(tenant_id, path, created_at)` index; new `ui_events` for the five tour events with fail-closed tenant RLS and a `loom_app` grant; `profiles.tour_state jsonb` and `profiles.analytics_opt_out`. Policy and normalization live in `lib/telemetry.js` |
 
 ### Migration 037 — verified evidence
 

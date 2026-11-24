@@ -6,6 +6,7 @@ import { SiteFrame } from "@/components/landing/SiteFrame";
 import CustomCursor from "@/components/landing/CustomCursor";
 import { RouteProgress } from "@/components/loom/RouteProgress";
 import { ScrollToTop } from "@/components/loom/ScrollToTop";
+import { Tracker } from "@/components/telemetry/Tracker";
 import { appBaseUrl } from "@/lib/app-url";
 
 const geistSans = Geist({
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }) {
         <ThemeProvider>
           <SiteFrame>{children}</SiteFrame>
           <CustomCursor />
+          <Tracker />
         </ThemeProvider>
       </body>
     </html>

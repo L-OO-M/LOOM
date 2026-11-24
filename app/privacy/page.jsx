@@ -159,7 +159,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong style={{ color: "var(--text)" }}>Analytics and improving the Website</strong> &mdash;{" "}
-            <em>consent where non-essential cookies are used; otherwise legitimate interest in aggregated data.</em>
+            <em>legitimate interest in aggregated, first-party usage data, which you can turn off in Settings.</em>
           </li>
           <li>
             <strong style={{ color: "var(--text)" }}>Security, fraud prevention and abuse detection</strong>{" "}

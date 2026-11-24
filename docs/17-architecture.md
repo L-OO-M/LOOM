@@ -222,6 +222,8 @@ Relational tables grouped by product area. One line each: what each domain store
 
 18. **Image storage.** Public page imagery goes through `POST /api/uploads/images`; private documents continue through `lib/storage.js` + signed URLs. The upload route has two interchangeable providers: Supabase Storage (default, stored under `public/…` and served by `/api/media/[...key]` with immutable caching) and Cloudinary (when `CLOUDINARY_*` is configured, signed server-side and delivered from its CDN). `lib/media-url.js#optimizedImageUrl` adds `f_auto,q_auto,c_limit,w_…` only for Cloudinary URLs, so the same stored link gets a free format/size optimisation without a second field.
 
+19. **Usage telemetry and product tour.** `components/telemetry/Tracker.jsx` sends one page view per route to `POST /api/telemetry`; `lib/telemetry.js` is the entire policy boundary (allowlisted events, route-shaped paths, flat metadata, bot/cross-site rejection, daily-rotating anonymous key, tour-state patch). Signed-in analytics can be disabled from Settings and is mirrored in `profiles.analytics_opt_out`. The tour is `components/tour/ProductTour.jsx` (one box-shadow spotlight, measured target, focus trap, Escape/arrow keys, reduced-motion aware) plus `StudentTour`, which decides between an explicit `?tour=1`, the profile's `profiles.tour_state`, and a localStorage mirror. Step vocabulary lives in `lib/tour.js` and targets `data-tour` attributes in the shell, so a restyle cannot silently break it.
+
 ## 7. Contributing guide
 
 **Local setup.** Copy `.env.example` → `.env.local` (fill `DATABASE_URL` pooler string, Supabase keys, `DEV_TENANT_SLUG`), `npm install`, `npm run dev`. Never commit `.env.local`.

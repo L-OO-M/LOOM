@@ -7,6 +7,7 @@ import { WorkspaceMasthead, WorkspaceSection } from "@/components/loom/Workspace
 import SettingsClient from "./SettingsClient";
 import AccountSecurityCard from "@/components/loom/AccountSecurityCard";
 import { AppearancePanel } from "./AppearancePanel";
+import { UsagePanel } from "./UsagePanel";
 import CloseAccountPanel from "./CloseAccountPanel";
 import { maskEmail } from "@/lib/email-verification";
 import { socialLinksForDisplay, LINK_LABELS } from "@/lib/profileFolio";
@@ -144,6 +145,7 @@ export default async function SettingsPage() {
             ))}
           </dl>
           <p className="narrative mt-3">Only public usernames are stored — never tokens. Audit logs record ids, never bodies. Closing your account is self-service, below, and every closure is audited.</p>
+          <UsagePanel profile={profile} />
           </WorkspaceSection>
         </div>
 

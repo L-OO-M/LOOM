@@ -107,6 +107,7 @@ const patchSchema = z.object({
   year: yearField,
   primaryDomain: domainField,
   onboardingCompleted: booleanField,
+  analyticsOptOut: booleanField,
   passportPrivacy: passportPrivacyField
 });
 
@@ -180,6 +181,7 @@ export async function PATCH(request) {
       location = COALESCE(${body.location ?? null}, location),
       passport_privacy = COALESCE(${body.passportPrivacy ? sql.json(body.passportPrivacy) : null}, passport_privacy),
       onboarding_completed = COALESCE(${body.onboardingCompleted ?? null}, onboarding_completed),
+      analytics_opt_out = COALESCE(${body.analyticsOptOut ?? null}, analytics_opt_out),
       updated_at = NOW()
     WHERE user_id = ${user.id}
     RETURNING *

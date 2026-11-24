@@ -106,6 +106,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                       key={item.id}
                       href={item.href}
                       prefetch={false}
+                      data-tour={`nav-${item.id}`}
                       aria-label={`${item.label}${groupHasUnread(item) ? ", new activity" : ""}`}
                       className={`nav-ink hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-medium transition sm:inline-flex ${groupActive ? "is-active" : ""}`}
                       style={{ color: groupActive ? "var(--text)" : "var(--text-muted)" }}
@@ -120,7 +121,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                 const alignRight = item.id === tabs[tabs.length - 1].id;
                 const menuX = alignRight ? "0%" : "-50%";
                 return (
-                  <div key={item.id} className="relative hidden shrink-0 sm:block">
+                  <div key={item.id} className="relative hidden shrink-0 sm:block" data-tour={`nav-${item.id}`}>
                     <button
                       onClick={() => setOpenMenu(open ? null : item.id)}
                       aria-haspopup="menu"
@@ -187,6 +188,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
               <Link
                 href={settings.href}
                 prefetch={false}
+                data-tour="nav-settings"
                 className="rounded-full p-2 transition hover:bg-[var(--bg-muted)] active:scale-93"
                 style={{ color: activeTab === "settings" || pathname === settings.href ? "var(--accent)" : "var(--text-muted)" }}
                 aria-label={settings.label}
@@ -240,6 +242,7 @@ export function AppShell({ area = "student", tenant, user, profile, children }) 
                   key={item.href}
                   href={item.href}
                   prefetch={false}
+                  data-tour={item.group ? `nav-${item.group}` : item.href === "/student" ? "nav-dashboard" : undefined}
                   aria-label={`${item.label}${hasDot ? ", new activity" : ""}`}
                   className={`flex flex-col items-center gap-1 rounded-2xl py-1.5 text-[10px] font-semibold transition active:scale-95 ${area === "student" ? "" : "min-w-[44px] shrink-0 px-1.5"}`}
                   style={{ color: isActive ? "var(--text)" : "var(--text-muted)", background: isActive ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent" }}

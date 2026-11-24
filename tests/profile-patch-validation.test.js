@@ -110,4 +110,15 @@ describe("PATCH /api/profile input tolerance", () => {
     expect(response.status).toBe(400);
     expect(body.error.message).toMatch(/JSON body/i);
   });
+
+  it("saves the analytics opt-out without touching other profile fields", async () => {
+    const { PATCH, calls } = await load();
+
+    const response = await PATCH(patchRequest({ analyticsOptOut: true }));
+    expect(response.status).toBe(200);
+    const update = calls.find((call) => call.text.startsWith("UPDATE profiles SET"));
+    expect(update).toBeTruthy();
+    expect(update.text).toContain("analytics_opt_out = COALESCE(");
+    expect(update.values).toContain(true);
+  });
 });

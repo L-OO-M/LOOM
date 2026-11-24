@@ -118,8 +118,10 @@ export default function CookiesPage() {
         <p className={P} style={{ color: "var(--text-muted)" }}>
           This deployment does not set advertising, marketing, cross-site tracking or third-party analytics
           cookies. There is no Google Analytics, Meta Pixel, ad-network tag or session-replay script on the
-          Website. Because no non-essential cookie is placed, there is no cookie banner to dismiss; if a future
-          release adds analytics or marketing cookies, we will ask for consent first and update this page.
+          Website. Usage numbers are first-party and aggregate: the server records the route you opened, your
+          workspace and a session id, with no query string and no third-party recipient. Signed-in analytics can
+          be turned off in Settings; anonymous visitors are counted with a salted hash that rotates daily. Because
+          no non-essential cookie is placed, there is no cookie banner to dismiss.
         </p>
 
         <h2 id="local-storage" className={H2} style={{ color: "var(--text)" }}>
@@ -128,8 +130,10 @@ export default function CookiesPage() {
         <p className={P} style={{ color: "var(--text-muted)" }}>
           Your display choices are stored in your browser&rsquo;s local storage rather than in a cookie. Two keys
           are used: <code>loom-theme</code> (dark or light) and <code>loom-palette</code> (the accent palette).
-          They contain no personal data, are never sent to other sites, and can be cleared through your browser
-          settings. They are treated as a preference, not as tracking.
+          A session id for aggregate usage counts lives in session storage as <code>loom-analytics-session</code>
+          and disappears when the tab closes; <code>loom-analytics-optout</code> remembers your analytics choice
+          on this device. None of them contain personal data, are never sent to other sites, and can be cleared
+          through your browser settings. They are treated as a preference, not as tracking.
         </p>
 
         <h2 id="third-party" className={H2} style={{ color: "var(--text)" }}>
