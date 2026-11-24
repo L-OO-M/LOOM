@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AREA_GUIDES, PAGE_GUIDE_VERSION, PAGE_GUIDES, guideForPath, guideStorageKey } from "@/lib/page-guides";
+import { PAGE_GUIDE_VERSION, PAGE_GUIDES, guideForPath, guideStorageKey } from "@/lib/page-guides";
 
 /**
- * Coverage and accuracy gate for the page guides.
+ * Coverage and accuracy gate for the page walkthroughs.
  *
- * The promise is "every private page explains itself, and explains its real
- * controls". That only holds if:
- *   - a new page cannot ship without an entry (walks the real page tree),
- *   - the entry has a purpose, an order of work and named controls,
- *   - every control label still exists in the product source, so a renamed
- *     button fails here instead of leaving a lie on the page.
+ * The promise is "every private page walks you through its own sections". That
+ * only holds if:
+ *   - a new page cannot ship without an entry (this walks the real page tree),
+ *   - every entry names the sections a person actually sees,
+ *   - every `at` string still exists in the product source, so renaming a
+ *     heading fails here instead of silently dropping a step from the tour.
  */
 
 function walkPages(dir) {
@@ -35,14 +35,13 @@ function walkSource(dir, out = []) {
 
 const AREAS = ["student", "lead", "admin"];
 
-/** `/lead` is a redirect to `/lead/overview`, so it never renders a page. */
+/** `/lead` redirects to `/lead/overview`, so it never renders a page. */
 const REDIRECT_PAGES = new Set(["/lead"]);
 
 const ROUTES = AREAS.flatMap((area) =>
   walkPages(`app/(app)/${area}`).map((file) => {
     const route = file.replace("app/(app)", "").replace("/page.jsx", "");
     return {
-      file,
       route,
       dynamic: /\[[^\]]+\]/.test(file),
       parent: route.slice(0, route.lastIndexOf("/"))
@@ -65,12 +64,12 @@ const SOURCE = decode(
   [...walkSource("app"), ...walkSource("components")].map((file) => readFileSync(file, "utf8")).join("\n")
 );
 
-describe("page guide coverage", () => {
+describe("page walkthrough coverage", () => {
   it("finds the real page tree", () => {
     expect(ROUTES.length).toBeGreaterThan(60);
   });
 
-  it("gives every private page an entry, not just the area fallback", () => {
+  it("gives every private page an entry", () => {
     for (const { route, dynamic, parent } of ROUTES) {
       if (REDIRECT_PAGES.has(route)) continue;
       const guide = guideForPath(route);
@@ -95,38 +94,30 @@ describe("page guide coverage", () => {
     }
   });
 
-  it("explains the page in an order and names its controls", () => {
-    // Read-only ledgers have one or two actions and nothing else to press.
-    // Every other page must name at least three, so a new page cannot ship a
-    // stub guide.
-    const readOnly = new Set(["/student/sponsors", "/student/notifications", "/lead/directory", "/admin/directory"]);
+  it("names the sections of each page, with copy for each", () => {
     for (const [key, entry] of Object.entries(PAGE_GUIDES)) {
-      expect(entry.flow.length, key).toBeGreaterThanOrEqual(3);
-      expect(entry.flow.length, key).toBeLessThanOrEqual(5);
-      expect(entry.controls.length, key).toBeGreaterThanOrEqual(readOnly.has(key) ? 1 : 3);
-      expect(entry.controls.length, key).toBeLessThanOrEqual(6);
-      for (const step of entry.flow) {
-        expect(step.length, key).toBeGreaterThan(20);
-      }
-      const labels = entry.controls.map(([label]) => label);
-      expect(new Set(labels).size, key).toBe(labels.length);
-      for (const [label, does] of entry.controls) {
-        expect(label.length, key).toBeLessThanOrEqual(60);
-        expect(does.length, key).toBeGreaterThan(15);
-        expect(does.length, key).toBeLessThanOrEqual(160);
+      expect(entry.sections.length, key).toBeGreaterThanOrEqual(2);
+      expect(entry.sections.length, key).toBeLessThanOrEqual(6);
+      const seen = new Set();
+      for (const section of entry.sections) {
+        expect(section.at.length, key).toBeGreaterThanOrEqual(3);
+        expect(section.at.length, key).toBeLessThanOrEqual(60);
+        expect(section.say.length, `${key} / ${section.at}`).toBeGreaterThan(40);
+        expect(section.say.length, `${key} / ${section.at}`).toBeLessThanOrEqual(200);
+        expect(seen.has(section.at), `${key} repeats ${section.at}`).toBe(false);
+        seen.add(section.at);
       }
     }
   });
 
-  it("documents controls that actually exist in the product source", () => {
+  it("only spotlights text that exists in the product", () => {
     const missing = [];
     for (const [key, entry] of Object.entries(PAGE_GUIDES)) {
-      for (const [label] of entry.controls) {
-        const needle = decode(label).replace(/->$/, "").trim();
-        if (!SOURCE.includes(needle)) missing.push(`${key} -> ${label}`);
+      for (const section of entry.sections) {
+        if (!SOURCE.includes(decode(section.at))) missing.push(`${key} -> ${section.at}`);
       }
     }
-    expect(missing, `labels not found in app/ or components/:\n${missing.join("\n")}`).toEqual([]);
+    expect(missing, `sections not found in app/ or components/:\n${missing.join("\n")}`).toEqual([]);
   });
 
   it("resolves the longest wildcard for detail pages", () => {
@@ -135,15 +126,15 @@ describe("page guide coverage", () => {
     expect(guideForPath("/student/projects/sample").id).not.toBe(guideForPath("/student/projects").id);
   });
 
-  it("uses the member-profile copy for a handle, not the area default", () => {
+  it("uses the member-profile walkthrough for a handle", () => {
     expect(guideForPath("/student/some-handle").key).toBe("/student/:member");
   });
 
-  it("falls back per workspace and stays quiet on public routes", () => {
-    expect(guideForPath("/admin/not-a-page").key).toBe("/admin");
-    expect(guideForPath("/lead/not-a-page").title).toBe(AREA_GUIDES.lead.title);
+  it("returns nothing outside the private workspaces", () => {
     expect(guideForPath("/")).toBeNull();
     expect(guideForPath("/about")).toBeNull();
+    expect(guideForPath("/student/tracks/not-a-real-page")).toBeNull();
+    expect(guideForPath("/lead/unknown/unknown")).toBeNull();
   });
 
   it("honours the stored version, including a bump", () => {

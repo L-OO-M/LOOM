@@ -87,7 +87,7 @@ export function UsagePanel({ profile }) {
         >
           Replay the workspace walkthrough
         </button>
-        . Every page also carries a How this page works panel that lists its own controls.
+        . Each page also walks you through its own sections on your first visit to it.
       </p>
     </div>
   );

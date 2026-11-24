@@ -26,9 +26,15 @@ function prefersReducedMotion() {
 }
 
 /** The first matching element that actually occupies space (desktop vs mobile). */
-function visibleTarget(selector) {
+function visibleTarget(target) {
   if (typeof document === "undefined") return null;
-  for (const node of document.querySelectorAll(selector)) {
+  if (typeof target === "function") {
+    const node = target();
+    if (!node) return null;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 ? node : null;
+  }
+  for (const node of document.querySelectorAll(target)) {
     const rect = node.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) return node;
   }
