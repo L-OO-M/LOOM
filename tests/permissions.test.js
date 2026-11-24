@@ -32,13 +32,21 @@ describe("permissions matrix (Website Plan Section 3)", () => {
     // manage_sponsorship_finance, register_event, submit_project, edit_own_profile,
     // draft_announcement, publish_announcement, help:request,
     // manage_sponsorship_leads, manage_outreach_leads, manage_promotional_campaigns,
-    // manage_social_content, check_in_attendees, and the five department-work
+    // manage_social_content, check_in_attendees, the five department-work
     // rows (manage_department_tasks, update_assigned_department_task,
-    // verify_department_work, manage_department_roster, view_department_tasks).
+    // verify_department_work, manage_department_roster, view_department_tasks),
+    // and view_usage (aggregate usage dashboard, migration 109).
     // The count is asserted rather than left open because ACTIONS is the
     // authority for every gate in the app -- a row added without a test is a
     // row nobody has checked.
-    expect(ACTIONS).toHaveLength(49);
+    expect(ACTIONS).toHaveLength(50);
+  });
+
+  it("opens the aggregate usage dashboard to leads only", () => {
+    const head = { id: "u-head", role: "dept_lead", vertical: null, memberships: [{ department_id: D1, level: "dept_lead" }] };
+    expect(can(head, "view_usage").ok).toBe(true);
+    expect(can(core(), "view_usage")).toMatchObject({ ok: true, note: "view_only" });
+    expect(can(student(), "view_usage").ok).toBe(false);
   });
 
   it("confirms evidence only to admin and platform_admin", () => {

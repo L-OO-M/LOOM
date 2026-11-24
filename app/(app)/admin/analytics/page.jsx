@@ -4,7 +4,10 @@ import { AppShell } from "@/components/AppShell";
 import { WorkspaceMasthead, WorkspaceSection, WorkspaceEmpty } from "@/components/loom/WorkspaceMasthead";
 import { DomainBars, ActivityLine, BottleneckBars } from "@/components/admin/AnalyticsCharts";
 import { InsightCards } from "@/components/loom/InsightCards";
-import { adminInsights } from "@/lib/insights";
+import { adminInsights, topInsights } from "@/lib/insights";
+import { usageInsights } from "@/lib/usage";
+import { loadUsageReport } from "@/lib/usage-report";
+import { UsageReport } from "@/components/usage/UsageReport";
 import { loadQueue } from "@/lib/queue";
 import "../_components/admin-ledger.css";
 
@@ -45,6 +48,7 @@ export default async function AdminAnalyticsPage() {
     WHERE k.tenant_id = ${tenant?.id ?? null}::uuid
     ORDER BY k.created_at DESC NULLS LAST LIMIT 8
   `;
+  const usage = await loadUsageReport(sql, { tenantId: tenant?.id });
   const dist = health?.domain_distribution || {};
   const domainData = Object.entries(dist).map(([name, value]) => ({ name, value: Number(value) })).sort((a, b) => b.value - a.value);
   const activityData = [...history].reverse().map((h) => ({
@@ -65,7 +69,13 @@ export default async function AdminAnalyticsPage() {
   // rollup this page already loaded — so the cards can never tell a different
   // story from the charts below them.
   const queue = await loadQueue(sql, { tenantId: tenant?.id, profile: ctx.profile });
-  const insights = adminInsights({ queue, analytics: { health, history, bottlenecks, mentors, contests } });
+  const insights = topInsights(
+    [
+      ...adminInsights({ queue, analytics: { health, history, bottlenecks, mentors, contests } }),
+      ...usageInsights({ routes: usage.routes, tours: usage.tours, unreachable: usage.unreachable })
+    ],
+    8
+  );
 
   return (
     <AppShell area="admin" tenant={tenant} user={user}>
@@ -167,6 +177,8 @@ export default async function AdminAnalyticsPage() {
             </div>
           </div>
         </WorkspaceSection>
+
+        <UsageReport report={usage} index="05" />
       </main>
     </AppShell>
   );

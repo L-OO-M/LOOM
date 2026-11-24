@@ -74,3 +74,37 @@ export function BottleneckBars({ data }) {
     </ChartShell>
   );
 }
+
+export function UsageRouteBars({ data }) {
+  if (!data.length) return <ChartShell title="Busiest screens" subtitle="Page views in the window" height={240}><div className="grid h-full place-items-center text-sm" style={{ color: "var(--text-muted)" }}>No page views yet</div></ChartShell>;
+  return (
+    <ChartShell title="Busiest screens" subtitle="Bar length = page views in the window" height={240}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 104 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" opacity={0.35} />
+        <XAxis type="number" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} allowDecimals={false} />
+        <YAxis type="category" dataKey="name" tick={{ fill: "var(--text)", fontSize: 10 }} width={118} axisLine={false} tickLine={false} />
+        <Tooltip content={<TooltipCard />} cursor={{ fill: "color-mix(in srgb, var(--accent) 6%, transparent)" }} />
+        <Bar dataKey="views" name="Views" radius={[0, 8, 8, 0]} fill="var(--accent)" isAnimationActive={false} />
+      </BarChart>
+    </ChartShell>
+  );
+}
+
+export function TourStepBars({ data }) {
+  if (!data.length) return <ChartShell title="Tour steps" subtitle="Share of starts that reached each step" height={240}><div className="grid h-full place-items-center text-sm" style={{ color: "var(--text-muted)" }}>No tour runs yet</div></ChartShell>;
+  return (
+    <ChartShell title="Tour steps" subtitle="Share of starts that reached each step" height={240}>
+      <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" opacity={0.35} vertical={false} />
+        <XAxis dataKey="name" tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={false} tickLine={false} width={30} tickFormatter={(v) => `${v}%`} />
+        <Tooltip content={<TooltipCard />} cursor={{ fill: "color-mix(in srgb, var(--accent) 6%, transparent)" }} />
+        <Bar dataKey="share" name="Reached %" radius={[8, 8, 0, 0]} isAnimationActive={false}>
+          {data.map((e) => (
+            <Cell key={e.name} fill={e.share >= 60 ? "var(--accent)" : "var(--warn, #d68a1a)"} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ChartShell>
+  );
+}

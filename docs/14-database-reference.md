@@ -119,6 +119,7 @@ Single shared Postgres (Supabase + pooler). Tracked migrations in `load/migratio
 | 106 | `106_event_pages.sql` | **long-form event pages** - `events.tagline`, `events.cover_image_url` and `events.page_sections jsonb` (ordered typed blocks: overview, problem, prizes, schedule, rules, faq, resources). Validation and normalization live in `lib/event-page.js`; the generated `EventBanner` remains the cover fallback |
 | 107 | `107_practice_track_domain.sql` | widens `practice_questions.domain` from the closed eight-value list to `^[a-z0-9_]+$`, so a week authored by a chapter's own department does not need a migration. Existing rows are already valid |
 | 108 | `108_usage_telemetry.sql` | **first-party usage analytics** - adds `session_key`, `area`, `role` to the long-unused `page_views` table plus a `(tenant_id, path, created_at)` index; new `ui_events` for the five tour events with fail-closed tenant RLS and a `loom_app` grant; `profiles.tour_state jsonb` and `profiles.analytics_opt_out`. Policy and normalization live in `lib/telemetry.js` |
+| 109 | `109_usage_rollups.sql` | **usage reporting** - `usage_daily` (one row per chapter/day/workspace/route: views, per-route visitors, signed-in views, sessions) and `tour_daily` (one row per chapter/day/tour/version: started/completed/skipped plus a `steps` jsonb of reached counts), both fail-closed tenant RLS with `loom_app` grants. Written by `lib/usage-rollup.js`; reporting math in `lib/usage.js` |
 
 ### Migration 037 — verified evidence
 

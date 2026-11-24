@@ -192,6 +192,7 @@ signing secrets, the GitHub OAuth trio, Auth0 credentials, and
 | `node load/seed-community.js` | curated OSS repos (live GitHub data) + demo chapter card |
 | `npm run rollup:federation` | **nightly**: chapter stats + federation row |
 | `npm run rollup:analytics` | **nightly**: snapshots, cohorts, funnels, mentor stats |
+| `npm run rollup:usage` | **nightly**: raw page views and tour events into `usage_daily` / `tour_daily` (the usage dashboards read only these). Add `--days 30` to backfill, `--preview` to inspect |
 | `npm run prune:retention` | **daily**: report rows past their retention window. Dry run — add `-- --apply` to delete |
 | `node load/remind-deadlines.js` | **hourly**: in-app nudges for MoUs ending within 30 days and ops tasks due within 48h. Dry run — add `--apply` to send |
 | `node load/expire-terms.js` | **weekly**: expire ended leadership terms, notify holder + admins, add handover items. Dry run — add `--apply` to write |
@@ -227,12 +228,13 @@ The same jobs are callable over the authenticated scheduler endpoint:
 ```
 GET  /api/jobs/run                 # all jobs
 GET  /api/jobs/run?job=analytics-rollup
+GET  /api/jobs/run?job=usage-rollup
 Authorization: Bearer <CRON_SECRET>
 ```
 
 Job names live in `lib/scheduler.js`: `deadline-reminders`,
-`analytics-rollup`, `federation-rollup`, `retention-prune`, `term-expiry`,
-`outbox-drain`.
+`analytics-rollup`, `usage-rollup`, `federation-rollup`, `retention-prune`,
+`term-expiry`, `practice-sync`, `outbox-drain`.
 
 `deadline-reminders` sends four kinds of notice, each stamped so a retry cannot
 repeat it: MoU expiry (one stamp), event-ops tasks (one stamp), and department

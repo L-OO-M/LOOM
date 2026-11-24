@@ -122,6 +122,16 @@ with a live account. What is covered today:
 - `npm run build` compiles the client components; the public E2E suite proves
   the tracker did not break any page or the SEO contract.
 
+The usage dashboard has the same gap: `/admin/analytics` (sections 05-07) and
+`/lead/analytics` are server-rendered from `usage_daily` / `tour_daily`, and the
+existing E2E session cannot sign in as an admin or a lead locally. Their data
+path is covered by `tests/usage.test.js` (arithmetic) and
+`tests/usage-rollup.test.js` (writes, idempotency, dry run), and the SQL was run
+against the real database by hand. What is not covered automatically is the
+rendering: after the first nightly rollup with real traffic, open both pages in
+both themes and at 390 px, and confirm the empty state appears on a chapter with
+no traffic yet.
+
 Before claiming the tour works for members, do one manual pass after a real
 login: first visit opens at Home (~900 ms), Next/Back/Skip behave, Escape
 skips, focus stays inside the card, completion survives a hard refresh and a

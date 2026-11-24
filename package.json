@@ -42,6 +42,7 @@
     "auth0:migrate:verify": "node load/auth0-migrate.mjs verify",
     "prune:retention": "node load/prune-retention.js",
     "rollup:analytics": "node load/rollup-analytics.js",
+    "rollup:usage": "node load/rollup-usage.js",
     "rollup:federation": "node load/rollup-federation.js"
   },
   "dependencies": {

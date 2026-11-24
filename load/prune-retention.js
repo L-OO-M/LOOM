@@ -21,6 +21,7 @@
 // SAFE BY DEFAULT: without --apply this only prints what it would delete.
 import postgres from "postgres";
 import { databaseUrl } from "./env-local.js";
+import { RETENTION_PLAN } from "../lib/retention-plan.js";
 
 const apply = process.argv.includes("--apply");
 const daysArg = process.argv.indexOf("--days");
@@ -30,23 +31,9 @@ if (daysArg !== -1 && (!Number.isFinite(globalDays) || globalDays < 1)) {
   process.exit(1);
 }
 
-// Each table gets its own window. Defaults are deliberately conservative:
-// long enough that nothing a student could still be shown is destroyed.
-//   - raw webhook payloads: 90d. The derived aggregates (student_daily_activity,
-//     ranking_events) are computed from these, so they must outlive them.
-//   - audit trail: 2 years. This is the chapter's record of who changed what.
-//   - read notifications: 180d. Unread ones are never touched.
-//   - usage telemetry: 180d. `page_views` and `ui_events` are the raw rows behind
-//     the usage report; the nightly aggregates are what the admin surfaces read,
-//     so a half-year of raw detail is enough to re-derive them and answer a
-//     "what happened last term" question.
-const PLAN = [
-  { table: "github_events", column: "received_at", days: 90, note: "raw webhook payloads" },
-  { table: "audit_logs", column: "created_at", days: 730, note: "audit trail (2 years)" },
-  { table: "notifications", column: "created_at", days: 180, readOnly: true, note: "read notifications only" },
-  { table: "page_views", column: "created_at", days: 180, note: "raw page views (aggregates outlive them)" },
-  { table: "ui_events", column: "created_at", days: 180, note: "raw tour events (aggregates outlive them)" }
-];
+// Windows live in lib/retention-plan.js so the cron job cannot drift from this
+// script (it already had, once).
+const PLAN = RETENTION_PLAN;
 
 const sql = postgres(databaseUrl(), { max: 1, prepare: false });
 

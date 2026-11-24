@@ -34,7 +34,9 @@ const STRICT_TABLES = [
   "ranking_scores", "resource_progress", "roadmap_node_analytics", "skill_badges",
   "sponsorships", "student_achievements", "student_analytics_snapshots",
   "student_daily_activity", "student_oss_contributions", "student_roadmap_progress",
-  "user_profiles", "verifiable_credentials", "volunteer_slots", "wiki_pages"
+  "user_profiles", "verifiable_credentials", "volunteer_slots", "wiki_pages",
+  // Added with migration 108/109: telemetry, its nightly aggregates.
+  "ui_events", "usage_daily", "tour_daily"
 ];
 
 // Tables with no tenant_id column, and the one table where NULL is the intended
@@ -170,7 +172,8 @@ describe("tenant scoping: no escape hatch on tenant-owned tables", () => {
     ["lib/lead.js", "departmentIds come from the tenant-filtered departments query in the same function"],
     ["lib/recommend.js", "helper candidates come from findHelpers(), which filters available helpers by tenant"],
     ["lib/standings.js", "joined to the tenant-filtered profile set; the CTEs are per-student aggregates"],
-    ["lib/practice-sync.js", "the platform cron job must discover due work across tenants; each claim and every subsequent read/write is tenant-pinned by tenant_id + user_id"]
+    ["lib/practice-sync.js", "the platform cron job must discover due work across tenants; each claim and every subsequent read/write is tenant-pinned by tenant_id + user_id"],
+  ["lib/usage-rollup.js", "the nightly usage rollup aggregates every chapter in one pass on the owner connection; reads have no tenant predicate by design, and the write replaces per-day rows inside one transaction"]
   ];
 
   it("never reads a tenant table directly with no tenant or self-scoping predicate", () => {
