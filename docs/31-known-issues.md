@@ -132,12 +132,13 @@ rendering: after the first nightly rollup with real traffic, open both pages in
 both themes and at 390 px, and confirm the empty state appears on a chapter with
 no traffic yet.
 
-First-visit page intros have the same gap for the same reason. Their copy and
-routing are covered by `tests/page-intros.test.js` (every page in
-`app/(app)` must resolve an entry, ids must stay unique and tour-shaped), and
-the spotlight vocabulary by `tests/tour.test.js`, but the banner itself only
-renders for a signed-in member: walk one page per workspace after the next login
-and confirm the banner appears once, dismisses, and stays dismissed after a
+Page guides have the same gap for the same reason. Their copy and routing are
+covered by `tests/page-guides.test.js` (every page in `app/(app)` must resolve an
+entry, ids must stay unique and tour-shaped, and every documented control label
+must still exist in `app/` or `components/`), and the spotlight vocabulary by
+`tests/tour.test.js`, but the panel itself only renders for a signed-in member:
+walk one page per workspace after the next login and confirm it opens on a first
+visit, collapses to the "How this page works" line, and stays collapsed after a
 reload. `GET /api/telemetry` returns only the caller's own `tour_state`.
 
 Before claiming the tour works for members, do one manual pass after a real
